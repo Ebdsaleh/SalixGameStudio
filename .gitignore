@@ -1,0 +1,12 @@
+# Ignore the entire build directory
+/build/
+
+# Ignore Visual Studio Code specific files
+.vscode/
+!/.vscode/c_cpp_properties.json
+
+# Ignore Visual Studio specif files
+*.VC.db
+*.sln
+*.suo
+*.vcxproj*
