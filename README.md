@@ -38,7 +38,7 @@ You must have **Visual Studio 2022** installed with the **"Desktop development w
 
 1.  **Clone the repository:**
     ```sh
-    git clone [https://github.com/ebdsaleh/SalixGameStudio.git](https://github.com/ebdsaleh/SalixGameStudio.git)
+    git clone [https://github.com/Ebdsaleh/SalixGameStudio.git](https://github.com/Ebdsaleh/SalixGameStudio.git)
     ```
 2.  **Open the Correct Terminal:**
     From the Windows Start Menu, launch the **"x64 Native Tools Command Prompt for VS 2022"**. This is crucial for setting up the 64-bit build environment.
