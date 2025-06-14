@@ -26,7 +26,16 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // 3. Game Loop
+    // 3. Create a Renderer
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if (renderer == nullptr) {
+        std::cout << "Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    // 4. Game Loop
     bool is_running = true;
     while (is_running) {
         SDL_Event event;
@@ -36,10 +45,19 @@ int main(int argc, char* argv[]) {
             if (event.type == SDL_QUIT) {
                 is_running = false;
             }
+
+            // 5. Set the draw color and clear the screen
+            SDL_SetRenderDrawColor(renderer, 15, 20, 40, 255);
+            SDL_RenderClear(renderer);
+            // -- Drawing  happens here in the future --
+            
+            // 6. Present the renderer to the screen
+            SDL_RenderPresent(renderer);
         }
     }
 
-    // 4. Shutdown and Clean up
+    // 7. Shutdown and Clean up
+    SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
 
