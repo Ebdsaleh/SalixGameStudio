@@ -3,8 +3,10 @@
 
 // We forward declare SDL_Window because the interface needs to know what kind of 
 // window to initialize itself with.
-
 struct SDL_Window;
+
+// Forward declare SDL_Texture for texture loading.
+struct SDL_Texture;
 
 enum class RendererType {
     SDL, // The default option
@@ -34,5 +36,6 @@ class IRenderer {
     virtual void shutdown() = 0;
     virtual void begin_frame() = 0;
     virtual void end_frame() = 0;
-
+    // A contract that all renderers must know how to load a texture.
+    virtual SDL_Texture* load_texture(const char* file_path) = 0;
 };

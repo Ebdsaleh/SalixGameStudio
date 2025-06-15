@@ -1,10 +1,11 @@
 // Engine.h
 #pragma once
 #include "../rendering/IRenderer.h"
+
 // Forwared declare SDL_Window, so we don't have to include the SDL header here.
 // This is a good practice to keep the header files clean and reduce compile times.
 
-class IRenderer;
+class AssetManager;
 struct SDL_Window;
 
 class Engine {
@@ -29,5 +30,6 @@ class Engine {
     // The Engine owns the core subsystems.
     // The Engine holds a pointer to abstract interface, not a complete implmentation.
     IRenderer* renderer;
+    AssetManager* asset_manager;  // The new AssetManager.
 
 };

@@ -1,6 +1,7 @@
 // Renderer.cpp
 #include "SDLRenderer.h"
 #include <SDL.h>
+#include <SDL_image.h>
 #include <iostream>
 
 SDLRenderer::SDLRenderer() {
@@ -44,8 +45,15 @@ SDL_Window* SDLRenderer::initialize(const WindowConfig& config) {
 
 void SDLRenderer::shutdown() {
     std::cout << "Shutting down renderer." << std::endl;
-    SDL_DestroyRenderer(sdl_renderer);
-    sdl_renderer = nullptr; // Prevent double-deletion
+    if (sdl_renderer) {
+        SDL_DestroyRenderer(sdl_renderer);
+    }
+
+    if (window) {
+        SDL_DestroyWindow(window);
+    }
+
+    sdl_renderer = nullptr; // Prevent double-deletion  
     window = nullptr;
 }
 
@@ -58,4 +66,14 @@ void SDLRenderer::begin_frame() {
 void SDLRenderer::end_frame() {
     // Present the back buffer to the screen.
     SDL_RenderPresent(sdl_renderer);
+}
+
+// Texture loading implementation.
+SDL_Texture* SDLRenderer::load_texture(const char* file_path) {
+    SDL_Texture* texture = IMG_LoadTexture(sdl_renderer, file_path);
+
+    if (texture == nullptr) {
+        std::cerr << "SDLRenderer::load_texture - Failed to load texture " << file_path << "! SDL_image Error: " << IMG_GetError()<< std::endl;
+    }
+    return texture;
 }

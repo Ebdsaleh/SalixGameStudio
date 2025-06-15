@@ -4,6 +4,7 @@
 // All RendererTypes will be included here to allow the Engine to use a singular set of methods for rendering.
 #include "../rendering/SDLRenderer.h"
 // --- END NOTE ---
+#include "../assets/AssetManager.h"
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
 #include <iostream>
@@ -13,6 +14,7 @@ Engine::Engine() {
     window = nullptr;
     renderer = nullptr;
     is_running = false;
+    asset_manager = nullptr;
 }
 
 Engine::~Engine() {
@@ -65,6 +67,12 @@ bool Engine::initialize(const WindowConfig& config) {
         return false;
     }
 
+    // --- AssetManager Initialization ---
+    // Create and initialize the AssetManager.
+
+    asset_manager = new AssetManager();
+    asset_manager->initialize(renderer);  // pass the renderer to the asset manager.
+
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
     return true;
@@ -80,7 +88,14 @@ void Engine::run() {
 
 void Engine::shutdown() {
     std::cout << "Shutting down engine." << std::endl;
-    if(renderer) {
+
+    // Shutdown subsystems in reverse order of creatation (LIFO).
+    if (asset_manager){
+        asset_manager->shutdown();
+        delete asset_manager;
+    }
+    
+    if (renderer) {
         renderer->shutdown();
         delete renderer;
     }

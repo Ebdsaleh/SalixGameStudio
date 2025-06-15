@@ -20,7 +20,8 @@ class SDLRenderer : public IRenderer {
     // The core rendering commands
     void begin_frame() override;
     void end_frame() override;
-
+    // Delcare Texture loading.
+    SDL_Texture* load_texture(const char* file_path) override;
     private:
     // The Renderer's own SDL_Renderer object
 
