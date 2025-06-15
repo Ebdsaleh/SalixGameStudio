@@ -1,6 +1,6 @@
 // Engine.cpp
 #include "Engine.h"
-
+#include "rendering/Renderer.h"
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
 #include <iostream>
@@ -22,7 +22,7 @@ Engine::~Engine() {
 
 bool Engine::initialize() {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
-        std::cout << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
+        std::cerr << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
 
     }
@@ -37,16 +37,18 @@ bool Engine::initialize() {
     );
 
     if (window == nullptr) {
-        std::cout << "Engine::initialize - Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+        std::cerr << "Engine::initialize - Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         SDL_Quit();
         return false;
     }
 
-    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if (renderer == nullptr) {
-        std::cout << "Engine::initalize - Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
+    // Create and initialize Renderer
+    renderer = new Renderer();
+    if (!renderer->initialize(window)) {
+        std::cerr << "Engine::initalize - Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window);
         SDL_Quit();
+        delete renderer;
         return false;
     }
 
@@ -65,15 +67,22 @@ void Engine::run() {
 
 void Engine::shutdown() {
     std::cout << "Shutting down engine." << std::endl;
-    SDL_DestroyWindow(window);
-    SDL_DestroyRenderer(renderer);
+    if(renderer) {
+        renderer->shutdown();
+        delete renderer;
+    }
+
+    if (window) {
+        SDL_DestroyWindow(window);
+    }
+   
     SDL_Quit();
 }
 
 void Engine::process_input() {
-    SDL_Event sdl_event;
-    while (SDL_PollEvent(&sdl_event)) {
-        if (sdl_event.type == SDL_QUIT) {
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
             is_running = false;
         }
     }
@@ -84,10 +93,18 @@ void Engine::update() {
 }
 
 void Engine::render() {
-    SDL_SetRenderDrawColor(renderer, 15, 20, 40, 255);
-    SDL_RenderClear(renderer);
+    // Safer error handling if renderer is null, just stop the engine.
+    if(renderer == nullptr) {
+        std::cerr << "Engine::render - Renderer is null, shuting down." << std::endl;
+        is_running = false;  // Gracefully exit the main loop.
+        return;
+    }
+    
+    // Begin drawing the frame
+    renderer->begin_frame();
 
-    // All future drawing will go here
+    // Process rendering objects here
 
-    SDL_RenderPresent(renderer);
+    // Present the rendered frame
+    renderer->end_frame();
 }

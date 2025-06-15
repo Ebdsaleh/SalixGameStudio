@@ -4,8 +4,8 @@
 // Forwared declare SDL_Window, so we don't have to include the SDL header here.
 // This is a good practice to keep the header files clean and reduce compile times.
 
+class Renderer;
 struct SDL_Window;
-struct SDL_Renderer;
 
 class Engine {
     public:
@@ -24,8 +24,9 @@ class Engine {
 
     bool is_running;
 
-    // pointers to the core SDL objects
-    SDL_Window *window;
-    SDL_Renderer* renderer;
+    // The Engine owns the main window
+    SDL_Window *window = nullptr;
+    // The Engine owns the core subsystems including our new Renderer
+    Renderer* renderer = nullptr;
 
 };
