@@ -1,17 +1,11 @@
 // Engine.h
 #pragma once
-
+#include "../rendering/IRenderer.h"
 // Forwared declare SDL_Window, so we don't have to include the SDL header here.
 // This is a good practice to keep the header files clean and reduce compile times.
 
 class IRenderer;
 struct SDL_Window;
-enum class RendererType {
-    SDL, // The default option
-    OpenGl, // OpenGl using the SDL API
-    Vulkan,  // For the future
-    DirectX, // For the future
-};
 
 class Engine {
     public:
@@ -19,7 +13,7 @@ class Engine {
     ~Engine();
 
     // The main phases of the engine's lifecycle
-    bool initialize(RendererType renderer_type);
+    bool initialize(const WindowConfig& config);
     void run();
     void shutdown();
 

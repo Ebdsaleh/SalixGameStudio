@@ -8,9 +8,6 @@
 #include <SDL.h>
 #include <iostream>
 
-// Constants for the window
-const int WINDOW_WIDTH = 1280;
-const int WINDOW_HEIGHT = 720;
 
 Engine::Engine() {
     window = nullptr;
@@ -23,29 +20,15 @@ Engine::~Engine() {
 
 }
 
-bool Engine::initialize(RendererType renderer_type) {
+bool Engine::initialize(const WindowConfig& config) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
-    }
+    }  
     
-    window = SDL_CreateWindow(
-        "Salix Game Studio", // Window title
-        SDL_WINDOWPOS_CENTERED, // x position of the window
-        SDL_WINDOWPOS_CENTERED, // y position of the window
-        WINDOW_WIDTH, // Width of the window
-        WINDOW_HEIGHT, // Height of the window
-        SDL_WINDOW_SHOWN // The window's flag, in this case we are causing the window to be visible.
-    );
-
-    if (window == nullptr) {
-        std::cerr << "Engine::initialize - Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-        SDL_Quit();
-        return false;
-    }
-
     // Create and initialize Renderer
-    switch (renderer_type) {
+    // --- Renderer Factory ---
+    switch (config.renderer_type) {
         case RendererType::SDL:
             renderer = new SDLRenderer();         
             break;
@@ -71,11 +54,14 @@ bool Engine::initialize(RendererType renderer_type) {
         return false;       
     }
 
-    if (!renderer->initialize(window)) {
-        std::cerr << "Engine::initalize - Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-        SDL_DestroyWindow(window);
-        SDL_Quit();
+    // --- Delegate  initialization --
+    // Ask the renderer to initialize passing the configuration it needs to create the window.
+    window = renderer->initialize(config);
+
+    if (window == nullptr) {
+        std::cerr << "Engine::initialize - Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         delete renderer;
+        SDL_Quit();
         return false;
     }
 
@@ -121,17 +107,16 @@ void Engine::update() {
 
 void Engine::render() {
     // Safer error handling if renderer is null, just stop the engine.
-    if(renderer == nullptr) {
+    if (renderer == nullptr) {
         std::cerr << "Engine::render - Renderer is null, shuting down." << std::endl;
         is_running = false;  // Gracefully exit the main loop.
         return;
     }
-    
     // Begin drawing the frame
     renderer->begin_frame();
 
     // Process rendering objects here
 
     // Present the rendered frame
-    renderer->end_frame();
+    renderer->end_frame();   
 }

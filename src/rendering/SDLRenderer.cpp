@@ -15,10 +15,19 @@ SDLRenderer::~SDLRenderer() {
     }
 }
 
-bool SDLRenderer::initialize(SDL_Window* window) {
-    if (!window) {
+SDL_Window* SDLRenderer::initialize(const WindowConfig& config) {
+
+    window = SDL_CreateWindow(
+        config.title,
+        SDL_WINDOWPOS_CENTERED,
+        SDL_WINDOWPOS_CENTERED,
+        config.width,
+        config.height,
+        SDL_WINDOW_SHOWN);
+
+    if (window == nullptr) {
         std::cout << "Renderer::initialize - Window is null!" << std::endl;
-        return false;
+        return nullptr;
     }
 
     // Create the SDL renderer
@@ -26,17 +35,18 @@ bool SDLRenderer::initialize(SDL_Window* window) {
 
     if (sdl_renderer == nullptr) {
         std::cout << "Renderer::initalize - Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-        return false;
+        return nullptr;
     }
 
     std::cout << "Renderer created successfully." << std::endl;
-    return true;
+    return window;
 }
 
 void SDLRenderer::shutdown() {
     std::cout << "Shutting down renderer." << std::endl;
     SDL_DestroyRenderer(sdl_renderer);
     sdl_renderer = nullptr; // Prevent double-deletion
+    window = nullptr;
 }
 
 void SDLRenderer::begin_frame() {

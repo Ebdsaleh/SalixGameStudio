@@ -1,7 +1,7 @@
 // Renderer.h
 #pragma once
 #include "IRenderer.h" // We need to include the interface we are implementing.
-
+#include <SDL.h>
 // SDLRenderer is concrete implementation of the IRenderer interface.
 
 class SDLRenderer : public IRenderer {
@@ -14,7 +14,7 @@ class SDLRenderer : public IRenderer {
 
 
     // The Renderer's lifecycle methods
-    bool initialize(SDL_Window*) override;
+    SDL_Window* initialize(const WindowConfig& config) override;
     void shutdown() override;
 
     // The core rendering commands
@@ -23,5 +23,7 @@ class SDLRenderer : public IRenderer {
 
     private:
     // The Renderer's own SDL_Renderer object
-    struct SDL_Renderer* sdl_renderer = nullptr;
+
+    SDL_Renderer* sdl_renderer;
+    SDL_Window* window;
 };
