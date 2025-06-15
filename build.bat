@@ -16,12 +16,15 @@ echo --- Starting build...
 :: /LIBPATH:vendor\SDL2\lib\x64 -> Tell the linker where to find the .lib files
 :: SDL2.lib SDL2main.lib -> the specific library files to link against
 
-cl /EHsc /I vendor\SDL2\include /Fo:build\ /Fe:build\salix.exe src\main.cpp src\core\Engine.cpp src\rendering\SDLRenderer.cpp src\ecs\Transform.cpp vendor\SDL2\lib\x64\SDL2.lib vendor\SDL2\lib\x64\SDL2main.lib Shell32.lib /link /SUBSYSTEM:CONSOLE
+cl /EHsc /I vendor\SDL2\include /Fo:build\ /Fe:build\salix.exe src\main.cpp src\core\Engine.cpp src\rendering\SDLRenderer.cpp src\ecs\Transform.cpp vendor\SDL2\lib\x64\SDL2.lib vendor\SDL2\lib\x64\SDL2main.lib vendor\SDL2_image\lib\x64\SDL2_image.lib Shell32.lib /link /SUBSYSTEM:CONSOLE
 
 :: Check if the build was successful before copying the DLL
 if exist build\salix.exe (
-    echo --- Copying DLL...
+    echo --- Copying DLL Files...
+    echo --- SDL2.dll 
     copy vendor\SDL2\lib\x64\SDL2.dll build\
+    echo --- SDL2_image.dll 
+    copy vendor\SDL2_image\lib\x64\SDL2_image.dll build\
     echo --- Build Successful.
 ) else (
     echo --- Build FAILED.
