@@ -2,13 +2,17 @@
 #pragma once
 
 #include "Element.h"
+#include "Transform.h"  // We need the full Transform definition now.
 #include <vector>
 #include <memory>  // For std::unique_ptr
 #include <iostream>  // For std::cerr
 
 class Entity {
     public:
-        Entity() = default;
+        // The constructor now automatically adds a Transform and stores a pointer to it.
+        Entity() {
+            transform = add_element<Transform>();
+        }
 
         // The Entity's lifecycle methods. It will delegate these calls to its elements
         void update(float delta_time) {
@@ -22,6 +26,12 @@ class Entity {
                 element->render(renderer);
             }
         }
+
+        // A convenient helper method to get the entity's transform.
+        Transform* get_transform() const {
+            return transform;
+        }
+
         // --- Template methods for adding and getting elements ---
         // Template methods are defined of type T, adds it to this entity, and returns a pointer to it.
         template<typename T>
@@ -72,4 +82,6 @@ class Entity {
         // all of its Elements are automatically deleted as well.
         // Implementing the cascading purge system as intended.
         std::vector<std::unique_ptr<Element>> elements;
+        // A convenient, non-owned pointer to the required Transform Element.
+        Transform* transform;
 };
