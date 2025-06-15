@@ -5,7 +5,7 @@ int main(int argc, char* argv[]) {
     Engine engine;
 
     // Initialize the engine. If it fails, exit.
-    if (!engine.initialize()) {
+    if (!engine.initialize(RendererType::SDL)) {
         return 1;
     }
 

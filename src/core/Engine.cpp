@@ -1,6 +1,9 @@
 // Engine.cpp
 #include "Engine.h"
-#include "rendering/Renderer.h"
+// --- NOTE ---
+// All RendererTypes will be included here to allow the Engine to use a singular set of methods for rendering.
+#include "../rendering/SDLRenderer.h"
+// --- END NOTE ---
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
 #include <iostream>
@@ -20,13 +23,12 @@ Engine::~Engine() {
 
 }
 
-bool Engine::initialize() {
+bool Engine::initialize(RendererType renderer_type) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
-
     }
-
+    
     window = SDL_CreateWindow(
         "Salix Game Studio", // Window title
         SDL_WINDOWPOS_CENTERED, // x position of the window
@@ -43,7 +45,32 @@ bool Engine::initialize() {
     }
 
     // Create and initialize Renderer
-    renderer = new Renderer();
+    switch (renderer_type) {
+        case RendererType::SDL:
+            renderer = new SDLRenderer();         
+            break;
+        
+        // --- Future renderer types would be handled here ---
+        case RendererType::OpenGl:
+            // renderer = new OpenGLRenderer(); // Example for the future
+            std::cerr << "Engine::initialize - OpenGL renderer is not yet supported." << std::endl;
+            // Fall through to default for cleanup
+        case RendererType::Vulkan:
+            // renderer = new VulkanRenderer(); // Example for the future
+            std::cerr << "Engine::initialize - Vulkan renderer is not yet supported." << std::endl;
+            // Fall through to default for cleanup
+        case RendererType::DirectX:
+            // renderer = new DirectXRenderer(); // Example for the future
+            std::cerr << "Engine::initialize - DirectX renderer is not yet supported." << std::endl;
+            // Fall through to default for cleanup
+
+        default:
+        // render_type is null, abort renderer creation and exit main loop.
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return false;       
+    }
+
     if (!renderer->initialize(window)) {
         std::cerr << "Engine::initalize - Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
         SDL_DestroyWindow(window);
