@@ -12,8 +12,6 @@ class Element {
         // They are virtual so that concrete elements can override them.
         virtual void initialize() {}
         virtual void update(float delta_time) {}
-        // The render method will need the renderer to draw anything
-        virtual void render(class IRenderer* renderer) {}
         virtual void shutdown() {}
 
     protected:

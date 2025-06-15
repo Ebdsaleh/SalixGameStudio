@@ -2,10 +2,11 @@
 #pragma once
 
 #include "Element.h"
+#include "RenderableElement.h"  // To allow rendering of ONLY Renderable Elements (This will optimize the rendering routine).
 #include "Transform.h"  // We need the full Transform definition now.
 #include <vector>
-#include <memory>  // For std::unique_ptr
-#include <iostream>  // For std::cerr
+#include <memory>  // For std::unique_ptr.
+#include <iostream>  // For std::cerr.
 
 class Entity {
     public:
@@ -14,15 +15,16 @@ class Entity {
             transform = add_element<Transform>();
         }
 
-        // The Entity's lifecycle methods. It will delegate these calls to its elements
+        // The Entity's lifecycle methods. It will delegate these calls to its elements.
         void update(float delta_time) {
-            for (auto& element : elements) {
+            for (auto& element : all_elements) {
                 element->update(delta_time);
             }
         }
 
-        void render(class IRenderer* renderer) {
-            for (auto& element : elements) {
+        // The render loop iterates ONLY over the specialized renderable elements list.
+        void render(IRenderer* renderer) {
+            for (auto& element : renderable_elements) {
                 element->render(renderer);
             }
         }
@@ -38,25 +40,31 @@ class Entity {
         T* add_element() {
             // Create a new element using a smart pointer for safe memory management.
             // std::make_unique is the modern C++ way to create a unique_ptr.
-            auto new_element = std::make_unique<T>();
+            auto new_element_owner = std::make_unique<T>();
 
             // Set the owner so the element knows whom it belongs to.
-            new_element->owner = this;
+            new_element_owner->owner = this;
 
             // Get a raw pointer to the new element before we move to a unique_ptr.
-            T* element_ptr = new_element.get();
+            T* raw_ptr = new_element_owner.get();
 
-            // Move the unique_ptr into our vector. The vector now owns the memory.
-            elements.push_back(std::move(new_element));
+            // Check if the new element is also a RenderableElement.
+            RenderableElement* renderable = dynamic_cast<RenderableElement*>(raw_ptr);
+            if (renderable) {
+                // If it is, add its raw pointer to our specialized list.
+                renderable_elements.push_back(renderable);
+            }
+            // Add the new element to the master list that owns its memory.
+            all_elements.push_back(std::move(new_element_owner));
 
-            element_ptr->initalize();
-            return element_ptr;
+            raw_ptr->initialize();
+            return raw_ptr;
         }
 
         // Searches for an element of type T and returns a pointer to it, or a nullptr if not found.
         template<typename T>
         T* get_element() {
-            for (auto& element : elements) {
+            for (auto& element : all_elements) {
                 // dynamic_cast is a safe way to check if an element is of a certain type.
                 T* result = dynamic_cast<T*>(element.get());
                 if (result != nullptr) {
@@ -81,7 +89,12 @@ class Entity {
         // The Entity OWNS its Elements. Using std::unique_ptr ensures that when an Entity is destroyed, 
         // all of its Elements are automatically deleted as well.
         // Implementing the cascading purge system as intended.
-        std::vector<std::unique_ptr<Element>> elements;
+        std::vector<std::unique_ptr<Element>> all_elements;
+
+        // A seperate, non-owning list of only elements that can be rendered.
+        // optimizing our render loop.
+        std::vector<RenderableElement*> renderable_elements;
+
         // A convenient, non-owned pointer to the required Transform Element.
         Transform* transform;
 };
