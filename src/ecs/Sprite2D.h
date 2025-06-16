@@ -3,7 +3,7 @@
 
 #include "../math/Color.h"
 #include "RenderableElement.h"
-#include "../math/Vector3.h"  // For the offset.
+#include "../math/Vector2.h"  // For the pivot and offset.
 #include <string>
 
 // Forward declarations
@@ -25,7 +25,8 @@ class Sprite2D : public RenderableElement {
         // --- Properties ---
         
         Color color;            // Color property for color tinting.
-        Vector3 offset;         // A local offset from the Transform's position
+        Vector2 offset;         // A local offset from the Transform's position
+        Vector2 pivot;          // Normalized pivot point (0,0 = top-left, 1,1 = bottom-right).
         bool flip_h = false;    // Flip horizontally?
         bool flip_v = false;    // Flip veritcally?
         int sorting_layer = 0;  // For future use in the Scene.
