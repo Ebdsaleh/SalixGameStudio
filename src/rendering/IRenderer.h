@@ -10,6 +10,15 @@ struct SDL_Window;
 struct SDL_Texture;
 struct SDL_Rect;
 
+// A renderer agnostic enum for flipping a sprite.
+enum class SpriteFlip {
+    None,
+    Horizontal,
+    Vertical,
+    Both
+};
+
+// An enum for declaring the type of renderer in use.
 enum class RendererType {
     SDL, // The default option
     OpenGl, // OpenGl using the SDL API
