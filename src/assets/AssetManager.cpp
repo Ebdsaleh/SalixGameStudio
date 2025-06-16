@@ -2,6 +2,7 @@
 
 #include "AssetManager.h"
 #include "../rendering/IRenderer.h"
+#include "../rendering/ITexture.h"
 #include <SDL.h>  // For SDL_Texture and SDL_DestroyTexture
 
 AssetManager::AssetManager() : renderer(nullptr) {}
@@ -17,12 +18,12 @@ void AssetManager::initialize(IRenderer* renderer_ptr) {
 void AssetManager::shutdown() {
     // Clear the cache and free all the loaded textures.
     for (auto const& [key, val] : texture_cache) {
-        SDL_DestroyTexture(val);
+        delete val;
     }
     texture_cache.clear();
 }
 
-SDL_Texture* AssetManager::get_texture(const std::string& file_path) {
+ITexture* AssetManager::get_texture(const std::string& file_path) {
     // Check if the texture is already in our cache.
     auto it = texture_cache.find(file_path);
     if (it != texture_cache.end()) {
@@ -31,7 +32,7 @@ SDL_Texture* AssetManager::get_texture(const std::string& file_path) {
     }
 
     // Not in the texture cache. Ask the renderer to load if from disk.
-    SDL_Texture*  texture = renderer->load_texture(file_path.c_str());
+    ITexture*  texture = renderer->load_texture(file_path.c_str());
 
     if (texture) {
         // If loading was successful, store it in our cache for the next time.
