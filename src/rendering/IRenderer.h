@@ -44,4 +44,7 @@ class IRenderer {
     // A contract for drawing a texture at a specific location.
     virtual void draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) = 0;
 
+    // A contract for drawing a Sprite2D
+    virtual void draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle) = 0;
+
 };

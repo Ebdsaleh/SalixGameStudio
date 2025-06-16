@@ -84,3 +84,9 @@ void SDLRenderer::draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) 
         SDL_RenderCopy(sdl_renderer, texture, NULL, &dest_rect);
     }
 }
+
+void SDLRenderer::draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle) {
+    if (texture) {
+        SDL_RenderCopyEx(sdl_renderer, texture, NULL, &dest_rect, angle, NULL, SDL_FLIP_NONE);
+    }
+}

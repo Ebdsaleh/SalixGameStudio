@@ -31,8 +31,13 @@ void Sprite2D::render(IRenderer* renderer) {
             // Apply the transform's scaling to the texture.
             dest_rect.w = static_cast<int>(width * transform->scale.x);
             dest_rect.h = static_cast<int>(height * transform->scale.y);
-            // render the texture.
-            renderer->draw_texture(texture, dest_rect);
+            // Apply the transform's rotation to the texture.
+            double angle = static_cast<double>(transform->rotation.z);
+            // render the texture ignoring rotation.
+            // renderer->draw_texture(texture, dest_rect);
+
+            // render the texture using rotation.
+            renderer->draw_sprite(texture, dest_rect, angle);
         }
     }
 }

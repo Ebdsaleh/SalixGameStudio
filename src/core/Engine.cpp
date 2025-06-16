@@ -85,6 +85,9 @@ bool Engine::initialize(const WindowConfig& config) {
     // Set the scale to shrink the over-sized image, we're about to use.
     test_entity->get_transform()->scale = {0.1f, 0.1f, 0.1f};  // 10% of its size (actual size is 1200x1403)
 
+    // Set the rotation to the image in-line with the Entity
+    test_entity->get_transform()->rotation = {0.0f, 0.0f, 45.0f};
+
     // Add a Sprite Element to the Entity
     Sprite2D* test_sprite = test_entity->add_element<Sprite2D>();
 
