@@ -85,8 +85,20 @@ void SDLRenderer::draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) 
     }
 }
 
-void SDLRenderer::draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle) {
+void SDLRenderer::draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle, const Color& color) {
     if (texture) {
+        // --- Translation from our Color struct to SDL's requirements. ---
+        // Convert our 0.0-1.0 float values to 0-255 integer values.
+        Uint8 r = static_cast<Uint8>(color.r * 255.0f);
+        Uint8 g = static_cast<Uint8>(color.g * 255.0f);
+        Uint8 b = static_cast<Uint8>(color.b * 255.0f);
+        Uint8 a = static_cast<Uint8>(color.a * 255.0f);
+
+        // Set the texture's color and alpha modulation.
+        SDL_SetTextureColorMod(texture, r, g, b);
+        SDL_SetTextureAlphaMod(texture, a);
+
+        // Draw the textured, tinted, and rotated sprite.
         SDL_RenderCopyEx(sdl_renderer, texture, NULL, &dest_rect, angle, NULL, SDL_FLIP_NONE);
     }
 }
