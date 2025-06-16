@@ -55,6 +55,7 @@ class IRenderer {
     virtual void draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) = 0;
 
     // A contract for drawing a Sprite2D
-    virtual void draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle, const Color& color, SpriteFlip flip) = 0;
+    //  -- NOTE: Might need to make our own point struct to remain Renderer-agnostic. --
+    virtual void draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle, const struct SDL_Point* pivot, const Color& color, SpriteFlip flip) = 0;
 
 };
