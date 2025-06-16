@@ -2,6 +2,8 @@
 #pragma once
 
 #include "../math/Color.h"  // Need the Color definition to allow tinting while rendering sprites.
+#include "../math/Point.h"
+#include "../math/Rect.h"
 // We forward declare SDL_Window because the interface needs to know what kind of 
 // window to initialize itself with.
 struct SDL_Window;
@@ -56,6 +58,6 @@ class IRenderer {
 
     // A contract for drawing a Sprite2D
     //  -- NOTE: Might need to make our own point struct to remain Renderer-agnostic. --
-    virtual void draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle, const struct SDL_Point* pivot, const Color& color, SpriteFlip flip) = 0;
+    virtual void draw_sprite(SDL_Texture* texture, const Rect& dest_rect, double angle, const struct Point* pivot, const Color& color, SpriteFlip flip) = 0;
 
 };
