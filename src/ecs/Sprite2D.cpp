@@ -39,11 +39,22 @@ void Sprite2D::render(IRenderer* renderer) {
             // Apply the transform's rotation to the texture.
             double angle = static_cast<double>(world_rot.z);
 
+            // Determine the final flip state.
+            SpriteFlip flip_state = SpriteFlip::None;
+            if (flip_h && flip_v) {
+                flip_state = SpriteFlip::Both;
+            } else if (flip_h) {
+                flip_state = SpriteFlip::Horizontal;
+            } else if (flip_v) {
+                flip_state = SpriteFlip::Vertical;
+            }
+
+
             // render the texture ignoring rotation.
             // renderer->draw_texture(texture, dest_rect);
 
             // render the texture using rotation.
-            renderer->draw_sprite(texture, dest_rect, angle, color);
+            renderer->draw_sprite(texture, dest_rect, angle, color, flip_state);
         }
     }
 }
