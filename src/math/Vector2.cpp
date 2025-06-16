@@ -51,7 +51,7 @@ Vector2 operator*(float scalar, const Vector2& a) {
     return Vector2 {  scalar * a.x, scalar * a.y };
 }
 
-// Division
+// Vector2 Division
 Vector2 operator/(const Vector2& a, const Vector2& b){
     // Division by zero check.
     float result_x = 0.0f;
@@ -70,3 +70,31 @@ Vector2 operator/(const Vector2& a, const Vector2& b){
     return Vector2 { result_x, result_y };
 }
 
+// Vector2 / float
+Vector2 operator/(const Vector2& a, float divisor) {
+    if (divisor == 0.0f) {
+        std::cerr << "Warning: Division by zero scalar/divisor!" << std::endl;
+        return Vector2 { 0.0f, 0.0f };
+    }
+    return Vector2 { a.x / divisor, a.y / divisor };
+}
+
+// float / Vector 2
+Vector2 operator/(float divisor, const Vector2& a) {
+    float result_x = 0.0f;
+    if (a.x != 0.0f) {
+        result_x = divisor / a.x;
+    } else {
+        std::cerr << "Warning: Division by zero on X-axis!" << std::endl;
+        
+    }
+
+    float result_y = 0.0f;
+    if (a.y != 0.0f) {
+        result_y = divisor / a.y;
+    } else {
+        std::cerr << "Warning: Division by zero on Y-axis!" << std::endl;
+    }
+
+    return Vector2 { result_x, result_y };
+}

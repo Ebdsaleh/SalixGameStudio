@@ -77,4 +77,36 @@ Vector3 operator/(const Vector3& a, const Vector3& b) {
     return { result_x, result_y, result_z };
 }
 
-// --- LERP REQUIRED OVERLOADS ---
+// Vector3 / float
+Vector3 operator/(const Vector3& a, float divisor) {
+    if (divisor == 0.0f) {
+        std::cerr << "Warning: Division by zero scalar/divisor!" << std::endl;
+        return Vector3 { 0.0f, 0.0f, 0.0f };
+    }
+    return Vector3 { a.x / divisor, a.y / divisor, a.z / divisor };
+}
+
+Vector3 operator/(float divisor, const Vector3& a) {
+    float result_x = 0.0f;
+    if (a.x != 0.0f) {
+        result_x = divisor / a.x;
+    } else {
+        std::cerr << "Warning: Division by zero on X-axis!" << std::endl;
+    }
+
+    float result_y = 0.0f;
+    if (a.y != 0.0f) {
+        result_y = divisor / a.y;
+    } else {
+        std::cerr << "Warning: Division by zero on Y-axis!" << std::endl;
+    }
+
+    float result_z = 0.0f;
+    if (a.z != 0.0f) {
+        result_z = divisor / a.z;
+    } else {
+        std::cerr << "Warning: Division by zero on Z-axis!" << std::endl;
+    }
+
+    return Vector3 { result_x, result_y, result_z };
+}
