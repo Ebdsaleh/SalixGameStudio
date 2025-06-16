@@ -37,11 +37,18 @@ void Sprite2D::render(IRenderer* renderer) {
             SDL_Rect dest_rect;
             dest_rect.x = static_cast<int>(world_pos.x);
             dest_rect.y = static_cast<int>(world_pos.y);
+            
             // Apply the transform's scaling to the texture.
             dest_rect.w = static_cast<int>(width * world_scale.x);
             dest_rect.h = static_cast<int>(height * world_scale.y);
+            
             // Apply the transform's rotation to the texture.
             double angle = static_cast<double>(world_rot.z);
+            
+            // Calculate the rotation and pivot in pixels
+            SDL_Point pivot_point;
+            pivot_point.x = static_cast<int>(dest_rect.w * pivot.x);
+            pivot_point.y = static_cast<int>(dest_rect.h * pivot.y);
 
             // Determine the final flip state.
             SpriteFlip flip_state = SpriteFlip::None;
@@ -54,11 +61,11 @@ void Sprite2D::render(IRenderer* renderer) {
             }
 
 
-            // render the texture ignoring rotation.
+            // render the texture ignoring rotation (might be useful for GUI Elements).
             // renderer->draw_texture(texture, dest_rect);
 
             // render the texture using rotation.
-            renderer->draw_sprite(texture, dest_rect, angle, color, flip_state);
+            renderer->draw_sprite(texture, dest_rect, angle, &pivot_point, color, flip_state);
         }
     }
 }
