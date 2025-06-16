@@ -36,5 +36,9 @@ Vector2 operator*(float scalar, const Vector2& a);
 // Division
 Vector2 operator/(const Vector2& a, const Vector2& b);
 
+Vector2 operator/(const Vector2& a, float divisor);
+
+Vector2 operator/(float divisor, const Vector2& a);
+
 
 

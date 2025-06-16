@@ -36,4 +36,6 @@ Vector3 operator*(const Vector3& a, float scalar);
 // Dividing Vector3's.
 Vector3 operator/(const Vector3& a, const Vector3& b);
 
+Vector3 operator/(const Vector3& a, float divisor);
 
+Vector3 operator/(float divisor, const Vector3& a);
