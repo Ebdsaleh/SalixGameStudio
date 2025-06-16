@@ -21,11 +21,11 @@ class SDLRenderer : public IRenderer {
     void begin_frame() override;
     void end_frame() override;
     // Delcare Texture loading.
-    SDL_Texture* load_texture(const char* file_path) override;
+    ITexture* load_texture(const char* file_path) override;
     // Declare Texture Drawing
-    void draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) override;
+    void draw_texture(ITexture* texture, const Rect& dest_rect) override;
     // Declare Sprite2D drawing
-    void draw_sprite(SDL_Texture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
+    void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
     private:
     // The Renderer's own SDL_Renderer object
     SDL_Renderer* sdl_renderer;
