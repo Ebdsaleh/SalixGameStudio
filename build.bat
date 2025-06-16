@@ -16,7 +16,7 @@ echo --- Starting build...
 :: /LIBPATH:vendor\SDL2\lib\x64 -> Tell the linker where to find the .lib files
 :: SDL2.lib SDL2main.lib -> the specific library files to link against
 
-cl /EHsc /std:c++17 /I vendor\SDL2\include /I vendor\SDL2_image\include /Fo:build\ /Fe:build\salix.exe src\main.cpp src\core\Engine.cpp src\rendering\SDLRenderer.cpp src\rendering\SDLTexture.cpp src\ecs\Transform.cpp src\ecs\Sprite2D.cpp src\assets\AssetManager.cpp src\math\Vector2.cpp src\math\Vector3.cpp src\math\Color.cpp vendor\SDL2\lib\x64\SDL2.lib vendor\SDL2\lib\x64\SDL2main.lib vendor\SDL2_image\lib\x64\SDL2_image.lib Shell32.lib /link /SUBSYSTEM:CONSOLE
+cl /EHsc /std:c++17 /I vendor\SDL2\include /I vendor\SDL2_image\include /Fo:build\ /Fe:build\salix.exe src\main.cpp src\core\Engine.cpp src\rendering\SDLRenderer.cpp src\rendering\SDLTexture.cpp src\ecs\Transform.cpp src\ecs\Sprite2D.cpp src\ecs\Scene.cpp src\assets\AssetManager.cpp src\math\Vector2.cpp src\math\Vector3.cpp src\math\Color.cpp vendor\SDL2\lib\x64\SDL2.lib vendor\SDL2\lib\x64\SDL2main.lib vendor\SDL2_image\lib\x64\SDL2_image.lib Shell32.lib /link /SUBSYSTEM:CONSOLE
 
 :: Check if the build was successful before copying the DLL
 if exist build\salix.exe (
