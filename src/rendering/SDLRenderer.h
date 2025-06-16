@@ -25,7 +25,7 @@ class SDLRenderer : public IRenderer {
     // Declare Texture Drawing
     void draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) override;
     // Declare Sprite2D drawing
-    void draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle, const struct SDL_Point* pivot, const Color& color, SpriteFlip flip) override;
+    void draw_sprite(SDL_Texture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
     private:
     // The Renderer's own SDL_Renderer object
     SDL_Renderer* sdl_renderer;

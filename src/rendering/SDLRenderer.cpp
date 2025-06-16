@@ -85,9 +85,20 @@ void SDLRenderer::draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) 
     }
 }
 
-void SDLRenderer::draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, double angle, const struct SDL_Point* pivot, const Color& color, SpriteFlip flip) {
+void SDLRenderer::draw_sprite(SDL_Texture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) {
     if (texture) {
-        // --- Translation from our Color struct to SDL's requirements. ---
+
+        // --- Translation Layer --- 
+
+        // Convert our Engine's Rect to an SDL_Rect.
+        SDL_Rect sdl_dest_rect = { dest_rect.x, dest_rect.y, dest_rect.w, dest_rect.h };
+
+        // Convert our Engine's Point to an SDL_Point.
+        SDL_Point sdl_pivot_point;
+        if (pivot) {
+             sdl_pivot_point = { pivot->x, pivot->y };
+        }
+        
         // Convert our 0.0-1.0 float values to 0-255 integer values.
         Uint8 r = static_cast<Uint8>(color.r * 255.0f);
         Uint8 g = static_cast<Uint8>(color.g * 255.0f);
@@ -116,6 +127,6 @@ void SDLRenderer::draw_sprite(SDL_Texture* texture, const SDL_Rect& dest_rect, d
         }
 
         // Draw the textured, tinted, and rotated sprite.
-        SDL_RenderCopyEx(sdl_renderer, texture, NULL, &dest_rect, angle, pivot, flip_flag);
+        SDL_RenderCopyEx(sdl_renderer, texture, NULL, &sdl_dest_rect, angle, (pivot ? &sdl_pivot_point : NULL), flip_flag);
     }
 }
