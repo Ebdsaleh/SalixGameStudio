@@ -1,15 +1,19 @@
 // Vector2.h
 #pragma once
-
+#include <cmath>  // For sqrtf function.
 struct Vector2 {
     float x = 0.0f;
     float y = 0.0f;
 
+    // Calculates the magnitude (length) of the vector.
+    float length() const;
+
+    // Modifies this vector to make it a unit vector (length of 1).
+    void normalize();
+
     // A static "factory" method for linear interpolation.
     static Vector2 lerp(const Vector2& start, const Vector2& end, float t);
 };
-
-
 
 // --- Overloading declarations ---
 // Addition
@@ -39,6 +43,3 @@ Vector2 operator/(const Vector2& a, const Vector2& b);
 Vector2 operator/(const Vector2& a, float divisor);
 
 Vector2 operator/(float divisor, const Vector2& a);
-
-
-

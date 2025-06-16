@@ -1,10 +1,17 @@
 // Vector3
 #pragma once
+#include <cmath>  // For the sqrtf function.
 
 struct Vector3 {
     float x = 0.0f;
     float y = 0.0f;
     float z = 0.0f;
+
+    //  Calculates the magnitude (length) of the vector.
+    float length() const;
+
+    // Modifies this vector to make it a unit vector (length of 1).
+    void normalize();
 
     // static lerp method declaration
     static Vector3 lerp(const Vector3& start, const Vector3& end, float t);
