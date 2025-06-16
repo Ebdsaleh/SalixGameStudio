@@ -38,12 +38,12 @@ void Sprite2D::render(IRenderer* renderer) {
             dest_rect.h = static_cast<int>(height * world_scale.y);
             // Apply the transform's rotation to the texture.
             double angle = static_cast<double>(world_rot.z);
-            
+
             // render the texture ignoring rotation.
             // renderer->draw_texture(texture, dest_rect);
 
             // render the texture using rotation.
-            renderer->draw_sprite(texture, dest_rect, angle);
+            renderer->draw_sprite(texture, dest_rect, angle, color);
         }
     }
 }
