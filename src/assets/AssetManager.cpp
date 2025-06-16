@@ -25,10 +25,10 @@ void AssetManager::shutdown() {
 
 ITexture* AssetManager::get_texture(const std::string& file_path) {
     // Check if the texture is already in our cache.
-    auto it = texture_cache.find(file_path);
-    if (it != texture_cache.end()) {
+    auto cache_iterator = texture_cache.find(file_path);
+    if (cache_iterator != texture_cache.end()) {
         // Found it! Return the existing texture.
-        return it->second;
+        return cache_iterator->second;
     }
 
     // Not in the texture cache. Ask the renderer to load if from disk.

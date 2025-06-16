@@ -12,15 +12,11 @@ Sprite2D::Sprite2D() :
     width(0),
     height(0),
     pivot({ 0.5f, 0.5f }) {}
+
 Sprite2D::~Sprite2D() {}
 
-void Sprite2D::load_texture(AssetManager* asset_manager, std::string& file_path) {
+void Sprite2D::load_texture(AssetManager* asset_manager, const std::string& file_path) {
     texture = asset_manager->get_texture(file_path);
-
-    // If the texture loaded successfully, query its dimensions.
-    if (texture) {
-        SDL_QueryTexture(texture, NULL, NULL, &width, &height);
-    }
 }
 
 void Sprite2D::render(IRenderer* renderer) {
@@ -35,12 +31,12 @@ void Sprite2D::render(IRenderer* renderer) {
             Vector3 world_scale = transform->get_world_scale();
             
             Rect dest_rect;
-            dest_rect.x = static_cast<int>(world_pos.x);
-            dest_rect.y = static_cast<int>(world_pos.y);
+            dest_rect.x = static_cast<int>(world_pos.x + offset.x);
+            dest_rect.y = static_cast<int>(world_pos.y + offset.y);
             
             // Apply the transform's scaling to the texture.
-            dest_rect.w = static_cast<int>(width * world_scale.x);
-            dest_rect.h = static_cast<int>(height * world_scale.y);
+            dest_rect.w = static_cast<int>(texture->get_width() * world_scale.x);
+            dest_rect.h = static_cast<int>(texture->get_height() * world_scale.y);
             
             // Apply the transform's rotation to the texture.
             double angle = static_cast<double>(world_rot.z);

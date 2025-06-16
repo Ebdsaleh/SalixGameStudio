@@ -7,8 +7,7 @@
 #include <string>
 
 // Forward declarations
-struct SDL_Texture;
-class AssetManager;
+struct ITexture;
 class IRenderer;
 
 class Sprite2D : public RenderableElement {
@@ -17,7 +16,7 @@ class Sprite2D : public RenderableElement {
         virtual ~Sprite2D();
 
         // A method to load a texture for this sprite using the AssetManager
-        void load_texture(AssetManager* asset_manager, std::string& file_path);
+        void load_texture(class AssetManager* asset_manager, const std::string& file_path);
 
         // The implementation of the render method from RenderableElement Interface.
         void render(IRenderer* renderer) override;
@@ -33,7 +32,7 @@ class Sprite2D : public RenderableElement {
 
 
     private:
-        SDL_Texture* texture;
+        ITexture* texture;
         int width;
         int height;
 
