@@ -100,7 +100,8 @@ bool Engine::initialize(const WindowConfig& config) {
     // --- Use new Properties ---
     test_sprite->color = Color::White;  // Keep the color tint normal.
     test_sprite->offset.x = -50;        // Offset the sprite 50 pixels to the left.
-    test_sprite->flip_h = true;         // Flip sprite horizontally.
+    test_sprite->flip_h = false;         // Flip sprite horizontally.
+    test_sprite->pivot = {0.0f, 0.0f };
     // --- END TEST ---
 
     is_running = true;
