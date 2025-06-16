@@ -54,7 +54,8 @@ bool Engine::initialize(const WindowConfig& config) {
 
         default:
         // render_type is null, abort renderer creation and exit main loop.
-        SDL_DestroyWindow(window);
+        // Only call SDL_Quit() as the window doesn't exist yet.
+        std::cerr << "Engine::initialize - Invalid or unsupported renderer type requested!" << std::endl;
         SDL_Quit();
         return false;       
     }
