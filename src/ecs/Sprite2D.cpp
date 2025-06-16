@@ -7,7 +7,11 @@
 #include <SDL.h>
 #include <iostream>
 
-Sprite2D::Sprite2D() : texture(nullptr), width(0), height(0) {}
+Sprite2D::Sprite2D() : 
+    texture(nullptr), 
+    width(0),
+    height(0),
+    pivot({ 0.5f, 0.5f }) {}
 Sprite2D::~Sprite2D() {}
 
 void Sprite2D::load_texture(AssetManager* asset_manager, std::string& file_path) {
