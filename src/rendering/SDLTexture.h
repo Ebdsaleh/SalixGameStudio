@@ -18,7 +18,7 @@ class SDLTexture : public ITexture {
         SDL_Texture*  get_raw_texture() const;
     
     private:
-        SDL_Texture* texture;
+        SDL_Texture* sdl_texture;
         int width;
         int height;
 };
