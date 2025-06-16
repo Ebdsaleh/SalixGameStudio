@@ -25,14 +25,20 @@ void Sprite2D::render(IRenderer* renderer) {
         Transform* transform = owner->get_transform();
 
         if (transform) {
+            // Get the final calculated world-space transform values.
+            Vector3 world_pos = transform->get_world_position();
+            Vector3 world_rot = transform->get_world_rotation();
+            Vector3 world_scale = transform->get_world_scale();
+            
             SDL_Rect dest_rect;
-            dest_rect.x = static_cast<int>(transform->position.x);
-            dest_rect.y = static_cast<int>(transform->position.y);
+            dest_rect.x = static_cast<int>(world_pos.x);
+            dest_rect.y = static_cast<int>(world_pos.y);
             // Apply the transform's scaling to the texture.
-            dest_rect.w = static_cast<int>(width * transform->scale.x);
-            dest_rect.h = static_cast<int>(height * transform->scale.y);
+            dest_rect.w = static_cast<int>(width * world_scale.x);
+            dest_rect.h = static_cast<int>(height * world_scale.y);
             // Apply the transform's rotation to the texture.
-            double angle = static_cast<double>(transform->rotation.z);
+            double angle = static_cast<double>(world_rot.z);
+            
             // render the texture ignoring rotation.
             // renderer->draw_texture(texture, dest_rect);
 
