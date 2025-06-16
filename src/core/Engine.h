@@ -8,6 +8,7 @@
 // This is a good practice to keep the header files clean and reduce compile times.
 
 class AssetManager;
+class Scene; 
 struct SDL_Window;
 
 class Engine {
@@ -33,12 +34,13 @@ class Engine {
     // The Engine holds a pointer to abstract interface, not a complete implmentation.
     IRenderer* renderer;
     AssetManager* asset_manager;  // The new AssetManager.
+    Scene* active_scene;
 
     // --- TEST  ENTITIES ---
     // A test entity to display out sprite.
     // We use a unique_ptr to manage its memory automatically.
-    std::unique_ptr<Entity> parent_entity;
-    std::unique_ptr<Entity> child_entity;
+    // std::unique_ptr<Entity> parent_entity;
+    // std::unique_ptr<Entity> child_entity;
     // --- END TEST ---
 
 };
