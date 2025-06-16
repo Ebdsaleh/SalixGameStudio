@@ -30,12 +30,12 @@ Vector2 operator*(const Vector2& a, const Vector2& b) {
 // --- Required for Linear interpolation ---
 // Multiply Vector2 and a float 
 Vector2 operator*(const Vector2& a, float scalar) {
-    return a * scalar; 
+    return Vector2 { a.x * scalar, a.y * scalar };
 }
 
 // Multiply a float and a Vector2 // required for lerp
 Vector2 operator*(float scalar, const Vector2& a) {
-    return a * scalar;  
+    return Vector2 {  scalar * a.x, scalar * a.y };
 }
 
 // Division
