@@ -7,6 +7,7 @@
 #include "../assets/AssetManager.h"
 #include "../ecs/Sprite2D.h"
 #include "../ecs/Transform.h"
+#include "../ecs/Scene.h"
 
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
@@ -18,6 +19,7 @@ Engine::Engine() {
     renderer = nullptr;
     is_running = false;
     asset_manager = nullptr;
+    active_scene = nullptr;
 }
 
 Engine::~Engine() {
@@ -77,32 +79,22 @@ bool Engine::initialize(const WindowConfig& config) {
     asset_manager = new AssetManager();
     asset_manager->initialize(renderer);  // pass the renderer to the asset manager.
 
+    // --- Scene Initialization ---
+    // Create and load the active_scene.
+    active_scene = new Scene();
+
     // --- TEST: Create our parent and child Entities ---
-    // Create the parent Entity (this will be our facing-direction)
-    parent_entity = std::make_unique<Entity>();
-    parent_entity->get_transform()->position = {200.0f, 200.0f, 0.0f};
+    Entity* parent = active_scene->create_entity("Parent");
+    parent->get_transform()->position = { 200.0f, 200.0f, 0.0f };
 
-    // Create the child Entity (this will be our visible Sprite2D)
-    child_entity = std::make_unique<Entity>();
-    
-    // Set the child's PARENT (the parent_entity's Transform Element).
-    child_entity->get_transform()->set_parent(parent_entity->get_transform());
-    // Set the child's local properties relative to the parent.
-    child_entity->get_transform()->scale = {0.2f, 0.2f, 0.1f};  // Make it big larger than last time.
+    Entity* child = active_scene->create_entity("Child");
+    child->get_transform()->set_parent(parent->get_transform());
+    child->get_transform()->scale = { 0.2f, 0.2f, 0.1f };
 
-    // Add a Sprite2D Element to the child Entity so we can see it.
-    Sprite2D* test_sprite = child_entity->add_element<Sprite2D>();
-
-    // Tell the sprite to load a texture.
-    // Located in the Assets directory at the root of the project.
-    std::string test_image_path = "Assets/test.png";
-    test_sprite->load_texture(asset_manager, test_image_path);
-
-    // --- Use new Properties ---
-    test_sprite->color = Color::White;  // Keep the color tint normal.
-    test_sprite->offset.x = -50;        // Offset the sprite 50 pixels to the left.
-    test_sprite->flip_h = false;         // Flip sprite horizontally.
-    test_sprite->pivot = {0.0f, 0.0f };
+    Sprite2D* sprite = child->add_element<Sprite2D>();
+    sprite->load_texture(asset_manager, "Assets/test.png");
+    sprite->pivot = { 0.5f, 0.5f }; // Re-center the pivot for a better look.
+       
     // --- END TEST ---
 
     is_running = true;
@@ -164,9 +156,9 @@ void Engine::render() {
 
     // Process rendering objects here
 
-    // --- TEST: Only Render the child_entity ---
-    if (child_entity) {
-        child_entity->render(renderer);
+    // --- TEST: Only Render the through the active_scene ---
+    if (active_scene) {
+        active_scene->render(renderer);
     }
 
     // --- END TEST ---
