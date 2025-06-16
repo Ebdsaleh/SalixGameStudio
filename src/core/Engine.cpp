@@ -99,6 +99,9 @@ bool Engine::initialize(const WindowConfig& config) {
     // Located in the Assets directory at the root of the project.
     std::string test_image_path = "Assets/test.png";
     test_sprite->load_texture(asset_manager, test_image_path);
+
+    // Set the Sprite2D color tint.
+    test_sprite->color = Color(0.0f, 1.0f, 0.0f, 0.1f);  // Make it green-tinted.
     // --- END TEST ---
 
     is_running = true;
