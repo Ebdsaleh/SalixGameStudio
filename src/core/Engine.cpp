@@ -79,8 +79,7 @@ bool Engine::initialize(const WindowConfig& config) {
     // --- TEST: Create our parent and child Entities ---
     // Create the parent Entity (this will be our facing-direction)
     parent_entity = std::make_unique<Entity>();
-    parent_entity->get_transform()->position = {100.0f, 100.0f, 0.0f};
-    parent_entity->get_transform()->rotation = {0.0f, 0.0f, 15.0f}; // Give it a slight tilt.
+    parent_entity->get_transform()->position = {200.0f, 200.0f, 0.0f};
 
     // Create the child Entity (this will be our visible Sprite2D)
     child_entity = std::make_unique<Entity>();
@@ -88,9 +87,7 @@ bool Engine::initialize(const WindowConfig& config) {
     // Set the child's PARENT (the parent_entity's Transform Element).
     child_entity->get_transform()->set_parent(parent_entity->get_transform());
     // Set the child's local properties relative to the parent.
-    child_entity->get_transform()->position = {50.0f, 0.0f, 0.0f};
-    child_entity->get_transform()->rotation = {0.0f, 0.0f, 30.0f};
-    child_entity->get_transform()->scale = {0.1f, 0.1f, 0.1f};
+    child_entity->get_transform()->scale = {0.2f, 0.2f, 0.1f};  // Make it big larger than last time.
 
     // Add a Sprite2D Element to the child Entity so we can see it.
     Sprite2D* test_sprite = child_entity->add_element<Sprite2D>();
@@ -100,8 +97,10 @@ bool Engine::initialize(const WindowConfig& config) {
     std::string test_image_path = "Assets/test.png";
     test_sprite->load_texture(asset_manager, test_image_path);
 
-    // Set the Sprite2D color tint.
-    test_sprite->color = Color(0.0f, 1.0f, 0.0f, 0.1f);  // Make it green-tinted.
+    // --- Use new Properties ---
+    test_sprite->color = Color::White;  // Keep the color tint normal.
+    test_sprite->offset.x = -50;        // Offset the sprite 50 pixels to the left.
+    test_sprite->flip_h = true;         // Flip sprite horizontally.
     // --- END TEST ---
 
     is_running = true;
