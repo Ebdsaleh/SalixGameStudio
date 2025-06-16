@@ -4,13 +4,11 @@
 #include "../math/Color.h"  // Need the Color definition to allow tinting while rendering sprites.
 #include "../math/Point.h"
 #include "../math/Rect.h"
+#include "ITexture.h"  // Need this to use our own renderer agnostic Texture.
 // We forward declare SDL_Window because the interface needs to know what kind of 
 // window to initialize itself with.
 struct SDL_Window;
 
-// Forward declare SDL_Texture for texture loading, and SDL_Rect for Drawing the texture.
-struct SDL_Texture;
-struct SDL_Rect;
 
 // A renderer agnostic enum for flipping a sprite.
 enum class SpriteFlip {
@@ -51,13 +49,12 @@ class IRenderer {
     virtual void end_frame() = 0;
 
     // A contract that all renderers must know how to load a texture.
-    virtual SDL_Texture* load_texture(const char* file_path) = 0;
+    virtual ITexture* load_texture(const char* file_path) = 0;
 
     // A contract for drawing a texture at a specific location.
-    virtual void draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) = 0;
+    virtual void draw_texture(ITexture* texture, const Rect& dest_rect) = 0;
 
     // A contract for drawing a Sprite2D
-    //  -- NOTE: Might need to make our own point struct to remain Renderer-agnostic. --
-    virtual void draw_sprite(SDL_Texture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) = 0;
+    virtual void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) = 0;
 
 };
