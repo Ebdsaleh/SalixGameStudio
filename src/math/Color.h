@@ -54,5 +54,29 @@ struct Color {
         }
     }
 
+    // Linearly interpolates between two colors.
+    // t=0.0 returns 'start', t=1.0 returns 'end'.
+    static Color lerp(const Color& start, const Color& end, float t) {
+        t = std::max(0.0f, std::min(1.0f, t)); // Clamp t between 0 and 1
+        return start * (1.0f - t) + end * t;
+    }
+
+    // --- NEW: STATIC PRE-DEFINED COLORS ---
+    static const Color White;
+    static const Color Black;
+    static const Color Red;
+    static const Color Green;
+    static const Color Blue;
+    static const Color Yellow;
+    static const Color Cyan;
+    static const Color Magenta;
+
 
 };
+
+// --- OPERATOR OVERLOADS for color math ---
+Color operator+(const Color& a, const Color& b);
+
+Color operator-(const Color& a, const Color& b); 
+
+Color operator*(const Color& a, float scalar); 
