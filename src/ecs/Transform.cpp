@@ -54,3 +54,34 @@ void Transform::remove_child(Transform* child) {
         }
     }
 }
+
+Vector3 Transform::get_world_position() {
+    if (parent) {
+        // recursively add our local postiton to our parent's world position.
+        // NOTE: This is a simplified version. Generally we would use Matrix math.
+        return parent->get_world_position() + position;
+    }
+    // If no parent, return local position Vector3
+    return position;
+}
+
+Vector3 Transform::get_world_rotation() {
+    if (parent) {
+        // Rotations also add up.
+        return parent->get_world_rotation() + rotation;
+
+    }
+    // If no parent, return local rotation Vector3
+    return rotation;
+}
+
+Vector3 Transform::get_world_scale() {
+    if (parent) {
+        // Scales multiply
+        return parent->get_world_scale() * scale;
+    }
+    // If no parent, return local scale Vector3
+    return scale;
+}
+
+
