@@ -1,5 +1,6 @@
 // Renderer.cpp
 #include "SDLRenderer.h"
+#include "SDLTexture.h"
 #include <SDL.h>
 #include <SDL_image.h>
 #include <iostream>
@@ -69,23 +70,34 @@ void SDLRenderer::end_frame() {
 }
 
 // Texture loading implementation.
-SDL_Texture* SDLRenderer::load_texture(const char* file_path) {
+ITexture* SDLRenderer::load_texture(const char* file_path) {
     SDL_Texture* texture = IMG_LoadTexture(sdl_renderer, file_path);
 
     if (texture == nullptr) {
         std::cerr << "SDLRenderer::load_texture - Failed to load texture " << file_path << "! SDL_image Error: " << IMG_GetError()<< std::endl;
+        return nullptr;
     }
-    return texture;
+    return new SDLTexture(texture);
 }
 
-void SDLRenderer::draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) {
+void SDLRenderer::draw_texture(ITexture* texture, const Rect& dest_rect) {
     if (texture) {
+        // --- Translation Layer ---
+        // Convert our Rect to an SDL_Rect
+        SDL_Rect sdl_dest_rect = { dest_rect.x, dest_rect.y, dest_rect.w, dest_rect.h };
+
+        // Safely cast the interface pointer back to our concrete SDLTexture type.
+        SDLTexture* sdl_texture_wrapper = dynamic_cast<SDLTexture*>(texture);
+
+        // Get the raw SDL_Texture pointer needed for the API call.
+        SDL_Texture* raw_texture = sdl_texture_wrapper->get_raw_texture();
+
         //  SDL_RenderCopy is the function that actually draws the texture to the backbuffer
-        SDL_RenderCopy(sdl_renderer, texture, NULL, &dest_rect);
+        SDL_RenderCopy(sdl_renderer, raw_texture, NULL, &sdl_dest_rect);
     }
 }
 
-void SDLRenderer::draw_sprite(SDL_Texture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) {
+void SDLRenderer::draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) {
     if (texture) {
 
         // --- Translation Layer --- 
@@ -105,9 +117,15 @@ void SDLRenderer::draw_sprite(SDL_Texture* texture, const Rect& dest_rect, doubl
         Uint8 b = static_cast<Uint8>(color.b * 255.0f);
         Uint8 a = static_cast<Uint8>(color.a * 255.0f);
 
+        // Safely cast the interface pointer back to our concrete SDLTexture type.
+        SDLTexture* sdl_texture_wrapper = dynamic_cast<SDLTexture*>(texture);
+
+        // Get the raw SDL_Texture pointer needed for the API call.
+        SDL_Texture* raw_texture = sdl_texture_wrapper->get_raw_texture();
+
         // Set the texture's color and alpha modulation.
-        SDL_SetTextureColorMod(texture, r, g, b);
-        SDL_SetTextureAlphaMod(texture, a);
+        SDL_SetTextureColorMod(raw_texture, r, g, b);
+        SDL_SetTextureAlphaMod(raw_texture, a);
 
         // Translation from our SpriteFlip enum to SDL's flag
         SDL_RendererFlip flip_flag = SDL_FLIP_NONE;
@@ -127,6 +145,6 @@ void SDLRenderer::draw_sprite(SDL_Texture* texture, const Rect& dest_rect, doubl
         }
 
         // Draw the textured, tinted, and rotated sprite.
-        SDL_RenderCopyEx(sdl_renderer, texture, NULL, &sdl_dest_rect, angle, (pivot ? &sdl_pivot_point : NULL), flip_flag);
+        SDL_RenderCopyEx(sdl_renderer, raw_texture, NULL, &sdl_dest_rect, angle, (pivot ? &sdl_pivot_point : NULL), flip_flag);
     }
 }
