@@ -34,7 +34,7 @@ void Sprite2D::render(IRenderer* renderer) {
             Vector3 world_rot = transform->get_world_rotation();
             Vector3 world_scale = transform->get_world_scale();
             
-            SDL_Rect dest_rect;
+            Rect dest_rect;
             dest_rect.x = static_cast<int>(world_pos.x);
             dest_rect.y = static_cast<int>(world_pos.y);
             
@@ -46,7 +46,7 @@ void Sprite2D::render(IRenderer* renderer) {
             double angle = static_cast<double>(world_rot.z);
             
             // Calculate the rotation and pivot in pixels
-            SDL_Point pivot_point;
+            Point pivot_point;
             pivot_point.x = static_cast<int>(dest_rect.w * pivot.x);
             pivot_point.y = static_cast<int>(dest_rect.h * pivot.y);
 
