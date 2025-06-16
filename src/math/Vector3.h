@@ -9,21 +9,13 @@ struct Vector3 {
 
 // Operator overloads
 // Adding Vector3's.
-Vector3 operator+(const Vector3& a, const Vector3& b) {
-    return {a.x + b.x, a.y + b.y, a.z + b.z};
-}
+Vector3 operator+(const Vector3& a, const Vector3& b);
 
 // Subtracting Vector3's.
-Vector3 operator-(const Vector3& a, const Vector3& b) {
-    return {a.x - b.x, a.y - b.y, a.z - b.z};
-}
+Vector3 operator-(const Vector3& a, const Vector3& b); 
 
 // Multiplying Vector3's.
-Vector3 operator*(const Vector3& a, const Vector3& b) {
-    return {a.x * b.x, a.y * b.y, a.z * b.z};
-}
+Vector3 operator*(const Vector3& a, const Vector3& b);
 
 // Dividing Vector3's.
-Vector3 operator/(const Vector3& a, const Vector3& b) {
-    return {a.x / b.x, a.y / b.y, a.z / b.z};
-}
+Vector3 operator/(const Vector3& a, const Vector3& b);

@@ -76,20 +76,24 @@ bool Engine::initialize(const WindowConfig& config) {
     asset_manager = new AssetManager();
     asset_manager->initialize(renderer);  // pass the renderer to the asset manager.
 
-    // --- TEST: Create our first Entity ---
-    test_entity = std::make_unique<Entity>();
+    // --- TEST: Create our parent and child Entities ---
+    // Create the parent Entity (this will be our facing-direction)
+    parent_entity = std::make_unique<Entity>();
+    parent_entity->get_transform()->position = {100.0f, 100.0f, 0.0f};
+    parent_entity->get_transform()->rotation = {0.0f, 0.0f, 15.0f}; // Give it a slight tilt.
 
-    // Set its position using its Transform.
-    test_entity->get_transform()->position = {100.0f, 100.0f, 0.0f};
+    // Create the child Entity (this will be our visible Sprite2D)
+    child_entity = std::make_unique<Entity>();
+    
+    // Set the child's PARENT (the parent_entity's Transform Element).
+    child_entity->get_transform()->set_parent(parent_entity->get_transform());
+    // Set the child's local properties relative to the parent.
+    child_entity->get_transform()->position = {50.0f, 0.0f, 0.0f};
+    child_entity->get_transform()->rotation = {0.0f, 0.0f, 30.0f};
+    child_entity->get_transform()->scale = {0.1f, 0.1f, 0.1f};
 
-    // Set the scale to shrink the over-sized image, we're about to use.
-    test_entity->get_transform()->scale = {0.1f, 0.1f, 0.1f};  // 10% of its size (actual size is 1200x1403)
-
-    // Set the rotation to the image in-line with the Entity
-    test_entity->get_transform()->rotation = {0.0f, 0.0f, 45.0f};
-
-    // Add a Sprite Element to the Entity
-    Sprite2D* test_sprite = test_entity->add_element<Sprite2D>();
+    // Add a Sprite2D Element to the child Entity so we can see it.
+    Sprite2D* test_sprite = child_entity->add_element<Sprite2D>();
 
     // Tell the sprite to load a texture.
     // Located in the Assets directory at the root of the project.
@@ -156,9 +160,9 @@ void Engine::render() {
 
     // Process rendering objects here
 
-    // --- TEST: Render the test_entity ---
-    if (test_entity) {
-        test_entity->render(renderer);
+    // --- TEST: Only Render the child_entity ---
+    if (child_entity) {
+        child_entity->render(renderer);
     }
 
     // --- END TEST ---
