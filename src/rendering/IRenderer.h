@@ -5,8 +5,9 @@
 // window to initialize itself with.
 struct SDL_Window;
 
-// Forward declare SDL_Texture for texture loading.
+// Forward declare SDL_Texture for texture loading, and SDL_Rect for Drawing the texture.
 struct SDL_Texture;
+struct SDL_Rect;
 
 enum class RendererType {
     SDL, // The default option
@@ -36,6 +37,11 @@ class IRenderer {
     virtual void shutdown() = 0;
     virtual void begin_frame() = 0;
     virtual void end_frame() = 0;
+
     // A contract that all renderers must know how to load a texture.
     virtual SDL_Texture* load_texture(const char* file_path) = 0;
+
+    // A contract for drawing a texture at a specific location.
+    virtual void draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) = 0;
+
 };

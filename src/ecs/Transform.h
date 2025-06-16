@@ -5,7 +5,7 @@
 #include "../math/Vector3.h"  // Include our Vector3 struct.
 #include <vector>
 
-class Transform : Element {
+class Transform : public Element {
     public:
         Transform();
         virtual ~Transform();

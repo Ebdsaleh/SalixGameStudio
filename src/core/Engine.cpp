@@ -5,6 +5,9 @@
 #include "../rendering/SDLRenderer.h"
 // --- END NOTE ---
 #include "../assets/AssetManager.h"
+#include "../ecs/Sprite2D.h"
+#include "../ecs/Transform.h"
+
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
 #include <iostream>
@@ -73,6 +76,24 @@ bool Engine::initialize(const WindowConfig& config) {
     asset_manager = new AssetManager();
     asset_manager->initialize(renderer);  // pass the renderer to the asset manager.
 
+    // --- TEST: Create our first Entity ---
+    test_entity = std::make_unique<Entity>();
+
+    // Set its position using its Transform.
+    test_entity->get_transform()->position = {100.0f, 100.0f, 0.0f};
+
+    // Set the scale to shrink the over-sized image, we're about to use.
+    test_entity->get_transform()->scale = {0.1f, 0.1f, 0.1f};  // 10% of its size (actual size is 1200x1403)
+
+    // Add a Sprite Element to the Entity
+    Sprite2D* test_sprite = test_entity->add_element<Sprite2D>();
+
+    // Tell the sprite to load a texture.
+    // Located in the Assets directory at the root of the project.
+    std::string test_image_path = "Assets/test.png";
+    test_sprite->load_texture(asset_manager, test_image_path);
+    // --- END TEST ---
+
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
     return true;
@@ -131,6 +152,13 @@ void Engine::render() {
     renderer->begin_frame();
 
     // Process rendering objects here
+
+    // --- TEST: Render the test_entity ---
+    if (test_entity) {
+        test_entity->render(renderer);
+    }
+
+    // --- END TEST ---
 
     // Present the rendered frame
     renderer->end_frame();   

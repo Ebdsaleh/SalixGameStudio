@@ -77,3 +77,10 @@ SDL_Texture* SDLRenderer::load_texture(const char* file_path) {
     }
     return texture;
 }
+
+void SDLRenderer::draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) {
+    if (texture) {
+        //  SDL_RenderCopy is the function that actually draws the texture to the backbuffer
+        SDL_RenderCopy(sdl_renderer, texture, NULL, &dest_rect);
+    }
+}

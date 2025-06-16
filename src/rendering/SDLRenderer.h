@@ -22,6 +22,8 @@ class SDLRenderer : public IRenderer {
     void end_frame() override;
     // Delcare Texture loading.
     SDL_Texture* load_texture(const char* file_path) override;
+    // Declare Texture Drawing
+    void draw_texture(SDL_Texture* texture, const SDL_Rect& dest_rect) override;
     private:
     // The Renderer's own SDL_Renderer object
 

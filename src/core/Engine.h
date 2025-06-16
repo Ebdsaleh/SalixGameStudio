@@ -1,6 +1,8 @@
 // Engine.h
 #pragma once
 #include "../rendering/IRenderer.h"
+#include "../ecs/Entity.h"
+#include <memory>
 
 // Forwared declare SDL_Window, so we don't have to include the SDL header here.
 // This is a good practice to keep the header files clean and reduce compile times.
@@ -31,5 +33,11 @@ class Engine {
     // The Engine holds a pointer to abstract interface, not a complete implmentation.
     IRenderer* renderer;
     AssetManager* asset_manager;  // The new AssetManager.
+
+    // --- TEST ---
+    // A test entity to display out sprite.
+    // We use a unique_ptr to manage its memory automatically.
+    std::unique_ptr<Entity> test_entity;
+    // --- END TEST ---
 
 };
