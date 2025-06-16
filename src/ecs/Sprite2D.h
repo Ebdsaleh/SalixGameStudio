@@ -3,11 +3,13 @@
 
 #include "../math/Color.h"
 #include "RenderableElement.h"
+#include "../math/Vector3.h"  // For the offset.
 #include <string>
 
 // Forward declarations
 struct SDL_Texture;
 class AssetManager;
+class IRenderer;
 
 class Sprite2D : public RenderableElement {
     public:
@@ -18,10 +20,17 @@ class Sprite2D : public RenderableElement {
         void load_texture(AssetManager* asset_manager, std::string& file_path);
 
         // The implementation of the render method from RenderableElement Interface.
-        void render(class IRenderer* renderer) override;
+        void render(IRenderer* renderer) override;
 
-        // Color property for color tinting.
-        Color color;
+        // --- Properties ---
+        
+        Color color;            // Color property for color tinting.
+        Vector3 offset;         // A local offset from the Transform's position
+        bool flip_h = false;    // Flip horizontally?
+        bool flip_v = false;    // Flip veritcally?
+        int sorting_layer = 0;  // For future use in the Scene.
+
+
     private:
         SDL_Texture* texture;
         int width;
