@@ -1,6 +1,14 @@
 // Vector3.cpp
 #include "Vector3.h"
 #include <iostream>  // Needed for std::cerr
+#include <algorithm>
+
+// Lerp method definition
+Vector3 Vector3::lerp(const Vector3& start, const Vector3& end, float t) {
+    t = std::max(0.0f, std::min(1.0f, t));  // Clamp t between 0 and 1.
+    // Note: We use the '+' operator for vectors, not '*' like we did for color.
+    return start + (end - start) * t;
+}
 
 // Operator overloads
 // Adding Vector3's.
@@ -8,14 +16,38 @@ Vector3 operator+(const Vector3& a, const Vector3& b) {
     return {a.x + b.x, a.y + b.y, a.z + b.z};
 }
 
+Vector3 operator+(const Vector3& a, float increment) {
+    return Vector3 { a.x + increment, a.y + increment, a.x + increment };
+}
+
+Vector3 operator+(float increment, const Vector3& a) {
+    return Vector3 { increment + a.x, increment + a.y, increment + a.z };
+}
+
 // Subtracting Vector3's.
 Vector3 operator-(const Vector3& a, const Vector3& b) {
     return {a.x - b.x, a.y - b.y, a.z - b.z};
 }
 
+Vector3 operator-(const Vector3& a, float decrement) {
+    return Vector3 { a.x - decrement, a.y - decrement, a.z - decrement };
+}
+
+Vector3 operator-(float decrement, const Vector3& a) {
+    return Vector3 { decrement - a.x, decrement - a.y, decrement - a.z };
+}
+
 // Multiplying Vector3's.
 Vector3 operator*(const Vector3& a, const Vector3& b) {
     return {a.x * b.x, a.y * b.y, a.z * b.z};
+}
+
+Vector3 operator*(float scalar, const Vector3& a) {
+    return Vector3 { scalar * a.x, scalar * a.y, scalar * a.z };
+}
+
+Vector3 operator*(const Vector3& a, float scalar) {
+    return Vector3 { a.x * scalar, a.y * scalar, a.z * scalar };
 }
 
 // Dividing Vector3's.
@@ -44,3 +76,5 @@ Vector3 operator/(const Vector3& a, const Vector3& b) {
     }
     return { result_x, result_y, result_z };
 }
+
+// --- LERP REQUIRED OVERLOADS ---

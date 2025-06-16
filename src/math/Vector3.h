@@ -14,11 +14,26 @@ struct Vector3 {
 // Adding Vector3's.
 Vector3 operator+(const Vector3& a, const Vector3& b);
 
-// Subtracting Vector3's.
+Vector3 operator+(const Vector3& a, float increment);
+
+Vector3 operator+(float increment, const Vector3& a);
+
+// Subtracting Vector3's
+
 Vector3 operator-(const Vector3& a, const Vector3& b); 
+
+Vector3 operator-(const Vector3& a, float decrement);
+
+Vector3 operator-(float decrement, Vector3& a);
 
 // Multiplying Vector3's.
 Vector3 operator*(const Vector3& a, const Vector3& b);
 
+Vector3 operator*(float scalar, const Vector3& a);
+
+Vector3 operator*(const Vector3& a, float scalar);
+
 // Dividing Vector3's.
 Vector3 operator/(const Vector3& a, const Vector3& b);
+
+

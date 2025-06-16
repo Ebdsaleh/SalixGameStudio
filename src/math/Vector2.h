@@ -15,17 +15,26 @@ struct Vector2 {
 // Addition
 Vector2 operator+(const Vector2& a, const Vector2& b);
 
+Vector2 operator+(const Vector2& a, float increment);
+
+Vector2 operator+(float increment, const Vector2& a);
+
 // Subtraction
 Vector2 operator-(const Vector2& a, const Vector2& b);
+
+Vector2 operator-(const Vector2& a, float decrement);
+
+Vector2 operator-(float decrement, const Vector2& a);
 
 // Multiplication
 Vector2 operator*(const Vector2& a, const Vector2& b);
 
-// Division
-Vector2 operator/(const Vector2& a, const Vector2& b);
-
-// --- Lerp multiplication requirements ---
 Vector2 operator*(const Vector2& a, float scalar);
 
 Vector2 operator*(float scalar, const Vector2& a);
-// --- END LERP REQUIREMENTS ---
+
+// Division
+Vector2 operator/(const Vector2& a, const Vector2& b);
+
+
+

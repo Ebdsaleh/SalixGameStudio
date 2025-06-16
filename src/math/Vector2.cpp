@@ -1,6 +1,4 @@
 // Vector2.cpp
-#pragma once
-
 #include "Vector2.h"
 #include <iostream>
 #include <algorithm>
@@ -8,7 +6,7 @@
 // A static "factory" method for linear interpolation.
     Vector2 Vector2::lerp(const Vector2& start, const Vector2& end, float t) {
         t = std::max(0.0f, std::min(1.0f, t));  // Clamp t between 0 and 1
-        return start * (1.0f - t) + end * t;
+        return start + (end - start) * t;
     }
 // --- Overloading definitions ---
 // Addition
@@ -16,9 +14,25 @@ Vector2 operator+(const Vector2& a, const Vector2& b) {
     return Vector2 { a.x + b.x, a.y + b.y };
 }
 
+Vector2 operator+(const Vector2& a, float increment) {
+    return Vector2 { a.x + increment, a.y + increment };
+}
+
+Vector2 operator+(float increment, const Vector2& a) {
+    return Vector2 { increment + a.x, increment + a.y };
+}
+
 // Subtraction
 Vector2 operator-(const Vector2& a, const Vector2& b) {
     return Vector2 { a.x-b.x, a.y - b.y };
+}
+
+Vector2 operator-(const Vector2& a, float decrement) {
+    return Vector2 { a.x - decrement, a.y - decrement };
+}
+
+Vector2 operator-(float decrement, const Vector2& a) {
+    return Vector2 { decrement - a.x, decrement - a.y };
 }
 
 // Multiplication 
@@ -27,13 +41,12 @@ Vector2 operator*(const Vector2& a, const Vector2& b) {
     return Vector2 { a.x * b.x, a.y * b.y };
 }
 
-// --- Required for Linear interpolation ---
 // Multiply Vector2 and a float 
 Vector2 operator*(const Vector2& a, float scalar) {
     return Vector2 { a.x * scalar, a.y * scalar };
 }
 
-// Multiply a float and a Vector2 // required for lerp
+// Multiply a float and a Vector2
 Vector2 operator*(float scalar, const Vector2& a) {
     return Vector2 {  scalar * a.x, scalar * a.y };
 }
@@ -45,7 +58,7 @@ Vector2 operator/(const Vector2& a, const Vector2& b){
     if (b.x != 0.0f) {
         result_x = a.x / b.x;
     } else {
-        std::cerr << "Warning: Division by zero on Y-axis!" << std::endl;
+        std::cerr << "Warning: Division by zero on X-axis!" << std::endl;
     }
 
     float result_y = 0.0f;
