@@ -82,20 +82,7 @@ bool Engine::initialize(const WindowConfig& config) {
     // --- Scene Initialization ---
     // Create and load the active_scene.
     active_scene = new Scene();
-
-    // --- TEST: Create our parent and child Entities ---
-    Entity* parent = active_scene->create_entity("Parent");
-    parent->get_transform()->position = { 200.0f, 200.0f, 0.0f };
-
-    Entity* child = active_scene->create_entity("Child");
-    child->get_transform()->set_parent(parent->get_transform());
-    child->get_transform()->scale = { 0.2f, 0.2f, 0.1f };
-
-    Sprite2D* sprite = child->add_element<Sprite2D>();
-    sprite->load_texture(asset_manager, "Assets/test.png");
-    sprite->pivot = { 0.5f, 0.5f }; // Re-center the pivot for a better look.
-       
-    // --- END TEST ---
+    active_scene->on_load(asset_manager);
 
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
@@ -103,9 +90,11 @@ bool Engine::initialize(const WindowConfig& config) {
 }
 
 void Engine::run() {
+    // In the future we could calculate delete_time here.
+    float delta_time = 1.0f / 60.0f ; // pseudo code for delta_time (not an acutal implementation).
     while (is_running) {
         process_input();
-        update();
+        update(delta_time);
         render();
     }
 }
@@ -114,6 +103,10 @@ void Engine::shutdown() {
     std::cout << "Shutting down engine." << std::endl;
 
     // Shutdown subsystems in reverse order of creatation (LIFO).
+    if (active_scene) {
+        active_scene->on_unload();
+        delete active_scene;
+    }
     if (asset_manager){
         asset_manager->shutdown();
         delete asset_manager;
@@ -123,10 +116,10 @@ void Engine::shutdown() {
         renderer->shutdown();
         delete renderer;
     }
-
-    if (window) {
-        SDL_DestroyWindow(window);
-    }
+    // Not sure if this is needed now
+    //if (window) {
+    //    SDL_DestroyWindow(window);
+    //}
    
     SDL_Quit();
 }
@@ -140,7 +133,9 @@ void Engine::process_input() {
     }
 }
 
-void Engine::update() {
+void Engine::update(float delta_time) {
+    // The Engine now delegates the update call to the active scene.
+    active_scene->update(delta_time);
     // Game logic will go here
 }
 

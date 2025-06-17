@@ -23,7 +23,7 @@ class Engine {
 
     private:
     void process_input();
-    void update();
+    void update(float delta_time);
     void render();
 
     bool is_running;
