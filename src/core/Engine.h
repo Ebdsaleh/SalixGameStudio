@@ -4,11 +4,9 @@
 #include "../ecs/Entity.h"
 #include <memory>
 
-// Forwared declare SDL_Window, so we don't have to include the SDL header here.
-// This is a good practice to keep the header files clean and reduce compile times.
-
+// Forward declarations
 class AssetManager;
-class Scene; 
+class ProjectManager; 
 struct SDL_Window;
 
 class Engine {
@@ -32,7 +30,7 @@ class Engine {
     SDL_Window *window = nullptr;
     // The Engine owns the core subsystems.
     // The Engine holds a pointer to abstract interface, not a complete implmentation.
+    AssetManager* asset_manager;
     IRenderer* renderer;
-    AssetManager* asset_manager;  // The new AssetManager.
-    Scene* active_scene;
+    std::unique_ptr<ProjectManager> project_manager;
 };

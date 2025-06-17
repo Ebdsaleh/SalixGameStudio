@@ -4,11 +4,8 @@
 // All RendererTypes will be included here to allow the Engine to use a singular set of methods for rendering.
 #include "../rendering/SDLRenderer.h"
 // --- END NOTE ---
+#include "../management/ProjectManager.h"
 #include "../assets/AssetManager.h"
-#include "../ecs/Sprite2D.h"
-#include "../ecs/Transform.h"
-#include "../ecs/Scene.h"
-
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
 #include <iostream>
@@ -19,7 +16,6 @@ Engine::Engine() {
     renderer = nullptr;
     is_running = false;
     asset_manager = nullptr;
-    active_scene = nullptr;
 }
 
 Engine::~Engine() {
@@ -73,16 +69,15 @@ bool Engine::initialize(const WindowConfig& config) {
         return false;
     }
 
-    // --- AssetManager Initialization ---
-    // Create and initialize the AssetManager.
-
+    // --- AssetManager initialization ---
     asset_manager = new AssetManager();
-    asset_manager->initialize(renderer);  // pass the renderer to the asset manager.
+    asset_manager->initialize(renderer);
 
-    // --- Scene Initialization ---
-    // Create and load the active_scene.
-    active_scene = new Scene();
-    active_scene->on_load(asset_manager);
+    // --- Project Initialization ---
+    // Create and load the active_scene via the project_manager.
+    project_manager = std::make_unique<ProjectManager>();
+    project_manager->initialize(asset_manager);
+
 
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
@@ -103,24 +98,21 @@ void Engine::shutdown() {
     std::cout << "Shutting down engine." << std::endl;
 
     // Shutdown subsystems in reverse order of creatation (LIFO).
-    if (active_scene) {
-        active_scene->on_unload();
-        delete active_scene;
+    
+    // Shutdown Managers first.
+    if (project_manager) {
+        project_manager->shutdown();
+        project_manager.reset();
     }
-    if (asset_manager){
+        
+    if (asset_manager) {
         asset_manager->shutdown();
         delete asset_manager;
     }
-    
     if (renderer) {
         renderer->shutdown();
         delete renderer;
     }
-    // Not sure if this is needed now
-    //if (window) {
-    //    SDL_DestroyWindow(window);
-    //}
-   
     SDL_Quit();
 }
 
@@ -135,7 +127,7 @@ void Engine::process_input() {
 
 void Engine::update(float delta_time) {
     // The Engine now delegates the update call to the active scene.
-    active_scene->update(delta_time);
+    project_manager->update(delta_time);
     // Game logic will go here
 }
 
@@ -151,9 +143,9 @@ void Engine::render() {
 
     // Process rendering objects here
 
-    // --- TEST: Only Render the through the active_scene ---
-    if (active_scene) {
-        active_scene->render(renderer);
+    // --- TEST: Only Render the through the project_manager ---
+    if (project_manager) {
+        project_manager->render(renderer);
     }
 
     // --- END TEST ---

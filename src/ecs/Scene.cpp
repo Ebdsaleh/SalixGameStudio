@@ -1,67 +1,36 @@
 // Scene.cpp
-
 #include "Scene.h"
 #include "Entity.h"
-
-// We will need to include these to create our test entities for now.
-#include "Sprite2D.h"
-#include "../rendering/IRenderer.h"
-#include "../assets/AssetManager.h"  // AssetManager is need by the sprite.
 #include <algorithm>
-// Constructor
-Scene::Scene() {}
+#include <memory>
+#include <iostream>
 
-// Destructor
+Scene::Scene(const std::string& name) : scene_name(name) {}
+
 Scene::~Scene() {
-    // The unique_ptr in the vector will handle cleanup automatically,
-    // but we can call on_unload for any other custom cleanup.
     on_unload();
 }
 
 void Scene::on_load(AssetManager* asset_manager) {
-    // This is where we will eventually deserialize scene data from a file.
-    // For now, we will create our test entities here.
-    
-    // NOTE: This test code requires an AssetManager. For a real engine,
-    // we would pass necessary systems (like the asset manager) to the scene.
-    // This is a simplification for now.
-
-    // This section will be removed once we can load from files.
-    std::cout << "Scene::on_load - Creating temporary test entities." << std::endl;
-    // --- TEST CODE: Emulating a .scene file ---
-
-    // Create the parent entity
-    Entity* parent_entity = create_entity("Parent");
-    parent_entity->get_transform()->position = { 200.0f, 200.0f, 0.0f };
-
-    // Create the child entity
-    Entity* child_entity = create_entity("Child");
-    child_entity->get_transform()->set_parent(parent_entity->get_transform());
-    child_entity->get_transform()->scale = { 0.2f, 0.2f, 0.1f };
-
-    // Add a Sprite2D Element to the Child entity.
-    Sprite2D* test_sprite = child_entity->add_element<Sprite2D>();
-    test_sprite->load_texture(asset_manager, "Assets/test.png");
-    test_sprite->pivot = { 0.5f, 0.5f };    // Re-center the pivot.
-
-    // --- END TEST CODE ---
+    // This is where we will deserialize scene data from a file in the future.
+    // For now, it just signals that the scene is ready.
+    std::cout << "Scene '" << scene_name << "' on_load." << std::endl;
 }
 
-void Scene::on_unload(){
+void Scene::on_unload() {
+    // Clearing the vector of unique_ptrs automatically deletes all owned entities.
     entities.clear();
+    std::cout << "Scene '" << scene_name << "' unloaded." << std::endl;
 }
 
-void Scene::update(float delta_time){
+void Scene::update(float delta_time) {
     // --- The Purge Phase ---
-    // First remove any entities that have been marked for purging.
-    // This uses the 'erase-remove idiom', a standard C++ pattern.
-    auto entity_iterator = std::remove_if(entities.begin(), entities.end(), [](const auto& entity) {
+    auto it = std::remove_if(entities.begin(), entities.end(), [](const auto& entity) {
         return entity->is_purged();
     });
-    entities.erase(entity_iterator, entities.end());
+    entities.erase(it, entities.end());
 
     // --- The Update Phase ---
-    // Now update all the remaining entities.
     for (auto& entity : entities) {
         entity->update(delta_time);
     }
@@ -69,22 +38,19 @@ void Scene::update(float delta_time){
 
 void Scene::render(IRenderer* renderer) {
     // --- The Render Phase ---
-    // Render all entities. In the future, we would sort them first.
     for (auto& entity : entities) {
         entity->render(renderer);
     }
 }
 
 Entity* Scene::create_entity(const std::string& name) {
-    // Create a new Entity owned by a unique_ptr.
     auto new_entity_owner = std::make_unique<Entity>();
-    
-    // Get the raw_ptr to return to the user.
     Entity* new_entity = new_entity_owner.get();
-
-    // We can add a name property later, if we want.
-    // For now, we just add the entity to our master list.
+    // We can give the entity a name component later.
     entities.push_back(std::move(new_entity_owner));
-    
     return new_entity;
+}
+
+const std::string& Scene::get_name() const {
+    return scene_name;
 }
