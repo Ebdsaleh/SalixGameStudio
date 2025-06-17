@@ -11,8 +11,11 @@ int main(int argc, char* argv[]) {
     config.width = 1280;
     config.height = 720;
     config.renderer_type = RendererType::SDL;
+
+    // give a framerate limit here. in the future, we can get it from a settings file.
+    int fps_target = 60;
     // Initialize the engine. If it fails, exit.
-    if (!engine.initialize(config)) {
+    if (!engine.initialize(config, fps_target)) {
         return 1;
     }
 
