@@ -73,7 +73,7 @@ bool Engine::initialize(const WindowConfig& config, int target_fps) {
 
     // --- STATE MACHINE SETUP ---
     // loads directly into LaunchState.
-    switch_state(AppStateType::Launch);
+    switch_state(AppStateType::Game);
     
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
@@ -82,20 +82,21 @@ bool Engine::initialize(const WindowConfig& config, int target_fps) {
 
 void Engine::run() {
     // The main loop uses a Timer to calculate a real delta_time.
-    while (is_running) {
-
-        // Mark the start of a new frame
-        timer->tick();
+    while (is_running) {      
         
         // Get the calculated delta_time.
         float delta_time = timer->get_delta_time();
 
+        // --- TEST CODE: Check that framerate limitting is working
+        std::cout << "Delta Time: " << delta_time << std::endl;
+        // --- END TEST CODE ---
         process_input();
         update(delta_time);  // pass the real delta_time down the chain.
         render();
         
-        // At the end of the loop, delay if needed to meet the target FPS.
-        timer->delay_if_needed();
+        // At the very end of the loop, tick the timer. This will calculate the
+        // delta_time for the NEXT frame and sleep if necessary.
+        timer->tick();
     }
 }
 
