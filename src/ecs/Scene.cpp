@@ -18,7 +18,7 @@ Scene::~Scene() {
     on_unload();
 }
 
-void Scene::on_load() {
+void Scene::on_load(AssetManager* asset_manager) {
     // This is where we will eventually deserialize scene data from a file.
     // For now, we will create our test entities here.
     
@@ -28,6 +28,23 @@ void Scene::on_load() {
 
     // This section will be removed once we can load from files.
     std::cout << "Scene::on_load - Creating temporary test entities." << std::endl;
+    // --- TEST CODE: Emulating a .scene file ---
+
+    // Create the parent entity
+    Entity* parent_entity = create_entity("Parent");
+    parent_entity->get_transform()->position = { 200.0f, 200.0f, 0.0f };
+
+    // Create the child entity
+    Entity* child_entity = create_entity("Child");
+    child_entity->get_transform()->set_parent(parent_entity->get_transform());
+    child_entity->get_transform()->scale = { 0.2f, 0.2f, 0.1f };
+
+    // Add a Sprite2D Element to the Child entity.
+    Sprite2D* test_sprite = child_entity->add_element<Sprite2D>();
+    test_sprite->load_texture(asset_manager, "Assets/test.png");
+    test_sprite->pivot = { 0.5f, 0.5f };    // Re-center the pivot.
+
+    // --- END TEST CODE ---
 }
 
 void Scene::on_unload(){
