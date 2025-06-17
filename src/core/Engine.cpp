@@ -1,6 +1,6 @@
 // Engine.cpp
 #include "Engine.h"
-#include "Timer.h"
+#include "SDLTimer.h"
 // --- NOTE ---
 // All RendererTypes will be included here to allow the Engine to use a singular set of methods for rendering.
 #include "../rendering/SDLRenderer.h"
@@ -68,7 +68,7 @@ bool Engine::initialize(const WindowConfig& config, int target_fps) {
     asset_manager->initialize(renderer);
 
     // --- Timer initialization.
-    timer = std::make_unique<Timer>();
+    timer = std::make_unique<SDLTimer>();
     timer->set_target_fps(target_fps);
 
     // --- STATE MACHINE SETUP ---
@@ -91,11 +91,9 @@ void Engine::run() {
         std::cout << "Delta Time: " << delta_time << std::endl;
         // --- END TEST CODE ---
         process_input();
-        update(delta_time);  // pass the real delta_time down the chain.
+        update(delta_time);  
         render();
         
-        // At the very end of the loop, tick the timer. This will calculate the
-        // delta_time for the NEXT frame and sleep if necessary.
         timer->tick();
     }
 }
