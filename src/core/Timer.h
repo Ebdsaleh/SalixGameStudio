@@ -1,28 +1,25 @@
 // Timer.h
+// Will revist this at another time.
+/*
 #pragma once
 
 #include <chrono>
 
 class Timer {
-    public:
-        Timer();
-        
-        // Marks the beginning of a new frame.
-        void tick();
+public:
+    Timer();
 
-        // Framerate capping
-        void set_target_fps(int fps);
-        void delay_if_needed();
-        // Gets the elapsed time since the last tick
-        float get_delta_time() const;
+    void set_target_fps(int fps);
+    
+    // The tick method now handles all logic at the end of a frame.
+    void tick();
 
-    private:
-        // Using the high_resolution_clock for the most precision available.
-        std::chrono::high_resolution_clock::time_point start_time_point;
+    // This returns the delta_time that was calculated in the *previous* tick.
+    float get_delta_time() const;
 
-        // the delta_time is stored here after every tick.
-        float delta_time;
-
-        // The duration of a single frame, useful for checking if we are meeting our target FPS
-        std::chrono::duration<float> target_frame_duration;
+private:
+    std::chrono::high_resolution_clock::time_point last_frame_start_time;
+    float delta_time;
+    std::chrono::duration<float> target_frame_duration;
 };
+*/
