@@ -51,6 +51,7 @@ void SceneManager::render(IRenderer* renderer) {
 
 // --- API IMPLEMENTATIONS ---
 
+// This is useful as an Engine API call.
 Scene* SceneManager::create_scene(const std::string& scene_name) {
     if (get_scene(scene_name)) {
         std::cerr << "SceneManager: Scene '" << scene_name << "' already exists." << std::endl;
@@ -65,6 +66,7 @@ Scene* SceneManager::create_scene(const std::string& scene_name) {
     return new_scene_ptr;
 }
 
+// This is useful as a 'user' API call.
 void SceneManager::add_scene(std::unique_ptr<Scene> scene_to_add) {
     if (!scene_to_add) return;
     if (get_scene(scene_to_add->get_name())) {
@@ -75,6 +77,7 @@ void SceneManager::add_scene(std::unique_ptr<Scene> scene_to_add) {
     scene_list.push_back(std::move(scene_to_add));
 }
 
+// This uses the find-by-name and remove pattern.
 void SceneManager::remove_scene(const std::string& scene_name) {
     auto it = std::remove_if(scene_list.begin(), scene_list.end(),
         [&](const std::unique_ptr<Scene>& scene) {
@@ -87,12 +90,14 @@ void SceneManager::remove_scene(const std::string& scene_name) {
     scene_list.erase(it, scene_list.end());
 }
 
+// This uses a find-by-name and remove pattern but by passing in the Scene pointer.
 void SceneManager::remove_scene(Scene* scene_to_remove) {
     if (scene_to_remove) {
         remove_scene(scene_to_remove->get_name());
     }
 }
 
+// This uses a find-by-index and remove pattern.
 void SceneManager::remove_scene_at(int index) {
     if (index >= 0 && index < scene_list.size()) {
         if (scene_list[index].get() == active_scene) {
@@ -118,12 +123,14 @@ Scene* SceneManager::get_active_scene() const {
     return active_scene;
 }
 
+// This uses as find-by-name and retrieve pattern.
 Scene* SceneManager::get_scene(const std::string& scene_name) const {
     auto it = std::find_if(scene_list.begin(), scene_list.end(), 
         [&](const auto& scene) { return scene->get_name() == scene_name; });
     return (it != scene_list.end()) ? it->get() : nullptr;
 }
 
+// This uses a find-by-index and retrieve pattern.
 Scene* SceneManager::get_scene_at(int index) const {
     if (index >= 0 && index < scene_list.size()) {
         return scene_list[index].get();
