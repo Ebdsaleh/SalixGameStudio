@@ -16,6 +16,7 @@ enum class AppStateType {
 // Forward declarations
 class AssetManager;
 class IAppState;
+class Timer;
 
 class Engine {
     public:
@@ -47,4 +48,7 @@ class Engine {
 
     // The Engine now owns the current state.
     std::unique_ptr<IAppState> current_state;
+
+    // The Engine now owns the master clock.
+    std::unique_ptr<Timer> timer;
 };
