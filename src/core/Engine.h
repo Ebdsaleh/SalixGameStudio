@@ -6,8 +6,7 @@
 
 // Forward declarations
 class AssetManager;
-class ProjectManager; 
-struct SDL_Window;
+class IAppState;
 
 class Engine {
     public:
@@ -18,6 +17,8 @@ class Engine {
     bool initialize(const WindowConfig& config);
     void run();
     void shutdown();
+    AssetManager* get_asset_manager();
+    IRenderer* get_renderer();
 
     private:
     void process_input();
@@ -26,11 +27,10 @@ class Engine {
 
     bool is_running;
 
-    // The Engine owns the main window
-    SDL_Window *window = nullptr;
-    // The Engine owns the core subsystems.
-    // The Engine holds a pointer to abstract interface, not a complete implmentation.
+    // Engine owns the low-level systems.
     AssetManager* asset_manager;
     IRenderer* renderer;
-    std::unique_ptr<ProjectManager> project_manager;
+
+    // The Engine now owns the current state.
+    std::unique_ptr<IAppState> current_state;
 };
