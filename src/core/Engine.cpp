@@ -1,5 +1,6 @@
 // Engine.cpp
 #include "Engine.h"
+#include "Timer.h"
 // --- NOTE ---
 // All RendererTypes will be included here to allow the Engine to use a singular set of methods for rendering.
 #include "../rendering/SDLRenderer.h"
@@ -66,6 +67,9 @@ bool Engine::initialize(const WindowConfig& config) {
     asset_manager = new AssetManager();
     asset_manager->initialize(renderer);
 
+    // --- Timer initialization.
+    timer = std::make_unique<Timer>();
+
     // --- STATE MACHINE SETUP ---
     // loads directly into LaunchState.
     switch_state(AppStateType::Launch);
@@ -76,11 +80,17 @@ bool Engine::initialize(const WindowConfig& config) {
 }
 
 void Engine::run() {
-    // In the future we could calculate delete_time here.
-    float delta_time = 1.0f / 60.0f ; // pseudo code for delta_time (not an acutal implementation).
+    // The main loop uses a Timer to calculate a real delta_time.
     while (is_running) {
+
+        // Mark the start of a new frame
+        timer->tick();
+        
+        // Get the calculated delta_time.
+        float delta_time = timer->get_delta_time();
+
         process_input();
-        update(delta_time);
+        update(delta_time);  // pass the real delta_time down the chain.
         render();
     }
 }
