@@ -18,7 +18,7 @@ class Timer {
 
     private:
         // Using the high_resolution_clock for the most precision available.
-        std::chrono::high_resolution_clock::time_point last_time_point;
+        std::chrono::high_resolution_clock::time_point start_time_point;
 
         // the delta_time is stored here after every tick.
         float delta_time;

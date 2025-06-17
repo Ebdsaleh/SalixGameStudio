@@ -1,23 +1,55 @@
 // Timer.cpp
 #include "Timer.h"
+#include <thread> // Needed for std::this_thread:sleep_for function.
 
-Timer::Timer() : delta_time(0.0f) {
-    // Initialize the last time point to the current time when the timer was created.
-    last_time_point = std::chrono::high_resolution_clock::now();
+Timer::Timer() : 
+    delta_time(0.0f),
+    target_frame_duration(0) {
+        // Initialize the start time point when the timer is created
+        start_time_point = std::chrono::high_resolution_clock::now();
 }
 
 void Timer::tick() {
-    // Get the current time point.
-    auto current_time_point = std::chrono::high_resolution_clock::now();
+    // Record the end time of the previous time of the previous frame.
+    auto end_time_point = std::chrono::high_resolution_clock::now();
 
-    // Calculate the duration between the current frame and the last frame.
-    std::chrono::duration<float> duration = current_time_point - last_time_point;
-
-    // Store the result in our delta_time variable, in seconds.
+    // The duration is the difference between the start of the last frame and the start of this one.
+    std::chrono::duration<float> duration = end_time_point - start_time_point;
     delta_time = duration.count();
 
-    // Update the last time point to be the start of the new frame.
-    last_time_point = current_time_point;
+    // The start of the new frame is now.
+    start_time_point = end_time_point;
+}
+
+void Timer::set_target_fps(int fps) {
+    if (fps > 0) {
+        // Calculate the target duration for the one frame in seconds.
+        target_frame_duration = std::chrono::duration<float>(1.0f / fps);
+    } else {
+        // A target of 0 means the framerate is uncapped.
+        target_frame_duration = std::chrono::duration<float>(0);
+    }
+}
+
+void Timer::delay_if_needed() {
+    // If the target is 0, do nothing, it means it's uncapped.
+    if (target_frame_duration.count() == 0.0f) {
+        return;
+    }
+
+    // See how long the frame has taken so far.
+    auto frame_end_time = std::chrono::high_resolution_clock::now();
+    auto frame_duration = frame_end_time - start_time_point;
+
+    // if the frame has finished faster than our target, we need to wait.
+    if (frame_duration < target_frame_duration) {
+        // Calculate the exact duration we need to sleep for.
+        auto sleep_duration = target_frame_duration - frame_duration;
+        // Tell the current thread to sleep for that duration.
+        // This yields CPU time back to the OS.
+        std::this_thread::sleep_for(sleep_duration);
+    }
+
 }
 
 float Timer::get_delta_time() const {
