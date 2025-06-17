@@ -4,6 +4,15 @@
 #include "../ecs/Entity.h"
 #include <memory>
 
+// A type-safe enum to indentify the application states.
+enum class AppStateType {
+    None,
+    Launch,
+    Editor,
+    Game,
+    Options
+};
+
 // Forward declarations
 class AssetManager;
 class IAppState;
@@ -28,8 +37,8 @@ class Engine {
     void update(float delta_time);
     void render();
 
-    // A method to change states.
-    void switch_state(std::unique_ptr<IAppState> new_state);
+    // A public method to allow states to request a change.
+    void switch_state(AppStateType new_state_type);
     bool is_running;
 
     // Engine owns the low-level systems.
