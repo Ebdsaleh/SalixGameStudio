@@ -24,7 +24,8 @@ class Engine {
     ~Engine();
 
     // The main phases of the engine's lifecycle
-    bool initialize(const WindowConfig& config);
+    // Added target fps to Engine's initialize method, to implement framerate limtting.
+    bool initialize(const WindowConfig& config, int target_fps = 60);
     void run();
     void shutdown();
     
