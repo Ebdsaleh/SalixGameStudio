@@ -5,6 +5,7 @@
 #include "../rendering/SDLRenderer.h"
 // --- END NOTE ---
 #include "../assets/AssetManager.h"
+#include "../states/LaunchState.h"
 #include "../states/GameState.h"
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
@@ -63,8 +64,8 @@ bool Engine::initialize(const WindowConfig& config) {
     asset_manager->initialize(renderer);
 
     // --- STATE MACHINE SETUP ---
-    // Set our initial state to GameState.
-    switch_state(std::make_unique<GameState>());
+    // loads directly into LaunchState.
+    switch_state(std::make_unique<LaunchState>());
     
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
