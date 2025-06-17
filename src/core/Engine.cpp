@@ -5,8 +5,11 @@
 #include "../rendering/SDLRenderer.h"
 // --- END NOTE ---
 #include "../assets/AssetManager.h"
+// --- Include the States.
 #include "../states/LaunchState.h"
 #include "../states/GameState.h"
+#include "../states/EditorState.h"
+#include "../states/OptionsMenuState.h"
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
 #include <iostream>
@@ -65,7 +68,7 @@ bool Engine::initialize(const WindowConfig& config) {
 
     // --- STATE MACHINE SETUP ---
     // loads directly into LaunchState.
-    switch_state(std::make_unique<LaunchState>());
+    switch_state(AppStateType::Launch);
     
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
@@ -114,11 +117,32 @@ void Engine::process_input() {
     // We could pass events to the current state here in the future.
 }
 
-void Engine::switch_state(std::unique_ptr<IAppState> new_state) {
+void Engine::switch_state(AppStateType new_state_type) {
     if (current_state) {
         current_state->on_exit();
     }
 
+    // Create a new state based on the type requested.
+    std::unique_ptr<IAppState> new_state = nullptr;
+    
+    switch (new_state_type)
+    {
+    case AppStateType::Launch:
+        new_state = std::make_unique<LaunchState>();
+        break;
+    case AppStateType::Editor:
+        new_state = std::make_unique<EditorState>();
+        break;
+    case AppStateType::Game:
+        new_state = std::make_unique<GameState>();
+        break;
+    case AppStateType::Options:
+        new_state = std::make_unique<OptionsMenuState>();
+    
+    default:
+        std::cerr << "Engine::switch_state - Unknown state requested!" << std::endl;
+        return;
+    }
     current_state = std::move(new_state);
     if (current_state) {
         current_state->on_enter(this);  // pass the engine to the current state.
