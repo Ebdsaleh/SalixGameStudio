@@ -3,6 +3,7 @@
 #include "IAppState.h"
 
 class LaunchState : public IAppState{
+    public:
     LaunchState();
     virtual ~LaunchState();
 
