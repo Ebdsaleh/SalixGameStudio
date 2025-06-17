@@ -35,12 +35,4 @@ class Engine {
     IRenderer* renderer;
     AssetManager* asset_manager;  // The new AssetManager.
     Scene* active_scene;
-
-    // --- TEST  ENTITIES ---
-    // A test entity to display out sprite.
-    // We use a unique_ptr to manage its memory automatically.
-    // std::unique_ptr<Entity> parent_entity;
-    // std::unique_ptr<Entity> child_entity;
-    // --- END TEST ---
-
 };
