@@ -27,7 +27,7 @@ Engine::~Engine() {
 
 }
 
-bool Engine::initialize(const WindowConfig& config) {
+bool Engine::initialize(const WindowConfig& config, int target_fps) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
@@ -69,6 +69,7 @@ bool Engine::initialize(const WindowConfig& config) {
 
     // --- Timer initialization.
     timer = std::make_unique<Timer>();
+    timer->set_target_fps(target_fps);
 
     // --- STATE MACHINE SETUP ---
     // loads directly into LaunchState.
@@ -92,6 +93,9 @@ void Engine::run() {
         process_input();
         update(delta_time);  // pass the real delta_time down the chain.
         render();
+        
+        // At the end of the loop, delay if needed to meet the target FPS.
+        timer->delay_if_needed();
     }
 }
 
