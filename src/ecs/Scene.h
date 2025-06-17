@@ -8,14 +8,14 @@
 // Forward declarations
 class Entity;
 class IRenderer;
-
+class AssetManager;  // We need this for now to decouple from the Engine while we do more tests.
 class Scene {
     public:
     Scene();
     ~Scene();
 
     // Lifecyle methods.
-    void on_load();
+    void on_load(AssetManager* asset_manager);
     void update(float delta_time);
     void render(IRenderer* renderer);
     void on_unload();
