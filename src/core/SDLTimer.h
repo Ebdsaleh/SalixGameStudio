@@ -4,7 +4,8 @@
 
 class SDLTimer : public ITimer {
     public:
-        ~SDLTimer();
+        SDLTimer();
+        virtual ~SDLTimer();
         
         void set_target_fps(int fps) override;
         void tick() override;
