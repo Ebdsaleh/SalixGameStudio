@@ -4,15 +4,14 @@
 // All RendererTypes will be included here to allow the Engine to use a singular set of methods for rendering.
 #include "../rendering/SDLRenderer.h"
 // --- END NOTE ---
-#include "../management/ProjectManager.h"
 #include "../assets/AssetManager.h"
+#include "../states/GameState.h"
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
 #include <iostream>
 
 
 Engine::Engine() {
-    window = nullptr;
     renderer = nullptr;
     is_running = false;
     asset_manager = nullptr;
@@ -58,27 +57,15 @@ bool Engine::initialize(const WindowConfig& config) {
         return false;       
     }
 
-    // --- Delegate  initialization --
-    // Ask the renderer to initialize passing the configuration it needs to create the window.
-    window = renderer->initialize(config);
-
-    if (window == nullptr) {
-        std::cerr << "Engine::initialize - Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-        delete renderer;
-        SDL_Quit();
-        return false;
-    }
-
+    if(!renderer->initialize(config)) return false;
     // --- AssetManager initialization ---
     asset_manager = new AssetManager();
     asset_manager->initialize(renderer);
 
-    // --- Project Initialization ---
-    // Create and load the active_scene via the project_manager.
-    project_manager = std::make_unique<ProjectManager>();
-    project_manager->initialize(asset_manager);
-
-
+    // --- STATE MACHINE SETUP ---
+    // Set our initial state to GameState.
+    switch_state(std::make_unique<GameState>());
+    
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
     return true;
@@ -99,10 +86,10 @@ void Engine::shutdown() {
 
     // Shutdown subsystems in reverse order of creatation (LIFO).
     
-    // Shutdown Managers first.
-    if (project_manager) {
-        project_manager->shutdown();
-        project_manager.reset();
+    // Shutdown current state first.
+    if (current_state) {
+        current_state->on_exit();
+        current_state.reset();
     }
         
     if (asset_manager) {
@@ -123,16 +110,26 @@ void Engine::process_input() {
             is_running = false;
         }
     }
+    // We could pass events to the current state here in the future.
+}
+
+void Engine::switch_state(std::unique_ptr<IAppState> new_state) {
+    if (current_state) {
+        current_state->on_exit();
+    }
+
+    current_state = std::move(new_state);
+    if (current_state) {
+        current_state->on_enter(this);  // pass the engine to the current state.
+    }
 }
 
 void Engine::update(float delta_time) {
-    // The Engine now delegates the update call to the active scene.
-    project_manager->update(delta_time);
-    // Game logic will go here
+    // The Engine now delegates the update call to the active state.
+    current_state->update(delta_time);
 }
 
 void Engine::render() {
-    // Safer error handling if renderer is null, just stop the engine.
     if (renderer == nullptr) {
         std::cerr << "Engine::render - Renderer is null, shuting down." << std::endl;
         is_running = false;  // Gracefully exit the main loop.
@@ -141,14 +138,10 @@ void Engine::render() {
     // Begin drawing the frame
     renderer->begin_frame();
 
-    // Process rendering objects here
-
-    // --- TEST: Only Render the through the project_manager ---
-    if (project_manager) {
-        project_manager->render(renderer);
+    // The Engine now delegates the render call to the active state.
+    if (current_state) {
+        current_state->render(renderer);
     }
-
-    // --- END TEST ---
 
     // Present the rendered frame
     renderer->end_frame();   
