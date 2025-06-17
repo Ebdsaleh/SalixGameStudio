@@ -10,6 +10,9 @@ class Timer {
         // Marks the beginning of a new frame.
         void tick();
 
+        // Framerate capping
+        void set_target_fps(int fps);
+        void delay_if_needed();
         // Gets the elapsed time since the last tick
         float get_delta_time() const;
 
@@ -20,4 +23,6 @@ class Timer {
         // the delta_time is stored here after every tick.
         float delta_time;
 
+        // The duration of a single frame, useful for checking if we are meeting our target FPS
+        std::chrono::duration<float> target_frame_duration;
 };
