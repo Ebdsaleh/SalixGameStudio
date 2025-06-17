@@ -25,6 +25,8 @@ class Engine {
     void update(float delta_time);
     void render();
 
+    // A method to change states.
+    void switch_state(std::unique_ptr<IAppState> new_state);
     bool is_running;
 
     // Engine owns the low-level systems.
