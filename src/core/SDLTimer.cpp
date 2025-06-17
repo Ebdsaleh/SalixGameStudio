@@ -10,6 +10,7 @@ SDLTimer::SDLTimer() :
         last_tick_time = SDL_GetTicks();
     }
 
+
 void SDLTimer::set_target_fps(int fps) {
     if (fps > 0) {
         target_frame_duration_ms = 1000.0f / fps;

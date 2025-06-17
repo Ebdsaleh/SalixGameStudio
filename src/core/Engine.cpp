@@ -73,7 +73,7 @@ bool Engine::initialize(const WindowConfig& config, int target_fps) {
 
     // --- STATE MACHINE SETUP ---
     // loads directly into LaunchState.
-    switch_state(AppStateType::Game);
+    switch_state(AppStateType::Launch);
     
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
