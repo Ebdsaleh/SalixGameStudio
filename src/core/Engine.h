@@ -17,8 +17,11 @@ class Engine {
     bool initialize(const WindowConfig& config);
     void run();
     void shutdown();
-    AssetManager* get_asset_manager();
-    IRenderer* get_renderer();
+    
+    // getters for the states to access the core systems.
+    IRenderer* get_renderer() const { return renderer; }
+    AssetManager* get_asset_manager() const { return asset_manager;}
+    
 
     private:
     void process_input();
