@@ -2,16 +2,26 @@
 #include "Engine.h"
 #include "SDLTimer.h"
 #include "ChronoTimer.h"
+// --- SUPPORTED INPUT HANDLING API'S GO HERE. ---
+// --- NOTE ---
+// We will need to add all our supported input layer API's here.
+#include "../input/SDLInputManager.h"
+// --- END NOTE ---
+
+// --- SUPPORTED RENDERING API'S GO HERE. ---
 // --- NOTE ---
 // All RendererTypes will be included here to allow the Engine to use a singular set of methods for rendering.
 #include "../rendering/SDLRenderer.h"
 // --- END NOTE ---
+
 #include "../assets/AssetManager.h"
+
 // --- Include the States.
 #include "../states/LaunchState.h"
 #include "../states/GameState.h"
 #include "../states/EditorState.h"
 #include "../states/OptionsMenuState.h"
+
 // We need to include the full SDL header here to use its functions
 #include <SDL.h>
 #include <iostream>
@@ -86,6 +96,9 @@ bool Engine::initialize(const WindowConfig& config, TimerType timer_type, int ta
     // loads directly into LaunchState.
     switch_state(AppStateType::Launch);
     
+    // --- INPUT MANAGER SETUP ---
+    input_manager = std::make_unique<IInputManager>();
+
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
     return true;
@@ -132,9 +145,9 @@ void Engine::shutdown() {
 }
 
 void Engine::process_input() {
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
+    if (input_manager) {
+        input_manager->update();
+        if (input_manager->wants_to_quit()) {
             is_running = false;
         }
     }
