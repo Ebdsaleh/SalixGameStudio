@@ -1,11 +1,11 @@
-// ChronoTimer.cpp
-
 #include "ChronoTimer.h"
-#include <thread> // Needed for std::this_thread:sleep_for function.
-
-// --- Static Initialization for get_ticks_ms ---
-// We need a single, application-wide start time to measure against.
-// A static variable is the perfect tool for this.
+#include <thread> // For std::this_thread::sleep_for
+#include <iostream>
+// --- ATTENTION: THIS NEEDS A RE-WORK! ---
+// --- I WILL COME BACK TO THIS LATER,  ---
+// --- WHEN I START EXPERIMENTING WITH  ---
+// --- DIFFERENT RENDERING API'S        ---
+// Static Initialization for get_ticks_ms
 static const auto app_start_time = std::chrono::high_resolution_clock::now();
 
 ChronoTimer::ChronoTimer() : 
@@ -32,8 +32,15 @@ void ChronoTimer::tick() {
         std::this_thread::sleep_for(sleep_duration);
     }
 
+    // --- THE CRUCIAL FIX IS HERE ---
+    // Recalculate the current time after sleeping to get the true frame time.
     current_time = std::chrono::high_resolution_clock::now();
-    delta_time = std::chrono::duration<float>(current_time - last_frame_start_time).count();
+    
+    // Explicitly cast the high-precision duration into a float representing SECONDS.
+    std::chrono::duration<float> final_duration = current_time - last_frame_start_time;
+    delta_time = final_duration.count();
+    
+    // Update the start time for the next frame.
     last_frame_start_time = current_time;
 }
 
