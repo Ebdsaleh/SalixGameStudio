@@ -7,16 +7,20 @@ class SDLInputManager : public IInputManager {
     public:
         SDLInputManager();
         ~SDLInputManager();
+
+        // The main update call that polls all devices.
+        void update() override;
+
         // Keyboard Queries
         bool is_down(KeyCode key) const override;
         bool is_held_down(KeyCode key) const override;
-        bool is_held_down_for(KeyCode key) const override;
+        bool is_held_down_for(KeyCode key, int target_duration) const override;
         bool was_just_released(KeyCode key) const override;
         bool was_released(KeyCode key) const override;
         bool is_up(KeyCode key) const override;
         bool multiple_are_down(std::vector<KeyCode> keys) const override;
         bool multiple_are_held_down(std::vector<KeyCode> keys) const override;
-        bool multiple_are_held_down_for(std::vector<KeyCode> keys) const override;
+        bool multiple_are_held_down_for(std::vector<KeyCode> keys, int target_duration) const override;
         bool multiple_were_just_released(std::vector<KeyCode> keys) const override;
         bool multiple_were_released(std::vector<KeyCode> keys) const override;
         bool multiple_are_up(std::vector<KeyCode> keys) const override;
@@ -25,16 +29,16 @@ class SDLInputManager : public IInputManager {
         // Mouse Buttons
         bool is_down(MouseButton button) const override;
         bool is_held_down(MouseButton button) const override;
-        bool is_held_down_for(MouseButton button) const override;
+        bool is_held_down_for(MouseButton button, int target_duration) const override;
         bool was_just_released(MouseButton button) const override;
         bool was_released(MouseButton button) const override;
         bool is_up(MouseButton button) const override;
-        bool multiple_are_down(std::vector<MouseButton> buttons) override;
-        bool multiple_are_held_down(std::vector<MouseButton> buttons) override;
-        bool multiple_are_held_down_for(std::vector<MouseButton> buttons) override;
-        bool multiple_were_just_released(std::vector<MouseButton> buttons) override;
-        bool multiple_were_released(std::vector<MouseButton> buttons) override;
-        bool multiple_are_up(std::vector<MouseButton> buttons) override;
+        bool multiple_are_down(std::vector<MouseButton> buttons) const override;
+        bool multiple_are_held_down(std::vector<MouseButton> buttons) const override;
+        bool multiple_are_held_down_for(std::vector<MouseButton> buttons, int target_duration) const override;
+        bool multiple_were_just_released(std::vector<MouseButton> buttons) const override;
+        bool multiple_were_released(std::vector<MouseButton> buttons) const override;
+        bool multiple_are_up(std::vector<MouseButton> buttons) const override;
 
         // Additional queries
         void get_mouse_position(int* x, int* y) const override;
