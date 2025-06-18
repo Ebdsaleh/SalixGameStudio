@@ -2,6 +2,7 @@
 #pragma once
 #include "../rendering/IRenderer.h"
 #include "ITimer.h"
+#include "../input/IInputManager.h"
 #include "../ecs/Entity.h"
 #include <memory>
 
@@ -33,20 +34,22 @@ class Engine {
     // getters for the states to access the core systems.
     IRenderer* get_renderer() const { return renderer; }
     AssetManager* get_asset_manager() const { return asset_manager;}
+    IInputManager* get_input_manager() const;
     
+    // A public method to allow states to request a change.
+    void switch_state(AppStateType new_state_type); 
 
     private:
     void process_input();
     void update(float delta_time);
     void render();
 
-    // A public method to allow states to request a change.
-    void switch_state(AppStateType new_state_type);
     bool is_running;
 
     // Engine owns the low-level systems.
     AssetManager* asset_manager;
     IRenderer* renderer;
+    std::unique_ptr<IInputManager> input_manager;
 
     // The Engine now owns the current state.
     std::unique_ptr<IAppState> current_state;
