@@ -1,0 +1,22 @@
+// InputCodes.h
+
+#pragma once
+
+// We can add to these enums as we support more keys.
+// The values don't matter, only the names.
+enum class KeyCode {
+    None, Alpha1, Alpha2, Alpha3, Alpha4, Alpha5,
+    Alpha6, Alpha7, Alpha8, Alpha9, Alpha0, 
+    A, B, C, D, E, F, G, H, I, J, K, L, M,
+    N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
+    Space, Enter, Escape, LeftShift, LeftControl, LeftAlt,
+    RightShift, RightControl, TightAlt, Tab, Delete,
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12
+};
+
+enum class MouseButton {
+    None,
+    Left,
+    Middle,
+    Right
+};
