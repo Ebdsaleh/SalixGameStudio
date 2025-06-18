@@ -2,7 +2,7 @@
 #pragma once
 #include "IInputManager.h"
 #include <SDL.h>
-
+#include <vector>
 class SDLInputManager : public IInputManager {
     public:
         SDLInputManager();
@@ -18,12 +18,12 @@ class SDLInputManager : public IInputManager {
         bool was_just_released(KeyCode key) const override;
         bool was_released(KeyCode key) const override;
         bool is_up(KeyCode key) const override;
-        bool multiple_are_down(std::vector<KeyCode> keys) const override;
-        bool multiple_are_held_down(std::vector<KeyCode> keys) const override;
-        bool multiple_are_held_down_for(std::vector<KeyCode> keys, int target_duration) const override;
-        bool multiple_were_just_released(std::vector<KeyCode> keys) const override;
-        bool multiple_were_released(std::vector<KeyCode> keys) const override;
-        bool multiple_are_up(std::vector<KeyCode> keys) const override;
+        bool multiple_are_down(std::vector<KeyCode>& keys) const override;
+        bool multiple_are_held_down(std::vector<KeyCode>& keys) const override;
+        bool multiple_are_held_down_for(std::vector<KeyCode>& keys, int target_duration) const override;
+        bool multiple_were_just_released(std::vector<KeyCode>& keys) const override;
+        bool multiple_were_released(std::vector<KeyCode>& keys) const override;
+        bool multiple_are_up(std::vector<KeyCode>& keys) const override;
 
         // Mouse Queries
         // Mouse Buttons
@@ -33,12 +33,12 @@ class SDLInputManager : public IInputManager {
         bool was_just_released(MouseButton button) const override;
         bool was_released(MouseButton button) const override;
         bool is_up(MouseButton button) const override;
-        bool multiple_are_down(std::vector<MouseButton> buttons) const override;
-        bool multiple_are_held_down(std::vector<MouseButton> buttons) const override;
-        bool multiple_are_held_down_for(std::vector<MouseButton> buttons, int target_duration) const override;
-        bool multiple_were_just_released(std::vector<MouseButton> buttons) const override;
-        bool multiple_were_released(std::vector<MouseButton> buttons) const override;
-        bool multiple_are_up(std::vector<MouseButton> buttons) const override;
+        bool multiple_are_down(std::vector<MouseButton>& buttons) const override;
+        bool multiple_are_held_down(std::vector<MouseButton>& buttons) const override;
+        bool multiple_are_held_down_for(std::vector<MouseButton>& buttons, int target_duration) const override;
+        bool multiple_were_just_released(std::vector<MouseButton>& buttons) const override;
+        bool multiple_were_released(std::vector<MouseButton>& buttons) const override;
+        bool multiple_are_up(std::vector<MouseButton>& buttons) const override;
 
         // Additional queries
         void get_mouse_position(int* x, int* y) const override;

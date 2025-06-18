@@ -18,20 +18,16 @@ SDLInputManager::SDLInputManager() :
 
 SDLInputManager::~SDLInputManager() {}
 
+
 void SDLInputManager::update() {
-    // preparations for the polling loop. Make sure it starts with a blank slate, initially.
-
-    // set or overwrite the previous key states with the current key states.
     memcpy(previous_key_states.data(), current_key_states, previous_key_states.size());
-
-    // overwrite the previous mouse state the with current mouse state
     previous_mouse_state = current_mouse_state;
+    current_mouse_state = SDL_GetMouseState(&mouse_x, &mouse_y);
 
-    // Input Even Polling loop.
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
-            quit_requested = true;  // set the quit flag, telling the engine to stop looking for events and shutdown.
+            quit_requested = true;
         }
     }
 }
@@ -70,32 +66,32 @@ bool SDLInputManager::is_up(KeyCode key) const {
 
 // --- Keyboard Multiple keystrokes events (simultaneous)
 
-bool SDLInputManager::multiple_are_down(std::vector<KeyCode> keys) const {
+bool SDLInputManager::multiple_are_down(std::vector<KeyCode>& keys) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_are_held_down(std::vector<KeyCode> keys) const {
+bool SDLInputManager::multiple_are_held_down(std::vector<KeyCode>& keys) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_are_held_down_for(std::vector<KeyCode> keys, int target_duration) const {
+bool SDLInputManager::multiple_are_held_down_for(std::vector<KeyCode>& keys, int target_duration) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_were_just_released(std::vector<KeyCode> keys) const {
+bool SDLInputManager::multiple_were_just_released(std::vector<KeyCode>& keys) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_were_released(std::vector<KeyCode> keys) const {
+bool SDLInputManager::multiple_were_released(std::vector<KeyCode>& keys) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_are_up(std::vector<KeyCode> keys) const {
+bool SDLInputManager::multiple_are_up(std::vector<KeyCode>& keys) const {
     // not implemented yet
     return false;
 }
@@ -141,32 +137,32 @@ bool SDLInputManager::is_up(MouseButton button) const {
 
 // --- Mouse  Multiple Button events (simultaneous)
 
-bool SDLInputManager::multiple_are_down(std::vector<MouseButton> buttons) const {
+bool SDLInputManager::multiple_are_down(std::vector<MouseButton>& buttons) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_are_held_down(std::vector<MouseButton> buttons) const {
+bool SDLInputManager::multiple_are_held_down(std::vector<MouseButton>& buttons) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_are_held_down_for(std::vector<MouseButton> buttons, int target_duration) const {
+bool SDLInputManager::multiple_are_held_down_for(std::vector<MouseButton>& buttons, int target_duration) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_were_just_released(std::vector<MouseButton> buttons) const {
+bool SDLInputManager::multiple_were_just_released(std::vector<MouseButton>& buttons) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_were_released(std::vector<MouseButton> buttons) const {
+bool SDLInputManager::multiple_were_released(std::vector<MouseButton>& buttons) const {
     // not implemented yet
     return false;
 }
 
-bool SDLInputManager::multiple_are_up(std::vector<MouseButton> buttons) const {
+bool SDLInputManager::multiple_are_up(std::vector<MouseButton>& buttons) const {
     // not implemented yet
     return false;
 }

@@ -97,7 +97,9 @@ bool Engine::initialize(const WindowConfig& config, TimerType timer_type, int ta
     switch_state(AppStateType::Launch);
     
     // --- INPUT MANAGER SETUP ---
-    input_manager = std::make_unique<IInputManager>();
+    // Later, we will use an enum class InputLayer to pass into the Engine.
+    // The same as we did with the RendererType, and TimerType
+    input_manager = std::make_unique<SDLInputManager>(); 
 
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
