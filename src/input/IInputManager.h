@@ -2,8 +2,6 @@
 #pragma once
 #include "InputCodes.h"
 #include <vector>
-// This file will need all the input API Headers that we are going to support.
-#include <SDL.h>
 
 
 class IInputManager {
@@ -45,19 +43,5 @@ class IInputManager {
         // Additional queries
         virtual void get_mouse_position(int* x, int* y) const = 0;
         virtual bool wants_to_quit() const = 0;
-
-    private:
-        // The private "translator" function.
-        SDL_Scancode to_sdl_scancode(KeyCode key) const;
-
-        // State tracking varaiables 
-        const Uint8* current_key_states;
-        std::vector<Uint8> previous_key_states;
-
-        Uint32 current_mouse_state;
-        Uint32 previous_mouse_state;
-        int mouse_x;
-        int mouse_y;
-
-        bool quit_requested;
+    
 };
