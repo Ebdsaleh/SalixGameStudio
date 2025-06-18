@@ -10,8 +10,11 @@ enum class KeyCode {
     A, B, C, D, E, F, G, H, I, J, K, L, M,
     N, O, P, Q, R, S, T, U, V, W, X, Y, Z,
     Space, Enter, Escape, LeftShift, LeftControl, LeftAlt,
-    RightShift, RightControl, TightAlt, Tab, Delete,
-    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12
+    RightShift, RightControl, RightAlt, Tab, Delete,
+    F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12,
+    BackSpace, BackSlash, CapsLock, Comma, Separator, 
+    Slash, Apostrophe, SemiColon, Period, Minus, Equals,
+    Up, Down, Left, Right, LeftGui, RightGui, ContextMenu, PrintScreen,
 };
 
 enum class MouseButton {
