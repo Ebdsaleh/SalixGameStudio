@@ -14,8 +14,10 @@ int main(int argc, char* argv[]) {
 
     // give a framerate limit here. in the future, we can get it from a settings file.
     int fps_target = 60;
+    // explicitly set the TimerType
+    TimerType timer_type = TimerType::SDL;
     // Initialize the engine. If it fails, exit.
-    if (!engine.initialize(config, fps_target)) {
+    if (!engine.initialize(config, timer_type, fps_target)) {
         return 1;
     }
 
