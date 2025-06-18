@@ -33,12 +33,12 @@ class IInputManager {
         virtual bool was_just_released(MouseButton button) const = 0;
         virtual bool was_released(MouseButton button) const = 0;
         virtual bool is_up(MouseButton button) const = 0;
-        virtual bool multiple_are_down(std::vector<MouseButton> buttons) = 0;
-        virtual bool multiple_are_held_down(std::vector<MouseButton> buttons) = 0;
-        virtual bool multiple_are_held_down_for(std::vector<MouseButton> buttons, int target_duration) = 0;
-        virtual bool multiple_were_just_released(std::vector<MouseButton> buttons) = 0;
-        virtual bool multiple_were_released(std::vector<MouseButton> buttons) = 0;
-        virtual bool multiple_are_up(std::vector<MouseButton> buttons) = 0;
+        virtual bool multiple_are_down(std::vector<MouseButton> buttons) const = 0;
+        virtual bool multiple_are_held_down(std::vector<MouseButton> buttons) const= 0;
+        virtual bool multiple_are_held_down_for(std::vector<MouseButton> buttons, int target_duration) const = 0;
+        virtual bool multiple_were_just_released(std::vector<MouseButton> buttons) const = 0;
+        virtual bool multiple_were_released(std::vector<MouseButton> buttons) const = 0;
+        virtual bool multiple_are_up(std::vector<MouseButton> buttons) const = 0;
 
         // Additional queries
         virtual void get_mouse_position(int* x, int* y) const = 0;
