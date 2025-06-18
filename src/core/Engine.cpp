@@ -1,6 +1,7 @@
 // Engine.cpp
 #include "Engine.h"
 #include "SDLTimer.h"
+#include "ChronoTimer.h"
 // --- NOTE ---
 // All RendererTypes will be included here to allow the Engine to use a singular set of methods for rendering.
 #include "../rendering/SDLRenderer.h"
@@ -27,7 +28,7 @@ Engine::~Engine() {
 
 }
 
-bool Engine::initialize(const WindowConfig& config, int target_fps) {
+bool Engine::initialize(const WindowConfig& config, TimerType timer_type, int target_fps) {
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
@@ -67,10 +68,20 @@ bool Engine::initialize(const WindowConfig& config, int target_fps) {
     asset_manager = new AssetManager();
     asset_manager->initialize(renderer);
 
+    // --- Timer Factory ---
     // --- Timer initialization.
-    timer = std::make_unique<SDLTimer>();
-    timer->set_target_fps(target_fps);
-
+    switch(timer_type) {
+        case TimerType::SDL:
+            timer = std::make_unique<SDLTimer>();
+            timer->set_target_fps(target_fps);
+            break;
+        case TimerType::Chrono:
+            timer = std::make_unique<ChronoTimer>();
+            timer->set_target_fps(target_fps);
+            break;
+        default:
+        std::cerr << "Engine::initialize - Invalid or unsupported timer type requested." << std::endl;
+    }
     // --- STATE MACHINE SETUP ---
     // loads directly into LaunchState.
     switch_state(AppStateType::Launch);
