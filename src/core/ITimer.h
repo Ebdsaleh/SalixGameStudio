@@ -1,6 +1,11 @@
 // ITimer.h
 #pragma once
 
+enum class TimerType {
+    SDL,
+    Chrono,
+};
+
 class ITimer {
     public:
         virtual ~ITimer() = default;
