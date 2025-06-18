@@ -267,4 +267,5 @@ SDL_Scancode SDLInputManager::to_sdl_scancode(KeyCode key) const {
         case KeyCode::ContextMenu: return SDL_SCANCODE_APPLICATION;
         case KeyCode::PrintScreen: return SDL_SCANCODE_PRINTSCREEN;
         default: return SDL_SCANCODE_UNKNOWN;
+    }
 }
