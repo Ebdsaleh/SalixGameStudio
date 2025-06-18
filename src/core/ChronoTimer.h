@@ -1,13 +1,11 @@
-// Timer.h
-// Will revist this at another time.
-/*
+// ChronoTimer.h
 #pragma once
-
+#include "ITimer.h"
 #include <chrono>
 
-class Timer {
+class ChronoTimer : public ITimer {
 public:
-    Timer();
+    ChronoTimer();
 
     void set_target_fps(int fps);
     
@@ -16,10 +14,18 @@ public:
 
     // This returns the delta_time that was calculated in the *previous* tick.
     float get_delta_time() const;
+    
+    // Get the number of miliseconds since an arbitrary starting point.
+    static unsigned int get_ticks_ms();  // We should also make a version for floats and doubles.
+
+    
+
+    // A high precision delay function
+    static void delay(unsigned int ms);  // We should also make a version for floats and doubles.
+
 
 private:
     std::chrono::high_resolution_clock::time_point last_frame_start_time;
     float delta_time;
     std::chrono::duration<float> target_frame_duration;
 };
-*/
