@@ -1,6 +1,7 @@
 // Engine.h
 #pragma once
 #include "../rendering/IRenderer.h"
+#include "ITimer.h"
 #include "../ecs/Entity.h"
 #include <memory>
 
