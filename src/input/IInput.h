@@ -50,21 +50,21 @@ class IInput {
         // --- MULTIPLE INPUT CHECKS ---
 
         // The moment multiple k, b, or a,  down events are triggered.
-        virtual bool multi_are_down(std::vector<InputType> input_type) = 0;
+        virtual bool multiple_are_down(std::vector<InputType> input_type) = 0;
 
         // The k, b, or a, was down last frame and hasn't been released this frame.
-        virtual bool multi_are_held_down(std::vector<InputType> input_type) = 0;
+        virtual bool multiple_are_held_down(std::vector<InputType> input_type) = 0;
 
         // k, b, or a, has been held down for the duration in seconds.
-        virtual bool mulit_are_held_down_for(std::vector<InputType> input_type, int duration) = 0;
+        virtual bool multiple_are_held_down_for(std::vector<InputType> input_type, int duration) = 0;
 
         // The moment k, b, or a, was released/up,  after being held down.
-        virtual bool multi_were_just_released(std::vector<InputType> input_type) = 0; 
+        virtual bool multiple_were_just_released(std::vector<InputType> input_type) = 0; 
 
         // The moment k, b, or a, was released/up from down event being triggered last frame.
-        virtual bool multi_were_released(std::vector<InputType> input_type) = 0;
+        virtual bool multiple_were_released(std::vector<InputType> input_type) = 0;
 
         // is k, b, or, a up/not_triggered this frame.
-        virtual bool multi_are_up(std::vector<InputType> input_type) = 0;
+        virtual bool multiple_are_up(std::vector<InputType> input_type) = 0;
 
 };
