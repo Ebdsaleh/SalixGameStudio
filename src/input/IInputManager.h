@@ -14,13 +14,13 @@ class IInputManager {
         // Keyboard Queries
         virtual bool is_down(KeyCode key) const = 0;
         virtual bool is_held_down(KeyCode key) const = 0;
-        virtual bool is_held_down_for(KeyCode key) const = 0;
+        virtual bool is_held_down_for(KeyCode key, int target_duration) const = 0;
         virtual bool was_just_released(KeyCode key) const = 0;
         virtual bool was_released(KeyCode key) const = 0;
         virtual bool is_up(KeyCode key) const = 0;
         virtual bool multiple_are_down(std::vector<KeyCode> keys) const = 0;
         virtual bool multiple_are_held_down(std::vector<KeyCode> keys) const = 0;
-        virtual bool multiple_are_held_down_for(std::vector<KeyCode> keys) const = 0;
+        virtual bool multiple_are_held_down_for(std::vector<KeyCode> keys, int target_duration) const = 0;
         virtual bool multiple_were_just_released(std::vector<KeyCode> keys) const = 0;
         virtual bool multiple_were_released(std::vector<KeyCode> keys) const = 0;
         virtual bool multiple_are_up(std::vector<KeyCode> keys) const = 0;
@@ -29,13 +29,13 @@ class IInputManager {
         // Mouse Buttons
         virtual bool is_down(MouseButton button) const = 0;
         virtual bool is_held_down(MouseButton button) const = 0;
-        virtual bool is_held_down_for(MouseButton button) const = 0;
+        virtual bool is_held_down_for(MouseButton button, int target_duration) const = 0;
         virtual bool was_just_released(MouseButton button) const = 0;
         virtual bool was_released(MouseButton button) const = 0;
         virtual bool is_up(MouseButton button) const = 0;
         virtual bool multiple_are_down(std::vector<MouseButton> buttons) = 0;
         virtual bool multiple_are_held_down(std::vector<MouseButton> buttons) = 0;
-        virtual bool multiple_are_held_down_for(std::vector<MouseButton> buttons) = 0;
+        virtual bool multiple_are_held_down_for(std::vector<MouseButton> buttons, int target_duration) = 0;
         virtual bool multiple_were_just_released(std::vector<MouseButton> buttons) = 0;
         virtual bool multiple_were_released(std::vector<MouseButton> buttons) = 0;
         virtual bool multiple_are_up(std::vector<MouseButton> buttons) = 0;
