@@ -9,7 +9,7 @@ LaunchState::~LaunchState() {}
 void LaunchState::on_enter(Engine* engine) {
     std::cout << "Entering LaunchState..." << std::endl;
     engine_ptr = engine;
-    input_manager_ptr = engine->get_input_manager();
+    input_manager_ptr = engine_ptr->get_input_manager();
 }
 
 void LaunchState::on_exit() {
