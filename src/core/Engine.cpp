@@ -114,7 +114,7 @@ void Engine::run() {
         float delta_time = timer->get_delta_time();
 
         // --- TEST CODE: Check that framerate limitting is working
-        std::cout << "Delta Time: " << delta_time << std::endl;
+        // std::cout << "Delta Time: " << delta_time << std::endl;
         // --- END TEST CODE ---
         process_input();
         update(delta_time);  
