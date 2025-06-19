@@ -40,7 +40,7 @@ class Engine {
     void switch_state(AppStateType new_state_type); 
 
     private:
-    void process_input();
+    void process_input(float delta_time);
     void update(float delta_time);
     void render();
 
