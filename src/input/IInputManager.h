@@ -9,7 +9,7 @@ class IInputManager {
         virtual ~IInputManager() = default;
 
         // The main update call that processes events for the frame.
-        virtual void update() = 0;
+        virtual void update(float delta_time) = 0;
 
         // Keyboard Queries
 
