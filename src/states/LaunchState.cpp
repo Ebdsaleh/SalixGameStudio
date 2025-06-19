@@ -23,6 +23,8 @@ void LaunchState::update(float delta_time) {
     if (input_manager_ptr->is_down(KeyCode::G)) std::cout << "'G' key press detected.Switching to GameState." << std::endl;
     
     if (input_manager_ptr->is_down(KeyCode::O)) std::cout << "'O' key press detected.Switching to OptionsMenuState." << std::endl;
+
+    if (input_manager_ptr->is_held_down_for(KeyCode::Space, 2)) std::cout << "Hey, Why so much whitespace?! Take your thumb off the SPACEBAR!!!" << std::endl;
 }
 
 void LaunchState::render(IRenderer* renderer) {
