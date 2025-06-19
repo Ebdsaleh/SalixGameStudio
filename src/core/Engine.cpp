@@ -125,7 +125,7 @@ void Engine::run() {
         // --- TEST CODE: Check that framerate limitting is working
         // std::cout << "Delta Time: " << delta_time << std::endl;
         // --- END TEST CODE ---
-        process_input();
+        process_input(delta_time);
         update(delta_time);  
         render();
         
@@ -155,9 +155,9 @@ void Engine::shutdown() {
     SDL_Quit();
 }
 
-void Engine::process_input() {
+void Engine::process_input(float delta_time) {
     if (input_manager) {
-        input_manager->update();
+        input_manager->update(delta_time);
         if (input_manager->wants_to_quit()) {
             is_running = false;
         }
