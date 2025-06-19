@@ -39,6 +39,14 @@ Engine::~Engine() {
 }
 
 bool Engine::initialize(const WindowConfig& config, TimerType timer_type, int target_fps) {
+    // --- ATTENTION: MUST INITIALIZE IN THE FOLLOWING ORDER:           ---
+    // --- 1: CONTEXT INITIALIZATION (SDL in this case).                ---       
+    // --- 2: RENDERER INITIALIZATION (Currently SDL).                  ---
+    // --- 3: ASSET MANAGER INITIALIZATION (Custom class).              ---
+    // --- 4: INPUT MANAGER INITIALIZATION (Custom class).              ---
+    // --- 5: STATE MACHINE INITIALIZATION (Custom class).              ---
+    // --- 6: SET THE RUNNING FLAG "is_running" (start the engine.)     ---
+    // --- 7: RETURN "true". (Engine will be successfully initialized). ---
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cerr << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
         return false;
@@ -92,15 +100,16 @@ bool Engine::initialize(const WindowConfig& config, TimerType timer_type, int ta
         default:
         std::cerr << "Engine::initialize - Invalid or unsupported timer type requested." << std::endl;
     }
-    // --- STATE MACHINE SETUP ---
-    // loads directly into LaunchState.
-    switch_state(AppStateType::Launch);
-    
+
     // --- INPUT MANAGER SETUP ---
     // Later, we will use an enum class InputLayer to pass into the Engine.
     // The same as we did with the RendererType, and TimerType
     input_manager = std::make_unique<SDLInputManager>(); 
 
+    // --- STATE MACHINE SETUP ---
+    // loads directly into LaunchState.
+    switch_state(AppStateType::Launch);
+    
     is_running = true;
     std::cout << "Engine initialized successfully." << std::endl;
     return true;
