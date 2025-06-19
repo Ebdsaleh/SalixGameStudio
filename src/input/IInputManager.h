@@ -16,7 +16,7 @@ class IInputManager {
         // Returns true the moment the frame detects the input
         virtual bool is_down(KeyCode key) const = 0;
 
-        // Returns true if the input 'is still down' from the previous frame
+        // Returns true if the input 'is still down' from the previous frame-cycle.
         virtual bool is_held_down(KeyCode key) const = 0;
 
         // Returns true if the input 'is held down' for the target_duration value (measured in seconds).
