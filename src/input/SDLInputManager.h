@@ -62,8 +62,6 @@ class SDLInputManager : public IInputManager {
         int mouse_y;
         
         // A record of currently held down inputs. Will look at how this will work later,
-        // std::unique_ptr<std::vector<KeyCode>, std::vector<MouseButton>> inputs_held_down;
-
 
         // --- Stopwatch for Timed Input. ---
         // This map will store the total time, in seconds, the each input has been held down.
