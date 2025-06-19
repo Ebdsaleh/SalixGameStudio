@@ -3,13 +3,17 @@
 #include "IInputManager.h"
 #include <SDL.h>
 #include <vector>
+#include <map>
+#include <memory>
+
+
 class SDLInputManager : public IInputManager {
     public:
         SDLInputManager();
         ~SDLInputManager();
 
         // The main update call that polls all devices.
-        void update() override;
+        void update(float delta_time) override;
 
         // Keyboard Queries
         bool is_down(KeyCode key) const override;
@@ -56,6 +60,14 @@ class SDLInputManager : public IInputManager {
         Uint32 previous_mouse_state;
         int mouse_x;
         int mouse_y;
+        
+        // A record of currently held down inputs. Will look at how this will work later,
+        // std::unique_ptr<std::vector<KeyCode>, std::vector<MouseButton>> inputs_held_down;
+
+
+        // --- Stopwatch for Timed Input. ---
+        // This map will store the total time, in seconds, the each input has been held down.
+        std::map<SDL_Scancode, float> key_held_durations;
 
         bool quit_requested;
 };
