@@ -35,30 +35,38 @@ void SDLInputManager::update() {
 // --- Keyboard Queries ---
 
 // ---Single Keyboard key events
+
+// Returns true the moment the frame detects the input
 bool SDLInputManager::is_down(KeyCode key) const {
+    SDL_Scancode sc = to_sdl_scancode(key);
+    return (current_key_states[sc] == 1 && previous_key_states[sc] == 0);
+}
+
+// Returns true if the input 'is still down' from the previous frame-cycle
+bool SDLInputManager::is_held_down(KeyCode key) const {
+    // not implemented yet
     return current_key_states[to_sdl_scancode(key)] == 1;
 }
 
-bool SDLInputManager::is_held_down(KeyCode key) const {
-    // not implemented yet
-    return current_key_states[to_sdl_scancode(key)];
-}
-
+// Returns true if the input 'is held down' for the target_duration value (measured in seconds).
 bool SDLInputManager::is_held_down_for(KeyCode key, int target_duration) const {
     // not implemented yet
     return current_key_states[to_sdl_scancode(key)];
 }
 
-bool SDLInputManager::was_just_released(KeyCode key) const {
-    // not implemented yet
-    return false;
-}
-
+// Returns true when the input goes from 'down to up' (is_down to is_up).
 bool SDLInputManager::was_released(KeyCode key) const {
     SDL_Scancode scancode = to_sdl_scancode(key);
     return (current_key_states[scancode] == 0 && previous_key_states[scancode] == 1);
 }
 
+//Returns true when the input goes from 'down to up, after being in the 'is_held_down' state.
+bool SDLInputManager::was_just_released(KeyCode key) const {
+    // not implemented yet
+    return false;
+}
+
+// Returns true if the input is not detect this frame. 
 bool SDLInputManager::is_up(KeyCode key) const {
     // not implemented yet
     return false;
