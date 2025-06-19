@@ -210,3 +210,8 @@ void Engine::render() {
     // Present the rendered frame
     renderer->end_frame();   
 }
+
+IInputManager* Engine::get_input_manager() const {
+    // Get the raw pointer from our unique_ptr to IInputManager, owned by the Engine.
+    return input_manager.get();
+}
