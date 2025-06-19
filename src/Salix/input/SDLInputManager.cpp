@@ -7,7 +7,7 @@ SDLInputManager::SDLInputManager() :
     previous_mouse_state(0),
     mouse_x(0),
     mouse_y(0)
-    // inputs_held_down(nullptr)
+    
     {
         // Initialize Keyboard state arrays.
         current_key_states = SDL_GetKeyboardState(NULL);
@@ -15,18 +15,21 @@ SDLInputManager::SDLInputManager() :
         SDL_GetKeyboardState(&num_keys);
         previous_key_states.resize(num_keys);
         memcpy(previous_key_states.data(), current_key_states, num_keys);
-        // Had issues trying to implement this.
-        // inputs_held_down = std::make_unique<std::vector<KeyCode>, std::vector<MouseButton>>();
+       
     }
 
 SDLInputManager::~SDLInputManager() {}
 
 
 void SDLInputManager::update(float delta_time) {
+    // --- State snapshotting is the same ---
+    // We still need this for our was_released checks.
     memcpy(previous_key_states.data(), current_key_states, previous_key_states.size());
     previous_mouse_state = current_mouse_state;
     current_mouse_state = SDL_GetMouseState(&mouse_x, &mouse_y);
 
+    // --- NEW: Event-Driven Logic ---
+    // Instead of iterating all keys, we react to specific events from SDL.
     SDL_Event event;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
