@@ -56,5 +56,4 @@ class IInputManager {
         // Additional queries
         virtual void get_mouse_position(int* x, int* y) const = 0;
         virtual bool wants_to_quit() const = 0;
-    
 };
