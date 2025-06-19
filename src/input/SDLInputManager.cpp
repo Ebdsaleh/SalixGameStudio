@@ -7,6 +7,7 @@ SDLInputManager::SDLInputManager() :
     previous_mouse_state(0),
     mouse_x(0),
     mouse_y(0)
+    // inputs_held_down(nullptr)
     {
         // Initialize Keyboard state arrays.
         current_key_states = SDL_GetKeyboardState(NULL);
@@ -14,12 +15,14 @@ SDLInputManager::SDLInputManager() :
         SDL_GetKeyboardState(&num_keys);
         previous_key_states.resize(num_keys);
         memcpy(previous_key_states.data(), current_key_states, num_keys);
+        // Had issues trying to implement this.
+        // inputs_held_down = std::make_unique<std::vector<KeyCode>, std::vector<MouseButton>>();
     }
 
 SDLInputManager::~SDLInputManager() {}
 
 
-void SDLInputManager::update() {
+void SDLInputManager::update(float delta_time) {
     memcpy(previous_key_states.data(), current_key_states, previous_key_states.size());
     previous_mouse_state = current_mouse_state;
     current_mouse_state = SDL_GetMouseState(&mouse_x, &mouse_y);
@@ -28,6 +31,22 @@ void SDLInputManager::update() {
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_QUIT) {
             quit_requested = true;
+        }
+    }
+
+    // NEW: Update the key hold timers.
+    // This is more efficient since we only update once per frame.
+    int num_keys;
+    const Uint8* keys = SDL_GetKeyboardState(&num_keys);
+    for (int scancode = 0; scancode < num_keys; ++ scancode){
+        // if a key is currently being held down.
+        if (keys[scancode]) {
+            // ... add the delta_time to its stopwatch.
+            // If it's not in the map yet, this will create it with a value of 0, then add
+            key_held_durations[static_cast<SDL_Scancode>(scancode)] += delta_time;
+        } else {
+            // if the key is up, reset the stopwatch to 0.
+            key_held_durations[static_cast<SDL_Scancode>(scancode)] = 0.0f;
         }
     }
 }
@@ -50,8 +69,18 @@ bool SDLInputManager::is_held_down(KeyCode key) const {
 
 // Returns true if the input 'is held down' for the target_duration value (measured in seconds).
 bool SDLInputManager::is_held_down_for(KeyCode key, int target_duration) const {
-    // not implemented yet
-    return current_key_states[to_sdl_scancode(key)];
+    // Trial implementation:
+    // Find the key in the key_held_durations map.
+    SDL_Scancode sc = to_sdl_scancode(key);
+    auto durations_iterator = key_held_durations.find(sc);
+
+    // If the key is not found in the map, it's not being held.
+    if (durations_iterator == key_held_durations.end()) {
+        return false;
+    }
+
+    // Return true if the accumulated time is greater than or equal to the target.
+    return durations_iterator->second >= target_duration;
 }
 
 // Returns true when the input goes from 'down to up' (is_down to is_up).
