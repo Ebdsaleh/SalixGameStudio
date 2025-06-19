@@ -1,36 +1,39 @@
-// Project.cpp
-#include "Project.h"
-#include "SceneManager.h"
+// Salix/management/Project.cpp
+#include <Project.h>
+#include <SceneManager.h>
 #include <iostream>
 
-Project::Project() = default;
-Project::~Project() = default;
+namespace Salix {
 
-void Project::initialize(AssetManager* asset_manager) {
-    std::cout << "Project Initializing..." << std::endl;
-    scene_manager = std::make_unique<SceneManager>();
-    scene_manager->initialize(asset_manager);
-}
+    Project::Project() = default;
+    Project::~Project() = default;
 
-void Project::shutdown() {
-    if (scene_manager) {
-        scene_manager->shutdown();
-        scene_manager.reset();
+    void Project::initialize(AssetManager* asset_manager) {
+        std::cout << "Project Initializing..." << std::endl;
+        scene_manager = std::make_unique<SceneManager>();
+        scene_manager->initialize(asset_manager);
     }
-}
 
-void Project::update(float delta_time) {
-    if (scene_manager) {
-        scene_manager->update(delta_time);
+    void Project::shutdown() {
+        if (scene_manager) {
+            scene_manager->shutdown();
+            scene_manager.reset();
+        }
     }
-}
 
-void Project::render(IRenderer* renderer) {
-    if (scene_manager) {
-        scene_manager->render(renderer);
+    void Project::update(float delta_time) {
+        if (scene_manager) {
+            scene_manager->update(delta_time);
+        }
     }
-}
 
-SceneManager* Project::get_scene_manager() const {
-    return scene_manager.get();
-}
+    void Project::render(IRenderer* renderer) {
+        if (scene_manager) {
+            scene_manager->render(renderer);
+        }
+    }
+
+    SceneManager* Project::get_scene_manager() const {
+        return scene_manager.get();
+    }
+} // namespace Salix

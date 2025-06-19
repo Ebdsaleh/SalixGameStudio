@@ -1,26 +1,28 @@
-// Project.h
+// Salix/management/Project.h
 #pragma once
-
 #include <string>
 #include <memory>
 
-// Forward declarations
-class SceneManager;
-class IRenderer;
-class AssetManager;
+namespace Salix {
 
-class Project {
-public:
-    Project();
-    ~Project();
+    // Forward declarations
+    class SceneManager;
+    class IRenderer;
+    class AssetManager;
 
-    void initialize(AssetManager* asset_manager);
-    void shutdown();
-    void update(float delta_time);
-    void render(IRenderer* renderer);
-    
-    SceneManager* get_scene_manager() const;
+    class Project {
+    public:
+        Project();
+        ~Project();
 
-private:
-    std::unique_ptr<SceneManager> scene_manager;
-};
+        void initialize(AssetManager* asset_manager);
+        void shutdown();
+        void update(float delta_time);
+        void render(IRenderer* renderer);
+        
+        SceneManager* get_scene_manager() const;
+
+    private:
+        std::unique_ptr<SceneManager> scene_manager;
+    };
+} // namespace Salix

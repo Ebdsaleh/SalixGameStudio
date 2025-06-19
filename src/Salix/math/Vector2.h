@@ -1,45 +1,48 @@
-// Vector2.h
+// Salix/math/Vector2.h
 #pragma once
 #include <cmath>  // For sqrtf function.
-struct Vector2 {
-    float x = 0.0f;
-    float y = 0.0f;
 
-    // Calculates the magnitude (length) of the vector.
-    float length() const;
+namespace Salix {
+    struct Vector2 {
+        float x = 0.0f;
+        float y = 0.0f;
 
-    // Modifies this vector to make it a unit vector (length of 1).
-    void normalize();
+        // Calculates the magnitude (length) of the vector.
+        float length() const;
 
-    // A static "factory" method for linear interpolation.
-    static Vector2 lerp(const Vector2& start, const Vector2& end, float t);
-};
+        // Modifies this vector to make it a unit vector (length of 1).
+        void normalize();
 
-// --- Overloading declarations ---
-// Addition
-Vector2 operator+(const Vector2& a, const Vector2& b);
+        // A static "factory" method for linear interpolation.
+        static Vector2 lerp(const Vector2& start, const Vector2& end, float t);
+    };
 
-Vector2 operator+(const Vector2& a, float increment);
+    // --- Overloading declarations ---
+    // Addition
+    Vector2 operator+(const Vector2& a, const Vector2& b);
 
-Vector2 operator+(float increment, const Vector2& a);
+    Vector2 operator+(const Vector2& a, float increment);
 
-// Subtraction
-Vector2 operator-(const Vector2& a, const Vector2& b);
+    Vector2 operator+(float increment, const Vector2& a);
 
-Vector2 operator-(const Vector2& a, float decrement);
+    // Subtraction
+    Vector2 operator-(const Vector2& a, const Vector2& b);
 
-Vector2 operator-(float decrement, const Vector2& a);
+    Vector2 operator-(const Vector2& a, float decrement);
 
-// Multiplication
-Vector2 operator*(const Vector2& a, const Vector2& b);
+    Vector2 operator-(float decrement, const Vector2& a);
 
-Vector2 operator*(const Vector2& a, float scalar);
+    // Multiplication
+    Vector2 operator*(const Vector2& a, const Vector2& b);
 
-Vector2 operator*(float scalar, const Vector2& a);
+    Vector2 operator*(const Vector2& a, float scalar);
 
-// Division
-Vector2 operator/(const Vector2& a, const Vector2& b);
+    Vector2 operator*(float scalar, const Vector2& a);
 
-Vector2 operator/(const Vector2& a, float divisor);
+    // Division
+    Vector2 operator/(const Vector2& a, const Vector2& b);
 
-Vector2 operator/(float divisor, const Vector2& a);
+    Vector2 operator/(const Vector2& a, float divisor);
+
+    Vector2 operator/(float divisor, const Vector2& a);
+} // namespace Salix

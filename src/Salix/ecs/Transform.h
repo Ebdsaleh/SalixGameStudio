@@ -1,38 +1,41 @@
-// Transform.h
+// Salix/ecs/Transform.h
 #pragma once
 
-#include "Element.h"
-#include "../math/Vector3.h"  // Include our Vector3 struct.
+#include <Element.h>
+#include <Salix/math/Vector3.h>  // Include our Vector3 struct.
 #include <vector>
 
-class Transform : public Element {
-    public:
-        Transform();
-        virtual ~Transform();
+namespace Salix {
 
-        // --- Public Data ---
-        // Keeping these public for now, for the sake of simplicity.
+    class Transform : public Element {
+        public:
+            Transform();
+            virtual ~Transform();
 
-        // Local transform properties (relative to its parent)
-        Vector3 position;
-        Vector3 rotation;
-        Vector3 scale;
+            // --- Public Data ---
+            // Keeping these public for now, for the sake of simplicity.
 
-        // Calculate World Transform
-        Vector3 get_world_position();
-        Vector3 get_world_rotation();
-        Vector3 get_world_scale();
+            // Local transform properties (relative to its parent)
+            Vector3 position;
+            Vector3 rotation;
+            Vector3 scale;
 
-        // --- Hierarchy Methods ---
-        void set_parent(Transform* new_parent);
-        Transform* get_parent() const;
+            // Calculate World Transform
+            Vector3 get_world_position();
+            Vector3 get_world_rotation();
+            Vector3 get_world_scale();
 
-    private:
-        void add_child(Transform* child);
-        void remove_child(Transform* child);
+            // --- Hierarchy Methods ---
+            void set_parent(Transform* new_parent);
+            Transform* get_parent() const;
 
-        // --- Hierarchy Data ---
-        Transform* parent;
-        std::vector<Transform*> children;
+        private:
+            void add_child(Transform* child);
+            void remove_child(Transform* child);
 
-};
+            // --- Hierarchy Data ---
+            Transform* parent;
+            std::vector<Transform*> children;
+
+    };
+} // namespace Salix

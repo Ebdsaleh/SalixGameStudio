@@ -1,7 +1,10 @@
-// Point.h
+// Salix/math/Point.h
 #pragma once
 
-struct Point {
-    int x = 0;
-    int y = 0;
-};
+namespace Salix {
+
+    struct Point {
+        int x = 0;
+        int y = 0;
+    };
+} // namespace Salix

@@ -1,48 +1,51 @@
-// Vector3
+// Salix/math/Vector3
 #pragma once
 #include <cmath>  // For the sqrtf function.
 
-struct Vector3 {
-    float x = 0.0f;
-    float y = 0.0f;
-    float z = 0.0f;
+namespace Salix {
 
-    //  Calculates the magnitude (length) of the vector.
-    float length() const;
+    struct Vector3 {
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
 
-    // Modifies this vector to make it a unit vector (length of 1).
-    void normalize();
+        //  Calculates the magnitude (length) of the vector.
+        float length() const;
 
-    // static lerp method declaration
-    static Vector3 lerp(const Vector3& start, const Vector3& end, float t);
-};
+        // Modifies this vector to make it a unit vector (length of 1).
+        void normalize();
 
-// Operator overloads
-// Adding Vector3's.
-Vector3 operator+(const Vector3& a, const Vector3& b);
+        // static lerp method declaration
+        static Vector3 lerp(const Vector3& start, const Vector3& end, float t);
+    };
 
-Vector3 operator+(const Vector3& a, float increment);
+    // Operator overloads
+    // Adding Vector3's.
+    Vector3 operator+(const Vector3& a, const Vector3& b);
 
-Vector3 operator+(float increment, const Vector3& a);
+    Vector3 operator+(const Vector3& a, float increment);
 
-// Subtracting Vector3's
+    Vector3 operator+(float increment, const Vector3& a);
 
-Vector3 operator-(const Vector3& a, const Vector3& b); 
+    // Subtracting Vector3's
 
-Vector3 operator-(const Vector3& a, float decrement);
+    Vector3 operator-(const Vector3& a, const Vector3& b); 
 
-Vector3 operator-(float decrement, Vector3& a);
+    Vector3 operator-(const Vector3& a, float decrement);
 
-// Multiplying Vector3's.
-Vector3 operator*(const Vector3& a, const Vector3& b);
+    Vector3 operator-(float decrement, Vector3& a);
 
-Vector3 operator*(float scalar, const Vector3& a);
+    // Multiplying Vector3's.
+    Vector3 operator*(const Vector3& a, const Vector3& b);
 
-Vector3 operator*(const Vector3& a, float scalar);
+    Vector3 operator*(float scalar, const Vector3& a);
 
-// Dividing Vector3's.
-Vector3 operator/(const Vector3& a, const Vector3& b);
+    Vector3 operator*(const Vector3& a, float scalar);
 
-Vector3 operator/(const Vector3& a, float divisor);
+    // Dividing Vector3's.
+    Vector3 operator/(const Vector3& a, const Vector3& b);
 
-Vector3 operator/(float divisor, const Vector3& a);
+    Vector3 operator/(const Vector3& a, float divisor);
+
+    Vector3 operator/(float divisor, const Vector3& a);
+} // namespace Salix

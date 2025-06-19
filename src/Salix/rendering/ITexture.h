@@ -1,12 +1,15 @@
 // ITexture.h
 #pragma once
 
-class ITexture {
-    public:
-        virtual ~ITexture() = default;
+namespace Salix {
 
-        // A contract that all textures must be able to report their dimensions.
-        virtual int get_width() const = 0;
-        virtual int get_height() const = 0;
+    class ITexture {
+        public:
+            virtual ~ITexture() = default;
 
-};
+            // A contract that all textures must be able to report their dimensions.
+            virtual int get_width() const = 0;
+            virtual int get_height() const = 0;
+
+    };
+}

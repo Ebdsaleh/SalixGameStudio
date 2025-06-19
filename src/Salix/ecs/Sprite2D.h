@@ -1,39 +1,42 @@
-// Sprite2D.h
+// Salix/ecs/Sprite2D.h
 #pragma once
 
-#include "../math/Color.h"
-#include "RenderableElement.h"
-#include "../math/Vector2.h"  // For the pivot and offset.
+#include <Salix/math/Color.h>
+#include <RenderableElement.h>
+#include <Salix/math/Vector2.h>  // For the pivot and offset.
 #include <string>
 
-// Forward declarations
-struct ITexture;
-class IRenderer;
+namespace Salix {
 
-class Sprite2D : public RenderableElement {
-    public:
-        Sprite2D();
-        virtual ~Sprite2D();
+    // Forward declarations
+    struct ITexture;
+    class IRenderer;
 
-        // A method to load a texture for this sprite using the AssetManager
-        void load_texture(class AssetManager* asset_manager, const std::string& file_path);
+    class Sprite2D : public RenderableElement {
+        public:
+            Sprite2D();
+            virtual ~Sprite2D();
 
-        // The implementation of the render method from RenderableElement Interface.
-        void render(IRenderer* renderer) override;
+            // A method to load a texture for this sprite using the AssetManager
+            void load_texture(class AssetManager* asset_manager, const std::string& file_path);
 
-        // --- Properties ---
-        
-        Color color;            // Color property for color tinting.
-        Vector2 offset;         // A local offset from the Transform's position
-        Vector2 pivot;          // Normalized pivot point (0,0 = top-left, 1,1 = bottom-right).
-        bool flip_h = false;    // Flip horizontally?
-        bool flip_v = false;    // Flip veritcally?
-        int sorting_layer = 0;  // For future use in the Scene.
+            // The implementation of the render method from RenderableElement Interface.
+            void render(IRenderer* renderer) override;
+
+            // --- Properties ---
+            
+            Color color;            // Color property for color tinting.
+            Vector2 offset;         // A local offset from the Transform's position
+            Vector2 pivot;          // Normalized pivot point (0,0 = top-left, 1,1 = bottom-right).
+            bool flip_h = false;    // Flip horizontally?
+            bool flip_v = false;    // Flip veritcally?
+            int sorting_layer = 0;  // For future use in the Scene.
 
 
-    private:
-        ITexture* texture;
-        int width;
-        int height;
+        private:
+            ITexture* texture;
+            int width;
+            int height;
 
-};
+    };
+} // namespace Salix

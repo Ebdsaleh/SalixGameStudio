@@ -1,30 +1,33 @@
-// AssetManager.h
+// Salix/assets/AssetManager.h
 #pragma once
 
 #include <string>
 #include <map>
 
-// Forward declarations
-class IRenderer;
-struct ITexture;
+namespace Salix {
 
-class AssetManager {
-    public:
-        AssetManager();
-        ~AssetManager();
+    // Forward declarations
+    class IRenderer;
+    struct ITexture;
 
-        // The asset manager needs a renderer to create textures with.
-        void initialize(IRenderer* renderer_ptr);
-        void shutdown();
+    class AssetManager {
+        public:
+            AssetManager();
+            ~AssetManager();
 
-        // The main function to load a texture, this will call the IRenderer load_texture method.
-        ITexture* get_texture(const std::string& file_path);
+            // The asset manager needs a renderer to create textures with.
+            void initialize(IRenderer* renderer_ptr);
+            void shutdown();
 
-    private:
-        // A pointer to the renderer, so we can create the textures.
-        // This is a non-owning pointer.
-        IRenderer* renderer;
+            // The main function to load a texture, this will call the IRenderer load_texture method.
+            ITexture* get_texture(const std::string& file_path);
 
-        // The cache: maps a file path (string) to a loaded texture.
-        std::map<std::string, ITexture*> texture_cache;
-};
+        private:
+            // A pointer to the renderer, so we can create the textures.
+            // This is a non-owning pointer.
+            IRenderer* renderer;
+
+            // The cache: maps a file path (string) to a loaded texture.
+            std::map<std::string, ITexture*> texture_cache;
+    };
+} // namespace Salix

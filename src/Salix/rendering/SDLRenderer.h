@@ -1,33 +1,37 @@
-// Renderer.h
+// Salix/rendering/Renderer.h
 #pragma once
-#include "IRenderer.h" // We need to include the interface we are implementing.
+#include <IRenderer.h> // We need to include the interface we are implementing.
+#include <Salix/window/SDLWindow.h>
 #include <SDL.h>
 // SDLRenderer is concrete implementation of the IRenderer interface.
 
-class SDLRenderer : public IRenderer {
-    public:
-    SDLRenderer();
-    virtual ~SDLRenderer();  // Good practice to mark overridan destructers as virtual.
+namespace Salix{
 
-    // We use the 'override' keyword to make clear we are implmenting a method from the base class.
-    // The compiler will error if get the function signature incorrect, this is a great safety feature.
+    class SDLRenderer : public IRenderer {
+        public:
+        SDLRenderer();
+        virtual ~SDLRenderer();  // Good practice to mark overridan destructers as virtual.
+
+        // We use the 'override' keyword to make clear we are implmenting a method from the base class.
+        // The compiler will error if get the function signature incorrect, this is a great safety feature.
 
 
-    // The Renderer's lifecycle methods
-    SDL_Window* initialize(const WindowConfig& config) override;
-    void shutdown() override;
+        // The Renderer's lifecycle methods
+        SDLWindow* initialize(const WindowConfig& config) override;
+        void shutdown() override;
 
-    // The core rendering commands
-    void begin_frame() override;
-    void end_frame() override;
-    // Delcare Texture loading.
-    ITexture* load_texture(const char* file_path) override;
-    // Declare Texture Drawing
-    void draw_texture(ITexture* texture, const Rect& dest_rect) override;
-    // Declare Sprite2D drawing
-    void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
-    private:
-    // The Renderer's own SDL_Renderer object
-    SDL_Renderer* sdl_renderer;
-    SDL_Window* window;
-};
+        // The core rendering commands
+        void begin_frame() override;
+        void end_frame() override;
+        // Delcare Texture loading.
+        ITexture* load_texture(const char* file_path) override;
+        // Declare Texture Drawing
+        void draw_texture(ITexture* texture, const Rect& dest_rect) override;
+        // Declare Sprite2D drawing
+        void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
+        private:
+        // The Renderer's own SDL_Renderer object
+        ::SDL_Renderer* sdl_renderer;
+        SDLWindow* window;  // Tell the compiler to look in 'SDL.h' for the SDLWindow declaration.
+    };
+} // namespace Salix

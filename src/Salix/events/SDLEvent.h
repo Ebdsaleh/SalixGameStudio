@@ -1,9 +1,6 @@
-// src/events/SDLEvent.h
-// src/Salix/events/SDLEvent.h
-
+// Salix/events/SDLEvent.h
 #pragma once
-
-#include "IEvent.h" // Include our abstract base class
+#include <IEvent.h> // Include our abstract base class
 #include <sstream>
 #include <functional> // For std::function, our event callback
 #include <SDL.h>      // For the SDL_Event structure

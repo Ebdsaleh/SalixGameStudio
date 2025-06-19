@@ -1,50 +1,52 @@
-// SceneManager.h
+// Salix/management/SceneManager.h
 #pragma once
-
 #include <string>
 #include <vector>
 #include <memory>
 
-// Forward declarations
-class Scene;
-class IRenderer;
-class AssetManager;
+namespace Salix {
 
-class SceneManager {
-public:
-    SceneManager();
-    ~SceneManager();
+    // Forward declarations
+    class Scene;
+    class IRenderer;
+    class AssetManager;
 
-    void initialize(AssetManager* asset_manager);
-    void shutdown();
+    class SceneManager {
+    public:
+        SceneManager();
+        ~SceneManager();
 
-    void update(float delta_time);
-    void render(IRenderer* renderer);
+        void initialize(AssetManager* asset_manager);
+        void shutdown();
 
-    // --- YOUR NEW, FULLY-FEATURED API ---
+        void update(float delta_time);
+        void render(IRenderer* renderer);
 
-    // For the engine/editor: Creates a new, empty scene managed by the SceneManager.
-    Scene* create_scene(const std::string& scene_name);
+        // --- YOUR NEW, FULLY-FEATURED API ---
 
-    // For user scripts: Takes ownership of an externally created scene.
-    void add_scene(std::unique_ptr<Scene> scene_to_add);
+        // For the engine/editor: Creates a new, empty scene managed by the SceneManager.
+        Scene* create_scene(const std::string& scene_name);
 
-    // Removes scenes by different identifiers.
-    void remove_scene(const std::string& scene_name);
-    void remove_scene(Scene* scene_to_remove);
-    void remove_scene_at(int index);
+        // For user scripts: Takes ownership of an externally created scene.
+        void add_scene(std::unique_ptr<Scene> scene_to_add);
 
-    // Manages the active scene.
-    void set_active_scene(const std::string& scene_name);
-    Scene* get_active_scene() const;
-    
-    // Getters for querying the list of scenes.
-    Scene* get_scene(const std::string& scene_name) const;
-    Scene* get_scene_at(int index) const;
-    int get_scene_count() const;
+        // Removes scenes by different identifiers.
+        void remove_scene(const std::string& scene_name);
+        void remove_scene(Scene* scene_to_remove);
+        void remove_scene_at(int index);
 
-private:
-    std::vector<std::unique_ptr<Scene>> scene_list;
-    Scene* active_scene;
-    AssetManager* asset_manager;
-};
+        // Manages the active scene.
+        void set_active_scene(const std::string& scene_name);
+        Scene* get_active_scene() const;
+        
+        // Getters for querying the list of scenes.
+        Scene* get_scene(const std::string& scene_name) const;
+        Scene* get_scene_at(int index) const;
+        int get_scene_count() const;
+
+    private:
+        std::vector<std::unique_ptr<Scene>> scene_list;
+        Scene* active_scene;
+        AssetManager* asset_manager;
+    };
+} // namespace Salix

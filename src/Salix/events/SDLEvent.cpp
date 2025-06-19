@@ -1,5 +1,4 @@
-// SDLEvent.cpp
-// src/Salix/events/SDLEvent.cpp
+// Salix/events/SDLEvent.cpp
 
 #include "SDLEvent.h"
 

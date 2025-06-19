@@ -1,8 +1,5 @@
-// src/events/IEvent.h
-// src/Salix/events/IEvent.h  <--- Future implemented structure.
-
+// src/Salix/events/IEvent.h
 #pragma once
-
 #include <string>
 #include <sstream>
 

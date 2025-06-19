@@ -1,5 +1,5 @@
 #include <Salix/core/Engine.h>
-
+using namespace Salix;
 
 int main(int argc, char* argv[]) { 
     Engine engine;
