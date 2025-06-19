@@ -44,8 +44,8 @@ bool SDLInputManager::is_down(KeyCode key) const {
 
 // Returns true if the input 'is still down' from the previous frame-cycle
 bool SDLInputManager::is_held_down(KeyCode key) const {
-    // not implemented yet
-    return current_key_states[to_sdl_scancode(key)] == 1;
+    SDL_Scancode sc = to_sdl_scancode(key);
+    return (current_key_states[sc] == 1 && previous_key_states[sc] == 1);
 }
 
 // Returns true if the input 'is held down' for the target_duration value (measured in seconds).
