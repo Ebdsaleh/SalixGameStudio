@@ -5,12 +5,8 @@
 #include <Salix/math/Point.h>
 #include <Salix/math/Rect.h>
 #include <Salix/rendering/ITexture.h>  // Need this to use our own renderer agnostic Texture.
+#include <Salix/window/IWindow.h>
 namespace Salix {
-
-    // We forward declare the types we need.
-    class IWindow;
-    struct WindowConfig;
-
 
     // A renderer agnostic enum for flipping a sprite.
     enum class SpriteFlip {
@@ -28,14 +24,6 @@ namespace Salix {
         DirectX, // For the future
     };
 
-    // Used to pass the window creation to Renderer.
-    struct WindowConfig {
-        const char* title = "Salix Game Studio";
-        int width = 1280;
-        int height = 720;
-        RendererType renderer_type = RendererType::SDL; // default renderer_type config value.
-    };
-
     // This is an abstract base class that defines the "contract" for any renderer.
 
     class IRenderer {
@@ -43,8 +31,7 @@ namespace Salix {
         // A virtual desctructor is essential for any class intended for polymorphism.
         virtual ~IRenderer() = default;
 
-        // These are "pure virtual" functions, denoted by the '= 0'.
-        // Any class that inherits from IRenderer MUST provide its own implementation.
+        // The renderer creates its own window from a config.
         virtual bool initialize(const WindowConfig& config) = 0;
         virtual void shutdown() = 0;
         virtual void begin_frame() = 0;
