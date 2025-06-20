@@ -1,35 +1,73 @@
 @echo off
-:: build.bat - A simple build script for the Salix Game Studio project
-:: Clear the console first.
+SETLOCAL EnableDelayedExpansion
+REM Clear the console.
 cls
-echo --- Checking for build directory
-if not exist build mkdir build
+REM =================================================================================
+REM Build script for the SalixGameStudio Project
+REM =================================================================================
 
-echo --- Starting build...
-:: Command Breakdown:
-:: cl -> The compiler
-:: /EHsc -> Enable C++ Exceptions
-:: /I vendor\SDL2\include -> Tell the compiler where to find SDL's header files
-:: /Fo:build\ -> Tell the compiler where to the object file (main.obj)
-:: /Fe:build\salix.exe -> Tell the compiler what to name the final executable
-:: src\main.cpp -> The source file to compile
-:: /link -> Anything after this a command for the linker
-:: /LIBPATH:vendor\SDL2\lib\x64 -> Tell the linker where to find the .lib files
-:: SDL2.lib SDL2main.lib -> the specific library files to link against
+REM --- Configuration ---
+SET EXECUTABLE_NAME=SalixGameStudio.exe
+SET BUILD_DIR=build
 
-cl /EHsc /std:c++17 /I vendor\SDL2\include /I vendor\SDL2_image\include /Fo:build\ /Fe:build\salix.exe src\main.cpp src\core\Engine.cpp src\core\SDLTimer.cpp src\core\ChronoTimer.cpp src\input\SDLInputManager.cpp src\rendering\SDLRenderer.cpp src\states\GameState.cpp src\states\LaunchState.cpp src\states\EditorState.cpp src\states\OptionsMenuState.cpp src\rendering\SDLTexture.cpp src\ecs\Transform.cpp src\ecs\Sprite2D.cpp src\ecs\Scene.cpp src\assets\AssetManager.cpp src\math\Vector2.cpp src\math\Vector3.cpp src\math\Color.cpp src\management\ProjectManager.cpp src\management\Project.cpp src\management\SceneManager.cpp vendor\SDL2\lib\x64\SDL2.lib vendor\SDL2\lib\x64\SDL2main.lib vendor\SDL2_image\lib\x64\SDL2_image.lib Shell32.lib /link /SUBSYSTEM:CONSOLE
+REM Set paths to your SDL2 libraries.
+REM !!! IMPORTANT: Change version numbers to match your folders in 'vendor' !!!
+SET SDL2_PATH=%cd%\vendor\SDL2
+SET SDL2_IMAGE_PATH=%cd%\vendor\SDL2_image
 
-:: Check if the build was successful before copying the DLL
-if exist build\salix.exe (
-    echo --- Copying DLL Files...
-    echo --- SDL2.dll 
-    copy vendor\SDL2\lib\x64\SDL2.dll build\
-    echo --- SDL2_image.dll 
-    copy vendor\SDL2_image\lib\x64\SDL2_image.dll build\
-    echo --- Build Successful.
-    echo --- Running salix.exe...
-    build\salix.exe
+
+REM --- Prepare Build Environment ---
+echo Cleaning up old build files...
+if exist %BUILD_DIR% (
+    echo Build directory already exists.
 ) else (
-    echo --- Build FAILED.
-    exit/B
+    mkdir %BUILD_DIR%
+)
+
+
+REM --- Find all C++ source files ---
+echo Finding source files...
+SET SOURCES=src\main.cpp
+FOR /R src\Salix\ %%f IN (*.cpp) DO (
+    SET SOURCES=!SOURCES! %%f
+)
+echo Sources to compile: %SOURCES%
+echo.
+
+REM --- Compile and Link ---
+echo Compiling and linking...
+
+REM The main compiler command.
+cl.exe ^
+    /nologo /EHsc /W4 /std:c++17 ^
+    /Fo"%BUILD_DIR%\\" ^
+    /Fe%BUILD_DIR%\%EXECUTABLE_NAME% ^
+    /I "%SDL2_PATH%\include" ^
+    /I "%SDL2_IMAGE_PATH%\include" ^
+    /I "src" ^
+    %SOURCES% ^
+    /link ^
+    /LIBPATH:"%SDL2_PATH%\lib\x64" ^
+    /LIBPATH:"%SDL2_IMAGE_PATH%\lib\x64" ^
+    SDL2.lib SDL2main.lib SDL2_image.lib
+
+REM --- Post-Build ---
+IF %ERRORLEVEL% EQU 0 (
+    echo.
+    echo =============================
+    echo  Build Succeeded!
+    echo  Executable is at: %BUILD_DIR%\%EXECUTABLE_NAME%
+    echo =============================
+    echo Now copying required DLLs to the build directory...
+    copy "%SDL2_PATH%\lib\x64\SDL2.dll" "%BUILD_DIR%"
+    copy "%SDL2_IMAGE_PATH%\lib\x64\SDL2_image.dll" "%BUILD_DIR%"
+    copy "%SDL2_IMAGE_PATH%\lib\x64\*.dll" "%BUILD_DIR%"
+    
+    REM --- RUN THE GAME ---
+    "%BUILD_DIR%\%EXECUTABLE_NAME%"
+) ELSE (
+    echo.
+    echo ****************************
+    echo * Build Failed!            *
+    echo ****************************
 )
