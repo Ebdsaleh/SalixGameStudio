@@ -1,6 +1,6 @@
 // Salix/assets/AssetManager.cpp
 
-#include <AssetManager.h>
+#include <Salix/assets/AssetManager.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/ITexture.h>
 #include <SDL.h>  // For SDL_Texture and SDL_DestroyTexture
