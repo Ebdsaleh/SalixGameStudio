@@ -1,5 +1,5 @@
-// Vector3.cpp
-#include <Vector3.h>
+// Salix/math/Vector3.cpp
+#include <Salix/math/Vector3.h>
 #include <iostream>  // Needed for std::cerr
 #include <algorithm>
 

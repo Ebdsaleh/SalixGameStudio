@@ -1,5 +1,5 @@
 // Salix/math/Color.cpp
-#include <Color.h>
+#include <Salix/math/Color.h>
 #include <cmath>
 #include <iostream> // For std::cerr, though not used in this version
 #include <algorithm> // For std::min/max
