@@ -4,7 +4,7 @@
 // Description: Implements the SDLWindow class, a concrete implementation of IWindow
 //              using the SDL library.
 // =================================================================================
-#include "SDLWindow.h"
+#include <Salix/window/SDLWindow.h>
 #include <iostream> // For logging success or errors
 
 namespace Salix {

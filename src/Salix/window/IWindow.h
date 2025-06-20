@@ -6,7 +6,6 @@
 //              of a platform-specific window.
 // =================================================================================
 #pragma once
-
 #include <string>
 
 namespace Salix {

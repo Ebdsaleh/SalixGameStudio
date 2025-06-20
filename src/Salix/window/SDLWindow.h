@@ -7,7 +7,7 @@
 // =================================================================================
 #pragma once
 
-#include "IWindow.h" // The interface we are implementing
+#include <Salix/window/IWindow.h> // The interface we are implementing
 #include <SDL.h>     // The SDL library we are wrapping
 
 namespace Salix {
