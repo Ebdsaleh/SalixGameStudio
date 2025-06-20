@@ -1,5 +1,5 @@
 // Filename:    Salix/window/SDLWindow.cpp
-// Author:      SalixGameStudio
+// Author:      Nadir Saleh
 // Created:     2025-06-20
 // Description: Implements the SDLWindow class, a concrete implementation of IWindow
 //              using the SDL library.
