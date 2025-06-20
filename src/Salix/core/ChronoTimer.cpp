@@ -1,66 +1,78 @@
-// Salix/core/ChronoTimer.cpp
+// =================================================================================
+// Filename:    Salix/core/ChronoTimer.cpp
+// Author:      SalixGameStudio
+// Description: Implements the ITimer interface using std::chrono.
+// =================================================================================
 #include <Salix/core/ChronoTimer.h>
-#include <thread> // For std::this_thread::sleep_for
-#include <iostream>
-// --- ATTENTION: THIS NEEDS A RE-WORK! ---
-// --- I WILL COME BACK TO THIS LATER,  ---
-// --- WHEN I START EXPERIMENTING WITH  ---
-// --- DIFFERENT RENDERING API'S        ---
+#include <thread> // Required for std::this_thread::sleep_for
 
 namespace Salix {
-    // Static Initialization for get_ticks_ms
-    static const auto app_start_time = std::chrono::high_resolution_clock::now();
 
-    ChronoTimer::ChronoTimer() : 
-        delta_time(0.0f), 
-        target_frame_duration(0) 
+    // --- Static helper function implementation ---
+    // This needs a static start time to measure against.
+    static const auto G_CHRONO_EPOCH = std::chrono::high_resolution_clock::now();
+
+    unsigned int ChronoTimer::get_ticks_ms() {
+        auto now = std::chrono::high_resolution_clock::now();
+        auto duration_since_epoch = now - G_CHRONO_EPOCH;
+        return static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(duration_since_epoch).count());
+    }
+
+    void ChronoTimer::delay(unsigned int ms) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(ms));
+    }
+    // -----------------------------------------
+
+
+    ChronoTimer::ChronoTimer() :
+        delta_time(0.0f),
+        target_frame_duration_ms(0.0)
     {
-        last_frame_start_time = std::chrono::high_resolution_clock::now();
+        // Initialize the last frame time to the current time.
+        last_frame_time = std::chrono::high_resolution_clock::now();
     }
 
     void ChronoTimer::set_target_fps(int fps) {
         if (fps > 0) {
-            target_frame_duration = std::chrono::duration<float>(1.0f / fps);
+            // Store the target duration in milliseconds.
+            target_frame_duration_ms = std::chrono::duration<float, std::milli>(1000.0f / fps);
         } else {
-            target_frame_duration = std::chrono::duration<float>(0);
+            // A target of 0 means we run as fast as possible (uncapped).
+            target_frame_duration_ms = std::chrono::duration<float, std::milli>(0.0);
         }
     }
 
-    void ChronoTimer::tick() {
-        auto current_time = std::chrono::high_resolution_clock::now();
-        auto frame_duration = current_time - last_frame_start_time;
+    void ChronoTimer::tick_start() {
+        // Mark the beginning of the frame.
+        frame_start_time = std::chrono::high_resolution_clock::now();
 
-        if (target_frame_duration.count() > 0.0f && frame_duration < target_frame_duration) {
-            auto sleep_duration = target_frame_duration - frame_duration;
-            std::this_thread::sleep_for(sleep_duration);
+        // Calculate the time elapsed since the last frame's start.
+        std::chrono::duration<float> time_diff_seconds = frame_start_time - last_frame_time;
+        delta_time = time_diff_seconds.count();
+
+        // Update the last frame time for the next frame's calculation.
+        last_frame_time = frame_start_time;
+    }
+
+    void ChronoTimer::tick_end() {
+        // If we don't have a target FPS, there's no need to delay.
+        if (target_frame_duration_ms.count() <= 0.0f) {
+            return;
         }
 
-        // --- THE CRUCIAL FIX IS HERE ---
-        // Recalculate the current time after sleeping to get the true frame time.
-        current_time = std::chrono::high_resolution_clock::now();
-        
-        // Explicitly cast the high-precision duration into a float representing SECONDS.
-        std::chrono::duration<float> final_duration = current_time - last_frame_start_time;
-        delta_time = final_duration.count();
-        
-        // Update the start time for the next frame.
-        last_frame_start_time = current_time;
+        // Calculate how long the game logic and rendering took for this frame.
+        auto time_at_end = std::chrono::high_resolution_clock::now();
+        auto frame_duration = time_at_end - frame_start_time;
+
+        // If the frame finished faster than our target...
+        if (frame_duration < target_frame_duration_ms) {
+            // ...sleep for the remaining time to meet our target.
+            std::this_thread::sleep_for(target_frame_duration_ms - frame_duration);
+        }
     }
 
     float ChronoTimer::get_delta_time() const {
         return delta_time;
     }
 
-    // --- Static Helper Method Implementations ---
-
-    unsigned int ChronoTimer::get_ticks_ms() {
-        auto current_time = std::chrono::high_resolution_clock::now();
-        auto duration = current_time - app_start_time;
-        // Cast the high-resolution duration to milliseconds.
-        return static_cast<unsigned int>(std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
-    }
-
-    void ChronoTimer::delay(unsigned int ms) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(ms));
-    }
 } // namespace Salix
