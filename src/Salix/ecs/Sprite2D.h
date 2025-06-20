@@ -9,7 +9,7 @@
 namespace Salix {
 
     // Forward declarations
-    struct ITexture;
+    class ITexture;
     class IRenderer;
 
     class Sprite2D : public RenderableElement {

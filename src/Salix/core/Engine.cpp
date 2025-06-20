@@ -137,7 +137,7 @@ namespace Salix {
     }
 
     // TODO: This state switching logic should be moved to a StateManager class.
-    void Engine::switch_state(AppStateType new_state_type) {
+    void Engine::switch_state(AppStateType /*new_state_type*/) {
         // ... (Your state switching logic is good, but belongs in a manager) ...
     }
 

@@ -9,7 +9,7 @@ namespace Salix {
 
     // Forward declarations
     class IRenderer;
-    struct ITexture;
+    class ITexture;
 
     class AssetManager {
         public:

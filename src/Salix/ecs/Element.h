@@ -12,7 +12,7 @@ namespace Salix {
             // These are the lifecycle methods that the Entity will call.
             // They are virtual so that concrete elements can override them.
             virtual void initialize() {}
-            virtual void update(float delta_time) {}
+            virtual void update(float /*delta_time*/) {}
             virtual void shutdown() {}
 
         protected:

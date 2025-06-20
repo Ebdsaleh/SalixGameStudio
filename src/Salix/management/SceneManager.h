@@ -42,7 +42,7 @@ namespace Salix {
         // Getters for querying the list of scenes.
         Scene* get_scene(const std::string& scene_name) const;
         Scene* get_scene_at(int index) const;
-        int get_scene_count() const;
+        size_t get_scene_count() const;
 
     private:
         std::vector<std::unique_ptr<Scene>> scene_list;

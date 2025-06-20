@@ -140,7 +140,7 @@ namespace Salix {
         return nullptr;
     }
 
-    int SceneManager::get_scene_count() const {
+    size_t SceneManager::get_scene_count() const {
         return scene_list.size();
     }
 } // namespace Salix

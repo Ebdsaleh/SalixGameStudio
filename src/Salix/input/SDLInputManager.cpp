@@ -90,41 +90,41 @@ namespace Salix {
 
     // Returns true when the input goes from 'down to up' (is_down to is_up).
     bool SDLInputManager::was_released(KeyCode key) const {
-        SDL_Scancode scancode = to_sdl_scancode(key);
-        return (current_key_states[scancode] == 0 && previous_key_states[scancode] == 1);
+        SDL_Scancode sc = to_sdl_scancode(key);
+        return (current_key_states[sc] == 0 && previous_key_states[sc] == 1);
     }
 
 
     // Returns true if the input is not detect this frame. 
     bool SDLInputManager::is_up(KeyCode key) const {
-        // not implemented yet
-        return false;
+        SDL_Scancode sc = to_sdl_scancode(key);
+        return current_key_states[sc] == 0;
     }
 
     // --- Keyboard Multiple keystrokes events (simultaneous)
 
-    bool SDLInputManager::multiple_are_down(std::vector<KeyCode>& keys) const {
+    bool SDLInputManager::multiple_are_down(std::vector<KeyCode>& /*keys*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_held_down(std::vector<KeyCode>& keys) const {
+    bool SDLInputManager::multiple_are_held_down(std::vector<KeyCode>& /*keys*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_held_down_for(std::vector<KeyCode>& keys, int target_duration) const {
+    bool SDLInputManager::multiple_are_held_down_for(std::vector<KeyCode>& /*keys*/, int /*target_duration*/) const {
         // not implemented yet
         return false;
     }
 
 
-    bool SDLInputManager::multiple_were_released(std::vector<KeyCode>& keys) const {
+    bool SDLInputManager::multiple_were_released(std::vector<KeyCode>& /*keys*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_up(std::vector<KeyCode>& keys) const {
+    bool SDLInputManager::multiple_are_up(std::vector<KeyCode>& /*keys*/) const {
         // not implemented yet
         return false;
     }
@@ -140,12 +140,12 @@ namespace Salix {
         return (current_mouse_state & mask) != 0;
     }
 
-    bool SDLInputManager::is_held_down(MouseButton button) const {
+    bool SDLInputManager::is_held_down(MouseButton /*button*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::is_held_down_for(MouseButton button, int target_duration) const {
+    bool SDLInputManager::is_held_down_for(MouseButton /*button*/, int /*target_duration*/) const {
         // not implemented yet
         return false;
     }
@@ -159,35 +159,35 @@ namespace Salix {
         return ((current_mouse_state & mask) == 0 && (previous_mouse_state && mask) != 0);
     }
 
-    bool SDLInputManager::is_up(MouseButton button) const {
+    bool SDLInputManager::is_up(MouseButton /*button*/) const {
         // not implemented yet
         return false;
     }
 
     // --- Mouse  Multiple Button events (simultaneous)
 
-    bool SDLInputManager::multiple_are_down(std::vector<MouseButton>& buttons) const {
+    bool SDLInputManager::multiple_are_down(std::vector<MouseButton>& /*buttons*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_held_down(std::vector<MouseButton>& buttons) const {
+    bool SDLInputManager::multiple_are_held_down(std::vector<MouseButton>& /*buttons*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_held_down_for(std::vector<MouseButton>& buttons, int target_duration) const {
+    bool SDLInputManager::multiple_are_held_down_for(std::vector<MouseButton>& /*buttons*/, int /*target_duration*/) const {
         // not implemented yet
         return false;
     }
 
 
-    bool SDLInputManager::multiple_were_released(std::vector<MouseButton>& buttons) const {
+    bool SDLInputManager::multiple_were_released(std::vector<MouseButton>& /*buttons*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_up(std::vector<MouseButton>& buttons) const {
+    bool SDLInputManager::multiple_are_up(std::vector<MouseButton>& /*buttons*/) const {
         // not implemented yet
         return false;
     }

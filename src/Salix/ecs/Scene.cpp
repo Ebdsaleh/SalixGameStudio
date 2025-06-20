@@ -13,7 +13,7 @@ namespace Salix {
         on_unload();
     }
 
-    void Scene::on_load(AssetManager* asset_manager) {
+    void Scene::on_load(AssetManager* /*asset_manager*/) {
         // This is where we will deserialize scene data from a file in the future.
         // For now, it just signals that the scene is ready.
         std::cout << "Scene '" << scene_name << "' on_load." << std::endl;
@@ -45,7 +45,7 @@ namespace Salix {
         }
     }
 
-    Entity* Scene::create_entity(const std::string& name) {
+    Entity* Scene::create_entity(const std::string& /*name*/) {
         auto new_entity_owner = std::make_unique<Entity>();
         Entity* new_entity = new_entity_owner.get();
         // We can give the entity a name component later.

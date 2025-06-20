@@ -7,7 +7,7 @@ namespace Salix {
     OptionsMenuState::OptionsMenuState() {}
     OptionsMenuState::~OptionsMenuState() {}
 
-    void OptionsMenuState::on_enter(Engine* engine) {
+    void OptionsMenuState::on_enter(Engine* /*engine*/) {
         std::cout << "Entering OptionsMenuState..." << std::endl;
     }
 
@@ -15,11 +15,11 @@ namespace Salix {
         std::cout << "Exiting OptionsMenuState..." << std::endl;
     }
 
-    void OptionsMenuState::update(float delta_time) {
+    void OptionsMenuState::update(float /*delta_time*/) {
         // Handle input for changing options here in the future.
     }
 
-    void OptionsMenuState::render(IRenderer* renderer) {
+    void OptionsMenuState::render(IRenderer* /*renderer*/) {
         // Render the options UI here in the future.
     }
 } // namespace Salix

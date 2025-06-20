@@ -50,7 +50,7 @@ namespace Salix {
         return nullptr;
     }
 
-    void ProjectManager::set_active_project(const std::string& project_name) {
+    void ProjectManager::set_active_project(const std::string& /*project_name*/) {
         // Search file system or perhaps,
         // use a recent_projects map<const std::string& project_name, const std::string& file_path>() 
         // to find the project file then go the process of creating and loading the project from that data.
