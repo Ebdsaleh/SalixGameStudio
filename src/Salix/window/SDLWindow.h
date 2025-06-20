@@ -1,17 +1,18 @@
 // =================================================================================
 // Filename:    Salix/window/SDLWindow.h
-// Author:      SalixGameStudio
+// Author:      Nadir Saleh
 // Created:     2025-06-20
 // Description: Declares the SDLWindow class, a concrete implementation of IWindow
 //              using the SDL library.
 // =================================================================================
 #pragma once
 
-#include "IWindow.h" // Our interface
+#include "IWindow.h" // The interface we are implementing
 #include <SDL.h>     // The SDL library we are wrapping
 
 namespace Salix {
 
+    // PascalCase for the class name
     class SDLWindow : public IWindow {
     public:
         SDLWindow();
@@ -27,11 +28,11 @@ namespace Salix {
 
     private:
         // The actual, underlying SDL_Window object.
-        // We use :: to specify the global SDL type.
-        ::SDL_Window* m_window;
+        // We use :: to specify the global SDL type and snake_case for the name.
+        ::SDL_Window* window;
 
         // Store the config for easy access to width/height.
-        WindowConfig m_config;
+        WindowConfig window_config;
     };
 
 } // namespace Salix

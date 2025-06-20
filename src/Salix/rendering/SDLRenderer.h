@@ -1,8 +1,8 @@
 // Salix/rendering/Renderer.h
 #pragma once
 #include <IRenderer.h> // We need to include the interface we are implementing.
-#include <Salix/window/SDLWindow.h>
 #include <SDL.h>
+#include <memory>
 // SDLRenderer is concrete implementation of the IRenderer interface.
 
 namespace Salix{
@@ -17,7 +17,7 @@ namespace Salix{
 
 
         // The Renderer's lifecycle methods
-        SDLWindow* initialize(const WindowConfig& config) override;
+        bool initialize(const WindowConfig& config) override;
         void shutdown() override;
 
         // The core rendering commands
@@ -29,9 +29,12 @@ namespace Salix{
         void draw_texture(ITexture* texture, const Rect& dest_rect) override;
         // Declare Sprite2D drawing
         void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
+        // We now have a method to access the IWindow-inherited object.
+        IWindow* get_window() override;
+        
         private:
         // The Renderer's own SDL_Renderer object
         ::SDL_Renderer* sdl_renderer;
-        SDLWindow* window;  // Tell the compiler to look in 'SDL.h' for the SDLWindow declaration.
+        std::unique_ptr<IWindow> window;  // The renderer now has full, exclusive ownership of an IWindow object.
     };
 } // namespace Salix

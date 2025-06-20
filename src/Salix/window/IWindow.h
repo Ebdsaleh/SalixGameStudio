@@ -1,6 +1,7 @@
 // =================================================================================
 // Filename:    Salix/window/IWindow.h
-// Author:      SalixGameStudio
+// Author:      Nadir Saleh
+// Created:     2025-06-20
 // Description: Declares the IWindow interface, an abstract representation
 //              of a platform-specific window.
 // =================================================================================
@@ -12,7 +13,7 @@ namespace Salix {
 
     // A simple struct to hold window configuration.
     struct WindowConfig {
-        const char* title = "Salix Engine";
+        const char* title = "SalixGameStudio";
         int width = 1280;
         int height = 720;
     };
@@ -22,7 +23,7 @@ namespace Salix {
         virtual ~IWindow() = default;
 
         // Creates and shows the window based on the provided config.
-        virtual bool initialize(const WindowConfig& config) = 0;
+        virtual bool initialize(const WindowConfig& window_config) = 0;
 
         // Destroys the window and cleans up resources.
         virtual void shutdown() = 0;

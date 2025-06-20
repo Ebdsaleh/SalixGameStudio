@@ -5,12 +5,11 @@
 #include <Salix/math/Point.h>
 #include <Salix/math/Rect.h>
 #include <ITexture.h>  // Need this to use our own renderer agnostic Texture.
-#include <Salix/window/IWindow.h>
 namespace Salix {
 
-    // We forward declare SDL_Window because the interface needs to know what kind of 
-    // window to initialize itself with.
-    class Window;
+    // We forward declare the types we need.
+    class IWindow;
+    struct WindowConfig;
 
 
     // A renderer agnostic enum for flipping a sprite.
@@ -46,10 +45,13 @@ namespace Salix {
 
         // These are "pure virtual" functions, denoted by the '= 0'.
         // Any class that inherits from IRenderer MUST provide its own implementation.
-        virtual IWindow* initialize(const WindowConfig& config) = 0;
+        virtual bool initialize(const WindowConfig& config) = 0;
         virtual void shutdown() = 0;
         virtual void begin_frame() = 0;
         virtual void end_frame() = 0;
+
+        // Provide access to the window it owns, without giving up ownership.
+        virtual IWindow* get_window() = 0;
 
         // A contract that all renderers must know how to load a texture.
         virtual ITexture* load_texture(const char* file_path) = 0;

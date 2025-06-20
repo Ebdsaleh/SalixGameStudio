@@ -2,58 +2,55 @@
 #include <SDLRenderer.h>
 #include <SDLTexture.h>
 #include <SDL_image.h>
+#include <Salix/window/SDLWindow.h>
 #include <iostream>
+
 
 namespace Salix {
 
-    SDLRenderer::SDLRenderer() {
-        sdl_renderer = nullptr;
-
-    }
+    SDLRenderer::SDLRenderer() : sdl_renderer(nullptr), window(nullptr) {}
 
     SDLRenderer::~SDLRenderer() {
-        // Shutdown should be called explicitly but this is just a safeguard.
-        if (sdl_renderer) {
-            SDL_DestroyRenderer(sdl_renderer);
-        }
+        // The unique_ptr will automatically be destroyed here, but we'll still call shutdown as a safeguard.
+       shutdown();
     }
 
-    // Use ::SDL_Window to specify the global SDL typ
-    SDLWindow* SDLRenderer::initialize(const WindowConfig& config) {
+    bool SDLRenderer::initialize(const WindowConfig& config) {
+        // 1. Create and take ownership of a new SDLWindow object.
+        window = std::make_unique<SDLWindow>();
 
-        window = SDL_CreateWindow(
-            config.title,
-            SDL_WINDOWPOS_CENTERED,
-            SDL_WINDOWPOS_CENTERED,
-            config.width,
-            config.height,
-            SDL_WINDOW_SHOWN);
-
-        if (window == nullptr) {
-            std::cout << "Renderer::initialize - Window is null!" << std::endl;
-            return nullptr;
+        // 2. Initialize it. If this fails, we don't need to manually delete it.
+        // The function will exit, and the unique_ptr will be cleared automatically.
+        if (!window->initialize(config)) {
+            std:: cout << "SDLRenderer::initialize - Window initialization failed!" << std::endl;
+            window.reset();  // Explicitly clear the pointer.
+            return false;
         }
 
-        // Create the SDL renderer
-        sdl_renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+        // 3. Get the native handle and create the actual SDL renderer.
+        void* native_handle = window->get_native_handle();
+        sdl_renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(native_handle), -1, SDL_RENDERER_ACCELERATED);
 
         if (sdl_renderer == nullptr) {
-            std::cout << "Renderer::initalize - Renderer could not be created! SDL_Error: " << SDL_GetError() << std::endl;
-            return nullptr;
+            std::cout << "Renderer::initalize - SDL_CreateRenderer Failed!" << std::endl;
+            window.reset();  // Cleanup the window object.
+            return false;
         }
 
         std::cout << "Renderer created successfully." << std::endl;
-        return window;
+        return true;
+    }
+
+    IWindow* SDLRenderer::get_window() {
+    // .get() returns the raw pointer so other parts of the engine can use it,
+    // but the unique_ptr still retains ownership
+    return window.get();
     }
 
     void SDLRenderer::shutdown() {
         std::cout << "Shutting down renderer." << std::endl;
         if (sdl_renderer) {
             SDL_DestroyRenderer(sdl_renderer);
-        }
-
-        if (window) {
-            SDL_DestroyWindow(window);
         }
 
         sdl_renderer = nullptr; // Prevent double-deletion  

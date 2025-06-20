@@ -1,4 +1,3 @@
-// =================================================================================
 // Filename:    Salix/window/SDLWindow.cpp
 // Author:      SalixGameStudio
 // Created:     2025-06-20
@@ -11,34 +10,34 @@
 namespace Salix {
 
     SDLWindow::SDLWindow()
-        : m_window(nullptr) {
+        : window(nullptr) {
         // Constructor: Initialize the window pointer to null.
     }
 
     SDLWindow::~SDLWindow() {
-        // Destructor: Ensure shutdown is called if the window still exists,
-        // although explicit shutdown is preferred.
-        if (m_window) {
+        // Destructor: Ensure shutdown is called if the window still exists.
+        // This is a safety net; explicit shutdown by the user is the correct pattern.
+        if (window) {
             shutdown();
         }
     }
 
     bool SDLWindow::initialize(const WindowConfig& config) {
         // Store the configuration.
-        m_config = config;
+        window_config = config;
 
         // Create the actual SDL window using the configuration.
-        m_window = SDL_CreateWindow(
-            m_config.title,
+        window = SDL_CreateWindow(
+            window_config.title,
             SDL_WINDOWPOS_CENTERED,
             SDL_WINDOWPOS_CENTERED,
-            m_config.width,
-            m_config.height,
+            window_config.width,
+            window_config.height,
             SDL_WINDOW_SHOWN
         );
 
         // Check if the window was created successfully.
-        if (m_window == nullptr) {
+        if (window == nullptr) {
             std::cout << "SDLWindow::initialize - Window could not be created! SDL_Error: " << SDL_GetError() << std::endl;
             return false;
         }
@@ -48,25 +47,26 @@ namespace Salix {
     }
 
     void SDLWindow::shutdown() {
-        if (m_window) {
+        if (window) {
             // Destroy the SDL window.
-            SDL_DestroyWindow(m_window);
-            // Set the pointer to null to prevent dangling pointers.
-            m_window = nullptr;
+            SDL_DestroyWindow(window);
+            // Set the pointer to null to prevent dangling pointers and double deletion.
+            window = nullptr;
         }
     }
 
     void* SDLWindow::get_native_handle() const {
         // Return the opaque pointer to the underlying SDL window.
-        return m_window;
+        // This is the bridge that lets the renderer use this window.
+        return window;
     }
 
     int SDLWindow::get_width() const {
-        return m_config.width;
+        return window_config.width;
     }
 
     int SDLWindow::get_height() const {
-        return m_config.height;
+        return window_config.height;
     }
 
 } // namespace Salix
