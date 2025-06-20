@@ -1,6 +1,6 @@
 // Salix/rendering/Renderer.cpp
-#include <SDLRenderer.h>
-#include <SDLTexture.h>
+#include <Salix/rendering/SDLRenderer.h>
+#include <Salix/rendering/SDLTexture.h>
 #include <SDL_image.h>
 #include <Salix/window/SDLWindow.h>
 #include <iostream>

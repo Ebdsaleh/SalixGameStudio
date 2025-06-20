@@ -4,7 +4,7 @@
 #include <Salix/math/Color.h>  // Need the Color definition to allow tinting while rendering sprites.
 #include <Salix/math/Point.h>
 #include <Salix/math/Rect.h>
-#include <ITexture.h>  // Need this to use our own renderer agnostic Texture.
+#include <Salix/rendering/ITexture.h>  // Need this to use our own renderer agnostic Texture.
 namespace Salix {
 
     // We forward declare the types we need.

@@ -1,5 +1,5 @@
 // SDLTexture.cpp
-#include "SDLTexture.h"
+#include <Salix/rendering/SDLTexture.h>
 #include <iostream>
 
 namespace Salix {

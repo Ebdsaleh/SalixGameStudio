@@ -1,6 +1,6 @@
 // Salix/rendering/SDLTexture.h
 #pragma once
-#include <ITexture.h>
+#include <Salix/rendering/ITexture.h>
 #include <SDL.h>
 
 namespace Salix {

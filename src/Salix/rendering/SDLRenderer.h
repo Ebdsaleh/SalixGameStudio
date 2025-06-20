@@ -1,6 +1,6 @@
 // Salix/rendering/Renderer.h
 #pragma once
-#include <IRenderer.h> // We need to include the interface we are implementing.
+#include <Salix/rendering/IRenderer.h> // We need to include the interface we are implementing.
 #include <SDL.h>
 #include <memory>
 // SDLRenderer is concrete implementation of the IRenderer interface.
