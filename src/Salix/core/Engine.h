@@ -1,61 +1,58 @@
-// Salix/core/Engine.h
+// =================================================================================
+// Filename:    Salix/core/Engine.h
+// Author:      SalixGameStudio
+// Description: Declares the main Engine class, which orchestrates all subsystems.
+// =================================================================================
 #pragma once
-#include <Salix/rendering/IRenderer.h>
-#include <Salix/core/ITimer.h>
-#include <Salix/input/IInputManager.h>
-#include <Salix/ecs/Entity.h>
-#include <memory>
+
+// Include the headers for types used in the function signatures.
+#include <Salix/rendering/IRenderer.h>  // For RendererType
+#include <Salix/core/ITimer.h>          // For TimerType
+#include <Salix/window/IWindow.h>       // For WindowConfig
+#include <Salix/states/IAppState.h>     // This defines AppStateType
+#include <memory>                       // For std::unique_ptr
+#include <vector>                       // For the state stack
 
 namespace Salix {
-    // A type-safe enum to indentify the application states.
-    enum class AppStateType {
-        None,
-        Launch,
-        Editor,
-        Game,
-        Options
-    };
-
-    // Forward declarations
+    // Forward declarations for types we only hold pointers to.
+    class IInputManager;
     class AssetManager;
     class IAppState;
-    class ITimer;
 
     class Engine {
-        public:
+    public:
         Engine();
         ~Engine();
 
-        // The main phases of the engine's lifecycle
-        // Added target fps to Engine's initialize method, to implement framerate limtting.
-        bool initialize(const WindowConfig& config, TimerType timer_type = TimerType::SDL, int target_fps = 60);
+        // The main phases of the engine's lifecycle.
+        // This new signature solves the circular dependency and is very clear.
+        bool initialize(const WindowConfig& config, RendererType renderer_type, TimerType timer_type, int target_fps = 60);
         void run();
         void shutdown();
-        
-        // getters for the states to access the core systems.
-        IRenderer* get_renderer() const { return renderer; }
-        AssetManager* get_asset_manager() const { return asset_manager;}
-        IInputManager* get_input_manager() const;
-        
+
+        // Getters for states to access the core systems.
+        IRenderer* get_renderer() { return renderer.get(); }
+        AssetManager* get_asset_manager() { return asset_manager.get(); }
+        IInputManager* get_input_manager() { return input_manager.get(); }
+
         // A public method to allow states to request a change.
         void switch_state(AppStateType new_state_type); 
 
-        private:
+    private:
         void process_input(float delta_time);
         void update(float delta_time);
         void render();
 
         bool is_running;
 
-        // Engine owns the low-level systems.
-        AssetManager* asset_manager;
-        IRenderer* renderer;
+        // The Engine now safely owns all its subsystems via smart pointers.
+        std::unique_ptr<IRenderer> renderer;
+        std::unique_ptr<AssetManager> asset_manager;
         std::unique_ptr<IInputManager> input_manager;
-
-        // The Engine now owns the current state.
-        std::unique_ptr<IAppState> current_state;
-
-        // The Engine now owns the master clock.
         std::unique_ptr<ITimer> timer;
+
+        // State stack logic...
+        std::unique_ptr<IAppState> current_state;
     };
+
 } // namespace Salix
