@@ -15,16 +15,16 @@ namespace Salix {
 
             // The main update call that polls all devices.
             void update(float delta_time) override;
-
+            void process_event(IEvent& event);
             // Keyboard Queries
             bool is_down(KeyCode key) const override;
             bool is_held_down(KeyCode key) const override;
-            bool is_held_down_for(KeyCode key, int target_duration) const override;
+            bool is_held_down_for(KeyCode key, float duration) const override;
             bool was_released(KeyCode key) const override;
             bool is_up(KeyCode key) const override;
             bool multiple_are_down(std::vector<KeyCode>& keys) const override;
             bool multiple_are_held_down(std::vector<KeyCode>& keys) const override;
-            bool multiple_are_held_down_for(std::vector<KeyCode>& keys, int target_duration) const override;
+            bool multiple_are_held_down_for(std::vector<KeyCode>& keys, float duration) const override;
             bool multiple_were_released(std::vector<KeyCode>& keys) const override;
             bool multiple_are_up(std::vector<KeyCode>& keys) const override;
 
@@ -32,12 +32,12 @@ namespace Salix {
             // Mouse Buttons
             bool is_down(MouseButton button) const override;
             bool is_held_down(MouseButton button) const override;
-            bool is_held_down_for(MouseButton button, int target_duration) const override;
+            bool is_held_down_for(MouseButton button, float duration) const override;
             bool was_released(MouseButton button) const override;
             bool is_up(MouseButton button) const override;
             bool multiple_are_down(std::vector<MouseButton>& buttons) const override;
             bool multiple_are_held_down(std::vector<MouseButton>& buttons) const override;
-            bool multiple_are_held_down_for(std::vector<MouseButton>& buttons, int target_duration) const override;
+            bool multiple_are_held_down_for(std::vector<MouseButton>& buttons, float duration) const override;
             bool multiple_were_released(std::vector<MouseButton>& buttons) const override;
             bool multiple_are_up(std::vector<MouseButton>& buttons) const override;
 
@@ -49,21 +49,19 @@ namespace Salix {
             // The private "translator" function.
             SDL_Scancode to_sdl_scancode(KeyCode key) const;
 
-            // State tracking varaiables 
-            const Uint8* current_key_states;
-            std::vector<Uint8> previous_key_states;
+            // A helper to convert SDL's keycode from an event to our abstract KeyCode.
+            KeyCode to_salix_keycode(int sdl_keycode) const;
 
-            Uint32 current_mouse_state;
-            Uint32 previous_mouse_state;
+
+            // --- The NEW State-Tracking Maps ---
+            // These are the brains of the new system.
+            std::map<KeyCode, InputState> key_states;
+            std::map<MouseButton, InputState> mouse_button_states;
+            std::map<KeyCode, float> key_held_durations;
+            std::map<MouseButton, float> mouse_button_held_durations; // Also need this for mouse!
+            // --- Other member variables ---
             int mouse_x;
             int mouse_y;
-            
-            // A record of currently held down inputs. Will look at how this will work later,
-
-            // --- Stopwatch for Timed Input. ---
-            // This map will store the total time, in seconds, the each input has been held down.
-            std::map<SDL_Scancode, float> key_held_durations;
-
             bool quit_requested;
     };
 } // namespace Salix

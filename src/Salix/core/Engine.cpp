@@ -16,6 +16,7 @@
 #include <Salix/states/GameState.h>
 #include <Salix/states/EditorState.h>
 #include <Salix/states/OptionsMenuState.h>
+#include <Salix/events/SDLEvent.h> // <<< CRITICAL: Needed to create our events
 
 #include <SDL.h>
 #include <iostream>
@@ -94,22 +95,20 @@ namespace Salix {
         return true;
     }
 
+    // --- The Corrected Main Loop ---
     void Engine::run() {
-    while (is_running) {
-        // Marks the start and calculates delta time for this frame.
-        timer->tick_start();
+        while (is_running) {
+            timer->tick_start();
+            float delta_time = timer->get_delta_time();
 
-        // Get the delta time that was just calculated.
-        float delta_time = timer->get_delta_time();
+            // The order is now: Process Events, then Update based on new state.
+            process_input();
+            update(delta_time);
+            render();
 
-        process_input(delta_time);
-        update(delta_time);
-        render();
-
-        // Delays the loop if necessary to hit our target FPS.
-        timer->tick_end();
+            timer->tick_end();
+        }
     }
-}
 
     void Engine::shutdown() {
         std::cout << "Shutting down engine." << std::endl;
@@ -127,12 +126,62 @@ namespace Salix {
         SDL_Quit();
     }
 
-    void Engine::process_input(float delta_time) {
-        if (input_manager) {
-            input_manager->update(delta_time);
-            if (input_manager->wants_to_quit()) {
-                is_running = false;
+    // --- THE NEW, CORRECTED process_input METHOD ---
+    void Engine::process_input() {
+        // This is the logic from our old EventHandler, now correctly placed in the Engine.
+        // It polls for raw SDL events, translates them into our abstract Salix::IEvent objects,
+        // and then sends them to the InputManager.
+
+        SDL_Event sdl_event;
+        while (SDL_PollEvent(&sdl_event)) { // This "answers the phone" and prevents the freeze!
+            switch (sdl_event.type)
+            {
+                case SDL_QUIT:
+                {
+                    WindowCloseEvent event;
+                    input_manager->process_event(event);
+                    break;
+                }
+                case SDL_KEYDOWN:
+                {
+                    // Ignore key repeats for the process_event part of our logic
+                    if (sdl_event.key.repeat == 0) {
+                        KeyPressedEvent event(sdl_event.key.keysym.sym);
+                        input_manager->process_event(event);
+                    }
+                    break;
+                }
+                case SDL_KEYUP:
+                {
+                    KeyReleasedEvent event(sdl_event.key.keysym.sym);
+                    input_manager->process_event(event);
+                    break;
+                }
+                case SDL_MOUSEBUTTONDOWN:
+                {
+                    MouseButtonPressedEvent event(sdl_event.button.button);
+                    input_manager->process_event(event);
+                    break;
+                }
+                case SDL_MOUSEBUTTONUP:
+                {
+                    MouseButtonReleasedEvent event(sdl_event.button.button);
+                    input_manager->process_event(event);
+                    break;
+                }
+                case SDL_MOUSEMOTION:
+                {
+                    MouseMovedEvent event((float)sdl_event.motion.x, (float)sdl_event.motion.y);
+                    input_manager->process_event(event);
+                    break;
+                }
+                 // Add other events like MouseScrolled here if needed
             }
+        }
+
+        // After processing all events, check if the Input Manager received a quit event.
+        if (input_manager->wants_to_quit()) {
+            is_running = false;
         }
     }
 
@@ -142,11 +191,21 @@ namespace Salix {
     }
 
     void Engine::update(float delta_time) {
+        // --- THE FIX IS HERE ---
+        // We must update the game logic FIRST, so it can see the single-frame
+        // "Down" and "Released" events from the most recent process_input() call.
+
+        // 1. Update the current game state.
         if (current_state) {
             current_state->update(delta_time);
         }
-    }
 
+        // 2. THEN, update the input manager. This transitions its internal states
+        // (Down -> Held, Released -> Up) in preparation for the NEXT frame.
+        if (input_manager) {
+            input_manager->update(delta_time);
+        }
+    }
     void Engine::render() {
         if (!renderer) return;
 

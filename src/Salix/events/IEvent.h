@@ -1,47 +1,60 @@
-// src/Salix/events/IEvent.h
+// =================================================================================
+// Filename:    Salix/events/IEvent.h
+// Author:      SalixGameStudio
+// Description: Declares the abstract IEvent interface and related types,
+//              using modern C++ best practices.
+// =================================================================================
 #pragma once
+
 #include <string>
 #include <sstream>
 
-namespace Salix { // Let's use Salix, and the user can alias to slx if they want.
-    // PascalCase for enums
+namespace Salix {
 
-    enum EventCategory {
-        None = 0,
+    // --- CHANGE 1: EventCategory is now a strongly-typed enum class. ---
+    // This prevents its members from "leaking" and causing name conflicts.
+    enum class EventCategory {
+        None        = 0,
         Application = 1 << 0,
         Input       = 1 << 1,
         Keyboard    = 1 << 2,
         Mouse       = 1 << 3,
         MouseButton = 1 << 4,
-        MouseAxis   = 1 << 5,  // Not implemented yet.
+        MouseAxis   = 1 << 5
     };
 
-    // PascalCase for enums
+    // --- CHANGE 2: Operator Overload for combining categories. ---
+    // This function teaches the compiler how to use the '|' operator with our
+    // new EventCategory. It's a clean and safe way to handle bitwise flags.
+    inline constexpr int operator|(EventCategory lhs, EventCategory rhs) {
+        return static_cast<int>(lhs) | static_cast<int>(rhs);
+    }
+    // Also needed for combining more than two flags.
+    inline constexpr int operator|(int lhs, EventCategory rhs) {
+        return lhs | static_cast<int>(rhs);
+    }
+
+
+    // The EventType enum is already an enum class, which is perfect.
     enum class EventType {
-        None = 0,
-        WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
-        AppTick, AppUpdate, AppRender,
-        KeyPressed, KeyReleased, KeyTyped,
+        None, WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
+        AppTick, AppUpdate, AppRender, KeyPressed, KeyReleased, KeyTyped,
         MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
     };
 
-    // PascalCase for classes
     class IEvent {
     public:
         virtual ~IEvent() = default;
 
-        // snake_case for methods
         virtual EventType get_event_type() const = 0;
         virtual const char* get_name() const = 0;
         virtual int get_category_flags() const = 0;
         virtual std::string to_string() const { return get_name(); }
 
-        // snake_case for methods
+        // The helper functions now correctly use the scoped enum values.
         inline bool is_in_category(EventCategory category) const {
-            return get_category_flags() & category;
+            return get_category_flags() & static_cast<int>(category);
         }
-
-        // snake_case for methods
         inline bool is_application_event() const { return is_in_category(EventCategory::Application); }
         inline bool is_input_event() const { return is_in_category(EventCategory::Input); }
         inline bool is_keyboard_event() const { return is_in_category(EventCategory::Keyboard); }

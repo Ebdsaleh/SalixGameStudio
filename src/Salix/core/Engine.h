@@ -39,7 +39,7 @@ namespace Salix {
         void switch_state(AppStateType new_state_type); 
 
     private:
-        void process_input(float delta_time);
+        void process_input();
         void update(float delta_time);
         void render();
 

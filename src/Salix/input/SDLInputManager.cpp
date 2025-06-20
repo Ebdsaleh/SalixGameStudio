@@ -1,105 +1,140 @@
-// Salix/input/SDLInputManager.cpp
+// =================================================================================
+// Filename:    Salix/input/SDLInputManager.cpp
+// Author:      SalixGameStudio
+// Description: Implements the stateful, event-driven, and overloaded IInputManager
+//              interface using SDL as the backend.
+// =================================================================================
 #include <Salix/input/SDLInputManager.h>
+#include <Salix/events/SDLEvent.h> // Needed for casting to get event data
+#include <SDL.h>                   // For SDLK_* keycodes in the translator
 
 namespace Salix {
 
     SDLInputManager::SDLInputManager() :
-        quit_requested(false),
-        current_mouse_state(0),
-        previous_mouse_state(0),
         mouse_x(0),
-        mouse_y(0)
-        
-        {
-            // Initialize Keyboard state arrays.
-            current_key_states = SDL_GetKeyboardState(NULL);
-            int num_keys;
-            SDL_GetKeyboardState(&num_keys);
-            previous_key_states.resize(num_keys);
-            memcpy(previous_key_states.data(), current_key_states, num_keys);
-        
+        mouse_y(0),
+        quit_requested(false)
+    {
+        // --- CONSTRUCTOR ---
+        // Pre-populate our state maps. This is crucial for our logic.
+        // Every possible key and button starts in the 'Up' state with a 0-second timer.
+
+        // Initialize all keyboard keys.
+        for (int i = static_cast<int>(KeyCode::None) + 1; i <= static_cast<int>(KeyCode::PrintScreen); ++i) {
+            KeyCode key = static_cast<KeyCode>(i);
+            key_states[key] = InputState::Up;
+            key_held_durations[key] = 0.0f;
         }
+
+        // Initialize all mouse buttons.
+        for (int i = static_cast<int>(MouseButton::None) + 1; i <= static_cast<int>(MouseButton::Right); ++i) {
+            MouseButton button = static_cast<MouseButton>(i);
+            mouse_button_states[button] = InputState::Up;
+            mouse_button_held_durations[button] = 0.0f;
+        }
+    }
 
     SDLInputManager::~SDLInputManager() {}
 
+    void SDLInputManager::process_event(IEvent& event) {
+        // --- LIFECYCLE METHOD 1: RECEIVE EVENTS ---
+        // Called by the Engine for each event. Updates our internal state maps based on what just happened.
+        // This is the "ON" / "OFF" part of your analogy.
 
-    void SDLInputManager::update(float delta_time) {
-        // --- State snapshotting is the same ---
-        // We still need this for our was_released checks.
-        memcpy(previous_key_states.data(), current_key_states, previous_key_states.size());
-        previous_mouse_state = current_mouse_state;
-        current_mouse_state = SDL_GetMouseState(&mouse_x, &mouse_y);
+        if (event.is_in_category(EventCategory::Keyboard)) {
+            // It's a keyboard event, find out which key.
+            auto& key_event = static_cast<KeyEvent&>(event);
+            KeyCode key = to_salix_keycode(key_event.get_key_code());
 
-        // --- NEW: Event-Driven Logic ---
-        // Instead of iterating all keys, we react to specific events from SDL.
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_QUIT) {
-                quit_requested = true;
+            if (key != KeyCode::None) {
+                if (event.get_event_type() == EventType::KeyPressed) {
+                    // Only trigger "Down" if it was previously up. This handles key repeats correctly.
+                    if (key_states[key] == InputState::Up || key_states[key] == InputState::Released) {
+                        key_states[key] = InputState::Down;
+                    }
+                } else if (event.get_event_type() == EventType::KeyReleased) {
+                    key_states[key] = InputState::Released;
+                }
             }
         }
 
-        // NEW: Update the key hold timers.
-        // This is more efficient since we only update once per frame.
-        int num_keys;
-        const Uint8* keys = SDL_GetKeyboardState(&num_keys);
-        for (int scancode = 0; scancode < num_keys; ++ scancode){
-            // if a key is currently being held down.
-            if (keys[scancode]) {
-                // ... add the delta_time to its stopwatch.
-                // If it's not in the map yet, this will create it with a value of 0, then add
-                key_held_durations[static_cast<SDL_Scancode>(scancode)] += delta_time;
+        else if (event.is_in_category(EventCategory::MouseButton)) {
+            // It's a mouse button event.
+            auto& mouse_event = static_cast<MouseButtonEvent&>(event);
+            MouseButton button = static_cast<MouseButton>(mouse_event.get_mouse_button());
+
+            if (mouse_button_states.count(button)) {
+                if (event.get_event_type() == EventType::MouseButtonPressed) {
+                    if (mouse_button_states[button] == InputState::Up || mouse_button_states[button] == InputState::Released) {
+                        mouse_button_states[button] = InputState::Down;
+                    }
+                } else if (event.get_event_type() == EventType::MouseButtonReleased) {
+                    mouse_button_states[button] = InputState::Released;
+                }
+            }
+        }
+
+        else if (event.get_event_type() == EventType::MouseMoved) {
+            auto& mouse_event = static_cast<MouseMovedEvent&>(event);
+            mouse_x = static_cast<int>(mouse_event.get_x());
+            mouse_y = static_cast<int>(mouse_event.get_y());
+        }
+
+        else if (event.get_event_type() == EventType::WindowClose) {
+            quit_requested = true;
+        }
+    }
+
+    void SDLInputManager::update(float delta_time) {
+        // --- LIFECYCLE METHOD 2: ADVANCE TIME ---
+        // Called once per frame. Handles time-based transitions and updates duration timers.
+        // This is the "was ON and still is ON" analogy.
+
+        // 1. Transition single-frame states ('Down', 'Released') to multi-frame states ('Held', 'Up').
+        for (auto& pair : key_states) {
+            if (pair.second == InputState::Down)       pair.second = InputState::Held;
+            else if (pair.second == InputState::Released) pair.second = InputState::Up;
+        }
+
+        for (auto& pair : mouse_button_states) {
+            if (pair.second == InputState::Down)       pair.second = InputState::Held;
+            else if (pair.second == InputState::Released) pair.second = InputState::Up;
+        }
+
+        // 2. Update held duration timers.
+        for (auto const& [key, state] : key_states) {
+            if (state == InputState::Down || state == InputState::Held) {
+                key_held_durations[key] += delta_time;
             } else {
-                // if the key is up, reset the stopwatch to 0.
-                key_held_durations[static_cast<SDL_Scancode>(scancode)] = 0.0f;
+                key_held_durations[key] = 0.0f;
+            }
+        }
+
+        for (auto const& [button, state] : mouse_button_states) {
+            if (state == InputState::Down || state == InputState::Held) {
+                mouse_button_held_durations[button] += delta_time;
+            } else {
+                mouse_button_held_durations[button] = 0.0f;
             }
         }
     }
+
 
     // --- Keyboard Queries ---
 
     // ---Single Keyboard key events
 
-    // Returns true the moment the frame detects the input
-    bool SDLInputManager::is_down(KeyCode key) const {
-        SDL_Scancode sc = to_sdl_scancode(key);
-        return (current_key_states[sc] == 1 && previous_key_states[sc] == 0);
-    }
-
-    // Returns true if the input 'is still down' from the previous frame-cycle
-    bool SDLInputManager::is_held_down(KeyCode key) const {
-        SDL_Scancode sc = to_sdl_scancode(key);
-        return (current_key_states[sc] == 1 && previous_key_states[sc] == 1);
-    }
-
-    // Returns true if the input 'is held down' for the target_duration value (measured in seconds).
-    bool SDLInputManager::is_held_down_for(KeyCode key, int target_duration) const {
-        // Trial implementation:
-        // Find the key in the key_held_durations map.
-        SDL_Scancode sc = to_sdl_scancode(key);
-        auto durations_iterator = key_held_durations.find(sc);
-
-        // If the key is not found in the map, it's not being held.
-        if (durations_iterator == key_held_durations.end()) {
-            return false;
+    bool SDLInputManager::is_down(KeyCode key) const { return key_states.at(key) == InputState::Down; }
+    
+    bool SDLInputManager::is_held_down(KeyCode key) const { return key_states.at(key) == InputState::Held; }
+    
+    bool SDLInputManager::was_released(KeyCode key) const { return key_states.at(key) == InputState::Released; }
+    
+    bool SDLInputManager::is_up(KeyCode key) const { return key_states.at(key) == InputState::Up; }
+    
+    bool SDLInputManager::is_held_down_for(KeyCode key, float duration) const {
+         return key_held_durations.at(key) >= duration; 
         }
-
-        // Return true if the accumulated time is greater than or equal to the target.
-        return durations_iterator->second >= target_duration;
-    }
-
-    // Returns true when the input goes from 'down to up' (is_down to is_up).
-    bool SDLInputManager::was_released(KeyCode key) const {
-        SDL_Scancode sc = to_sdl_scancode(key);
-        return (current_key_states[sc] == 0 && previous_key_states[sc] == 1);
-    }
-
-
-    // Returns true if the input is not detect this frame. 
-    bool SDLInputManager::is_up(KeyCode key) const {
-        SDL_Scancode sc = to_sdl_scancode(key);
-        return current_key_states[sc] == 0;
-    }
 
     // --- Keyboard Multiple keystrokes events (simultaneous)
 
@@ -113,7 +148,7 @@ namespace Salix {
         return false;
     }
 
-    bool SDLInputManager::multiple_are_held_down_for(std::vector<KeyCode>& /*keys*/, int /*target_duration*/) const {
+    bool SDLInputManager::multiple_are_held_down_for(std::vector<KeyCode>& /*keys*/, float /*duration*/) const {
         // not implemented yet
         return false;
     }
@@ -132,37 +167,20 @@ namespace Salix {
     // --- Mouse Queries ---
     // --- Mouse Single Button events ---
 
-    bool SDLInputManager::is_down(MouseButton button) const {
-        Uint32 mask = 0;
-        if (button == MouseButton::Left) mask = SDL_BUTTON_LMASK;
-        else if (button == MouseButton::Right) mask = SDL_BUTTON_RMASK;
-        else if (button == MouseButton::Middle) mask = SDL_BUTTON_MMASK;
-        return (current_mouse_state & mask) != 0;
-    }
-
-    bool SDLInputManager::is_held_down(MouseButton /*button*/) const {
-        // not implemented yet
-        return false;
-    }
-
-    bool SDLInputManager::is_held_down_for(MouseButton /*button*/, int /*target_duration*/) const {
-        // not implemented yet
-        return false;
-    }
-
-
+    bool SDLInputManager::is_down(MouseButton button) const { return mouse_button_states.at(button) == InputState::Down; }
+    
+    bool SDLInputManager::is_held_down(MouseButton button) const {
+         return mouse_button_states.at(button) == InputState::Held; 
+        }
     bool SDLInputManager::was_released(MouseButton button) const {
-    Uint32 mask = 0;
-        if (button == MouseButton::Left) mask = SDL_BUTTON_LMASK;
-        else if (button == MouseButton::Right) mask = SDL_BUTTON_RMASK;
-        else if (button == MouseButton::Middle) mask = SDL_BUTTON_MMASK;
-        return ((current_mouse_state & mask) == 0 && (previous_mouse_state && mask) != 0);
-    }
+         return mouse_button_states.at(button) == InputState::Released;
+        }
+    bool SDLInputManager::is_up(MouseButton button) const { return mouse_button_states.at(button) == InputState::Up; }
+    
+    bool SDLInputManager::is_held_down_for(MouseButton button, float duration) const {
+         return mouse_button_held_durations.at(button) >= duration;
+        }
 
-    bool SDLInputManager::is_up(MouseButton /*button*/) const {
-        // not implemented yet
-        return false;
-    }
 
     // --- Mouse  Multiple Button events (simultaneous)
 
@@ -176,7 +194,7 @@ namespace Salix {
         return false;
     }
 
-    bool SDLInputManager::multiple_are_held_down_for(std::vector<MouseButton>& /*buttons*/, int /*target_duration*/) const {
+    bool SDLInputManager::multiple_are_held_down_for(std::vector<MouseButton>& /*buttons*/, float/*duration*/) const {
         // not implemented yet
         return false;
     }
@@ -205,8 +223,9 @@ namespace Salix {
         return quit_requested;
     }
 
+    // --- TRANSLATION LAYER ---
 
-    // --- The "Ubiquitus Translator" ---
+    // --- The "salix Game Studio KeyCode's to SDL_SCANCODE's." ---
     SDL_Scancode SDLInputManager::to_sdl_scancode(KeyCode key) const {
         switch (key) {
             case KeyCode::Alpha0: return SDL_SCANCODE_0;
@@ -289,5 +308,81 @@ namespace Salix {
             case KeyCode::PrintScreen: return SDL_SCANCODE_PRINTSCREEN;
             default: return SDL_SCANCODE_UNKNOWN;
         }
+    }
+
+        // This function keeps the SDL dependency completely contained within this one file.
+        KeyCode SDLInputManager::to_salix_keycode(int sdl_keycode) const {
+        switch (sdl_keycode) {
+            case SDLK_a: return KeyCode::A;
+            case SDLK_b: return KeyCode::B;
+            case SDLK_c: return KeyCode::C;
+            case SDLK_d: return KeyCode::D;
+            case SDLK_e: return KeyCode::E;
+            case SDLK_f: return KeyCode::F;
+            case SDLK_g: return KeyCode::G;
+            case SDLK_h: return KeyCode::H;
+            case SDLK_i: return KeyCode::I;
+            case SDLK_j: return KeyCode::J;
+            case SDLK_k: return KeyCode::K;
+            case SDLK_l: return KeyCode::L;
+            case SDLK_m: return KeyCode::M;
+            case SDLK_n: return KeyCode::N;
+            case SDLK_o: return KeyCode::O;
+            case SDLK_p: return KeyCode::P;
+            case SDLK_q: return KeyCode::Q;
+            case SDLK_r: return KeyCode::R;
+            case SDLK_s: return KeyCode::S;
+            case SDLK_t: return KeyCode::T;
+            case SDLK_u: return KeyCode::U;
+            case SDLK_v: return KeyCode::V;
+            case SDLK_w: return KeyCode::W;
+            case SDLK_x: return KeyCode::X;
+            case SDLK_y: return KeyCode::Y;
+            case SDLK_z: return KeyCode::Z;
+            case SDLK_SPACE: return KeyCode::Space;
+            case SDLK_RETURN: return KeyCode::Enter;
+            case SDLK_ESCAPE: return KeyCode::Escape;
+            case SDLK_LSHIFT: return KeyCode::LeftShift;
+            case SDLK_LCTRL: return KeyCode::LeftControl;
+            case SDLK_LALT: return KeyCode::LeftAlt;
+            case SDLK_RSHIFT: return KeyCode::RightShift;
+            case SDLK_RCTRL: return KeyCode::RightControl;
+            case SDLK_RALT: return KeyCode::RightAlt;
+            case SDLK_TAB: return KeyCode::Tab;
+            case SDLK_DELETE: return KeyCode::Delete;
+            case SDLK_F1: return KeyCode::F1;
+            case SDLK_F2: return KeyCode::F2;
+            case SDLK_F3: return KeyCode::F3;
+            case SDLK_F4: return KeyCode::F4;
+            case SDLK_F5: return KeyCode::F5;
+            case SDLK_F6: return KeyCode::F6;
+            case SDLK_F7: return KeyCode::F7;
+            case SDLK_F8: return KeyCode::F8;
+            case SDLK_F9: return KeyCode::F9;
+            case SDLK_F10: return KeyCode::F10;
+            case SDLK_F11: return KeyCode::F11;
+            case SDLK_F12: return KeyCode::F12;
+            case SDLK_BACKSPACE: return KeyCode::BackSpace;
+            case SDLK_BACKSLASH: return KeyCode::BackSlash;
+            case SDLK_CAPSLOCK: return KeyCode::CapsLock;
+            case SDLK_COMMA: return KeyCode::Comma;
+            case SDLK_SEPARATOR: return KeyCode::Separator;
+            case SDLK_SLASH: return KeyCode::Slash;
+            case SDLK_QUOTE: return KeyCode::Apostrophe;
+            case SDLK_SEMICOLON: return KeyCode::SemiColon;
+            case SDLK_PERIOD: return KeyCode::Period;
+            case SDLK_MINUS: return KeyCode::Minus;
+            case SDLK_EQUALS: return KeyCode::Equals;
+            case SDLK_UP: return KeyCode::Up;
+            case SDLK_DOWN: return KeyCode::Down;
+            case SDLK_LEFT: return KeyCode::Left;
+            case SDLK_RIGHT: return KeyCode::Right;
+            case SDLK_LGUI: return KeyCode::LeftGui;
+            case SDLK_RGUI: return KeyCode::RightGui;
+            case SDLK_APPLICATION: return KeyCode::ContextMenu;
+            case SDLK_PRINTSCREEN: return KeyCode::PrintScreen;
+            default: return KeyCode::None;
+        }
+    
     }
 } // namespace Salix

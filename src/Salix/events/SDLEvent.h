@@ -1,19 +1,25 @@
-// Salix/events/SDLEvent.h
+// =================================================================================
+// Filename:    Salix/events/SDLEvent.h
+// Author:      SalixGameStudio
+// Description: Declares the concrete event classes that wrap native SDL events,
+//              implementing the IEvent interface.
+// =================================================================================
 #pragma once
 
 #include <Salix/events/IEvent.h>
 #include <sstream>
-#include <functional>
-#include <SDL.h>
 
 namespace Salix {
 
-    // Helper macros remain unchanged
+    // Helper macro to implement the type-specific virtual functions.
     #define EVENT_CLASS_TYPE(type) static EventType get_static_type() { return EventType::##type; }\
                                     virtual EventType get_event_type() const override { return get_static_type(); }\
                                     virtual const char* get_name() const override { return #type; }
 
-    #define EVENT_CLASS_CATEGORY(category) virtual int get_category_flags() const override { return category; }
+    // --- THE FIX IS HERE ---
+    // Helper macro for setting the event category flags.
+    // We now static_cast the result to an int to handle single enum class values correctly.
+    #define EVENT_CLASS_CATEGORY(category) virtual int get_category_flags() const override { return static_cast<int>(category); }
 
     //==============================================================================
     // KEYBOARD EVENTS
@@ -39,7 +45,7 @@ namespace Salix {
         KeyPressedEvent(const int key_code_in, bool is_repeat_in = false)
             : KeyEvent(key_code_in), is_repeat(is_repeat_in) {}
 
-        bool was_repeated() const { return is_repeat; } // Renamed for clarity
+        bool was_repeated() const { return is_repeat; }
 
         std::string to_string() const override
         {
@@ -90,7 +96,7 @@ namespace Salix {
         }
 
         EVENT_CLASS_TYPE(MouseMoved)
-        EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
+        EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input | EventCategory::MouseAxis)
     private:
         float mouse_x, mouse_y;
     };
@@ -112,7 +118,7 @@ namespace Salix {
         }
 
         EVENT_CLASS_TYPE(MouseScrolled)
-        EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input)
+        EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input | EventCategory::MouseAxis)
     private:
         float x_offset, y_offset;
     };
@@ -184,7 +190,14 @@ namespace Salix {
         }
 
         EVENT_CLASS_TYPE(WindowResize)
-        EVENT_CLASS_CATEGORY(EventCategory::Application)
+        EVENT_CLASS_CATEGORY(EventCategory::Application)  // Error here
+        /*return value type does not match the function typeC/C++(120)
+        #define EVENT_CLASS_CATEGORY(category) virtual int get_category_flags() const override { return category; }
+        Helper macro for setting the event category flags.
+        Expands to:
+
+        virtual int get_category_flags() const override { return EventCategory::Application; }*/
+
     private:
         unsigned int width, height;
     };
@@ -195,19 +208,13 @@ namespace Salix {
         WindowCloseEvent() = default;
 
         EVENT_CLASS_TYPE(WindowClose)
-        EVENT_CLASS_CATEGORY(EventCategory::Application)
-    };
+        EVENT_CLASS_CATEGORY(EventCategory::Application)  // Error here
+        /*return value type does not match the function typeC/C++(120)
+    #define EVENT_CLASS_CATEGORY(category) virtual int get_category_flags() const override { return category; }
+    Helper macro for setting the event category flags.
+    Expands to:
 
-    class EventHandler
-    {
-    public:
-        using event_callback_fn = std::function<void(IEvent&)>;
-
-        EventHandler(const event_callback_fn& callback_in);
-        void poll_events();
-
-    private:
-        event_callback_fn event_callback;
+    virtual int get_category_flags() const override { return EventCategory::Application; }*/
     };
 
 } // namespace Salix
