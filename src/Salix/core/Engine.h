@@ -18,6 +18,7 @@ namespace Salix {
     class IInputManager;
     class AssetManager;
     class IAppState;
+    class IEventPoller;
 
     class Engine {
     public:
@@ -50,6 +51,7 @@ namespace Salix {
         std::unique_ptr<AssetManager> asset_manager;
         std::unique_ptr<IInputManager> input_manager;
         std::unique_ptr<ITimer> timer;
+        std::unique_ptr<IEventPoller> event_poller;
 
         // State stack logic...
         std::unique_ptr<IAppState> current_state;
