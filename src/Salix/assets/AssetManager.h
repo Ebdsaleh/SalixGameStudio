@@ -2,6 +2,7 @@
 #pragma once
 
 #include <string>
+#include <memory>
 #include <map>
 
 namespace Salix {
@@ -28,6 +29,6 @@ namespace Salix {
             IRenderer* renderer;
 
             // The cache: maps a file path (string) to a loaded texture.
-            std::map<std::string, ITexture*> texture_cache;
+            std::map<std::string, std::unique_ptr<ITexture>> texture_cache;
     };
 } // namespace Salix
