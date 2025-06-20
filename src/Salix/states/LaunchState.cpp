@@ -19,7 +19,7 @@ namespace Salix {
         std::cout << "Exiting LaunchState..." << std::endl;
     }
 
-    void LaunchState::update(float delta_time) {
+    void LaunchState::update(float /*delta_time*/) {
         // In the future we'll check for button clicks here.
         if (input_manager_ptr->is_down(KeyCode::E)) std::cout << "'E' key press detected. Switching to EditorState." << std::endl;
         
@@ -39,7 +39,7 @@ namespace Salix {
     }
     
 
-    void LaunchState::render(IRenderer* renderer) {
+    void LaunchState::render(IRenderer* /*renderer*/) {
         // This state has no game world to render, but it might have UI.
         // For now, this does nothing.
     }
