@@ -26,16 +26,12 @@ namespace Salix {
             // Returns true when the input goes from 'down to up' (is_down to is_up).
             virtual bool was_released(KeyCode key) const = 0;
 
-            //Returns true when the input goes from 'down to up, after being in the 'is_held_down' state.
-            virtual bool was_just_released(KeyCode key) const = 0;
-            
             // Returns true if the input is not detect this frame. 
             virtual bool is_up(KeyCode key) const = 0;
 
             virtual bool multiple_are_down(std::vector<KeyCode>& keys) const = 0;
             virtual bool multiple_are_held_down(std::vector<KeyCode>& keys) const = 0;
             virtual bool multiple_are_held_down_for(std::vector<KeyCode>& keys, int target_duration) const = 0;
-            virtual bool multiple_were_just_released(std::vector<KeyCode>& keys) const = 0;
             virtual bool multiple_were_released(std::vector<KeyCode>& keys) const = 0;
             virtual bool multiple_are_up(std::vector<KeyCode>& keys) const = 0;
 
@@ -44,13 +40,11 @@ namespace Salix {
             virtual bool is_down(MouseButton button) const = 0;
             virtual bool is_held_down(MouseButton button) const = 0;
             virtual bool is_held_down_for(MouseButton button, int target_duration) const = 0;
-            virtual bool was_just_released(MouseButton button) const = 0;
             virtual bool was_released(MouseButton button) const = 0;
             virtual bool is_up(MouseButton button) const = 0;
             virtual bool multiple_are_down(std::vector<MouseButton>& buttons) const = 0;
             virtual bool multiple_are_held_down(std::vector<MouseButton>& buttons) const= 0;
             virtual bool multiple_are_held_down_for(std::vector<MouseButton>& buttons, int target_duration) const = 0;
-            virtual bool multiple_were_just_released(std::vector<MouseButton>& buttons) const = 0;
             virtual bool multiple_were_released(std::vector<MouseButton>& buttons) const = 0;
             virtual bool multiple_are_up(std::vector<MouseButton>& buttons) const = 0;
 

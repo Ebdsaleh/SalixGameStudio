@@ -94,11 +94,6 @@ namespace Salix {
         return (current_key_states[scancode] == 0 && previous_key_states[scancode] == 1);
     }
 
-    //Returns true when the input goes from 'down to up, after being in the 'is_held_down' state.
-    bool SDLInputManager::was_just_released(KeyCode key) const {
-        // not implemented yet
-        return false;
-    }
 
     // Returns true if the input is not detect this frame. 
     bool SDLInputManager::is_up(KeyCode key) const {
@@ -123,10 +118,6 @@ namespace Salix {
         return false;
     }
 
-    bool SDLInputManager::multiple_were_just_released(std::vector<KeyCode>& keys) const {
-        // not implemented yet
-        return false;
-    }
 
     bool SDLInputManager::multiple_were_released(std::vector<KeyCode>& keys) const {
         // not implemented yet
@@ -159,10 +150,6 @@ namespace Salix {
         return false;
     }
 
-    bool SDLInputManager::was_just_released(MouseButton button) const {
-        // not implemented yet
-        return false;
-    }
 
     bool SDLInputManager::was_released(MouseButton button) const {
     Uint32 mask = 0;
@@ -194,10 +181,6 @@ namespace Salix {
         return false;
     }
 
-    bool SDLInputManager::multiple_were_just_released(std::vector<MouseButton>& buttons) const {
-        // not implemented yet
-        return false;
-    }
 
     bool SDLInputManager::multiple_were_released(std::vector<MouseButton>& buttons) const {
         // not implemented yet
