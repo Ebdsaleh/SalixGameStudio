@@ -1,7 +1,7 @@
 // Salix/ecs/RenderableElement.h
 #pragma once
 
-#include <Element.h>  // Required to inherit from the Element base class.
+#include <Salix/ecs/Element.h>  // Required to inherit from the Element base class.
 namespace Salix {
     // Forward declare the renderer interface
     class IRenderer;

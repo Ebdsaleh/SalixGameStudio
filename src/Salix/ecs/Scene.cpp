@@ -1,6 +1,6 @@
 // Salix/ecs/Scene.cpp
-#include <Scene.h>
-#include <Entity.h>
+#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Entity.h>
 #include <algorithm>
 #include <memory>
 #include <iostream>

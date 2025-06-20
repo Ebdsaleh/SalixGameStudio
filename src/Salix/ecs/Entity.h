@@ -1,9 +1,9 @@
 // Salix/ecs/Entity.h
 #pragma once
 
-#include <Element.h>
-#include <RenderableElement.h>  // To allow rendering of ONLY Renderable Elements (This will optimize the rendering routine).
-#include <Transform.h>  // We need the full Transform definition now.
+#include <Salix/ecs/Element.h>
+#include <Salix/ecs/RenderableElement.h>  // To allow rendering of ONLY Renderable Elements (This will optimize the rendering routine).
+#include <Salix/ecs/Transform.h>  // We need the full Transform definition now.
 #include <vector>
 #include <memory>  // For std::unique_ptr.
 #include <iostream>  // For std::cerr.

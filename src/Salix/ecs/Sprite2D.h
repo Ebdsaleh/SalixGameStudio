@@ -2,7 +2,7 @@
 #pragma once
 
 #include <Salix/math/Color.h>
-#include <RenderableElement.h>
+#include <Salix/ecs/RenderableElement.h>
 #include <Salix/math/Vector2.h>  // For the pivot and offset.
 #include <string>
 

@@ -1,7 +1,7 @@
 // Salix/ecs/Sprite2D.cpp
-#include <Sprite2D.h>
-#include <Entity.h> // We need this to get the owner's Transform.
-#include <Transform.h>
+#include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/Entity.h> // We need this to get the owner's Transform.
+#include <Salix/ecs/Transform.h>
 #include <Salix/assets/AssetManager.h>
 #include <Salix/rendering/IRenderer.h>  // We need this for the render method parameter.
 #include <SDL.h>
