@@ -1,6 +1,6 @@
 // ChronoTimer.h
 #pragma once
-#include "ITimer.h"
+#include "Salix/core/ITimer.h"
 #include <chrono>
 
 namespace Salix {

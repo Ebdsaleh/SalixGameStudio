@@ -1,7 +1,7 @@
 // Salix/core/Engine.h
 #pragma once
 #include <Salix/rendering/IRenderer.h>
-#include <ITimer.h>
+#include <Salix/core/ITimer.h>
 #include <Salix/input/IInputManager.h>
 #include <Salix/ecs/Entity.h>
 #include <memory>

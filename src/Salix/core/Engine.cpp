@@ -1,7 +1,7 @@
 // Salix/core/Engine.cpp
-#include <Engine.h>
-#include <SDLTimer.h>
-#include <ChronoTimer.h>
+#include <Salix/core/Engine.h>
+#include <Salix/core/SDLTimer.h>
+#include <Salix/core/ChronoTimer.h>
 // --- SUPPORTED INPUT HANDLING API'S GO HERE. ---
 // --- NOTE ---
 // We will need to add all our supported input layer API's here.

@@ -1,6 +1,6 @@
 // Salix/core/SDLTimer.h
 #pragma once
-#include <ITimer.h>
+#include <Salix/core/ITimer.h>
 
 namespace Salix {
 

@@ -1,5 +1,5 @@
 // Salix/core/SDLTimer.cpp
-#include <SDLTimer.h>
+#include <Salix/core/SDLTimer.h>
 #include <SDL.h>
 
 namespace Salix {
