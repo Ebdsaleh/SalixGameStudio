@@ -1,6 +1,6 @@
 // Salix/management/Project.cpp
-#include <Project.h>
-#include <SceneManager.h>
+#include <Salix/management/Project.h>
+#include <Salix/management/SceneManager.h>
 #include <iostream>
 
 namespace Salix {

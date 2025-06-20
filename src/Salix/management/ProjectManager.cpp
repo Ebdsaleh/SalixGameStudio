@@ -1,6 +1,6 @@
 // Salix/management/ProjectManager.cpp
-#include <ProjectManager.h>
-#include <Project.h>
+#include <Salix/management/ProjectManager.h>
+#include <Salix/management/Project.h>
 #include <iostream>
 
 namespace Salix {

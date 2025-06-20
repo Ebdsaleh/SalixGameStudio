@@ -1,5 +1,5 @@
 // Salix/management/SceneManager.cpp
-#include <SceneManager.h>
+#include <Salix/management/SceneManager.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/assets/AssetManager.h>
 #include <iostream>
