@@ -17,9 +17,9 @@ namespace Salix {
     // Forward declarations for types we only hold pointers to.
     class IInputManager;
     class AssetManager;
-    class IAppState;
     class IEventPoller;
-
+    class EventManager;
+    
     class Engine {
     public:
         Engine();
@@ -35,7 +35,7 @@ namespace Salix {
         IRenderer* get_renderer() { return renderer.get(); }
         AssetManager* get_asset_manager() { return asset_manager.get(); }
         IInputManager* get_input_manager() { return input_manager.get(); }
-
+        EventManager* get_event_manager() { return event_manager.get(); }
         // A public method to allow states to request a change.
         void switch_state(AppStateType new_state_type); 
 
@@ -52,7 +52,7 @@ namespace Salix {
         std::unique_ptr<IInputManager> input_manager;
         std::unique_ptr<ITimer> timer;
         std::unique_ptr<IEventPoller> event_poller;
-
+        std::unique_ptr<EventManager> event_manager;
         // State stack logic...
         std::unique_ptr<IAppState> current_state;
     };
