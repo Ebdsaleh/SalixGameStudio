@@ -7,6 +7,15 @@ namespace Salix {
     class Engine;
     class IRenderer;
 
+    // A type-safe enum to indentify the application states.
+    enum class AppStateType {
+        None,
+        Launch,
+        Editor,
+        Game,
+        Options
+    };
+
     class IAppState {
         public:
             virtual ~IAppState() = default;
