@@ -18,7 +18,7 @@
 #include <Salix/states/OptionsMenuState.h>
 #include <Salix/events/SDLEvent.h> // <<< CRITICAL: Needed to create our events
 #include <Salix/events/SDLEventPoller.h>
-
+#include <Salix/events/EventManager.h>
 #include <SDL.h>
 #include <iostream>
 
@@ -33,7 +33,6 @@ namespace Salix {
         // resources, but our explicit shutdown() is the correct place for this.
     }
 
-    // --- FIX #1: Updated method signature ---
     // The signature now matches the one in our new Engine.h.
     bool Engine::initialize(const WindowConfig& config, RendererType renderer_type, TimerType timer_type, int target_fps) {
         // --- 1: CONTEXT INITIALIZATION (SDL) ---
@@ -43,7 +42,7 @@ namespace Salix {
         }
 
         // --- 2: RENDERER INITIALIZATION ---
-        // --- FIX #2: Use the renderer_type parameter and std::make_unique ---
+        // --- Use the renderer_type parameter and std::make_unique ---
         switch (renderer_type) {
             case RendererType::SDL:
                 renderer = std::make_unique<SDLRenderer>();
@@ -63,7 +62,7 @@ namespace Salix {
         }
 
         // --- 3: ASSET MANAGER INITIALIZATION ---
-        // --- FIX #3: Use std::make_unique for safe memory management ---
+        // --- Use std::make_unique for safe memory management ---
         asset_manager = std::make_unique<AssetManager>();
         asset_manager->initialize(renderer.get()); // Pass the raw pointer
 
@@ -84,14 +83,19 @@ namespace Salix {
         // --- 5: INPUT MANAGER INITIALIZATION ---
         input_manager = std::make_unique<SDLInputManager>();
 
-        // --- 6: STATE MACHINE INITIALIZATION ---
+        // --- 6: EVENT MANAGER INITIALIZATION ---
+        event_manager = std::make_unique<EventManager>();
+
+        // --- 7: EVENT POLLER INITIALIZATION ---
+        event_poller = std::make_unique<SDLEventPoller>();
+
+        // --- 8: STATE MACHINE INITIALIZATION ---
         // TODO: This logic for state switching should be moved into a dedicated StateManager class
         // For now, setting the initial state directly is okay.
         current_state = std::make_unique<LaunchState>();
         current_state->on_enter(this);
 
-        // --- 7: EVENT POLLER INITIALIZATION ---
-        event_poller = std::make_unique<SDLEventPoller>();
+        
 
         // --- 8: START THE ENGINE ---
         is_running = true;
@@ -116,9 +120,11 @@ namespace Salix {
     void Engine::shutdown() {
         std::cout << "Shutting down engine." << std::endl;
 
-        // --- FIX #4: Correct shutdown order using smart pointers ---
+        // --- Correct shutdown order using smart pointers ---
         // Shutdown subsystems in the reverse order of creation (LIFO).
         // The .reset() call will destroy the object and call its destructor.
+        event_poller.reset();
+        event_manager.reset();
         current_state.reset();
         input_manager.reset();
         timer.reset();
@@ -131,13 +137,21 @@ namespace Salix {
 
     // THIS METHOD IS NOW 100% DECOUPLED FROM SDL
     void Engine::process_input() {
-        // The engine's only job is to tell the poller to work, and provide
-        // a function that sends the resulting events to the input manager.
+        // --- THE NEW, DUAL-DISPATCH SYSTEM ---
+        // The engine polls for events and sends them to both the InputManager (for state polling)
+        // and the EventManager (for event listening).
         event_poller->poll_events([&](IEvent& event) {
+            // 1. Send to the InputManager to update its internal state maps.
             input_manager->process_event(event);
+
+            // 2. Dispatch to the EventManager to notify any listeners (like UI).
+            event_manager->dispatch(event);
+
+            // Note: If the event was handled (e.g., by a UI element),
+            // the dispatch function will stop propagation, and subsequent listeners
+            // might not receive the event, which is correct behavior for UI.
         });
 
-        // After processing, check if we need to quit.
         if (input_manager->wants_to_quit()) {
             is_running = false;
         }
@@ -149,16 +163,13 @@ namespace Salix {
         // ... (Your state switching logic is good, but belongs in a manager) ...
     }
 
-    // THIS METHOD NOW HAS THE CORRECT ORDER OF OPERATIONS
     void Engine::update(float delta_time) {
-        // 1. Update the current game state first. This allows it to see the
-        //    single-frame "Down" and "Released" events from process_input().
+        // This order is correct and final.
+        // 1. Update game logic.
         if (current_state) {
             current_state->update(delta_time);
         }
-
-        // 2. THEN, update the input manager. This transitions its internal states
-        //    (Down -> Held, Released -> Up) in preparation for the NEXT frame.
+        // 2. Update input manager's internal state machine.
         if (input_manager) {
             input_manager->update(delta_time);
         }

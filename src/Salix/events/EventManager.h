@@ -13,7 +13,7 @@
 
 namespace Salix {
 
-    class EventManager : public IEventListener {
+    class EventManager {
         public:
             EventManager() = default;
             ~EventManager() = default;
