@@ -1,6 +1,6 @@
  // Salix/states/OptionsMenuState.h
 #pragma once
-#include <IAppState.h>
+#include <Salix/states/IAppState.h>
 
 namespace Salix {
 

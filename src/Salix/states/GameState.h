@@ -1,7 +1,7 @@
 // Salix/states/GameState.h
 #pragma once
 
-#include <IAppState.h>
+#include <Salix/states/IAppState.h>
 #include <memory>
 
 namespace Salix {

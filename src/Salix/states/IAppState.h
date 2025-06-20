@@ -1,4 +1,4 @@
-// Salix/state/IAppState
+// Salix/states/IAppState
 #pragma once
 
 namespace Salix {
