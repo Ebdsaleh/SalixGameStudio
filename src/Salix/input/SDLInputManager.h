@@ -1,6 +1,6 @@
 // Salix/input/SDLInputManager.h
 #pragma once
-#include <IInputManager.h>
+#include <Salix/input/IInputManager.h>
 #include <SDL.h>
 #include <vector>
 #include <map>

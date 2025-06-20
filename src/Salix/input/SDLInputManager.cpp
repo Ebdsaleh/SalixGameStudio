@@ -1,5 +1,5 @@
 // Salix/input/SDLInputManager.cpp
-#include <SDLInputManager.h>
+#include <Salix/input/SDLInputManager.h>
 
 namespace Salix {
 

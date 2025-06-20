@@ -1,6 +1,6 @@
 // Salix/input/IInputManager.h
 #pragma once
-#include <InputCodes.h>
+#include <Salix/input/InputCodes.h>
 #include <vector>
 
 namespace Salix {
