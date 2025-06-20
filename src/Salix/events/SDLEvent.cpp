@@ -1,6 +1,6 @@
 // Salix/events/SDLEvent.cpp
 
-#include "SDLEvent.h"
+#include <Salix/events/SDLEvent.h>
 
 namespace Salix {
 

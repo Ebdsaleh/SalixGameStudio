@@ -13,7 +13,7 @@ namespace Salix { // Let's use Salix, and the user can alias to slx if they want
         Keyboard    = 1 << 2,
         Mouse       = 1 << 3,
         MouseButton = 1 << 4,
-        MouseAxis   = 1 << 5,
+        MouseAxis   = 1 << 5,  // Not implemented yet.
     };
 
     // PascalCase for enums
