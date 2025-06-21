@@ -138,30 +138,91 @@ namespace Salix {
 
     // --- Keyboard Multiple keystrokes events (simultaneous)
 
-    bool SDLInputManager::multiple_are_down(std::vector<KeyCode>& /*keys*/) const {
-        // not implemented yet
-        return false;
+    bool SDLInputManager::multiple_are_down(const std::vector<KeyCode>& keys) const {
+        if (keys.empty()) { return false; }
+
+        bool at_least_one_is_down = false;
+        for (const KeyCode key : keys) {
+            const InputState state = key_states.at(key);
+
+            // First, check if all keys are physically down.
+            // If any key is up or was just released, the combo fails.
+
+            if (state == InputState::Up || state == InputState::Released) {
+                return false;
+            }
+            
+            // Second, Check if at least one of these keys was just pressed this frame.
+            // This is the trigger for the combo.
+            if (state == InputState::Down) {
+                at_least_one_is_down = true;
+            }
+
+        }
+        // The input combination is considererd 'Down' on the single frame the final key is in the 'Down' state.
+        return at_least_one_is_down;
     }
 
-    bool SDLInputManager::multiple_are_held_down(std::vector<KeyCode>& /*keys*/) const {
-        // not implemented yet
-        return false;
+    bool SDLInputManager::multiple_are_held_down(const std::vector<KeyCode>& keys) const {
+        if (keys.empty()) { return false;}
+        for ( const KeyCode key : keys) {
+            const InputState state = key_states.at(key);
+            // This is a strict check. All keys must be in the 'Held' state.
+            // If a key is in a 'Down' state the combo fails.
+            if (state != InputState::Held) { return false; }
+
+        }
+        // If we reach here, it means every key is being held.
+        return true;
     }
 
-    bool SDLInputManager::multiple_are_held_down_for(std::vector<KeyCode>& /*keys*/, float /*duration*/) const {
-        // not implemented yet
-        return false;
+    bool SDLInputManager::multiple_are_held_down_for(const std::vector<KeyCode>& keys, float duration) const {
+        if (keys.empty()) { return false; }
+        bool at_least_one_is_held_for_duration;
+        for (const KeyCode key : keys) {
+            const InputState state = key_states.at(key);
+            if (state != InputState::Held) { return false; }
+            if (key_held_durations.at(key) >= duration) {
+                at_least_one_is_held_for_duration = true;
+            }
+            return at_least_one_is_held_for_duration;
+        }
+
+
+        // When are conditions met, return true.
+        return true;
     }
 
 
-    bool SDLInputManager::multiple_were_released(std::vector<KeyCode>& /*keys*/) const {
-        // not implemented yet
-        return false;
+    bool SDLInputManager::multiple_were_released(const std::vector<KeyCode>& keys) const {
+        if (keys.empty()) { return false; }
+        bool at_least_one_was_just_released = false;
+
+        for (const KeyCode key : keys) {
+            const InputState state = key_states.at(key);
+            
+            // First, check that no keys in the combo are still being pressed.
+            if (state == InputState::Down || state == InputState::Held) { return false; }
+            
+            // Second, check if at least one key was just released this frame.
+            if (state == InputState::Released) { 
+                at_least_one_was_just_released = true;
+            }
+        }
+        
+        // The combo is only considered 'released' on a the single frame the final key is let go.
+        return at_least_one_was_just_released;
+
     }
 
-    bool SDLInputManager::multiple_are_up(std::vector<KeyCode>& /*keys*/) const {
-        // not implemented yet
-        return false;
+    bool SDLInputManager::multiple_are_up(const std::vector<KeyCode>& keys) const {
+        if (keys.empty()) { return false; }
+        for (const KeyCode key: keys) {
+            if (key_states.at(key) != InputState::Up ) { return false;}
+        }
+
+        // If we reach here, the conditions have been met.
+        return true;
     }
 
     // --- Mouse Queries ---
@@ -184,28 +245,28 @@ namespace Salix {
 
     // --- Mouse  Multiple Button events (simultaneous)
 
-    bool SDLInputManager::multiple_are_down(std::vector<MouseButton>& /*buttons*/) const {
+    bool SDLInputManager::multiple_are_down(const std::vector<MouseButton>& /*buttons*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_held_down(std::vector<MouseButton>& /*buttons*/) const {
+    bool SDLInputManager::multiple_are_held_down(const std::vector<MouseButton>& /*buttons*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_held_down_for(std::vector<MouseButton>& /*buttons*/, float/*duration*/) const {
+    bool SDLInputManager::multiple_are_held_down_for(const std::vector<MouseButton>& /*buttons*/, float/*duration*/) const {
         // not implemented yet
         return false;
     }
 
 
-    bool SDLInputManager::multiple_were_released(std::vector<MouseButton>& /*buttons*/) const {
+    bool SDLInputManager::multiple_were_released(const std::vector<MouseButton>& /*buttons*/) const {
         // not implemented yet
         return false;
     }
 
-    bool SDLInputManager::multiple_are_up(std::vector<MouseButton>& /*buttons*/) const {
+    bool SDLInputManager::multiple_are_up(const std::vector<MouseButton>& /*buttons*/) const {
         // not implemented yet
         return false;
     }
