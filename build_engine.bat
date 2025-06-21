@@ -25,6 +25,7 @@ REM --- Compile Engine Executable ---
 echo [Engine Build] Compiling and linking %ENGINE_EXE_NAME%...
 cl.exe ^
     /nologo /EHsc /W4 /std:c++17 ^
+    /DSALIX_BUILD_ENGINE ^
     /Fo"%BUILD_DIR%\\" ^
     /Fe"%BUILD_DIR%\%ENGINE_EXE_NAME%" ^
     /I "%SDL2_PATH%\include" ^
