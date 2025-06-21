@@ -40,11 +40,11 @@ namespace Salix {
             // Returns true if the input is not detect this frame. 
             virtual bool is_up(KeyCode key) const = 0;
 
-            virtual bool multiple_are_down(std::vector<KeyCode>& keys) const = 0;
-            virtual bool multiple_are_held_down(std::vector<KeyCode>& keys) const = 0;
-            virtual bool multiple_are_held_down_for(std::vector<KeyCode>& keys, float duration) const = 0;
-            virtual bool multiple_were_released(std::vector<KeyCode>& keys) const = 0;
-            virtual bool multiple_are_up(std::vector<KeyCode>& keys) const = 0;
+            virtual bool multiple_are_down(const std::vector<KeyCode>& keys) const = 0;
+            virtual bool multiple_are_held_down(const std::vector<KeyCode>& keys) const = 0;
+            virtual bool multiple_are_held_down_for(const std::vector<KeyCode>& keys, float duration) const = 0;
+            virtual bool multiple_were_released(const std::vector<KeyCode>& keys) const = 0;
+            virtual bool multiple_are_up(const std::vector<KeyCode>& keys) const = 0;
 
             // Mouse Queries
             // Mouse Buttons
@@ -53,11 +53,11 @@ namespace Salix {
             virtual bool is_held_down_for(MouseButton button, float duration) const = 0;
             virtual bool was_released(MouseButton button) const = 0;
             virtual bool is_up(MouseButton button) const = 0;
-            virtual bool multiple_are_down(std::vector<MouseButton>& buttons) const = 0;
-            virtual bool multiple_are_held_down(std::vector<MouseButton>& buttons) const= 0;
-            virtual bool multiple_are_held_down_for(std::vector<MouseButton>& buttons, float duration) const = 0;
-            virtual bool multiple_were_released(std::vector<MouseButton>& buttons) const = 0;
-            virtual bool multiple_are_up(std::vector<MouseButton>& buttons) const = 0;
+            virtual bool multiple_are_down(const std::vector<MouseButton>& buttons) const = 0;
+            virtual bool multiple_are_held_down(const std::vector<MouseButton>& buttons) const= 0;
+            virtual bool multiple_are_held_down_for(const std::vector<MouseButton>& buttons, float duration) const = 0;
+            virtual bool multiple_were_released(const std::vector<MouseButton>& buttons) const = 0;
+            virtual bool multiple_are_up(const std::vector<MouseButton>& buttons) const = 0;
 
             // Additional queries
             virtual void get_mouse_position(int* x, int* y) const = 0;
