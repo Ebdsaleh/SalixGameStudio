@@ -36,6 +36,59 @@ namespace Salix {
             std::cout << "There you go! See, that wasn't so hard, now was it? Hmph! Developers..." << std::endl;
             reached_held_down_state = false;
         }
+
+        // Multiple key input test - typical save command, 'left control' + 'S'.
+        if (input_manager_ptr->multiple_are_down({KeyCode::LeftControl, KeyCode::S})) {
+            std::cout << "Save Command has been issued. I heard the 'Ctrl + S'." << std::endl;
+        }
+        // Multiple key input test, hold 'ctrl' + 'left shift' + '0' for 1 second.
+        if (input_manager_ptr->multiple_are_held_down_for( {
+            KeyCode::LeftControl, KeyCode::LeftShift, KeyCode::P}
+            , 1.0f)) 
+            {
+                std::cout<< "Ehhmm!, Why are you holding 'Ctrl' + 'Shift', and 'P'?" << std::endl;
+            }
+        
+        // Alpha key tests horizontal-row of numbers at the top of the keyboard.
+        if (input_manager_ptr->is_down(KeyCode::Alpha0)) {
+            std::cout << "Alpha0 key pressed." << std::endl;
+        }
+
+        if (input_manager_ptr->is_down(KeyCode::Alpha1)) {
+            std::cout << "Alpha1 key pressed." << std::endl;
+        }
+
+        if (input_manager_ptr->is_down(KeyCode::Alpha2)) {
+            std::cout << "Alpha2 key pressed." << std::endl;
+        }
+
+        if (input_manager_ptr->is_down(KeyCode::Alpha3)) {
+            std::cout << "Alpha3 key pressed." << std::endl;
+        }
+
+        if (input_manager_ptr->is_down(KeyCode::Alpha4)) {
+            std::cout << "Alpha4 key pressed." << std::endl;
+        }
+
+        if (input_manager_ptr->is_down(KeyCode::Alpha5)) {
+            std::cout << "Alpha5 key pressed." << std::endl;
+        }
+
+        if (input_manager_ptr->is_down(KeyCode::Alpha6)) {
+            std::cout << "Alpha6 key pressed." << std::endl;
+        }
+
+        if (input_manager_ptr->is_down(KeyCode::Alpha7)) {
+            std::cout << "Alpha7 key pressed." << std::endl;
+        }
+        
+        if (input_manager_ptr->is_down(KeyCode::Alpha8)) {
+            std::cout << "Alpha8 key pressed." << std::endl;
+        }
+
+        if (input_manager_ptr->is_down(KeyCode::Alpha9)) {
+            std::cout << "Alpha9 key pressed." << std::endl;
+        }
     }
     
 
