@@ -5,9 +5,6 @@
 #include <iostream>
 #include <algorithm>
 
-// Test includes
-#include "../ecs/Entity.h"
-#include "../ecs/Sprite2D.h"
 
 namespace Salix {
 
@@ -16,22 +13,7 @@ namespace Salix {
 
     void SceneManager::initialize(AssetManager* manager) {
         asset_manager = manager;
-
-        // --- TEST ---
-        // Use our new API to create a scene, then populate it.
-        Scene* test_scene = create_scene("TestScene");
-        set_active_scene("TestScene");
-
-        if (test_scene) {
-            Entity* parent = test_scene->create_entity("Parent");
-            parent->get_transform()->position = { 200.0f, 200.0f, 0.0f };
-            Entity* child = test_scene->create_entity("Child");
-            child->get_transform()->set_parent(parent->get_transform());
-            child->get_transform()->scale = { 0.2f, 0.2f, 1.0f };
-            Sprite2D* sprite = child->add_element<Sprite2D>();
-            sprite->load_texture(asset_manager, "assets/test.png");
-            sprite->pivot = { 0.5f, 0.5f };
-        }
+        std::cout<< "SceneManager Initialized." << std::endl;
     }
 
     void SceneManager::shutdown() {

@@ -22,7 +22,7 @@ namespace Salix {
         void update(float delta_time);
         void render(IRenderer* renderer);
 
-        // --- YOUR NEW, FULLY-FEATURED API ---
+        // --- NEW, FULLY-FEATURED API ---
 
         // For the engine/editor: Creates a new, empty scene managed by the SceneManager.
         Scene* create_scene(const std::string& scene_name);
