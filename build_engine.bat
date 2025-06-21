@@ -25,6 +25,7 @@ REM --- Compile Engine Executable ---
 echo [Engine Build] Compiling and linking %ENGINE_EXE_NAME%...
 cl.exe ^
     /nologo /EHsc /W4 /std:c++17 ^
+    /wd4251 ^
     /DSALIX_BUILD_ENGINE ^
     /Fo"%BUILD_DIR%\\" ^
     /Fe"%BUILD_DIR%\%ENGINE_EXE_NAME%" ^
@@ -37,7 +38,7 @@ cl.exe ^
     /LIBPATH:"%SDL2_PATH%\lib\x64" ^
     /LIBPATH:"%SDL2_IMAGE_PATH%\lib\x64" ^
     /LIBPATH:"%BUILD_DIR%" ^
-    SDL2.lib SDL2main.lib SDL2_image.lib Game.lib
+    SDL2.lib SDL2main.lib SDL2_image.lib
 
 REM --- Exit and Return Error Code ---
 IF %ERRORLEVEL% EQU 0 (
