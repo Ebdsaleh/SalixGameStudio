@@ -1,10 +1,12 @@
 // Salix/ecs/Sprite2D.h
 #pragma once
 
+#include <Salix/core/Core.h>
 #include <Salix/math/Color.h>
 #include <Salix/ecs/RenderableElement.h>
 #include <Salix/math/Vector2.h>  // For the pivot and offset.
 #include <string>
+#include <memory>
 
 namespace Salix {
 
@@ -12,7 +14,7 @@ namespace Salix {
     class ITexture;
     class IRenderer;
 
-    class Sprite2D : public RenderableElement {
+    class SALIX_API Sprite2D : public RenderableElement {
         public:
             Sprite2D();
             virtual ~Sprite2D();
@@ -34,9 +36,9 @@ namespace Salix {
 
 
         private:
-            ITexture* texture;
-            int width;
-            int height;
+            struct Pimpl;
+            std::unique_ptr<Pimpl>pimpl;
+            
 
     };
 } // namespace Salix

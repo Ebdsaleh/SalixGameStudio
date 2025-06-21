@@ -9,20 +9,25 @@
 
 namespace Salix {
 
-    Sprite2D::Sprite2D() : 
-        texture(nullptr), 
-        width(0),
-        height(0),
-        pivot({ 0.5f, 0.5f }) {}
+    struct Sprite2D::Pimpl {
+        ITexture* texture = nullptr;
+            int width = 0;
+            int height = 0;
+    };
+    
+    Sprite2D::Sprite2D() : pimpl(std::make_unique<Pimpl>()){
+        pivot = { 0.5f, 0.5f };
+    }
+        
 
-    Sprite2D::~Sprite2D() {}
+    Sprite2D::~Sprite2D() = default;
 
     void Sprite2D::load_texture(AssetManager* asset_manager, const std::string& file_path) {
-        texture = asset_manager->get_texture(file_path);
+        pimpl->texture = asset_manager->get_texture(file_path);
     }
 
     void Sprite2D::render(IRenderer* renderer) {
-        if (texture && owner) {
+        if (pimpl->texture && owner) {
             // Get the owner's Transform to know where to draw
             Transform* transform = owner->get_transform();
 
@@ -37,8 +42,8 @@ namespace Salix {
                 dest_rect.y = static_cast<int>(world_pos.y + offset.y);
                 
                 // Apply the transform's scaling to the texture.
-                dest_rect.w = static_cast<int>(texture->get_width() * world_scale.x);
-                dest_rect.h = static_cast<int>(texture->get_height() * world_scale.y);
+                dest_rect.w = static_cast<int>(pimpl->texture->get_width() * world_scale.x);
+                dest_rect.h = static_cast<int>(pimpl->texture->get_height() * world_scale.y);
                 
                 // Apply the transform's rotation to the texture.
                 double angle = static_cast<double>(world_rot.z);
@@ -63,7 +68,7 @@ namespace Salix {
                 // renderer->draw_texture(texture, dest_rect);
 
                 // render the texture using rotation.
-                renderer->draw_sprite(texture, dest_rect, angle, &pivot_point, color, flip_state);
+                renderer->draw_sprite(pimpl->texture, dest_rect, angle, &pivot_point, color, flip_state);
             }
         }
     }
