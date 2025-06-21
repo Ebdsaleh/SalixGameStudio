@@ -13,7 +13,6 @@
 #include <Salix/assets/AssetManager.h>
 #include <Salix/states/IAppState.h> // Include this for the state logic
 #include <Salix/states/LaunchState.h>
-#include <Salix/states/GameState.h>
 #include <Salix/states/EditorState.h>
 #include <Salix/states/OptionsMenuState.h>
 #include <Salix/events/SDLEvent.h> // <<< CRITICAL: Needed to create our events
@@ -92,7 +91,7 @@ namespace Salix {
         // --- 8: STATE MACHINE INITIALIZATION ---
         // TODO: This logic for state switching should be moved into a dedicated StateManager class
         // For now, setting the initial state directly is okay.
-        current_state = std::make_unique<GameState>();
+        current_state = std::make_unique<LaunchState>();
         current_state->on_enter(this);
 
         
