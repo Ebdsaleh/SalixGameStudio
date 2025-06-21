@@ -6,7 +6,8 @@
 // =================================================================================
 #include <Salix/input/SDLInputManager.h>
 #include <Salix/events/SDLEvent.h> // Needed for casting to get event data
-#include <SDL.h>                   // For SDLK_* keycodes in the translator
+#include <SDL.h>   
+#include <iostream>                // For SDLK_* keycodes in the translator
 
 namespace Salix {
 
@@ -44,6 +45,7 @@ namespace Salix {
         if (event.is_in_category(EventCategory::Keyboard)) {
             // It's a keyboard event, find out which key.
             auto& key_event = static_cast<KeyEvent&>(event);
+
             KeyCode key = to_salix_keycode(key_event.get_key_code());
 
             if (key != KeyCode::None) {
@@ -139,80 +141,99 @@ namespace Salix {
     // --- Keyboard Multiple keystrokes events (simultaneous)
 
     bool SDLInputManager::multiple_are_down(const std::vector<KeyCode>& keys) const {
-        if (keys.empty()) { return false; }
+        if (keys.empty()) {
+            return false;
+        }
 
-        bool at_least_one_is_down = false;
+        bool one_key_was_just_pressed = false;
+
         for (const KeyCode key : keys) {
             const InputState state = key_states.at(key);
 
-            // First, check if all keys are physically down.
-            // If any key is up or was just released, the combo fails.
-
+            // First, ensure all keys are physically down. If any key is up, the combo fails.
             if (state == InputState::Up || state == InputState::Released) {
                 return false;
             }
-            
-            // Second, Check if at least one of these keys was just pressed this frame.
-            // This is the trigger for the combo.
+
+            // Keep track if at least one of the keys is in the "just pressed" state.
+            // This is the trigger for the shortcut.
             if (state == InputState::Down) {
-                at_least_one_is_down = true;
+                one_key_was_just_pressed = true;
             }
-
         }
-        // The input combination is considererd 'Down' on the single frame the final key is in the 'Down' state.
-        return at_least_one_is_down;
+
+        // The function only returns true if all keys are physically down AND
+        // at least one of them was the final key pressed this frame.
+        return one_key_was_just_pressed;
     }
 
+    // For checking if a combo is being maintained.
     bool SDLInputManager::multiple_are_held_down(const std::vector<KeyCode>& keys) const {
-        if (keys.empty()) { return false;}
-        for ( const KeyCode key : keys) {
-            const InputState state = key_states.at(key);
-            // This is a strict check. All keys must be in the 'Held' state.
-            // If a key is in a 'Down' state the combo fails.
-            if (state != InputState::Held) { return false; }
-
+        if (keys.empty()) {
+            return false;
         }
-        // If we reach here, it means every key is being held.
+        // Every single key must be in the 'Held' state.
+        for (const KeyCode key : keys) {
+            if (key_states.at(key) != InputState::Held) {
+                return false;
+            }
+        }
         return true;
     }
 
+    
     bool SDLInputManager::multiple_are_held_down_for(const std::vector<KeyCode>& keys, float duration) const {
-        if (keys.empty()) { return false; }
-        bool at_least_one_is_held_for_duration;
-        for (const KeyCode key : keys) {
-            const InputState state = key_states.at(key);
-            if (state != InputState::Held) { return false; }
-            if (key_held_durations.at(key) >= duration) {
-                at_least_one_is_held_for_duration = true;
-            }
-            return at_least_one_is_held_for_duration;
+        if (keys.empty()) {
+            return false;
         }
 
+        // Iterate through every key required for the combination.
+        for (const KeyCode key : keys) {
+            // This function now adheres strictly to your logic.
+            // For a key to contribute to this check, it must meet two criteria:
 
-        // When are conditions met, return true.
+            // Criterion 1: The key's state MUST be 'Held'.
+            // We no longer accept the 'Down' state. This eliminates the race condition.
+            if (key_states.at(key) != InputState::Held) {
+                return false;
+            }
+
+            // Criterion 2: The key's held duration must meet the target.
+            if (key_held_durations.at(key) < duration) {
+                return false;
+            }
+        }
+
+        // If the loop completes, it means every single key was in the 'Held' state
+        // AND every single key had met the duration requirement.
         return true;
     }
-
-
+    
+    // For checking when a combo is broken.
     bool SDLInputManager::multiple_were_released(const std::vector<KeyCode>& keys) const {
-        if (keys.empty()) { return false; }
-        bool at_least_one_was_just_released = false;
+        if (keys.empty()) {
+            return false;
+        }
+
+        bool one_key_was_just_released = false;
 
         for (const KeyCode key : keys) {
             const InputState state = key_states.at(key);
-            
-            // First, check that no keys in the combo are still being pressed.
-            if (state == InputState::Down || state == InputState::Held) { return false; }
-            
-            // Second, check if at least one key was just released this frame.
-            if (state == InputState::Released) { 
-                at_least_one_was_just_released = true;
+
+            // Ensure no keys in the combo are still being held down.
+            if (state == InputState::Down || state == InputState::Held) {
+                return false;
+            }
+
+            // Check if at least one of the keys was the one just let go.
+            if (state == InputState::Released) {
+                one_key_was_just_released = true;
             }
         }
-        
-        // The combo is only considered 'released' on a the single frame the final key is let go.
-        return at_least_one_was_just_released;
 
+        // The function only returns true if no keys are held AND at least one was
+        // the final key released this frame.
+        return one_key_was_just_released;
     }
 
     bool SDLInputManager::multiple_are_up(const std::vector<KeyCode>& keys) const {
@@ -243,32 +264,83 @@ namespace Salix {
         }
 
 
-    // --- Mouse  Multiple Button events (simultaneous)
+    // --- Mouse  Multiple Button events (Additive)
 
-    bool SDLInputManager::multiple_are_down(const std::vector<MouseButton>& /*buttons*/) const {
-        // not implemented yet
+    bool SDLInputManager::multiple_are_down(const std::vector<MouseButton>& buttons) const {
+        if (buttons.empty()) {
         return false;
+        }
+
+        bool one_button_was_just_pressed = false;
+
+        for (const MouseButton button : buttons) {
+            const InputState state = mouse_button_states.at(button);
+
+            // First, ensure all buttons are physically down. If any is up, the combo fails.
+            if (state == InputState::Up || state == InputState::Released) {
+                return false;
+            }
+
+            // Keep track if at least one button was the one just pressed this frame.
+            if (state == InputState::Down) {
+                one_button_was_just_pressed = true;
+            }
+        }
+
+        // The function only returns true if all buttons are physically down AND
+        // at least one of them was the final button pressed this frame.
+        return one_button_was_just_pressed;
     }
 
-    bool SDLInputManager::multiple_are_held_down(const std::vector<MouseButton>& /*buttons*/) const {
-        // not implemented yet
-        return false;
+
+    bool SDLInputManager::multiple_are_held_down(const std::vector<MouseButton>& buttons) const {
+        if (buttons.empty()) { return false; }
+        // Every single button must be in the 'Held' state.
+        for (const MouseButton button : buttons) {
+            if (mouse_button_states.at(button) != InputState::Held) {
+                return false;
+            }
+        }
+            return true;
+        }
+
+    bool SDLInputManager::multiple_are_held_down_for(const std::vector<MouseButton>& buttons, float duration) const {
+        if (buttons.empty()) {  return false; }
+    
+        for (const MouseButton button : buttons) {
+            const InputState state = mouse_button_states.at(button);
+            if (state != InputState::Held) { return false; }
+
+            if (mouse_button_held_durations.at(button) < duration) { return false; }
+       
+        }
+        return true;
     }
 
-    bool SDLInputManager::multiple_are_held_down_for(const std::vector<MouseButton>& /*buttons*/, float/*duration*/) const {
-        // not implemented yet
-        return false;
+
+    bool SDLInputManager::multiple_were_released(const std::vector<MouseButton>& buttons) const {
+        if (buttons.empty()) { return false; }
+        bool at_least_one_button_was_released = false;
+
+        for (const MouseButton button : buttons) {
+            const InputState state = mouse_button_states.at(button);
+            if (state == InputState::Down || state == InputState::Held) { return false; }
+            if (state == InputState::Released) { at_least_one_button_was_released = true;}
+        }
+        return at_least_one_button_was_released;
     }
 
-
-    bool SDLInputManager::multiple_were_released(const std::vector<MouseButton>& /*buttons*/) const {
-        // not implemented yet
+    bool SDLInputManager::multiple_are_up(const std::vector<MouseButton>& buttons) const {
+        if (buttons.empty()) {
         return false;
-    }
-
-    bool SDLInputManager::multiple_are_up(const std::vector<MouseButton>& /*buttons*/) const {
-        // not implemented yet
-        return false;
+        }
+        // If any button is NOT in the "Up" state, the check fails.
+        for (const MouseButton button : buttons) {
+            if (mouse_button_states.at(button) != InputState::Up) {
+                return false;
+            }
+        }
+        return true;
     }
 
     // --- Addtional Mouse methods ---
@@ -286,93 +358,8 @@ namespace Salix {
 
     // --- TRANSLATION LAYER ---
 
-    // --- The "salix Game Studio KeyCode's to SDL_SCANCODE's." ---
-    SDL_Scancode SDLInputManager::to_sdl_scancode(KeyCode key) const {
-        switch (key) {
-            case KeyCode::Alpha0: return SDL_SCANCODE_0;
-            case KeyCode::Alpha1: return SDL_SCANCODE_1;
-            case KeyCode::Alpha2: return SDL_SCANCODE_2;
-            case KeyCode::Alpha3: return SDL_SCANCODE_3;
-            case KeyCode::Alpha4: return SDL_SCANCODE_4;
-            case KeyCode::Alpha5: return SDL_SCANCODE_5;
-            case KeyCode::Alpha6: return SDL_SCANCODE_6;
-            case KeyCode::Alpha7: return SDL_SCANCODE_7;
-            case KeyCode::Alpha8: return SDL_SCANCODE_8;
-            case KeyCode::Alpha9: return SDL_SCANCODE_9;
-            case KeyCode::A: return SDL_SCANCODE_A;
-            case KeyCode::B: return SDL_SCANCODE_B;
-            case KeyCode::C: return SDL_SCANCODE_C;
-            case KeyCode::D: return SDL_SCANCODE_D;
-            case KeyCode::E: return SDL_SCANCODE_E;
-            case KeyCode::F: return SDL_SCANCODE_F;
-            case KeyCode::G: return SDL_SCANCODE_G;
-            case KeyCode::H: return SDL_SCANCODE_H;
-            case KeyCode::I: return SDL_SCANCODE_I;
-            case KeyCode::J: return SDL_SCANCODE_J;
-            case KeyCode::K: return SDL_SCANCODE_K;
-            case KeyCode::L: return SDL_SCANCODE_L;
-            case KeyCode::M: return SDL_SCANCODE_M;
-            case KeyCode::N: return SDL_SCANCODE_N;
-            case KeyCode::O: return SDL_SCANCODE_O;
-            case KeyCode::P: return SDL_SCANCODE_P;
-            case KeyCode::Q: return SDL_SCANCODE_Q;
-            case KeyCode::R: return SDL_SCANCODE_R;
-            case KeyCode::S: return SDL_SCANCODE_S;
-            case KeyCode::T: return SDL_SCANCODE_T;
-            case KeyCode::U: return SDL_SCANCODE_U;
-            case KeyCode::V: return SDL_SCANCODE_V;
-            case KeyCode::W: return SDL_SCANCODE_W;
-            case KeyCode::X: return SDL_SCANCODE_X;
-            case KeyCode::Y: return SDL_SCANCODE_Y;
-            case KeyCode::Z: return SDL_SCANCODE_Z;
-            case KeyCode::Space: return SDL_SCANCODE_SPACE;
-            case KeyCode::Enter: return SDL_SCANCODE_RETURN;
-            case KeyCode::Escape: return SDL_SCANCODE_ESCAPE;
-            case KeyCode::LeftShift: return SDL_SCANCODE_LSHIFT;
-            case KeyCode::LeftControl: return SDL_SCANCODE_LCTRL;
-            case KeyCode::LeftAlt: return SDL_SCANCODE_LALT;
-            case KeyCode::RightShift: return SDL_SCANCODE_RSHIFT;
-            case KeyCode::RightControl: return SDL_SCANCODE_RCTRL;
-            case KeyCode::RightAlt: return SDL_SCANCODE_RALT;
-            case KeyCode::Tab: return SDL_SCANCODE_TAB;
-            case KeyCode::Delete: return SDL_SCANCODE_DELETE;
-            case KeyCode::F1: return SDL_SCANCODE_F1;
-            case KeyCode::F2: return SDL_SCANCODE_F2;
-            case KeyCode::F3: return SDL_SCANCODE_F3;
-            case KeyCode::F4: return SDL_SCANCODE_F4;
-            case KeyCode::F5: return SDL_SCANCODE_F5;
-            case KeyCode::F6: return SDL_SCANCODE_F6;
-            case KeyCode::F7: return SDL_SCANCODE_F7;
-            case KeyCode::F8: return SDL_SCANCODE_F8;
-            case KeyCode::F9: return SDL_SCANCODE_F9;
-            case KeyCode::F10: return SDL_SCANCODE_F10;
-            case KeyCode::F11: return SDL_SCANCODE_F11;
-            case KeyCode::F12: return SDL_SCANCODE_F12;
-            case KeyCode::BackSpace: return SDL_SCANCODE_BACKSPACE;
-            case KeyCode::BackSlash: return SDL_SCANCODE_BACKSLASH;
-            case KeyCode::CapsLock: return SDL_SCANCODE_CAPSLOCK;
-            case KeyCode::Comma: return SDL_SCANCODE_COMMA;
-            case KeyCode::Separator: return SDL_SCANCODE_SEPARATOR;
-            case KeyCode::Slash: return SDL_SCANCODE_SLASH;
-            case KeyCode::Apostrophe: return SDL_SCANCODE_APOSTROPHE;
-            case KeyCode::SemiColon: return SDL_SCANCODE_SEMICOLON;
-            case KeyCode::Period: return SDL_SCANCODE_PERIOD;
-            case KeyCode::Minus: return SDL_SCANCODE_MINUS;
-            case KeyCode::Equals: return SDL_SCANCODE_EQUALS;
-            case KeyCode::Up: return SDL_SCANCODE_UP;
-            case KeyCode::Down: return SDL_SCANCODE_DOWN;
-            case KeyCode::Left: return SDL_SCANCODE_LEFT;
-            case KeyCode::Right: return SDL_SCANCODE_RIGHT;
-            case KeyCode::LeftGui: return SDL_SCANCODE_LGUI;
-            case KeyCode::RightGui: return SDL_SCANCODE_RGUI;
-            case KeyCode::ContextMenu: return SDL_SCANCODE_APPLICATION;
-            case KeyCode::PrintScreen: return SDL_SCANCODE_PRINTSCREEN;
-            default: return SDL_SCANCODE_UNKNOWN;
-        }
-    }
-
-        // This function keeps the SDL dependency completely contained within this one file.
-        KeyCode SDLInputManager::to_salix_keycode(int sdl_keycode) const {
+    // This function keeps the SDL dependency completely contained within this one file.
+    KeyCode SDLInputManager::to_salix_keycode(int sdl_keycode) const {
         switch (sdl_keycode) {
             case SDLK_a: return KeyCode::A;
             case SDLK_b: return KeyCode::B;
@@ -442,6 +429,16 @@ namespace Salix {
             case SDLK_RGUI: return KeyCode::RightGui;
             case SDLK_APPLICATION: return KeyCode::ContextMenu;
             case SDLK_PRINTSCREEN: return KeyCode::PrintScreen;
+            case SDLK_0: return KeyCode::Alpha0;
+            case SDLK_1: return KeyCode::Alpha1;
+            case SDLK_2: return KeyCode::Alpha2;
+            case SDLK_3: return KeyCode::Alpha3;
+            case SDLK_4: return KeyCode::Alpha4;
+            case SDLK_5: return KeyCode::Alpha5;
+            case SDLK_6: return KeyCode::Alpha6;
+            case SDLK_7: return KeyCode::Alpha7;
+            case SDLK_8: return KeyCode::Alpha8;
+            case SDLK_9: return KeyCode::Alpha9;
             default: return KeyCode::None;
         }
     
