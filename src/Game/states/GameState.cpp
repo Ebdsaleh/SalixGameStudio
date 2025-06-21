@@ -1,6 +1,6 @@
 // Salix/states/GameState.cpp
 
-#include <Salix/states/GameState.h>
+#include <Game/states/GameState.h>
 #include <Salix/core/Engine.h>
 #include <Salix/management/ProjectManager.h>
 #include <iostream>
