@@ -25,6 +25,7 @@ REM --- Compile Game DLL ---
 echo [Game Build] Compiling sources into %GAME_DLL_NAME%...
 cl.exe ^
     /nologo /EHsc /W4 /std:c++17 ^
+    /wd4251 ^
     /I "%SDL2_PATH%\include" ^
     /I "%SDL2_IMAGE_PATH%\include" ^
     /I "src" ^
