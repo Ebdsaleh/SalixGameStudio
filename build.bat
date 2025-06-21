@@ -16,21 +16,10 @@ SET SDL2_IMAGE_PATH=%cd%\vendor\SDL2_image
 REM --- Prepare Build Environment ---
 if not exist %BUILD_DIR% mkdir %BUILD_DIR%
 
-REM =================================================================================
-REM === STAGE 1: Build the Game DLL                                           ===
-REM =================================================================================
-echo.
-echo [Master Build] Executing build_game.bat...
-call build_game.bat
-IF %ERRORLEVEL% NEQ 0 (
-    echo. & echo ***************************************
-    echo * Master Build HALTED: Game DLL failed to compile. *
-    echo ***************************************
-    goto :eof
-)
+
 
 REM =================================================================================
-REM === STAGE 2: Build the Engine EXE                                         ===
+REM === STAGE 1: Build the Engine EXE                                         ===
 REM =================================================================================
 echo.
 echo [Master Build] Executing build_engine.bat...
@@ -38,6 +27,19 @@ call build_engine.bat
 IF %ERRORLEVEL% NEQ 0 (
     echo. & echo ***************************************
     echo * Master Build HALTED: Engine failed to compile. *
+    echo ***************************************
+    goto :eof
+)
+
+REM =================================================================================
+REM === STAGE 2: Build the Game DLL                                           ===
+REM =================================================================================
+echo.
+echo [Master Build] Executing build_game.bat...
+call build_game.bat
+IF %ERRORLEVEL% NEQ 0 (
+    echo. & echo ***************************************
+    echo * Master Build HALTED: Game DLL failed to compile. *
     echo ***************************************
     goto :eof
 )

@@ -33,6 +33,7 @@ cl.exe ^
     /I "src" ^
     %ENGINE_SOURCES% ^
     /link ^
+    /IMPLIB:"%BUILD_DIR%\SalixGameStudio.lib" ^
     /LIBPATH:"%SDL2_PATH%\lib\x64" ^
     /LIBPATH:"%SDL2_IMAGE_PATH%\lib\x64" ^
     /LIBPATH:"%BUILD_DIR%" ^
