@@ -92,7 +92,7 @@ namespace Salix {
         // --- 8: STATE MACHINE INITIALIZATION ---
         // TODO: This logic for state switching should be moved into a dedicated StateManager class
         // For now, setting the initial state directly is okay.
-        current_state = std::make_unique<LaunchState>();
+        current_state = std::make_unique<GameState>();
         current_state->on_enter(this);
 
         
