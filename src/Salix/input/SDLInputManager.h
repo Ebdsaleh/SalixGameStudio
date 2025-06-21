@@ -46,8 +46,6 @@ namespace Salix {
             bool wants_to_quit() const override;
 
         private:
-            // The private "translator" function.
-            SDL_Scancode to_sdl_scancode(KeyCode key) const;
 
             // A helper to convert SDL's keycode from an event to our abstract KeyCode.
             KeyCode to_salix_keycode(int sdl_keycode) const;
