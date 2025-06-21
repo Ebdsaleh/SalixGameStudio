@@ -6,17 +6,19 @@
 // =================================================================================
 #pragma once
 
+#include <Salix/core/Core.h>
 #include <Salix/events/IEventListener.h>
 #include <vector>
 #include <map>
 #include <functional>
+#include <memory>
 
 namespace Salix {
 
-    class EventManager {
+    class SALIX_API EventManager {
         public:
-            EventManager() = default;
-            ~EventManager() = default;
+            EventManager();
+            ~EventManager();
 
             // A listener subscribes to a specific category of events.
             void subscribe(EventCategory category, IEventListener* listener);
@@ -32,6 +34,8 @@ namespace Salix {
             // This is the core data structure: a map where the key is an event
             // category, and the value is a list of all listeners subscribed
             // to that category.
-            std::map<EventCategory, std::vector<IEventListener*>> subscribers;
+            struct Pimpl;
+            std::unique_ptr<Pimpl> pimpl;
+            
     };
 }  // namespace Salix

@@ -1,11 +1,12 @@
 // Salix/ecs/Element.h
 #pragma once
+#include <Salix/core/Core.h>
 
 namespace Salix {
     // Forward declares Entity to avoid circular dependencies
     class Entity;
 
-    class Element {
+    class SALIX_API Element {
         public:
             // A virtual destructor is essential for any class with virtual methods
             virtual ~Element() = default;

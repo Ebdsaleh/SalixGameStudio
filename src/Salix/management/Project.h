@@ -1,5 +1,6 @@
 // Salix/management/Project.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <string>
 #include <memory>
 
@@ -10,7 +11,7 @@ namespace Salix {
     class IRenderer;
     class AssetManager;
 
-    class Project {
+    class SALIX_API Project {
     public:
         Project();
         ~Project();
@@ -23,6 +24,8 @@ namespace Salix {
         SceneManager* get_scene_manager() const;
 
     private:
-        std::unique_ptr<SceneManager> scene_manager;
+        struct Pimpl;
+        std::unique_ptr<Pimpl>pimpl;
+        
     };
 } // namespace Salix

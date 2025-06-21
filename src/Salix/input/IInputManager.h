@@ -1,5 +1,6 @@
 // Salix/input/IInputManager.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <Salix/input/InputCodes.h>
 #include <Salix/events/IEvent.h>
 #include <vector>
@@ -13,7 +14,7 @@ namespace Salix {
         Released    // The key was just released THIS FRAME.
     };
 
-    class IInputManager {
+    class SALIX_API IInputManager {
         public:
             virtual ~IInputManager() = default;
 

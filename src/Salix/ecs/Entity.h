@@ -1,103 +1,64 @@
-// Salix/ecs/Entity.h
+// =================================================================================
+// Filename:    Salix/ecs/Entity.h
+// Author:      SalixGameStudio
+// Description: Declares the Entity class, a container for Elements.
+// =================================================================================
 #pragma once
 
-#include <Salix/ecs/Element.h>
-#include <Salix/ecs/RenderableElement.h>  // To allow rendering of ONLY Renderable Elements (This will optimize the rendering routine).
-#include <Salix/ecs/Transform.h>  // We need the full Transform definition now.
+#include <Salix/core/Core.h>
 #include <vector>
-#include <memory>  // For std::unique_ptr.
-#include <iostream>  // For std::cerr.
+#include <memory>
+#include <typeinfo> // For the get_element helper
 
 namespace Salix {
+    // Forward declarations
+    class Element;
+    class RenderableElement;
+    class Transform;
+    class IRenderer;
 
-    class Entity {
-        public:
-            // The constructor now automatically adds a Transform and stores a pointer to it.
-            Entity() {
-                transform = add_element<Transform>();
-            }
+    class SALIX_API Entity{
+    public:
+        Entity();
+        ~Entity(); // Destructor MUST be in the header
 
-            // The Entity's lifecycle methods. It will delegate these calls to its elements.
-            void update(float delta_time) {
-                for (auto& element : all_elements) {
-                    element->update(delta_time);
-                }
-            }
+        void update(float delta_time);
+        void render(IRenderer* renderer);
+        Transform* get_transform() const;
 
-            // The render loop iterates ONLY over the specialized renderable elements list.
-            void render(IRenderer* renderer) {
-                for (auto& element : renderable_elements) {
-                    element->render(renderer);
-                }
-            }
+        void purge();
+        bool is_purged() const;
 
-            // A convenient helper method to get the entity's transform.
-            Transform* get_transform() const {
-                return transform;
-            }
+        // --- PUBLIC TEMPLATE METHODS (defined in the header) ---
 
-            // --- Template methods for adding and getting elements ---
-            // Template methods are defined of type T, adds it to this entity, and returns a pointer to it.
-            template<typename T>
-            T* add_element() {
-                // Create a new element using a smart pointer for safe memory management.
-                // std::make_unique is the modern C++ way to create a unique_ptr.
-                auto new_element_owner = std::make_unique<T>();
+        template<typename T>
+        T* add_element() {
+            // Create the new element safely.
+            auto new_element_owner = std::make_unique<T>();
+            T* raw_ptr = new_element_owner.get();
+            raw_ptr->owner = this;
 
-                // Set the owner so the element knows whom it belongs to.
-                new_element_owner->owner = this;
+            // Call the private, non-templated helper to do the real work.
+            add_element_internal(std::move(new_element_owner));
 
-                // Get a raw pointer to the new element before we move to a unique_ptr.
-                T* raw_ptr = new_element_owner.get();
+            raw_ptr->initialize();
+            return raw_ptr;
+        }
 
-                // Check if the new element is also a RenderableElement.
-                RenderableElement* renderable = dynamic_cast<RenderableElement*>(raw_ptr);
-                if (renderable) {
-                    // If it is, add its raw pointer to our specialized list.
-                    renderable_elements.push_back(renderable);
-                }
-                // Add the new element to the master list that owns its memory.
-                all_elements.push_back(std::move(new_element_owner));
+        template<typename T>
+        T* get_element() {
+            // Call the private, non-templated helper to do the real work.
+            // We pass the typeid so the helper knows what to look for.
+            return static_cast<T*>(get_element_internal(typeid(T)));
+        }
 
-                raw_ptr->initialize();
-                return raw_ptr;
-            }
+    private:
+        // --- PRIVATE HELPER FUNCTIONS (implemented in .cpp) ---
+        void add_element_internal(std::unique_ptr<Element> element);
+        Element* get_element_internal(const std::type_info& type_info);
 
-            // Searches for an element of type T and returns a pointer to it, or a nullptr if not found.
-            template<typename T>
-            T* get_element() {
-                for (auto& element : all_elements) {
-                    // dynamic_cast is a safe way to check if an element is of a certain type.
-                    T* result = dynamic_cast<T*>(element.get());
-                    if (result != nullptr) {
-                        return result;
-                    }
-                }
-                return nullptr;
-            }
-
-            // --- Purge functionality ---
-            void purge() {
-                is_purged_flag = true;
-            }
-
-            bool is_purged() const {
-                return is_purged_flag;
-            }
-
-        private:
-            bool is_purged_flag = false;
-
-            // The Entity OWNS its Elements. Using std::unique_ptr ensures that when an Entity is destroyed, 
-            // all of its Elements are automatically deleted as well.
-            // Implementing the cascading purge system as intended.
-            std::vector<std::unique_ptr<Element>> all_elements;
-
-            // A seperate, non-owning list of only elements that can be rendered.
-            // optimizing our render loop.
-            std::vector<RenderableElement*> renderable_elements;
-
-            // A convenient, non-owned pointer to the required Transform Element.
-            Transform* transform;
+        // --- PIMPL POINTER ---
+        struct Pimpl;
+        std::unique_ptr<Pimpl> pimpl;
     };
 } // namespace Salix

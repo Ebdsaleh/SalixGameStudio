@@ -1,76 +1,83 @@
 // Salix/ecs/Transform.cpp
 #include <Salix/ecs/Transform.h>
+#include <algorithm>
 
 namespace Salix {
-
-    Transform::Transform() :
-        parent(nullptr)
-        {
-            // Default scale is 1, so objects appear at thier normal size.
-            scale = { 1.0f, 1.0f, 1.0f};
-        }
+    struct Transform::Pimpl {
+        Transform* parent = nullptr;
+        std::vector<Transform*> children;
+    };
+    Transform::Transform() : pimpl(std::make_unique<Pimpl>()) {
+        // Default scale is 1, so objects appear at thier normal size.
+        scale = { 1.0f, 1.0f, 1.0f};
+    }
 
     Transform::~Transform() {
         // When a Transform is destroyed it must detatch itself from its parent.
-        if (parent) {
-            parent->remove_child(this);
+        if (pimpl->parent) {
+            pimpl->parent->remove_child(this);
         }
 
-        // It must also orphan all of its children.
-        for (Transform* child : children) {
-            child->parent = nullptr;
+        // It must also orphan all of its children by calling their public API.
+        while (!pimpl->children.empty()) {
+            pimpl->children.front()->set_parent(nullptr);
         }
     }
 
     void Transform::set_parent(Transform* new_parent) {
         // If we already have a parent, detatch from it first.
-        if (parent) {
-            parent->remove_child(this);
+        if (pimpl->parent) {
+            pimpl->parent->remove_child(this);
         }
         // Set the new parent.
-        parent = new_parent;
+        pimpl->parent = new_parent;
 
         // if the new parent is not null, add ourselves to its list of children.
-        if (parent) {
-            parent->add_child(this);
+        if (pimpl->parent) {
+            pimpl->parent->add_child(this);
         }
     }
 
     Transform* Transform::get_parent() const{
-        return parent;
+        return pimpl->parent;
     }
+
+    const std::vector<Transform*>& Transform::get_children() const {
+        return pimpl->children;
+    }
+
+    // --- Private Method Implementations ---
 
     void Transform::add_child(Transform* child) {
-        // Just add the child to our vector.
-        // In a real engine we'd check to make sure it's not already there.
-        children.push_back(child);
-    }
-
-    void Transform::remove_child(Transform* child) {
-        // Find the child if in our vector and remove it.
-        // This is a bit complex in C++, but it's a standard algorithm.
-        for (auto it = children.begin(); it != children.end(); ++it) {
-            if (*it == child) {
-                children.erase(it);
-                return;
-            }
+        // Check to prevent adding duplicates.
+        if (std::find(pimpl->children.begin(), pimpl->children.end(), child) == pimpl->children.end()) {
+            pimpl->children.push_back(child);
         }
     }
 
+    void Transform::remove_child(Transform* child) {
+        // This is the standard "erase-remove idiom". It's safe and efficient.
+        pimpl->children.erase(
+            std::remove(pimpl->children.begin(), pimpl->children.end(), child),
+            pimpl->children.end()
+        );
+    }
+
+
     Vector3 Transform::get_world_position() {
-        if (parent) {
+        if (pimpl->parent) {
             // recursively add our local postiton to our parent's world position.
             // NOTE: This is a simplified version. Generally we would use Matrix math.
-            return parent->get_world_position() + position;
+            return pimpl->parent->get_world_position() + position;
         }
         // If no parent, return local position Vector3
         return position;
     }
 
     Vector3 Transform::get_world_rotation() {
-        if (parent) {
+        if (pimpl->parent) {
             // Rotations also add up.
-            return parent->get_world_rotation() + rotation;
+            return pimpl->parent->get_world_rotation() + rotation;
 
         }
         // If no parent, return local rotation Vector3
@@ -78,9 +85,9 @@ namespace Salix {
     }
 
     Vector3 Transform::get_world_scale() {
-        if (parent) {
+        if (pimpl->parent) {
             // Scales multiply
-            return parent->get_world_scale() * scale;
+            return pimpl->parent->get_world_scale() * scale;
         }
         // If no parent, return local scale Vector3
         return scale;

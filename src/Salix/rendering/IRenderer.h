@@ -1,6 +1,6 @@
 // Salix/rendering/IRenderer.h
 #pragma once
-
+#include <Salix/core/Core.h>
 #include <Salix/math/Color.h>  // Need the Color definition to allow tinting while rendering sprites.
 #include <Salix/math/Point.h>
 #include <Salix/math/Rect.h>
@@ -26,7 +26,7 @@ namespace Salix {
 
     // This is an abstract base class that defines the "contract" for any renderer.
 
-    class IRenderer {
+    class SALIX_API IRenderer {
         public:
         // A virtual desctructor is essential for any class intended for polymorphism.
         virtual ~IRenderer() = default;

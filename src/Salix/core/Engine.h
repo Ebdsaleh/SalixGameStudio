@@ -20,7 +20,7 @@ namespace Salix {
     class IEventPoller;
     class EventManager;
     
-    class Engine {
+    class SALIX_API Engine {
     public:
         Engine();
         ~Engine();
@@ -32,10 +32,14 @@ namespace Salix {
         void shutdown();
 
         // Getters for states to access the core systems.
-        IRenderer* get_renderer() { return renderer.get(); }
-        AssetManager* get_asset_manager() { return asset_manager.get(); }
-        IInputManager* get_input_manager() { return input_manager.get(); }
-        EventManager* get_event_manager() { return event_manager.get(); }
+        IRenderer* get_renderer();
+        AssetManager* get_asset_manager();
+        IInputManager* get_input_manager();
+        EventManager* get_event_manager();
+        bool is_running() const;
+        void push_state(IAppState* state);
+        void pop_state();
+        void change_state(IAppState* state);
         // A public method to allow states to request a change.
         void switch_state(AppStateType new_state_type); 
 
@@ -44,17 +48,10 @@ namespace Salix {
         void update(float delta_time);
         void render();
 
-        bool is_running;
+        struct Pimpl; // Forward-declare the private implementation struct.
+        std::unique_ptr<Pimpl> pimpl;
 
         // The Engine now safely owns all its subsystems via smart pointers.
-        std::unique_ptr<IRenderer> renderer;
-        std::unique_ptr<AssetManager> asset_manager;
-        std::unique_ptr<IInputManager> input_manager;
-        std::unique_ptr<ITimer> timer;
-        std::unique_ptr<IEventPoller> event_poller;
-        std::unique_ptr<EventManager> event_manager;
-        // State stack logic...
-        std::unique_ptr<IAppState> current_state;
     };
 
 } // namespace Salix

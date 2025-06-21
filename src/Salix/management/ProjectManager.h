@@ -1,5 +1,7 @@
 // ProjectManager.h
 #pragma once
+
+#include <Salix/core/Core.h>
 #include <string>
 #include <memory>
 
@@ -10,7 +12,8 @@ namespace Salix {
     class IRenderer;
     class AssetManager;
 
-    class ProjectManager {
+    // Added SALIX_API to the class declaration.
+    class SALIX_API ProjectManager {
         public:
             ProjectManager();
             ~ProjectManager();
@@ -26,6 +29,8 @@ namespace Salix {
             
 
         private:
-        std::unique_ptr<Project> active_project;
+        struct Pimpl;
+        std::unique_ptr<Pimpl> pimpl;
+        
     };
 } // namespace Salix

@@ -1,6 +1,7 @@
 // Salix/assets/AssetManager.h
 #pragma once
 
+#include <Salix/core/Core.h>
 #include <string>
 #include <memory>
 #include <map>
@@ -11,7 +12,7 @@ namespace Salix {
     class IRenderer;
     class ITexture;
 
-    class AssetManager {
+    class SALIX_API AssetManager {
         public:
             AssetManager();
             ~AssetManager();
@@ -24,11 +25,8 @@ namespace Salix {
             ITexture* get_texture(const std::string& file_path);
 
         private:
-            // A pointer to the renderer, so we can create the textures.
-            // This is a non-owning pointer.
-            IRenderer* renderer;
-
-            // The cache: maps a file path (string) to a loaded texture.
-            std::map<std::string, std::unique_ptr<ITexture>> texture_cache;
+            struct Pimpl;
+            std::unique_ptr<Pimpl> pimpl;
+            
     };
 } // namespace Salix

@@ -1,9 +1,10 @@
 // ITexture.h
 #pragma once
 
+#include <Salix/core/Core.h>
 namespace Salix {
 
-    class ITexture {
+    class SALIX_API ITexture {
         public:
             virtual ~ITexture() = default;
 

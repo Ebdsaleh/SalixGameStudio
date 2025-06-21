@@ -1,5 +1,6 @@
 // Salix/states/IAppState
 #pragma once
+#include <Salix/core/Core.h>
 
 namespace Salix {
 
@@ -16,7 +17,7 @@ namespace Salix {
         Options
     };
 
-    class IAppState {
+    class SALIX_API IAppState {
         public:
             virtual ~IAppState() = default;
 

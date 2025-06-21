@@ -1,5 +1,6 @@
 // Salix/management/SceneManager.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <string>
 #include <vector>
 #include <memory>
@@ -11,7 +12,7 @@ namespace Salix {
     class IRenderer;
     class AssetManager;
 
-    class SceneManager {
+    class SALIX_API SceneManager {
     public:
         SceneManager();
         ~SceneManager();
@@ -45,8 +46,7 @@ namespace Salix {
         size_t get_scene_count() const;
 
     private:
-        std::vector<std::unique_ptr<Scene>> scene_list;
-        Scene* active_scene;
-        AssetManager* asset_manager;
+        struct Pimpl;
+        std::unique_ptr<Pimpl> pimpl;
     };
 } // namespace Salix

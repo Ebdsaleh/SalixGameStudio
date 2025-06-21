@@ -1,9 +1,10 @@
 // Salix/math/Vector2.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <cmath>  // For sqrtf function.
 
 namespace Salix {
-    struct Vector2 {
+    struct SALIX_API Vector2 {
         float x = 0.0f;
         float y = 0.0f;
 

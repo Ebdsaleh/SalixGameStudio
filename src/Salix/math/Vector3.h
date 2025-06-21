@@ -1,10 +1,12 @@
 // Salix/math/Vector3
 #pragma once
+
+#include <Salix/core/Core.h>
 #include <cmath>  // For the sqrtf function.
 
 namespace Salix {
 
-    struct Vector3 {
+    struct SALIX_API Vector3 {
         float x = 0.0f;
         float y = 0.0f;
         float z = 0.0f;

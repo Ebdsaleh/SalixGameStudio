@@ -8,8 +8,16 @@
 #include <algorithm> // For std::find
 
 namespace Salix {
+    struct EventManager::Pimpl {
+        std::map<EventCategory, std::vector<IEventListener*>> subscribers;
+    };
+    
+    EventManager::EventManager() : pimpl(std::make_unique<Pimpl>()) {}
+
+    EventManager::~EventManager() = default;
+
     void EventManager::subscribe(EventCategory category, IEventListener* listener) {
-        auto& listener_list = subscribers[category];
+        auto& listener_list = pimpl->subscribers[category];
 
         // --- THE FIX IS HERE ---
         // We check if the iterator returned by std::find is equal to the end iterator.
@@ -22,8 +30,8 @@ namespace Salix {
 
     void EventManager::unsubscribe(EventCategory category, IEventListener* listener) {
         // Check is a subscriber list for this category even exists.
-        if (subscribers.count(category)) {
-            auto& listener_list = subscribers.at(category);
+        if (pimpl->subscribers.count(category)) {
+            auto& listener_list = pimpl->subscribers.at(category);
 
             // The 'erase-remove idiom' is a standard C++ way to efficiently
             // remove an element from a vector.
@@ -39,7 +47,7 @@ namespace Salix {
         // We can't just iterate the map, because an event like KeyPressed needs to
         // be sent to listeners of EventCategory::Keyboard AND EventCategory::Input.
         // We must check every category we have subscribers for.
-        for (const auto& pair : subscribers) {
+        for (const auto& pair : pimpl->subscribers) {
             EventCategory category = pair.first;
             const auto& listener_list = pair.second;
 

@@ -5,6 +5,8 @@
 // =================================================================================
 #pragma once
 
+#include <Salix/core/Core.h>
+
 namespace Salix {
 
     enum class TimerType {
@@ -12,7 +14,7 @@ namespace Salix {
         Chrono
     };
 
-    class ITimer {
+    class SALIX_API ITimer {
     public:
         virtual ~ITimer() = default;
 

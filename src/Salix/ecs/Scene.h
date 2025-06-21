@@ -1,5 +1,6 @@
 // Salix/ecs/Scene.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <vector>
 #include <memory>
 #include <string>
@@ -11,7 +12,7 @@ class Entity;
 class IRenderer;
 class AssetManager;
 
-    class Scene {
+    class SALIX_API Scene {
     public:
         // The constructor now just takes a name.
         Scene(const std::string& name);
@@ -28,7 +29,8 @@ class AssetManager;
         const std::string& get_name() const;
 
     private:
-        std::vector<std::unique_ptr<Entity>> entities;
-        std::string scene_name;
+        struct Pimpl;
+        std::unique_ptr<Pimpl> pimpl;
+        
     };
 } // namespace Salix

@@ -55,15 +55,6 @@ namespace Salix {
         return start * (1.0f - t) + end * t;
     }
 
-    // Define the actual values for our static pre-defined colors.
-    const Color Color::White(1.0f, 1.0f, 1.0f);
-    const Color Color::Black(0.0f, 0.0f, 0.0f);
-    const Color Color::Red(1.0f, 0.0f, 0.0f);
-    const Color Color::Green(0.0f, 1.0f, 0.0f);
-    const Color Color::Blue(0.0f, 0.0f, 1.0f);
-    const Color Color::Yellow(1.0f, 1.0f, 0.0f);
-    const Color Color::Cyan(0.0f, 1.0f, 1.0f);
-    const Color Color::Magenta(1.0f, 0.0f, 1.0f);
 
     // --- OPERATOR OVERLOADS for color math ---
     Color operator+(const Color& a, const Color& b) {

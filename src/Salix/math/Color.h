@@ -1,10 +1,11 @@
 // Salix/math/Color.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <algorithm> // For std::min and std::max
 
 namespace Salix {
 
-    struct Color {
+    struct SALIX_API Color {
         float r = 0.0f;
         float g = 0.0f;
         float b = 0.0f;
@@ -28,20 +29,21 @@ namespace Salix {
         // Linearly interpolates between two colors.
         // t=0.0 returns 'start', t=1.0 returns 'end'.
         static Color lerp(const Color& start, const Color& end, float t); 
+    
 
-        // --- NEW: STATIC PRE-DEFINED COLORS ---
-        static const Color White;
-        static const Color Black;
-        static const Color Red;
-        static const Color Green;
-        static const Color Blue;
-        static const Color Yellow;
-        static const Color Cyan;
-        static const Color Magenta;
-
-
+    
     };
-
+    // --- NEW: STATIC PRE-DEFINED COLORS ---
+    // By making these 'inline', we can define them directly in the header.
+    // This is the modern C++17 way to handle static const members in a DLL.
+    inline static const Color White   = Color(1.0f, 1.0f, 1.0f);
+    inline static const Color Black   = Color(0.0f, 0.0f, 0.0f);
+    inline static const Color Red     = Color(1.0f, 0.0f, 0.0f);
+    inline static const Color Green   = Color(0.0f, 1.0f, 0.0f);
+    inline static const Color Blue    = Color(0.0f, 0.0f, 1.0f);
+    inline static const Color Yellow  = Color(1.0f, 1.0f, 0.0f);
+    inline static const Color Cyan    = Color(0.0f, 1.0f, 1.0f);
+    inline static const Color Magenta = Color(1.0f, 0.0f, 1.0f);
     // --- OPERATOR OVERLOADS for color math ---
     Color operator+(const Color& a, const Color& b);
 

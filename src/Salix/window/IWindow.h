@@ -6,6 +6,7 @@
 //              of a platform-specific window.
 // =================================================================================
 #pragma once
+#include <Salix/core/Core.h>
 #include <string>
 
 namespace Salix {
@@ -17,7 +18,7 @@ namespace Salix {
         int height = 720;
     };
 
-    class IWindow {
+    class SALIX_API IWindow {
     public:
         virtual ~IWindow() = default;
 

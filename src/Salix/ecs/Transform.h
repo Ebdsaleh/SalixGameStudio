@@ -1,13 +1,16 @@
 // Salix/ecs/Transform.h
 #pragma once
 
+#include <Salix/core/Core.h>
 #include <Salix/ecs/Element.h>
-#include <Salix/math/Vector3.h>  // Include our Vector3 struct.
+#include <Salix/math/Vector3.h>
 #include <vector>
+#include <memory>
+
 
 namespace Salix {
 
-    class Transform : public Element {
+    class SALIX_API Transform : public Element {
         public:
             Transform();
             virtual ~Transform();
@@ -28,14 +31,16 @@ namespace Salix {
             // --- Hierarchy Methods ---
             void set_parent(Transform* new_parent);
             Transform* get_parent() const;
+            const std::vector<Transform*>& get_children() const;
 
         private:
+            // Private methods called by set_parent and the destructor
             void add_child(Transform* child);
             void remove_child(Transform* child);
 
-            // --- Hierarchy Data ---
-            Transform* parent;
-            std::vector<Transform*> children;
+            // All implementation details are hidden behind this single pointer
+            struct Pimpl;
+            std::unique_ptr<Pimpl>pimpl;
 
     };
 } // namespace Salix

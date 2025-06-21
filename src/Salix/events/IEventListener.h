@@ -6,12 +6,13 @@
 // =================================================================================
 #pragma once
 
+#include <Salix/core/Core.h>
 // We need to know about the base IEvent class to receive events.
 #include <Salix/events/IEvent.h>
 
 namespace Salix {
 
-    class IEventListener {
+    class SALIX_API IEventListener {
         public:
         // Virtual dectructors are essential to all interfaces.
         virtual ~IEventListener() = default;

@@ -6,6 +6,7 @@
 // =================================================================================
 #pragma once
 
+#include <Salix/core/Core.h>
 #include <string>
 #include <sstream>
 
@@ -42,7 +43,7 @@ namespace Salix {
         MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
     };
 
-    class IEvent {
+    class SALIX_API IEvent {
     public:
         virtual ~IEvent() = default;
 
@@ -61,7 +62,6 @@ namespace Salix {
         inline bool is_mouse_event() const { return is_in_category(EventCategory::Mouse); }
         inline bool is_mouse_button_event() const { return is_in_category(EventCategory::MouseButton); }
         
-        // snake_case for member variables
         bool handled = false;
     };
 

@@ -1,13 +1,14 @@
 // Salix/ecs/RenderableElement.h
 #pragma once
 
+#include <Salix/core/Core.h>
 #include <Salix/ecs/Element.h>  // Required to inherit from the Element base class.
 namespace Salix {
     // Forward declare the renderer interface
     class IRenderer;
 
     // This is a specialized type of Element for anything that needs to be drawn
-    class RenderableElement : public Element {
+    class SALIX_API RenderableElement : public Element {
     public:
         // The render method is now a "pure virtual" function (= 0)
         // This means any class that  inherits from RenderableElement MUST provide its own
