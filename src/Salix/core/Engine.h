@@ -6,12 +6,12 @@
 #pragma once
 
 // Include the headers for types used in the function signatures.
-#include <Salix/rendering/IRenderer.h>  // For RendererType
-#include <Salix/core/ITimer.h>          // For TimerType
-#include <Salix/window/IWindow.h>       // For WindowConfig
-#include <Salix/states/IAppState.h>     // This defines AppStateType
-#include <memory>                       // For std::unique_ptr
-#include <vector>                       // For the state stack
+#include <Salix/rendering/IRenderer.h>  // For RendererType.
+#include <Salix/core/ITimer.h>          // For TimerType.
+#include <Salix/window/IWindow.h>       // For WindowConfig.
+#include <Salix/states/IAppState.h>     // This defines AppStateType.
+#include <memory>                       // For std::unique_ptr.
+#include <vector>                       // For the state stack.
 
 namespace Salix {
     // Forward declarations for types we only hold pointers to.
