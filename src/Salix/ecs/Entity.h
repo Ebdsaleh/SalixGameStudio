@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include <typeinfo> // For the get_element helper
+#include <string>
 
 namespace Salix {
     // Forward declarations
@@ -28,6 +29,8 @@ namespace Salix {
 
         void purge();
         bool is_purged() const;
+        void set_name(const std::string& new_name);
+        const std::string& get_name() const;
 
         // --- PUBLIC TEMPLATE METHODS (defined in the header) ---
 
