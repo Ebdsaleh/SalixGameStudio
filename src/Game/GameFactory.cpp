@@ -3,14 +3,14 @@
 // Author:      SalixGameStudio
 // Description: Implements the factory function for creating game-specific states.
 // =================================================================================
-#include "GameAPI.h"
-#include "states/GameState.h" 
+#include <Game/GameAPI.h>
+#include <Game/states/GameState.h>
 
 Salix::IAppState* create_state(Salix::AppStateType state_type) {
     switch (state_type) {
         case Salix::AppStateType::Game:
             // Now the DLL will create the GameState.
-            return Salix::GameState();
+            return new Salix::GameState();
 
         // Other game-specific states, can be added here.
         // case Salix::AppStateType::MyOtherGameState:
