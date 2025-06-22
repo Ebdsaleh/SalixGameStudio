@@ -57,6 +57,7 @@ namespace Salix {
         try {
             // We'll tell it to overwrite the destination if it already exists.
             std::filesystem::copy_file(source, destination, std::filesystem::copy_options::overwrite_existing);
+            return true;
         }
         catch (const std::filesystem::filesystem_error& e) {
             std::cerr << "FileManager Error: Could not copy file from '" << source 
