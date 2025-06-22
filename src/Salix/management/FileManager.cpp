@@ -51,4 +51,17 @@ namespace Salix {
         }
     }
 
+    bool FileManager::copy_file(const std::string& source, const std::string& destination) {
+        // Use the C++17 filesystem library's copy function.
+        // It's robust and handles errors for us.
+        try {
+            // We'll tell it to overwrite the destination if it already exists.
+            std::filesystem::copy_file(source, destination, std::filesystem::copy_options::overwrite_existing);
+        }
+        catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "FileManager Error: Could not copy file from '" << source 
+                << "' to '" << destination << "'. " << e.what() << std::endl;
+            return false;
+        }
+    }
 } // namespace Salix

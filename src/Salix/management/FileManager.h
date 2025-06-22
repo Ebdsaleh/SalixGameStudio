@@ -26,6 +26,10 @@ namespace Salix {
 
         // Creates a directory, including all necessary parent directories.
         static bool create_directories(const std::string& path);
+
+        // Copies a file from a source path to a destination path.
+        // Returns true on success.
+        static bool copy_file(const std::string& source, const std::string& destination);
     };
 
 } // namespace Salix
