@@ -18,6 +18,7 @@ namespace Salix {
 
     GameState::~GameState() {}
 
+    /* --- NON TEST CODE ---
 
     void GameState::on_enter(Engine* owner_engine) {
         std::cout << "Entering GameState..." << std::endl;
@@ -35,7 +36,24 @@ namespace Salix {
         project_manager->initialize(asset_manager);
         // --- End of Previous Implementation ---
     }
+        --- END NON-TEST CODE ---
+    */
+
+    void GameState::on_enter(Engine* owner_engine) {
+        std::cout << "Entering GameState..." << std::endl;
+        engine = owner_engine;
+        asset_manager = engine->get_asset_manager();
+        // --- SETUP PHASE ---
+
+        // 1. Get pointers to the managers we need from the Engine.
+        project_manager = std::make_unique<ProjectManager>();
         
+        project_manager->create_new_internal_project("TestProject");
+
+        project_manager->load_project("src/Sandbox/TestProject/TestProject.salixproj");
+
+    }
+
     void GameState::on_exit() {
         std::cout << "Exiting GameState..." << std::endl;
         if (project_manager) {
