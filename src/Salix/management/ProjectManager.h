@@ -4,6 +4,7 @@
 #include <Salix/core/Core.h>
 #include <string>
 #include <memory>
+#include <Salix/management/FileManager.h>
 
 namespace Salix {
 
@@ -22,10 +23,16 @@ namespace Salix {
             void shutdown();
             void update(float delta_time);
             void render(IRenderer* renderer);
+            // Creates the physical directory structure for a new project on disk.
+            // Returns true on success.
+            bool create_new_project(const std::string& project_path, const std::string& project_name);
 
-            void load_project(const std::string& project_path);
+            // Loads a project from a given path. This will become the primary
+            // way for the engine to open a game.
+            bool load_project(const std::string& project_path);
             Project* get_active_project();
             void set_active_project(const std::string& project_name);
+            
             
 
         private:
