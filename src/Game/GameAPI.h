@@ -6,11 +6,11 @@
 // =================================================================================
 #pragma once
 
-#include <Salix/core/Core.h>        // For the SALIX_API export macro
-#include <Salix/states/IAppState.h> // For IAppState and AppStateType
+#include <Salix/core/Core.h>        // For the SALIX_API export macro.
+#include <Salix/states/IAppState.h> // For IAppState and AppStateType.
 
 // This is the function signature for the game-state factory.
 // It must be exported from the Game.dll so the Engine can find it.
 // We use extern "C" to prevent C++ name mangling, which makes the function
 // much easier and more reliable to load at runtime.
-extern "C" SALIX_API Salix::IAppState* create_state(Salix::AppStateType state_type);
+extern "C" GAME_API Salix::IAppState* create_state(Salix::AppStateType state_type);
