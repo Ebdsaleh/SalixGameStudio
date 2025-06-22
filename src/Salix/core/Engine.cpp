@@ -4,7 +4,7 @@
 // Description: Implements the main Engine class, which orchestrates all subsystems.
 // =================================================================================
 #include <Salix/core/Engine.h>
-
+#include <Windows.h>                    // Required for HMODULE.
 // Include all required subsystem headers
 #include <Salix/core/SDLTimer.h>
 #include <Salix/core/ChronoTimer.h>
@@ -36,6 +36,11 @@ namespace Salix {
         std::unique_ptr<EventManager> event_manager;
         // State stack logic...
         std::unique_ptr<IAppState> current_state;
+        HMODULE game_dll_handle = nullptr;  // A handle to the loaded Game.dll
+
+        // A function pointer that matches the signature of the GameFactory.
+        using CreateStateFn = IAppState* (*)(AppStateType);
+        CreateStateFn game_state_factory = nullptr;
     };
 
     // --- The Constructor and Destructor ---
@@ -90,7 +95,22 @@ namespace Salix {
         pimpl->event_manager = std::make_unique<EventManager>();
         pimpl->event_poller = std::make_unique<SDLEventPoller>();
 
-        // <<< FIX: Must use pimpl-> to access the current_state
+        // --- Load the Game DLL and get the factory function ---
+        std::cout << "Engine: Loading Game.dll..." << std::endl;
+        pimpl->game_dll_handle = LoadLibraryA("Game.dll");  // Use LoadLibraryA for char*.
+        if (!pimpl->game_dll_handle) {
+            std::cerr << "FATAL ERROR: Could not load Game.dll!" << std::endl;
+            return false;
+        }
+        
+        // Find the address of the 'create_state' func inside the DLL file.
+        pimpl->game_state_factory = (Pimpl::CreateStateFn)GetProcAddress(pimpl->game_dll_handle, "create_state");
+        if (!pimpl->game_state_factory) {
+            std::cerr << "FATAL ERROR: Could not find 'create_state' function in Game.dll!" << std::endl;
+            return false;
+        }
+
+        // Use pimpl-> to access the current_state
         pimpl->current_state = std::make_unique<LaunchState>();
         pimpl->current_state->on_enter(this);
 
@@ -123,6 +143,9 @@ namespace Salix {
         pimpl->timer.reset();
         pimpl->asset_manager.reset();
         pimpl->renderer.reset();
+        if(pimpl->game_dll_handle) {
+            FreeLibrary(pimpl->game_dll_handle);
+        }
 
         SDL_Quit();
     }
@@ -139,8 +162,46 @@ namespace Salix {
         }
     }
 
-    void Engine::switch_state(AppStateType /*new_state_type*/) {
-        // (This logic will need to be implemented later using a factory)
+    void Engine::switch_state(AppStateType new_state_type) {
+        if (pimpl->current_state) {
+            pimpl->current_state->on_exit();
+        }
+
+        std::unique_ptr<IAppState> new_state;
+
+        // --- State Switching Logic ---
+        switch(new_state_type) {
+            // For the states that are part of the Engine.
+            case AppStateType::Launch:
+                new_state = std::make_unique<LaunchState>();
+                break;
+            
+            case AppStateType::Editor:
+                new_state = std::make_unique<EditorState>();
+                break;
+            
+            case AppStateType::Options:
+                new_state = std::make_unique<OptionsMenuState>();
+                break;
+
+            // For any other state, assume it's a GameState and use the factory.
+            default:
+            if (pimpl->game_state_factory) {
+                // Ask the DLL to create the state.
+                new_state.reset(pimpl->game_state_factory(new_state_type));
+            }
+            break;
+        }
+        // Update the current_state with the new_state.
+        pimpl->current_state = std::move(new_state);
+
+        // Check that the current_state is not a null_ptr.
+        if (pimpl->current_state) {
+            // Enter the updated current_state
+            pimpl->current_state->on_enter(this);
+        } else {
+            std::cerr << "Engine::switch_state - Failed to create and new state!" << std::endl;
+        }
     }
 
     void Engine::update(float delta_time) {
