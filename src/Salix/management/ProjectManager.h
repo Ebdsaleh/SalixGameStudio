@@ -27,6 +27,15 @@ namespace Salix {
             // Returns true on success.
             bool create_new_project(const std::string& project_path, const std::string& project_name);
 
+            // --- DEVELOPMENT-ONLY METHODS ---
+            // Create a new project on the filesystem at a static location inside our 'src/Sandbox/' directory.
+            bool create_new_internal_project(const std::string& project_name);
+
+            /* Create a new project on the filesystem in a dynamic location (will be used as a'sandbox'for testing.
+                Linking systems together OUTSIDE of our development ecosystem. 'External end-user-developer experience'). */
+            bool create_new_external_project(const std::string& project_path, const std::string& project_name);
+            // --- END OF DEVELOPMENT-ONLY METHODS. ---
+
             // Loads a project from a given path. This will become the primary
             // way for the engine to open a game.
             bool load_project(const std::string& project_path);
