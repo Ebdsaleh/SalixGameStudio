@@ -12,6 +12,7 @@ namespace Salix {
 
     // Define the hidden implementation details here.
     struct Entity::Pimpl {
+        std::string name;
         bool is_purged_flag = false;
         std::vector<std::unique_ptr<Element>> all_elements;
         std::vector<RenderableElement*> renderable_elements;
@@ -71,6 +72,14 @@ namespace Salix {
             }
         }
         return nullptr;
+    }
+
+    void Entity::set_name(const std::string& new_name) {
+        pimpl->name = new_name;
+    }
+
+    const std::string& Entity::get_name() const {
+        return pimpl->name;
     }
 
 } // namespace Salix
