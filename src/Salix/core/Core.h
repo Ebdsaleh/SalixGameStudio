@@ -7,10 +7,18 @@
 #pragma once
 
 #ifdef _WIN32
-    #ifdef SALIX_BUILD_ENGINE // This will be defined when we build our Engine.exe
+    // --- FOR THE ENGINE ---
+    #ifdef SALIX_BUILD_ENGINE // Defined when building the Engine exe
         #define SALIX_API __declspec(dllexport)
-    #else // This will be defined when our Game.dll uses the Engine
+    #else // Defined when the Game.dll uses the Engine
         #define SALIX_API __declspec(dllimport)
+    #endif
+
+    // --- FOR THE GAME ---
+    #ifdef SALIX_BUILD_GAME // Defined when building the Game DLL
+        #define GAME_API __declspec(dllexport)
+    #else   // Defined when the Engine uses the DLL
+        #define GAME_API __declspec(dllimport)
     #endif
 #else
     #error Salix Engine only supports Windows for now!
