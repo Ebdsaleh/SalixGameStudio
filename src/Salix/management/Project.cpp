@@ -17,6 +17,11 @@ namespace Salix {
     };
 
     // Constructor and Destructor
+    Project::Project() : pimpl(std::make_unique<Pimpl>()) {
+        pimpl->name = "New_Project";
+        pimpl->root_path = "Sandbox/New_Project";
+    }
+    
     Project::Project(const std::string& project_name, const std::string& project_root_path) 
         : pimpl(std::make_unique<Pimpl>()) {
         pimpl->name = project_name;
