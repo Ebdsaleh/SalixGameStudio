@@ -51,15 +51,25 @@ namespace Salix {
         }
     }
 
-    Entity* Scene::create_entity(const std::string& /*name*/) {
+    Entity* Scene::create_entity(const std::string& name) {
         auto new_entity_owner = std::make_unique<Entity>();
         Entity* new_entity = new_entity_owner.get();
-        // We can give the entity a name component later.
+
+        new_entity->set_name(name);
         pimpl->entities.push_back(std::move(new_entity_owner));
         return new_entity;
     }
 
     const std::string& Scene::get_name() const {
         return pimpl->scene_name;
+    }
+    
+    Entity* Scene::get_entity_by_name(const std::string& entity_name) {
+    for (const auto& entity : pimpl->entities) {
+        if (entity->get_name() == entity_name) {
+            return entity.get();
+        }
+    }
+    return nullptr; // Not found
     }
 } // namespace Salix
