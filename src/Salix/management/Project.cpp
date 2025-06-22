@@ -15,7 +15,14 @@ namespace Salix {
         std::string starting_scene;
         std::vector<std::string> scene_paths;
     };
-    Project::Project() : pimpl(std::make_unique<Pimpl>()) {}
+
+    // Constructor and Destructor
+    Project::Project(const std::string& project_name, const std::string& project_root_path) 
+        : pimpl(std::make_unique<Pimpl>()) {
+        pimpl->name = project_name;
+        pimpl->root_path = project_root_path;
+    }
+
     Project::~Project() = default;
 
     void Project::initialize(AssetManager* asset_manager) {

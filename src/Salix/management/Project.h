@@ -15,7 +15,7 @@ namespace Salix {
 
     class SALIX_API Project {
     public:
-        Project();
+        Project(const std::string& project_name, const std::string& project_root_path);
         ~Project();
 
         void initialize(AssetManager* asset_manager);
