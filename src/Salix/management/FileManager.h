@@ -23,6 +23,9 @@ namespace Salix {
         // Creates a directory at the given path.
         // Returns true on success or if the directory already exists.
         static bool create_directory(const std::string& path);
+
+        // Creates a directory, including all necessary parent directories.
+        static bool create_directories(const std::string& path);
     };
 
 } // namespace Salix

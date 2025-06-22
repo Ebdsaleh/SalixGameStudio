@@ -35,4 +35,20 @@ namespace Salix {
         return false;
     }
 
+    bool FileManager::create_directories(const std::string& path) {
+        // This is the convenient, multi-directory version.
+        try {
+            // It returns true if it creates directories, false if they already existed.
+            // For our API, we'll just return true in either success case.
+            std::filesystem::create_directories(path);
+            return true;
+        }
+        catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "FileManager Error: Could not create directories for path '" <<
+                path << "'. " << e.what() << std::endl;
+
+            return false;
+        }
+    }
+
 } // namespace Salix
