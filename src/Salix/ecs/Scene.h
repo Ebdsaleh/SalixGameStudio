@@ -27,6 +27,9 @@ class AssetManager;
         // A method to create a new entity within this scene.
         Entity* create_entity(const std::string& name = "Entity");
         const std::string& get_name() const;
+        
+        // A method to get an Entity by name.
+        Entity* get_entity_by_name(const std::string& entity_name);  // Had to add this for testing in 'Game/GameState.cpp'
 
     private:
         struct Pimpl;
