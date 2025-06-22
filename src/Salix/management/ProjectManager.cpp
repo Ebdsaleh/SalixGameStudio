@@ -56,20 +56,22 @@ namespace Salix {
     // --- CREATE NEW PROJECT ---
     bool ProjectManager::create_new_project(const std::string& project_path, const std::string& project_name) {
         // Use the C++17 filesystem library to safely construct our paths.
+        // This is cross-platform and handles slashes correctly.
         std::filesystem::path root_path(project_path);
         std::filesystem::path project_root = root_path / project_name;
 
-        // 1. Check if a directory with this name already exists.
+        // 1. Check if a directory with this name already exists using our FileManager.
         if (FileManager::path_exists(project_root.string())) {
-            std::cerr << "ProjectManager Error: A directory named '" << project_name << "' already exists at that location." << std::endl;
-            return false;
+            std::cout << "ProjectManager: Project directory '" << project_root.string() << "' already exists. No action taken." << std::endl;
+            return true; // We can consider this a "success" as the folder is there.
         }
 
         std::cout << "ProjectManager: Creating new project at '" << project_root.string() << "'" << std::endl;
 
         // 2. Create the main project directory.
         if (!FileManager::create_directory(project_root.string())) {
-            return false; // create_directory will print its own error.
+            // create_directory will print its own detailed error.
+            return false;
         }
 
         // 3. Create the standard asset sub-folders, as per your vision.
@@ -80,7 +82,7 @@ namespace Salix {
         if (!FileManager::create_directory((project_root / "Assets" / "Audio").string())) return false;
         if (!FileManager::create_directory((project_root / "Assets" / "Models").string())) return false;
 
-        // 4. Create the main project file itself (e.g., "MyGame.salixproj").
+        // 4. Create the main project file itself (e.g., "TestProject.salixproj").
         std::filesystem::path project_file_path = project_root / (project_name + ".salixproj");
         std::ofstream project_file(project_file_path);
         if (!project_file.is_open()) {
@@ -88,15 +90,16 @@ namespace Salix {
             return false;
         }
 
-        // Write some placeholder data to the file for the future.
+        // Write some placeholder data to the file for the future. This simulates the editor saving.
         project_file << "// Salix Game Studio Project File\n";
         project_file << "ProjectName: " << project_name << "\n";
-        project_file << "StartingScene: Assets/Scenes/Main.scene\n";
+        project_file << "StartingScene: MainLevel\n"; // A sensible default
         project_file.close();
 
         std::cout << "ProjectManager: Successfully created new project '" << project_name << "'." << std::endl;
         return true;
     }
+
 
 
     bool ProjectManager::load_project(const std::string& project_path) {
