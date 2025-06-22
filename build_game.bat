@@ -37,7 +37,7 @@ cl.exe ^
     /LIBPATH:"%SDL2_IMAGE_PATH%\lib\x64" ^
     /LIBPATH:"%BUILD_DIR%" ^ 
     SDL2.lib SDL2_image.lib SalixGameStudio.lib
-    SDL2.lib SDL2_image.lib
+    
 
 REM --- Exit and Return Error Code ---
 IF %ERRORLEVEL% EQU 0 (
