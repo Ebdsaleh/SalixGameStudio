@@ -18,9 +18,11 @@ namespace Salix {
 
     GameState::~GameState() {}
 
+
     void GameState::on_enter(Engine* owner_engine) {
         std::cout << "Entering GameState..." << std::endl;
         engine = owner_engine;
+        
         // We need to get the asset manager and renderer from the engine.
         // This is a bit of a temporary hack. A better system would pass
         // a "context" object with all the systems. But for now, this works.
@@ -31,7 +33,7 @@ namespace Salix {
         // The GameState now creates and intializes the project manager.
         project_manager = std::make_unique<ProjectManager>();
         project_manager->initialize(asset_manager);
-        
+        // --- End of Previous Implementation ---
     }
         
     void GameState::on_exit() {
