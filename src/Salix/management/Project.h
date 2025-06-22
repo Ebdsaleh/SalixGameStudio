@@ -3,6 +3,7 @@
 #include <Salix/core/Core.h>
 #include <string>
 #include <memory>
+#include <vector>
 
 namespace Salix {
 
