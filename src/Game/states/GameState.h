@@ -1,12 +1,14 @@
-// Salix/states/GameState.h
+// =================================================================================
+// Filename:    Game/states/GameState.h
+// =================================================================================
 #pragma once
 
-#include <Salix/states/IAppState.h>
+#include <Salix/states/IAppState.h>  
 #include <memory>
 
 namespace Salix {
 
-    // Forward declarations
+    // Forward declarations for the pointers we will hold
     class ProjectManager;
     class AssetManager;
 
