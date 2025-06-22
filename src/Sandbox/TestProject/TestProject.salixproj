@@ -1,3 +1,11 @@
-// Salix Game Studio Project File
-ProjectName: TestProject
-StartingScene: Assets/Scenes/Default.scene
+{
+    "build_settings": {
+        "game_dll_name": "TestProject.dll"
+    },
+    "engine_version": "0.1.0",
+    "project_name": "TestProject",
+    "scenes": [
+        "Assets/Scenes/Default.scene"
+    ],
+    "starting_scene": "Assets/Scenes/Default.scene"
+}

@@ -1,0 +1,14 @@
+{
+  "project_name": "TestProject", 
+  "engine_version": "0.1.0",
+  
+  "build_settings": {
+    "game_dll_name": "TestProject.dll"
+  },
+
+  "scenes": [
+    "Assets/Scenes/Default.scene"
+  ],
+
+  "starting_scene": "Assets/Scenes/Default.scene"
+}

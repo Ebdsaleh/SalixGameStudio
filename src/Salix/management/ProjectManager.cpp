@@ -10,6 +10,10 @@
 #include <filesystem>                     // The modern C++ way to handle paths
 #include <fstream>                        // For writing the project file
 #include <iostream>
+#include <json.hpp>
+
+// for convenience.
+using json = nlohmann::json;
 
 namespace Salix {
 
@@ -95,49 +99,68 @@ namespace Salix {
 
     // --- DEVELOPMENT-ONLY METHODS ---
     
-   bool ProjectManager::create_new_external_project(const std::string& project_path, const std::string& project_name) {
-        // This is the robust directory creation logic we built before.
-        std::filesystem::path root_path(project_path);
-        std::filesystem::path project_root = root_path / project_name;
+    bool ProjectManager::create_new_external_project(const std::string& project_path, const std::string& project_name) {
+        // --- 1. Construct all paths using the robust std::filesystem::path object ---
+        std::filesystem::path project_root = std::filesystem::path(project_path) / project_name;
+        std::filesystem::path dest_assets_dir = project_root / "Assets";
+        std::filesystem::path dest_scenes_dir = dest_assets_dir / "Scenes";
+        std::filesystem::path dest_images_dir = dest_assets_dir / "Images";
+        std::filesystem::path dest_audio_dir = dest_assets_dir / "Audio";
+        std::filesystem::path dest_models_dir = dest_assets_dir / "Models";
 
+        // Check if the project already exists.
         if (FileManager::path_exists(project_root.string())) {
             std::cout << "ProjectManager: Project '" << project_name << "' already exists. No action taken." << std::endl;
             return true;
         }
-
+        
         std::cout << "ProjectManager: Creating new project '" << project_name << "' at '" << project_path << "'" << std::endl;
 
-        // Use our robust create_directories function.
-        if (!FileManager::create_directories((project_root / "Assets" / "Scenes").string())) return false;
-        if (!FileManager::create_directories((project_root / "Assets" / "Scripts").string())) return false;
-        if (!FileManager::create_directories((project_root / "Assets" / "Images").string())) return false;
-        if (!FileManager::create_directories((project_root / "Assets" / "Audio").string())) return false;
-        if (!FileManager::create_directories((project_root / "Assets" / "Models").string())) return false;
-
-        // Create the Default.scene file
-        // --- NEW: Create a default, empty scene file ---
-        std::filesystem::path default_scene_path = project_root / "Assets" / "Scenes" / "Default.scene";
-        std::ofstream scene_file(default_scene_path);
-        if (!scene_file.is_open()) {
-            std::cerr << "ProjectManager Error: Could not create default scene file." << std::endl;
-            return false;
-        }
-        scene_file << "// Salix Engine Scene File\n";
-        scene_file << "Entities: []\n"; // Placeholder for future YAML/JSON data
-        scene_file.close();
-
-        std::filesystem::path project_file_path = project_root / (project_name + ".salixproj");
-        std::ofstream project_file(project_file_path);
-        if (!project_file.is_open()) {
-            std::cerr << "ProjectManager Error: Could not create project file." << std::endl;
+        // --- 2. Create Destination Directory Structure ---
+        if (!FileManager::create_directories(dest_scenes_dir.string())) return false;
+        if (!FileManager::create_directories((dest_assets_dir / "Scripts").string())) return false;
+        if (!FileManager::create_directories(dest_images_dir.string())) return false;
+        if (!FileManager::create_directories((dest_audio_dir / "Audio").string())) return false;
+        if (!FileManager::create_directories((dest_models_dir / "Models").string())) return false;
+        
+        // --- 3. Generate the Project File from the Template ---
+        std::cout << "ProjectManager: Generating project file..." << std::endl;
+        
+        // Use filesystem paths for source templates as well for consistency.
+        std::filesystem::path project_template_src = "src/Salix/resources/templates/default/project.json";
+        
+        std::ifstream template_file(project_template_src);
+        if (!template_file.is_open()) {
+            std::cerr << "ProjectManager Error: Could not open project template at '" << project_template_src.string() << "'" << std::endl;
             return false;
         }
 
-        // 3. Write the project data, now pointing to our new default scene.
-        project_file << "// Salix Game Studio Project File\n";
-        project_file << "ProjectName: " << project_name << "\n";
-        project_file << "StartingScene: Assets/Scenes/Default.scene\n"; // <-- Points to our new file
-        project_file.close();
+        json project_data;
+        template_file >> project_data;
+        template_file.close();
+
+        project_data["project_name"] = project_name;
+        project_data["build_settings"]["game_dll_name"] = project_name + ".dll";
+
+        std::filesystem::path project_file_dest = project_root / (project_name + ".salixproj");
+        std::ofstream new_project_file(project_file_dest);
+        new_project_file << std::setw(4) << project_data << std::endl;
+        new_project_file.close();
+
+        // --- 4. Copy the other template files (scene and sprite) ---
+        std::cout << "ProjectManager: Copying default assets..." << std::endl;
+        
+        // Define the CORRECT source paths, based on your directory structure.
+        std::filesystem::path scene_template_src = "src/Salix/resources/templates/default/Assets/Scenes/JSON/Default.json";
+        std::filesystem::path sprite_template_src = "src/Salix/resources/templates/default/Assets/Images/Sprites/test.png";
+
+        // Define the destination paths using the path objects.
+        std::filesystem::path scene_template_dest = dest_scenes_dir / "Default.scene";
+        std::filesystem::path sprite_template_dest = dest_images_dir / "test.png";
+
+        if (!FileManager::copy_file(scene_template_src.string(), scene_template_dest.string())) return false;
+        if (!FileManager::copy_file(sprite_template_src.string(), sprite_template_dest.string())) return false;
+
 
         std::cout << "ProjectManager: Successfully created new project '" << project_name << "'." << std::endl;
         return true;
