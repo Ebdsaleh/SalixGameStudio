@@ -8,6 +8,11 @@ namespace Salix {
         float x = 0.0f;
         float y = 0.0f;
 
+        // Default Constructor
+        Vector2() = default;
+        // Constructor that takes x and y values
+        Vector2(float x_in, float y_in) : x(x_in), y(y_in) {}
+
         // Calculates the magnitude (length) of the vector.
         float length() const;
 
