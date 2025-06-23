@@ -30,7 +30,7 @@ cl.exe ^
     /Fo"%BUILD_DIR%\\" ^
     /I "%SDL2_PATH%\include" ^
     /I "%SDL2_IMAGE_PATH%\include" ^
-    /I "%cd%\vendor\nlohmann_json" ^
+    /I "%cd%\vendor" ^
     /I "src" ^
     /LD ^
     /Fe"%BUILD_DIR%\%GAME_DLL_NAME%" ^
