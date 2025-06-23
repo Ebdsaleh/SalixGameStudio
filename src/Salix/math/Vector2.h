@@ -2,6 +2,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <cmath>  // For sqrtf function.
+#include <nlohmann_json/json.hpp>
 
 namespace Salix {
     struct SALIX_API Vector2 {
@@ -51,4 +52,16 @@ namespace Salix {
     Vector2 operator/(const Vector2& a, float divisor);
 
     Vector2 operator/(float divisor, const Vector2& a);
+
+    // --- The Serialization "Blueprint" ---
+    // This teaches nlohmann::json how to handle our custom Vector2 type.
+    inline void to_json(nlohmann::json& j, const Vector2& v) {
+        j = {v.x, v.y};
+    }
+
+    inline void from_json(const nlohmann::json& j, Vector2& v) {
+        j.at(0).get_to(v.x);
+        j.at(1).get_to(v.y);
+       
+    }
 } // namespace Salix
