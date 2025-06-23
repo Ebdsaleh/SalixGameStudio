@@ -11,6 +11,13 @@ namespace Salix {
         float y = 0.0f;
         float z = 0.0f;
 
+         // --- CONSTRUCTORS ---
+        // Default constructor (creates a zero vector)
+        Vector3() = default;
+
+        // Constructor that takes x, y, and z values
+        Vector3(float x_in, float y_in, float z_in) : x(x_in), y(y_in), z(z_in) {}
+
         //  Calculates the magnitude (length) of the vector.
         float length() const;
 
