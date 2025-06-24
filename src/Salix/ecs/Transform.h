@@ -6,7 +6,7 @@
 #include <Salix/math/Vector3.h>
 #include <vector>
 #include <memory>
-
+#include <cereal/cereal.hpp>
 
 namespace Salix {
 
@@ -32,6 +32,18 @@ namespace Salix {
             void set_parent(Transform* new_parent);
             Transform* get_parent() const;
             const std::vector<Transform*>& get_children() const;
+            template<class Archive>
+            void serialize(Archive& archive)
+            {
+                // The CEREAL_NVP macro creates a named key-value pair, e.g., "position": [x, y, z].
+                // Because we already taught Cereal how to handle Vector3, this just works!
+                archive( CEREAL_NVP(position), CEREAL_NVP(rotation), CEREAL_NVP(scale) );
+                
+                // NOTE: We will handle serializing the parent/child hierarchy later.
+                // That is a more advanced topic involving pointers and object tracking.
+                // For now, we are just saving the local transform data.
+            }
+
 
         private:
             // Private methods called by set_parent and the destructor
@@ -43,4 +55,5 @@ namespace Salix {
             std::unique_ptr<Pimpl>pimpl;
 
     };
+    
 } // namespace Salix
