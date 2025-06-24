@@ -11,6 +11,7 @@
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/RenderableElement.h>
 // #include <Salix/ecs/AudioSource.h> // Future components would be added here
 
 // --- Registering our polymorphic Element types ---
@@ -18,10 +19,11 @@
 // when it's expecting a pointer to the base class, Element.
 
 // First, register the concrete types themselves.
-CEREAL_REGISTER_TYPE(Salix::Element)
+
 CEREAL_REGISTER_TYPE(Salix::Transform);
 CEREAL_REGISTER_TYPE(Salix::Sprite2D);
 
 // Then, register the relationship between the base and derived classes.
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::Transform);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::Sprite2D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::RenderableElement)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::RenderableElement, Salix::Sprite2D);
