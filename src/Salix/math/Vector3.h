@@ -3,7 +3,7 @@
 
 #include <Salix/core/Core.h>
 #include <cmath>  // For the sqrtf function.
-#include <nlohmann_json/json.hpp>
+#include <cereal/cereal.hpp>
 namespace Salix {
 
     struct SALIX_API Vector3 {
@@ -26,6 +26,18 @@ namespace Salix {
 
         // static lerp method declaration
         static Vector3 lerp(const Vector3& start, const Vector3& end, float t);
+
+        // --- NEW: The Cereal Serialization "Blueprint" ---
+        // This one templated function tells Cereal how to both SAVE and LOAD a Vector3.
+        // The 'Archive' can be a JSON archive, an XML archive, etc. The Vector3 doesn't care.
+        template<class Archive>
+        void serialize(Archive& archive)
+        {
+            // This is the magic. The CEREAL_NVP macro creates a named key-value pair.
+            // When saving, it writes the value of 'x' to the key "x".
+            // When loading, it finds the key "x" and reads its value into the 'x' member.
+            archive(CEREAL_NVP(x), CEREAL_NVP(y), CEREAL_NVP(z));
+        }
     };
 
     // Operator overloads
@@ -58,15 +70,5 @@ namespace Salix {
 
     Vector3 operator/(float divisor, const Vector3& a);
 
-    // --- The Serialization "Blueprint" ---
-    // This teaches nlohmann::json how to handle our custom Vector3 type.
-    inline void to_json(nlohmann::json& j, const Vector3& v) {
-        j = {v.x, v.y, v.z};
-    }
-
-    inline void from_json(const nlohmann::json& j, Vector3& v) {
-        j.at(0).get_to(v.x);
-        j.at(1).get_to(v.y);
-        j.at(2).get_to(v.z);
-    }
+     
 } // namespace Salix
