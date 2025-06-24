@@ -33,19 +33,23 @@ namespace Salix {
 
             // --- Properties ---
             
-            Color color;            // Color property for color tinting.
-            Vector2 offset;         // A local offset from the Transform's position
-            Vector2 pivot;          // Normalized pivot point (0,0 = top-left, 1,1 = bottom-right).
-            bool flip_h = false;    // Flip horizontally?
-            bool flip_v = false;    // Flip veritcally?
-            int sorting_layer = 0;  // For future use in the Scene.
-
+            Color color;                // Color property for color tinting.
+            Vector2 offset;             // A local offset from the Transform's position
+            Vector2 pivot;              // Normalized pivot point (0,0 = top-left, 1,1 = bottom-right).
+            bool flip_h = false;        // Flip horizontally?
+            bool flip_v = false;        // Flip veritcally?
+            int sorting_layer = 0;      // For future use in the Scene.
+            std::string texture_path;   // The path to the image used as the texture.
             template<class Archive>
             void serialize(Archive& archive) {
-                archive ( CEREAL_NVP(color), CEREAL_NVP(offset),
+                archive(cereal::base_class<RenderableElement>(this));
+                // The serialize function now accesses the public member directly.
+                archive (
+                    CEREAL_NVP(color), CEREAL_NVP(offset),
                     CEREAL_NVP(pivot), CEREAL_NVP(flip_h), CEREAL_NVP(flip_v),
                     CEREAL_NVP(sorting_layer),
-                    cereal::make_nvp("texture_path", get_texture_path()) );
+                    CEREAL_NVP(texture_path)
+                );
             }
 
         private:
