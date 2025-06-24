@@ -2,6 +2,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <algorithm> // For std::min and std::max
+#include <cereal/cereal.hpp>
 
 namespace Salix {
 
@@ -29,7 +30,11 @@ namespace Salix {
         // Linearly interpolates between two colors.
         // t=0.0 returns 'start', t=1.0 returns 'end'.
         static Color lerp(const Color& start, const Color& end, float t); 
-    
+        
+        template<class Archive>
+        void serialize(Archive& archive) {
+            archive( CEREAL_NVP(r), CEREAL_NVP(g), CEREAL_NVP(b), CEREAL_NVP(a));
+        }
 
     
     };
