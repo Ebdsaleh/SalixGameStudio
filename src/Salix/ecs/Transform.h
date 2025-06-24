@@ -35,9 +35,17 @@ namespace Salix {
             template<class Archive>
             void serialize(Archive& archive)
             {
+                // This is the crucial part. It tells Cereal to first serialize
+                // our parent class, Element. This continues the chain.
+                archive( cereal::base_class<Element>(this) );
+
+                // The serialize function now accesses the public member directly.
                 // The CEREAL_NVP macro creates a named key-value pair, e.g., "position": [x, y, z].
                 // Because we already taught Cereal how to handle Vector3, this just works!
-                archive( CEREAL_NVP(position), CEREAL_NVP(rotation), CEREAL_NVP(scale) );
+                archive(
+                    CEREAL_NVP(position),
+                    CEREAL_NVP(rotation),
+                    CEREAL_NVP(scale) );
                 
                 // NOTE: We will handle serializing the parent/child hierarchy later.
                 // That is a more advanced topic involving pointers and object tracking.
