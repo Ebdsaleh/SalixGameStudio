@@ -72,4 +72,5 @@ namespace Salix {
     }
     return nullptr; // Not found
     }
+
 } // namespace Salix
