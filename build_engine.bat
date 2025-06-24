@@ -31,7 +31,7 @@ cl.exe ^
     /Fe"%BUILD_DIR%\%ENGINE_EXE_NAME%" ^
     /I "%SDL2_PATH%\include" ^
     /I "%SDL2_IMAGE_PATH%\include" ^
-    /I "%cd%\vendor\" ^
+    /I "%cd%\vendor" ^
     /I "src" ^
     %ENGINE_SOURCES% ^
     /link ^
