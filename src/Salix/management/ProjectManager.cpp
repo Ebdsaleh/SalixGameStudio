@@ -10,10 +10,9 @@
 #include <filesystem>                     // The modern C++ way to handle paths
 #include <fstream>                        // For writing the project file
 #include <iostream>
-#include <json.hpp>
+#include <nlohmann_json/json.hpp>
 
-// for convenience.
-using json = nlohmann::json;
+
 
 namespace Salix {
 
@@ -135,14 +134,26 @@ namespace Salix {
             return false;
         }
 
-        json project_data;
+        nlohmann::ordered_json project_data;
         template_file >> project_data;
         template_file.close();
 
-        project_data["project_name"] = project_name;
-        project_data["build_settings"]["game_dll_name"] = project_name + ".dll";
+        std::string project_file_name = project_name + ".salixproj";
+        project_data["project_data"] = {
+            { "project_path", std::filesystem::absolute(project_root).string() },
+            { "project_file_name",project_file_name },
+            { "project_name", project_name },
+            { "scenes", project_data["project_data"]["scenes"] },
+            { "starting_scene", project_data["project_data"]["starting_scene"]}
 
-        std::filesystem::path project_file_dest = project_root / (project_name + ".salixproj");
+        };
+
+        project_data["build_settings"] = {
+            {"engine_version", project_data["build_settings"]["engine_version"]},
+            {"game_dll_name",  project_name + ".dll"}
+        };
+
+        std::filesystem::path project_file_dest = project_root / project_file_name;
         std::ofstream new_project_file(project_file_dest);
         new_project_file << std::setw(4) << project_data << std::endl;
         new_project_file.close();
