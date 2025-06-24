@@ -2,7 +2,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <cmath>  // For sqrtf function.
-#include <nlohmann_json/json.hpp>
+#include <cereal/cereal.hpp>
 
 namespace Salix {
     struct SALIX_API Vector2 {
@@ -22,6 +22,18 @@ namespace Salix {
 
         // A static "factory" method for linear interpolation.
         static Vector2 lerp(const Vector2& start, const Vector2& end, float t);
+
+         // --- The Cereal Serialization "Blueprint" ---
+        // This one templated function tells Cereal how to both SAVE and LOAD a Vector2.
+        // The 'Archive' can be a JSON archive, an XML archive, etc. The Vector2 doesn't care.
+        template<class Archive>
+        void serialize(Archive& archive)
+        {
+            // This is the magic. The CEREAL_NVP macro creates a named key-value pair.
+            // When saving, it writes the value of 'x' to the key "x".
+            // When loading, it finds the key "x" and reads its value into the 'x' member.
+            archive(CEREAL_NVP(x), CEREAL_NVP(y));
+        }
     };
 
     // --- Overloading declarations ---
@@ -53,15 +65,6 @@ namespace Salix {
 
     Vector2 operator/(float divisor, const Vector2& a);
 
-    // --- The Serialization "Blueprint" ---
-    // This teaches nlohmann::json how to handle our custom Vector2 type.
-    inline void to_json(nlohmann::json& j, const Vector2& v) {
-        j = {v.x, v.y};
-    }
-
-    inline void from_json(const nlohmann::json& j, Vector2& v) {
-        j.at(0).get_to(v.x);
-        j.at(1).get_to(v.y);
-       
-    }
+    
+    
 } // namespace Salix
