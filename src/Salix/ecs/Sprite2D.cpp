@@ -13,11 +13,11 @@ namespace Salix {
         ITexture* texture = nullptr;
             int width = 0;
             int height = 0;
-            std::string texture_path;
     };
     
     Sprite2D::Sprite2D() : pimpl(std::make_unique<Pimpl>()){
         pivot = { 0.5f, 0.5f };
+        texture_path = "";
     }
         
 
@@ -25,13 +25,10 @@ namespace Salix {
 
     void Sprite2D::load_texture(AssetManager* asset_manager, const std::string& file_path) {
        
-        pimpl->texture_path = file_path;
-        pimpl->texture = asset_manager->get_texture(pimpl->texture_path);
+        texture_path = file_path;
+        pimpl->texture = asset_manager->get_texture(texture_path);
     }
 
-    const std::string& Sprite2D::get_texture_path() const {
-        return pimpl->texture_path;
-    }
     void Sprite2D::render(IRenderer* renderer) {
         if (pimpl->texture && owner) {
             // Get the owner's Transform to know where to draw
