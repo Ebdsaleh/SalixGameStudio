@@ -3,6 +3,7 @@
 
 #include <Salix/core/Core.h>
 #include <Salix/ecs/Element.h>  // Required to inherit from the Element base class.
+#include <cereal/cereal.hpp>
 namespace Salix {
     // Forward declare the renderer interface
     class IRenderer;
@@ -14,6 +15,11 @@ namespace Salix {
         // This means any class that  inherits from RenderableElement MUST provide its own
         // implementation of the render method.
         virtual void render(IRenderer* renderer) = 0;
-
+        template <class Archive>
+        void serialize(Archive& archive) {
+            // This is the crucial part. It tells Cereal to first serialize
+            // our parent class, Element. This continues the chain.
+            archive( cereal::base_class<Element>(this) );
+        }
     };
 } // namespace Salix
