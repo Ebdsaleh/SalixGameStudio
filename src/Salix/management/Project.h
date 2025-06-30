@@ -43,8 +43,10 @@ namespace Salix {
         const std::string& get_engine_version() const;
         const std::string& get_game_dll_name() const;
         const std::string& get_project_file_name() const;
-
-
+        // Returns true on success, false on failure
+        bool load_starting_scene();
+        // Creates the default scene content and saves it to a file.
+        void create_and_save_default_scene();
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl>pimpl;

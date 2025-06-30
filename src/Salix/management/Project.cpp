@@ -3,6 +3,11 @@
 #include <Salix/management/SceneManager.h>
 #include <Salix/management/FileManager.h>
 #include <Salix/management/ProjectConfig.h>
+#include <Salix/assets/AssetManager.h>
+#include <Salix/ecs/Transform.h>
+#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Sprite2D.h>
 #include <Salix/core/SerializationRegistrations.h>
 #include <filesystem>
 #include <fstream>
@@ -24,6 +29,7 @@ namespace Salix {
         std::string project_file_name;
         std::string starting_scene;
         std::map<std::string, std::string> scene_paths;
+        AssetManager* asset_manager = nullptr;
 
         // --- Build Settings (to match BuildSettings in ProjectConfig) ---
         std::string engine_version;
@@ -73,30 +79,21 @@ namespace Salix {
 
     void Project::initialize(AssetManager* asset_manager) {
         std::cout << "Project Initializing..." << std::endl;
+        pimpl->asset_manager = asset_manager;
+        if(pimpl->asset_manager == nullptr){
+            std::cerr << "Project::initialize - AssetManager pointer is null_ptr, cancelling Project initialization." <<
+                std::endl;
+        }
         pimpl->scene_manager = std::make_unique<SceneManager>();
-        pimpl->scene_manager->initialize(asset_manager);
+        pimpl->scene_manager->initialize(pimpl->asset_manager);
         pimpl->scene_manager->set_project_root_path(pimpl->root_path);
 
-        // --- NEW: POPULATE SCENEMANAGER WITH LIGHTWEIGHT SCENE SHELLS ---
-        // Iterate through all scene paths known by this Project object.
-        for (const auto& pair : pimpl->scene_paths) { // pair.first is name, pair.second is path
-            const std::string& scene_name = pair.first;
-            const std::string& scene_relative_path = pair.second;
-            // This automatically adds the new Scene to the SceneManager's scene_list
-            pimpl->scene_manager->create_scene(scene_name, scene_relative_path);
+        // Populate SceneManager with lightweight scene shells
+        for (const auto& pair : pimpl->scene_paths) {
+            pimpl->scene_manager->create_scene(pair.first, pair.second);
         }
-        // Check that 'starting_scene' is not an empty string.
-        if (!pimpl->starting_scene.empty() ) {
-                // Call SceneManager::set_active_scene. This method will:
-                // 1. Find the scene shell in its scene_list using its name (e.g., "Default").
-                // 2. Set it as active.
-                // 3. Crucially, call Scene::on_load() for the active scene,
-                // which will then trigger Scene::load_content_from_file().
-                pimpl->scene_manager->set_active_scene(pimpl->starting_scene);
-       } else {
-        std::cerr << "Project Error: No starting scene specified in project config!" << std::endl;
-        // Handle error: perhaps set a default active scene, or display a critical error.
-}
+        
+        // THAT'S IT. We stop here. We do NOT call set_active_scene yet.
     }
 
     void Project::shutdown() {
@@ -177,11 +174,61 @@ namespace Salix {
         return pimpl->project_file_name;
     }
 
+    bool Project::load_starting_scene() {
+        if (pimpl->starting_scene.empty()) {
+        std::cerr << "Project Error: No starting scene specified!" << std::endl;
+        return false;
+    }
+        // This now attempts to load the scene from disk and returns the result
+        return pimpl->scene_manager->set_active_scene(pimpl->starting_scene);
+    }
+
+    void Project::create_and_save_default_scene() {
+        if (!pimpl->scene_manager) {
+        return;
+    }
+
+    std::cout << "Project: Creating default content for scene 'Default'..." << std::endl;
+
+    // 1. Ensure the "Default" scene is the active one.
+    //    This is necessary so that save_active_scene() knows what to save.
+    pimpl->scene_manager->set_active_scene("Default");
+    Scene* default_scene = pimpl->scene_manager->get_active_scene();
+
+    if (!default_scene) {
+        std::cerr << "Project Error: Could not find 'Default' scene shell to populate." << std::endl;
+        return;
+    }
+
+    // 2. Create the default "Player" entity and its components.
+    Entity* player = default_scene->create_entity("Player");
+    Transform* transform = player->get_transform();
+    Sprite2D* sprite = player->add_element<Sprite2D>();
+
+    // 3. Set the default properties.
+    transform->position = { 640.0f, 360.0f, 0.0f };
+    transform->rotation = { 0.0f, 0.0f, 0.0f };
+    transform->scale = { 1.0f, 1.0f, 1.0f };
+
+    sprite->texture_path = "Assets/Images/test.png";
+
+    sprite->load_texture(pimpl->asset_manager, sprite->get_texture_path());
+
+    // 4. Tell the SceneManager to save the now-populated active scene to its file.
+    pimpl->scene_manager->save_active_scene();
+
+    }
     template<class Archive>
     void Project::serialize(Archive & archive) {
-        archive (
-            cereal::make_nvp("PimplData", pimpl)
-        );
+        archive(
+        cereal::make_nvp("name", pimpl->name),
+        cereal::make_nvp("root_path", pimpl->root_path),
+        cereal::make_nvp("project_file_name", pimpl->project_file_name),
+        cereal::make_nvp("scene_paths", pimpl->scene_paths),
+        cereal::make_nvp("starting_scene", pimpl->starting_scene),
+        cereal::make_nvp("engine_version", pimpl->engine_version),
+        cereal::make_nvp("game_dll_name", pimpl->game_dll_name)
+    );
     }
 
     template void Project::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive& );
