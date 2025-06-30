@@ -1,6 +1,7 @@
 // Salix/management/SceneManager.cpp
 #include <Salix/management/SceneManager.h>
 #include <Salix/management/FileManager.h>
+#include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/assets/AssetManager.h>
 #include <iostream>
@@ -131,8 +132,10 @@ namespace Salix {
             pimpl->active_scene = scene;
             // pimpl->active_scene->on_load(pimpl->asset_manager, pimpl->project_root_path);
             std::cout << "SceneManager: Set active scene to '" << scene_name << "'" << std::endl;
+            return true;
         } else {
             std::cerr << "SceneManager: Could not find scene '" << scene_name << "' to set as active." << std::endl;
+            return false;
         }
     }
 
@@ -230,5 +233,79 @@ namespace Salix {
         pimpl->scene_list.push_back(std::move(new_scene_owner)); 
 
         return true; // Successfully loaded and added to list.
+    }
+
+    bool SceneManager::load_active_scene() {
+        // 1. Check if there is an active scene to load into.
+        if (!pimpl->active_scene) {
+            std::cerr << "SceneManager Error: Cannot load content, no active scene is set." << std::endl;
+            return false;
+        }
+
+        // 2. Get the file path from the active scene object itself.
+        std::filesystem::path full_scene_path = std::filesystem::path(pimpl->project_root_path) / pimpl->active_scene->get_file_path();
+
+        if (!FileManager::path_exists(full_scene_path.string())) {
+            std::cerr << "SceneManager Info: Scene file does not exist for '" << pimpl->active_scene->get_name() << "'." << std::endl;
+            return false; // Return false so the orchestrator knows to create a default.
+        }
+
+        // 3. Open the file and deserialize directly into the active scene.
+        std::ifstream scene_file_is(full_scene_path.string());
+        if (!scene_file_is.is_open()) {
+            std::cerr << "SceneManager Error: Could not open scene file for reading: " << full_scene_path.string() << std::endl;
+            return false;
+        }
+
+        try {
+            cereal::JSONInputArchive archive(scene_file_is);
+            // This is the key: we deserialize INTO the existing active scene object.
+            archive(*pimpl->active_scene);
+
+            // --- THIS IS THE MISSING STEP ---
+            // Now that the scene has entities, iterate through them and call their
+            // on_load method so they can load their assets (textures, sounds, etc.).
+            std::cout << "SceneManager: Initializing loaded entities..." << std::endl;
+            for (const auto& entity : pimpl->active_scene->get_entities()) {
+                if (entity) {
+                    entity->on_load(pimpl->asset_manager);
+                }
+            }
+        // --------------------------------
+            std::cout << "SceneManager: Successfully loaded content for active scene '" << pimpl->active_scene->get_name() << "'." << std::endl;
+            return true;
+        } catch (const cereal::Exception& e) {
+            std::cerr << "SceneManager Error: Failed to deserialize active scene: " << e.what() << std::endl;
+            return false;
+        }
+    }
+
+    bool SceneManager::save_active_scene() {
+        // 1. Check if there is an active scene to save.
+        if (!pimpl->active_scene) {
+            std::cerr << "SceneManager Error: Cannot save, no active scene is set." << std::endl;
+            return false;
+        }
+
+        // 2. Get the file path from the active scene object.
+        std::filesystem::path full_scene_path = std::filesystem::path(pimpl->project_root_path) / pimpl->active_scene->get_file_path();
+
+        // 3. Open the file for writing and serialize the active scene's data.
+        std::ofstream scene_file_os(full_scene_path.string());
+        if (!scene_file_os.is_open()) {
+            std::cerr << "SceneManager Error: Could not open scene file for writing: " << full_scene_path.string() << std::endl;
+            return false;
+        }
+
+        try {
+            cereal::JSONOutputArchive archive(scene_file_os);
+            // This is the key: we serialize FROM the existing active scene object.
+            archive(*pimpl->active_scene);
+            std::cout << "SceneManager: Successfully saved active scene '" << pimpl->active_scene->get_name() << "'." << std::endl;
+            return true;
+        } catch (const cereal::Exception& e) {
+            std::cerr << "SceneManager Error: Failed to serialize active scene: " << e.what() << std::endl;
+            return false;
+        }
     }
 }  // namespace Salix

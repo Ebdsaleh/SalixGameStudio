@@ -47,7 +47,8 @@ namespace Salix {
         
         // Loads a scene
         bool load_scene(const std::string& relative_scene_path, const std::string& project_root_path_str);
-
+        bool load_active_scene();
+        bool save_active_scene();
         // Getters for querying the list of scenes.
         Scene* get_scene(const std::string& scene_name) const;
         Scene* get_scene_at(int index) const;
