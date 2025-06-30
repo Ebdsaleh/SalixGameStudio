@@ -6,6 +6,7 @@
 // =================================================================================
 #pragma once
 #include <Salix/core/EngineInfo.h>
+#include <filesystem>
 #ifdef _WIN32
     // --- FOR THE ENGINE ---
     #ifdef SALIX_BUILD_ENGINE // Defined when building the Engine exe
@@ -23,3 +24,10 @@
 #else
     #error Salix Engine only supports Windows for now!
 #endif
+
+namespace Salix {
+    // Declares the global project root path variable, making it accessible
+    // across the EXE/DLL boundary.
+    // This is a DECLARATION. 'extern' promises it's defined elsewhere.
+    extern SALIX_API std::filesystem::path g_project_root_path;
+}
