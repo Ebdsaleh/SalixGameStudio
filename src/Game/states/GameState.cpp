@@ -47,6 +47,7 @@ namespace Salix {
 
         // 1. Get pointers to the managers we need from the Engine.
         project_manager = std::make_unique<ProjectManager>();
+        project_manager->initialize(asset_manager);
         
         project_manager->create_new_internal_project("TestProject");
 
