@@ -1,14 +1,18 @@
-{
-  "project_name": "TestProject", 
-  "engine_version": "0.1.0",
-  
-  "build_settings": {
-    "game_dll_name": "TestProject.dll"
+{ "project_data": {
+    "project_path": "",
+    "project_file": "",
+    "project_name": "TestProject", 
+    "scenes": [ 
+      {
+        "name": "Default.scene",
+        "path": "Assets/Scenes/Default.scene" }
+      ],
+    "starting_scene": "Default"
+
   },
-
-  "scenes": [
-    "Assets/Scenes/Default.scene"
-  ],
-
-  "starting_scene": "Assets/Scenes/Default.scene"
+  "build_settings": {
+    "engine_version": "0.1.0",
+    "game_dll_name": "TestProject.dll"
+  }  
 }
+
