@@ -42,7 +42,7 @@ namespace Salix {
         void remove_scene_at(int index);
 
         // Manages the active scene.
-        void set_active_scene(const std::string& scene_name);
+        bool set_active_scene(const std::string& scene_name);
         Scene* get_active_scene() const;
         
         // Loads a scene

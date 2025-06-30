@@ -124,12 +124,12 @@ namespace Salix {
         }
     }
 
-    void SceneManager::set_active_scene(const std::string& scene_name) {
+    bool SceneManager::set_active_scene(const std::string& scene_name) {
         Scene* scene = get_scene(scene_name);
         if (scene) {
             
             pimpl->active_scene = scene;
-            pimpl->active_scene->on_load(pimpl->asset_manager, pimpl->project_root_path);
+            // pimpl->active_scene->on_load(pimpl->asset_manager, pimpl->project_root_path);
             std::cout << "SceneManager: Set active scene to '" << scene_name << "'" << std::endl;
         } else {
             std::cerr << "SceneManager: Could not find scene '" << scene_name << "' to set as active." << std::endl;
