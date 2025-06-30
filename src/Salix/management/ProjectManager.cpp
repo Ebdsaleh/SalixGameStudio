@@ -5,6 +5,7 @@
 //              game projects.
 // =================================================================================
 
+#include <Salix/core/Core.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
 #include <Salix/management/FileManager.h>
@@ -26,7 +27,7 @@
 #include <cereal/types/array.hpp>
 
 namespace Salix {
-    std::filesystem::path g_project_root_path;
+    SALIX_API std::filesystem::path g_project_root_path;
     // --- Pimpl struct definition ---
     struct ProjectManager::Pimpl {
         std::unique_ptr<Project> active_project;
@@ -42,10 +43,7 @@ namespace Salix {
     void ProjectManager::initialize(AssetManager* asset_manager_ptr) {
         pimpl->asset_manager = asset_manager_ptr;
         std::cout << "ProjectManager Initialized." << std::endl;
-        // For our test, we'll immediately load our sandbox project.
-        // The path is relative to the executable in the 'build' folder.
-        // Make sure the SandboxProject folder and MyGame.salixproj file exist for testing!
-        load_project("../SandboxProject/MyGame.salixproj");
+       
     }
 
     void ProjectManager::shutdown() {
@@ -171,7 +169,6 @@ namespace Salix {
         try {
             cereal::JSONInputArchive archive(ss); // Archive parses from stringstream 'ss'
             std::cout << "DEBUG: Buffer content:\n" << file_content_buffer << std::endl;
-
             archive (
                 cereal::make_nvp("project_data", project_config.project_data),
                 cereal::make_nvp("build_settings", project_config.build_settings)
@@ -226,19 +223,19 @@ namespace Salix {
         // --- 4. Copying default asset templates (unchanged) ---
         std::cout << "ProjectManager: Copying default asset templates..." << std::endl;
 
-        // std::filesystem::path scene_template_src = "src/Salix/resources/templates/default/Assets/Scenes/JSON/Default.json";
+        std::filesystem::path scene_template_src = "src/Salix/resources/templates/default/Assets/Scenes/Default.scene";
         //std::filesystem::path scene_manifest_template_src = "src/Salix/resources/templates/default/Assets/Scenes/Default.scene.manifest";
         std::filesystem::path sprite_template_src = "src/Salix/resources/templates/default/Assets/Images/Sprites/test.png";
         
-        //std::filesystem::path scene_template_dest = dest_scenes_dir / "Default.scene";
+        std::filesystem::path scene_template_dest = dest_scenes_dir / "Default.scene";
         //std::filesystem::path scene_manifest_dest = dest_scenes_dir / "Default.scene.manifest";
         std::filesystem::path sprite_template_dest = dest_images_dir / "test.png";
 
-        /*if ( !FileManager::copy_file(scene_template_src.string(), scene_template_dest.string() ) ){
+        if ( !FileManager::copy_file(scene_template_src.string(), scene_template_dest.string() ) ){
             std::cerr << "ProjectManager Error: Failed to copy default scene template." << std::endl;
             return false;
         }
-         */
+        
         // The manifest file might play a part at a later implementation but it's not required for now.
         /* if ( !FileManager::copy_file(scene_manifest_template_src.string(), scene_manifest_dest.string()) ) {
             std::cerr << "ProjectManager Error: Failed to copy default scene manifest template." << std::endl;
@@ -319,6 +316,65 @@ namespace Salix {
         }
         std::cout << "ProjectManager: Successfully loaded project '" << loaded_config.project_data.project_name << "'." << std::endl;
         return true;
+    }
+
+    Project* ProjectManager::load_project_from_file(const std::string& project_file_path) {
+        if (!FileManager::path_exists(project_file_path)) {
+            std::cerr << "ProjectManager Error: Failed to load '" << project_file_path << "'. Path does not exist." << std::endl;
+            return nullptr;
+        }
+
+        if (pimpl->active_project) {
+            pimpl->active_project->shutdown(); // Shutdown current project if any
+        }
+
+        std::cout << "ProjectManager: Loading project from '" << project_file_path << "'..." << std::endl;
+
+        Salix::ProjectConfig loaded_config; // Object to hold deserialized project data
+
+        // --- Cereal Deserialization of ProjectConfig ---
+        std::ifstream project_file_is(project_file_path);
+        if (!project_file_is.is_open()) {
+            std::cerr << "ProjectManager Error: Could not open project file '" << project_file_path << "' for reading." << std::endl;
+            return nullptr;
+        }
+
+        try {
+            cereal::JSONInputArchive archive(project_file_is);
+            archive(loaded_config); // Load the entire project config
+        } catch (const cereal::Exception& e) {
+            std::cerr << "ProjectManager Error: Failed to deserialize project config from '" << project_file_path << "': " << e.what() << std::endl;
+            project_file_is.close();
+            return nullptr;
+        }
+        project_file_is.close(); // Close the file stream after deserialization
+
+        // --- Use the loaded_config to create and initialize the Project ---
+        // The Project constructor that takes name and root_path is ideal here.
+        pimpl->active_project = std::make_unique<Project>(
+            loaded_config.project_data.project_name,
+            loaded_config.project_data.project_path
+        );
+
+        // Now, populate the Project with loaded scene paths and starting scene info
+        // Your Project::add_scene_path method signature is `const std::string& path_to_scene_file`.
+        // If you later change it to accept name, you'd modify this line accordingly.
+        for (const auto& scene_info : loaded_config.project_data.scenes) {
+            pimpl->active_project->add_scene_path(scene_info.name, scene_info.path);
+        }
+        pimpl->active_project->set_starting_scene(loaded_config.project_data.starting_scene);
+
+
+        // --- KICK OFF THE CHAIN OF COMMAND ---
+        if (pimpl->active_project) {
+            // The Project will now initialize itself, which includes creating the SceneManager
+            // and telling it to load the starting scene.
+            std::cout << "ProjectManager::load_project_from_file - active_project set to '" <<
+                pimpl->active_project->get_name() << "'..." << std::endl;
+            pimpl->active_project->initialize(pimpl->asset_manager); // Pass the asset manager
+        }
+        std::cout << "ProjectManager: Successfully loaded project '" << loaded_config.project_data.project_name << "'." << std::endl;
+        return get_active_project();
     }
 
 

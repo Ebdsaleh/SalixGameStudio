@@ -39,6 +39,7 @@ namespace Salix {
             // Loads a project from a given path. This will become the primary
             // way for the engine to open a game.
             bool load_project(const std::string& project_path);
+            Project* load_project_from_file(const std::string& project_path);
             Project* get_active_project();
             void set_active_project(const std::string& project_name);
             
