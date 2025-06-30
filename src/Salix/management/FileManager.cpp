@@ -6,6 +6,9 @@
 #include <Salix/management/FileManager.h>
 #include <filesystem> // <<< The C++ standard library for file system operations
 #include <iostream>
+#include <fstream>    // For std::ifstream, std::ios::binary
+#include <sstream>    // For std::stringstream (used in hex dump formatting)
+#include <iomanip>    // For std::hex, std::setw, std::setfill
 
 namespace Salix {
 
@@ -62,6 +65,90 @@ namespace Salix {
         catch (const std::filesystem::filesystem_error& e) {
             std::cerr << "FileManager Error: Could not copy file from '" << source 
                 << "' to '" << destination << "'. " << e.what() << std::endl;
+            return false;
+        }
+    }
+    
+     std::string FileManager::read_file_content(const std::string& file_path) {
+        std::string content;
+        std::ifstream file_stream(file_path, std::ios::binary); // Use binary mode for exact byte reading
+        if (file_stream.is_open()) {
+            // Get file size to pre-allocate string
+            std::streampos fileSize = file_stream.tellg();
+            file_stream.seekg(0, std::ios::end);
+            fileSize = file_stream.tellg() - fileSize;
+            file_stream.seekg(0, std::ios::beg); // Rewind to beginning
+
+            content.resize(static_cast<size_t>(fileSize)); // Pre-allocate string buffer
+
+            // Read all bytes into the string
+            if (fileSize > 0) { // Avoid reading from empty file (can cause issues)
+                file_stream.read(&content[0], fileSize);
+            }
+            file_stream.close();
+        } else {
+            std::cerr << "FileManager::read_file_content Error: Could not open file '" << file_path << "'" << std::endl;
+        }
+        return content;
+    }
+
+    // Gets the size of a file
+    size_t FileManager::get_file_size(const std::string& file_path) {
+        try {
+            if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path)) {
+                return std::filesystem::file_size(file_path);
+            }
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "FileManager::get_file_size Error: " << e.what() << std::endl;
+        }
+        return 0; // Return 0 if file doesn't exist, is not regular, or error occurs
+    }
+
+    // Generates a hex dump string of file content
+    std::string FileManager::generate_hex_dump(const std::string& file_path) {
+        std::string content = read_file_content(file_path); // Use our new read_file_content
+        std::stringstream ss;
+
+        ss << "---START HEX DUMP (for: " << file_path << ")---\n";
+        if (content.empty()) {
+            ss << "File is empty or could not be read.\n";
+        } else {
+            ss << "Length: " << content.length() << " bytes\n";
+            ss << "Content (hex and char):\n";
+            for (size_t i = 0; i < content.length(); ++i) {
+                ss << std::hex << std::setw(2) << std::setfill('0') << (static_cast<int>(static_cast<unsigned char>(content[i]))) << " ";
+                if ((i + 1) % 16 == 0) { // Newline every 16 bytes for readability
+                    ss << "   ";
+                    for (size_t j = i - 15; j <= i; ++j) {
+                        char c = content[j];
+                        ss << ((c >= 32 && c <= 126) ? c : '.'); // Print printable chars, else '.'
+                    }
+                    ss << std::endl;
+                }
+            }
+            // Print remaining chars if not a multiple of 16
+            if (content.length() % 16 != 0) {
+                for (size_t i = 0; i < (16 - (content.length() % 16)); ++i) {
+                    ss << "   ";
+                }
+                ss << "   ";
+                for (size_t j = content.length() - (content.length() % 16); j < content.length(); ++j) {
+                    char c = content[j];
+                    ss << ((c >= 32 && c <= 126) ? c : '.');
+                }
+                ss << std::endl;
+            }
+        }
+        ss << "---END HEX DUMP---" << std::endl;
+        return ss.str();
+    }
+
+    // Checks if a file exists and is a regular file
+    bool FileManager::is_regular_file_and_exists(const std::string& file_path) {
+        try {
+            return std::filesystem::is_regular_file(file_path);
+        } catch (const std::filesystem::filesystem_error& e) {
+            std::cerr << "FileManager::is_regular_file_and_exists Error: " << e.what() << std::endl;
             return false;
         }
     }
