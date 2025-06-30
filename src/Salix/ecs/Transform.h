@@ -6,7 +6,8 @@
 #include <Salix/math/Vector3.h>
 #include <vector>
 #include <memory>
-#include <cereal/cereal.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <cereal/access.hpp>
 
 namespace Salix {
 
@@ -32,35 +33,26 @@ namespace Salix {
             void set_parent(Transform* new_parent);
             Transform* get_parent() const;
             const std::vector<Transform*>& get_children() const;
-            template<class Archive>
-            void serialize(Archive& archive)
-            {
-                // This is the crucial part. It tells Cereal to first serialize
-                // our parent class, Element. This continues the chain.
-                archive( cereal::base_class<Element>(this) );
-
-                // The serialize function now accesses the public member directly.
-                // The CEREAL_NVP macro creates a named key-value pair, e.g., "position": [x, y, z].
-                // Because we already taught Cereal how to handle Vector3, this just works!
-                archive(
-                    CEREAL_NVP(position),
-                    CEREAL_NVP(rotation),
-                    CEREAL_NVP(scale) );
-                
-                // NOTE: We will handle serializing the parent/child hierarchy later.
-                // That is a more advanced topic involving pointers and object tracking.
-                // For now, we are just saving the local transform data.
-            }
-
-
+            
+            
         private:
-            // Private methods called by set_parent and the destructor
-            void add_child(Transform* child);
-            void remove_child(Transform* child);
-
+            
             // All implementation details are hidden behind this single pointer
             struct Pimpl;
             std::unique_ptr<Pimpl>pimpl;
+            friend class cereal::access;
+            template<class Archive>
+            void serialize(Archive& archive);
+            /* Explore this later when we get serialize to work.
+            template <class Archive>
+            void save(Archive& archive) const; // For writing data
+
+            template <class Archive>
+            void load(Archive& archive);      // For reading data
+            */
+            // Private methods called by set_parent and the destructor
+            void add_child(Transform* child);
+            void remove_child(Transform* child);
 
     };
     

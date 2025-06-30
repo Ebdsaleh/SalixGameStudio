@@ -1,12 +1,32 @@
 // Salix/ecs/Transform.cpp
 #include <Salix/ecs/Transform.h>
 #include <algorithm>
+#include <cereal/cereal.hpp>
+// If explicitly instantiating JSON archives here
+#include <cereal/archives/json.hpp>
+// If explicitly instantiating Binary archives
+#include <cereal/archives/binary.hpp>
+// Required for std::vector in Pimpl
+#include <cereal/types/vector.hpp>
+// Required for std::unique_ptr<Pimpl>
+#include <cereal/types/memory.hpp> 
+// Required for cereal::base_class
+#include <cereal/types/base_class.hpp> 
+#include <Salix/core/SerializationRegistrations.h>
 
 namespace Salix {
     struct Transform::Pimpl {
-        Transform* parent = nullptr;
-        std::vector<Transform*> children;
+        Transform* parent = nullptr;  // Runtime varaible
+        std::vector<Transform*> children;  // Runtime variable
+
+        Pimpl() = default;
+        template <class Archive>
+        void serialize(Archive & archive) {
+
+            // Nothing to serialize here as all Pimpl members are runtime variables.
+        }
     };
+
     Transform::Transform() : pimpl(std::make_unique<Pimpl>()) {
         // Default scale is 1, so objects appear at thier normal size.
         scale = { 1.0f, 1.0f, 1.0f};
@@ -92,4 +112,32 @@ namespace Salix {
         // If no parent, return local scale Vector3
         return scale;
     }
+
+    template<class Archive>
+    void Transform::serialize(Archive& archive) {
+        // This is the crucial part. It tells Cereal to first serialize
+        // our parent class, Element. This continues the chain.
+        archive( cereal::base_class<Element>(this) );
+
+        // The serialize function now accesses the public member directly.
+        // The CEREAL_NVP macro creates a named key-value pair, e.g., "position": [x, y, z].
+        // Because we already taught Cereal how to handle Vector3, this just works!
+        archive(
+            cereal::make_nvp("position", position),
+            cereal::make_nvp("rotation", rotation),
+            cereal::make_nvp("scale", scale)
+        );
+        
+        // NOTE: We will handle serializing the parent/child hierarchy later.
+        // That is a more advanced topic involving pointers and object tracking.
+        // For now, we are just saving the local transform data.
+    }
+
+    template void Transform::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);
+    template void Transform::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
+    // Add binary instantiations if needed for scene files (recommended for game data)
+    template void Transform::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
+    template void Transform::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &); 
+
+
 } // namespace Salix
