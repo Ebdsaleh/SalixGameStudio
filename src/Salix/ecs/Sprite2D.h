@@ -7,20 +7,21 @@
 #include <Salix/math/Vector2.h>  // For the pivot and offset.
 #include <string>
 #include <memory>
-#include <cereal/cereal.hpp>
-#include <cereal/types/string.hpp> // Needed to serialize std::string
+#include <cereal/access.hpp>
+
 
 namespace Salix {
 
     // Forward declarations
     class ITexture;
     class IRenderer;
-
+    class AssetManager;
     class SALIX_API Sprite2D : public RenderableElement {
         public:
             Sprite2D();
             virtual ~Sprite2D();
-
+            
+            void on_load(AssetManager* asset_manager) override;
             // A method to load a texture for this sprite using the AssetManager
             void load_texture(class AssetManager* asset_manager, const std::string& file_path);
 
@@ -40,20 +41,13 @@ namespace Salix {
             bool flip_v = false;        // Flip veritcally?
             int sorting_layer = 0;      // For future use in the Scene.
             std::string texture_path;   // The path to the image used as the texture.
-            template<class Archive>
-            void serialize(Archive& archive) {
-                archive(cereal::base_class<RenderableElement>(this));
-                // The serialize function now accesses the public member directly.
-                archive (
-                    CEREAL_NVP(color), CEREAL_NVP(offset),
-                    CEREAL_NVP(pivot), CEREAL_NVP(flip_h), CEREAL_NVP(flip_v),
-                    CEREAL_NVP(sorting_layer),
-                    CEREAL_NVP(texture_path)
-                );
-            }
-
+            
         private:
             struct Pimpl;
             std::unique_ptr<Pimpl>pimpl;
+            friend class cereal::access;
+            template<class Archive>
+            void serialize(Archive& archive);
+
     };
 } // namespace Salix
