@@ -6,17 +6,20 @@
 namespace Salix {
     // Forward declares Entity to avoid circular dependencies
     class Entity;
+    class AssetManager;
 
     class SALIX_API Element {
         public:
+            Element() = default;
             // A virtual destructor is essential for any class with virtual methods
             virtual ~Element() = default;
             // These are the lifecycle methods that the Entity will call.
             // They are virtual so that concrete elements can override them.
+            virtual void on_load(AssetManager* asset_manager) {(void) asset_manager;}  // Useful for RenderableElement - types.
             virtual void initialize() {}
             virtual void update(float /*delta_time*/) {}
             virtual void shutdown() {}
-
+            
             template <class Archive>
             void serialize(Archive& /* archive*/) {
                 /// The base class of the hierarchy has no parent to serialize.
