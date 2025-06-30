@@ -1,9 +1,21 @@
 // Salix/management/SceneManager.cpp
 #include <Salix/management/SceneManager.h>
+#include <Salix/management/FileManager.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/assets/AssetManager.h>
 #include <iostream>
 #include <algorithm>
+#include <fstream>    // For std::ifstream
+#include <sstream>    // For std::stringstream
+#include <filesystem> // For std::filesystem::path
+// Cereal headers for Scene loading
+#include <cereal/archives/json.hpp>    // If scenes are JSON (for debug)
+#include <cereal/archives/binary.hpp>  // If scenes are binary (recommended)
+#include <cereal/types/string.hpp>     // Scene name, etc.
+#include <cereal/types/vector.hpp>     // Vector of entities
+#include <cereal/types/memory.hpp>     // Unique_ptr to entities
+#include <cereal/types/polymorphic.hpp> // For Element polymorphism within Scene (Scene needs its types registered globally)
+
 
 
 namespace Salix {
@@ -12,6 +24,7 @@ namespace Salix {
         std::vector<std::unique_ptr<Scene>> scene_list;
         Scene* active_scene = nullptr;
         AssetManager* asset_manager = nullptr;
+        std::string project_root_path;
     };
     SceneManager::SceneManager() : pimpl(std::make_unique<Pimpl>()) {}
 
@@ -51,7 +64,19 @@ namespace Salix {
         std::cout << "SceneManager: Creating new scene '" << scene_name << "'" << std::endl;
         auto new_scene_owner = std::make_unique<Scene>(scene_name);
         Scene* new_scene_ptr = new_scene_owner.get();
-        new_scene_ptr->on_load(pimpl->asset_manager);
+        pimpl->scene_list.push_back(std::move(new_scene_owner));
+        return new_scene_ptr;
+    }
+
+    // Used by the Owning Project's pimpl->scene_manager while loading a Project.
+    Scene* SceneManager::create_scene(const std::string& scene_name, const std::string& scene_relative_path) {
+         if (get_scene(scene_name)) {
+            std::cerr << "SceneManager: Scene '" << scene_name << "' already exists." << std::endl;
+            return nullptr;
+        }
+        std::cout << "SceneManager: Creating new scene '" << scene_name << "'" << std::endl;
+        auto new_scene_owner = std::make_unique<Scene>(scene_name, scene_relative_path);
+        Scene* new_scene_ptr = new_scene_owner.get();
         pimpl->scene_list.push_back(std::move(new_scene_owner));
         return new_scene_ptr;
     }
@@ -102,7 +127,9 @@ namespace Salix {
     void SceneManager::set_active_scene(const std::string& scene_name) {
         Scene* scene = get_scene(scene_name);
         if (scene) {
+            
             pimpl->active_scene = scene;
+            pimpl->active_scene->on_load(pimpl->asset_manager, pimpl->project_root_path);
             std::cout << "SceneManager: Set active scene to '" << scene_name << "'" << std::endl;
         } else {
             std::cerr << "SceneManager: Could not find scene '" << scene_name << "' to set as active." << std::endl;
@@ -131,4 +158,77 @@ namespace Salix {
     size_t SceneManager::get_scene_count() const {
         return pimpl->scene_list.size();
     }
-} // namespace Salix
+
+    void SceneManager::set_project_root_path(const std::string& path) {
+        pimpl->project_root_path = path;
+    }
+    
+    const std::string& SceneManager::get_project_root_path() const {
+        return pimpl->project_root_path;
+    }
+    
+    // --- SCENE LOADING METHOD (load_scene) ---
+    bool SceneManager::load_scene(const std::string& relative_scene_path, const std::string& project_root_path_str) {
+        // --- Removed: Unload current active scene and clear scene_list here ---
+        // These responsibilities belong to set_active_scene() or explicit management.
+        // This method's job is to LOAD a scene from file and add it to the list.
+
+        // Form the absolute path to the scene file
+        std::filesystem::path full_scene_path = std::filesystem::path(project_root_path_str) / relative_scene_path;
+
+        // Check if the scene file actually exists on disk.
+        if (!FileManager::path_exists(full_scene_path.string())) {
+            std::cerr << "SceneManager Error: Failed to load scene '" << relative_scene_path
+                    << "'. Full path '" << full_scene_path.string() << "' does not exist." << std::endl;
+            return false;
+        }
+
+        // NEW: Check if a scene with this name is ALREADY loaded.
+        // If scene names are unique and match the file they load, this prevents re-loading.
+        // Assuming Scene::get_name() returns the unique name for the scene.
+        // We will get the scene's name from the file after deserialization.
+        // For now, let's just use its path as a rough check for "already loaded".
+        for (const auto& scene_ptr : pimpl->scene_list) {
+            if (scene_ptr && scene_ptr->get_file_path() == relative_scene_path) { // Compare by file path
+                std::cout << "SceneManager: Scene from path '" << relative_scene_path << "' is already loaded. Skipping re-load." << std::endl;
+                return true; // Already loaded, consider it successful
+            }
+        }
+
+
+        std::cout << "SceneManager: Loading scene from '" << full_scene_path.string() << "'..." << std::endl;
+
+        // Create a new, empty Scene object in memory, which Cereal will populate.
+        // This will be a lightweight shell, which Cereal will fill with name, path, and entities.
+        std::unique_ptr<Scene> new_scene_owner = std::make_unique<Scene>();
+
+        // --- Cereal Deserialization of Scene ---
+        // Scene template is currently a JSON file (Default.json), but will eventually be binary (.scene).
+        // For now, we'll open it for JSON reading.
+        std::ifstream scene_file_is(full_scene_path.string()); // Open for JSON read (no std::ios::binary)
+
+        if (!scene_file_is.is_open()) {
+            std::cerr << "SceneManager Error: Could not open scene file '" << full_scene_path.string() << "' for reading." << std::endl;
+            return false;
+        }
+
+        try {
+            cereal::JSONInputArchive archive(scene_file_is); // Use JSONInputArchive for current .json scene files
+            archive(*new_scene_owner); // Deserialize data from file into the new Scene object
+        } catch (const cereal::Exception& e) {
+            std::cerr << "SceneManager Error: Failed to deserialize scene from '" << full_scene_path.string() << "': " << e.what() << std::endl;
+            scene_file_is.close();
+            return false;
+        }
+        scene_file_is.close(); // Close the file stream
+
+        // Add the newly loaded scene to the list of managed scenes.
+        // It should NOT be set active or have on_load called here. That's set_active_scene's job.
+        std::cout << "SceneManager: Successfully loaded scene '" << new_scene_owner->get_name() << "' and added to list." << std::endl;
+        
+        // Transfer ownership to scene_list.
+        pimpl->scene_list.push_back(std::move(new_scene_owner)); 
+
+        return true; // Successfully loaded and added to list.
+    }
+}  // namespace Salix
