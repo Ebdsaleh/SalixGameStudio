@@ -5,7 +5,7 @@
 //              handling DLL import/export.
 // =================================================================================
 #pragma once
-
+#include <Salix/core/EngineInfo.h>
 #ifdef _WIN32
     // --- FOR THE ENGINE ---
     #ifdef SALIX_BUILD_ENGINE // Defined when building the Engine exe
