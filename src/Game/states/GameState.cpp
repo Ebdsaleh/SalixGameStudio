@@ -3,11 +3,18 @@
 #include <Game/states/GameState.h>
 
 // Include all the headers for the systems and components we need to interact with
+#include <Salix/core/Core.h>
 #include <Salix/core/Engine.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
+#include <Salix/management/SceneManager.h>
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Transform.h>
+#include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/Scene.h>
 #include <Salix/input/IInputManager.h>
 #include <iostream>
+#include <filesystem>
 
 namespace Salix {
 
@@ -43,16 +50,49 @@ namespace Salix {
         std::cout << "Entering GameState..." << std::endl;
         engine = owner_engine;
         asset_manager = engine->get_asset_manager();
-        // --- SETUP PHASE ---
 
-        // 1. Get pointers to the managers we need from the Engine.
+        // 1. Get the path to where the executable is being run from.
+        std::filesystem::path current_working_dir = std::filesystem::current_path();
+
+        // 2. Define the relative path from that location to your project folder.
+        std::filesystem::path relative_path_to_project = "src/Sandbox/TestProject";
+
+        // 3. Combine them to create the true absolute path and set our global variable.
+        Salix::g_project_root_path = (current_working_dir / relative_path_to_project).lexically_normal();
+
+        std::cout << "DEBUG: Project root path set to: " << Salix::g_project_root_path.string() << std::endl;
+       
+
+        
+        // --- SETUP ---
         project_manager = std::make_unique<ProjectManager>();
         project_manager->initialize(asset_manager);
+
         
-        project_manager->create_new_internal_project("TestProject");
+        // Now, use the absolute path to load the project file
+        std::filesystem::path project_file_path = Salix::g_project_root_path / "TestProject.salixproj";
+        Project* current_project = project_manager->load_project_from_file(project_file_path.string());
 
-        project_manager->load_project("src/Sandbox/TestProject/TestProject.salixproj");
+        if (!current_project) {
+            std::cerr << "FATAL: Could not load project." << std::endl;
+            return;
+        }
 
+        SceneManager* scene_manager = current_project->get_scene_manager();
+        scene_manager->set_active_scene(current_project->get_starting_scene());
+
+        // Try to load the scene file.
+        bool loaded_successfully = scene_manager->load_active_scene();
+
+        // If loading failed...
+        if (!loaded_successfully) {
+            // ...create the default scene.
+            current_project->create_and_save_default_scene();
+            // ...and then load the assets for the newly created content.
+            scene_manager->get_active_scene()->load_assets(asset_manager);
+        }
+
+        std::cout << "GameState setup complete. Starting game loop..." << std::endl;
     }
 
     void GameState::on_exit() {
