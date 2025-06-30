@@ -2,7 +2,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <algorithm> // For std::min and std::max
-#include <cereal/cereal.hpp>
+#include <cereal/access.hpp>
 
 namespace Salix {
 
@@ -31,17 +31,17 @@ namespace Salix {
         // t=0.0 returns 'start', t=1.0 returns 'end'.
         static Color lerp(const Color& start, const Color& end, float t); 
         
-        template<class Archive>
-        void serialize(Archive& archive) {
-            archive( CEREAL_NVP(r), CEREAL_NVP(g), CEREAL_NVP(b), CEREAL_NVP(a));
-        }
+    private:
+        friend class cereal::access;
 
-    
+        template<class Archive>
+        void serialize(Archive& archive);
+        
     };
     // --- NEW: STATIC PRE-DEFINED COLORS ---
     // By making these 'inline', we can define them directly in the header.
     // This is the modern C++17 way to handle static const members in a DLL.
-    inline static const Color White   = Color(1.0f, 1.0f, 1.0f);
+    inline static const Color White   = Color(1.0f, 1.0f, 1.0f); 
     inline static const Color Black   = Color(0.0f, 0.0f, 0.0f);
     inline static const Color Red     = Color(1.0f, 0.0f, 0.0f);
     inline static const Color Green   = Color(0.0f, 1.0f, 0.0f);
@@ -49,12 +49,13 @@ namespace Salix {
     inline static const Color Yellow  = Color(1.0f, 1.0f, 0.0f);
     inline static const Color Cyan    = Color(0.0f, 1.0f, 1.0f);
     inline static const Color Magenta = Color(1.0f, 0.0f, 1.0f);
+
     // --- OPERATOR OVERLOADS for color math ---
-    Color operator+(const Color& a, const Color& b);
+    SALIX_API Color operator+(const Color& a, const Color& b);
 
-    Color operator-(const Color& a, const Color& b); 
+    SALIX_API Color operator-(const Color& a, const Color& b); 
 
-    Color operator*(const Color& a, float scalar); 
+    SALIX_API Color operator*(const Color& a, float scalar); 
 
-    Color operator*(float scalar, const Color& a);  // required for lerp method.
+    SALIX_API Color operator*(float scalar, const Color& a);  // required for lerp method.
 } // namespace Salix

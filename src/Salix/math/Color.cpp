@@ -1,8 +1,12 @@
 // Salix/math/Color.cpp
 #include <Salix/math/Color.h>
+#include <Salix/core/SerializationRegistrations.h>
 #include <cmath>
 #include <iostream> // For std::cerr, though not used in this version
 #include <algorithm> // For std::min/max
+#include <cereal/cereal.hpp>
+#include <cereal/archives/binary.hpp>
+#include <cereal/archives/json.hpp>
 
 namespace Salix {
 
@@ -55,6 +59,7 @@ namespace Salix {
         return start * (1.0f - t) + end * t;
     }
 
+    
 
     // --- OPERATOR OVERLOADS for color math ---
     Color operator+(const Color& a, const Color& b) {
@@ -73,4 +78,17 @@ namespace Salix {
     Color operator*(float scalar, const Color& a) {
         return a * scalar; // Just reuse the other operator
     }
+
+    template<class Archive>
+    void Color::serialize(Archive& archive) {
+        archive(
+            cereal::make_nvp("r", r), cereal::make_nvp("g", g),
+            cereal::make_nvp("b", b), cereal::make_nvp("a", a)
+        );
+    }
+
+    template void Color::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);
+    template void Color::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
+    template void Color::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
+    template void Color::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
 } // namespace Salix

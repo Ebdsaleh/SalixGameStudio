@@ -32,7 +32,7 @@ namespace Salix {
             // This is the magic. The CEREAL_NVP macro creates a named key-value pair.
             // When saving, it writes the value of 'x' to the key "x".
             // When loading, it finds the key "x" and reads its value into the 'x' member.
-            archive(CEREAL_NVP(x), CEREAL_NVP(y));
+            archive(cereal::make_nvp("x", x), cereal::make_nvp("y", y));
         }
     };
 
