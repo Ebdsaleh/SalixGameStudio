@@ -1,32 +1,42 @@
 // =================================================================================
-// Filename:    Salix/management/ProjectManager.cpp
-// Author:      SalixGameStudio
+// Filename:    Salix/management/ProjectManager.cpp
+// Author:      SalixGameStudio
 // Description: Implements the ProjectManager, which creates, loads, and manages
-//              game projects.
+//              game projects.
 // =================================================================================
+
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
-#include <Salix/management/FileManager.h> // We need our file manager
-#include <filesystem>                     // The modern C++ way to handle paths
-#include <fstream>                        // For writing the project file
+#include <Salix/management/FileManager.h>
+#include <Salix/management/ProjectConfig.h>
+#include <Salix/management/SceneData.h>
+#include <filesystem>  
+#include <fstream>     
 #include <iostream>
-#include <nlohmann_json/json.hpp>
-
-
+#include <iomanip>     
+// For std::setw if you want formatted JSON output
+// Cereal headers required for ProjectConfig and SceneData manifest
+#include <cereal/cereal.hpp>
+// Cereal archives
+#include <cereal/archives/json.hpp>
+// For JSON archives (ProjectConfig & SceneData manifest)
+// Cereal types (needed for std::string, std::vector inside ProjectConfig/SceneData)
+#include <cereal/types/string.hpp>         
+#include <cereal/types/vector.hpp>         
+#include <cereal/types/array.hpp>
 
 namespace Salix {
-
+    std::filesystem::path g_project_root_path;
     // --- Pimpl struct definition ---
     struct ProjectManager::Pimpl {
         std::unique_ptr<Project> active_project;
         AssetManager* asset_manager = nullptr; // The PM needs to know about the AssetManager
     };
 
-
     // --- Constructor and Destructor ---
     ProjectManager::ProjectManager() : pimpl(std::make_unique<Pimpl>()) {}
     ProjectManager::~ProjectManager() = default;
-    
+
 
     // --- Lifecycle Methods ---
     void ProjectManager::initialize(AssetManager* asset_manager_ptr) {
@@ -34,6 +44,7 @@ namespace Salix {
         std::cout << "ProjectManager Initialized." << std::endl;
         // For our test, we'll immediately load our sandbox project.
         // The path is relative to the executable in the 'build' folder.
+        // Make sure the SandboxProject folder and MyGame.salixproj file exist for testing!
         load_project("../SandboxProject/MyGame.salixproj");
     }
 
@@ -42,6 +53,7 @@ namespace Salix {
             pimpl->active_project->shutdown();
             pimpl->active_project.reset();
         }
+        std::cout << "ProjectManager Shutdown." << std::endl;
     }
 
     void ProjectManager::update(float delta_time) {
@@ -56,27 +68,24 @@ namespace Salix {
         }
     }
 
-    // --- CREATE NEW PROJECT ---
+    // --- CREATE NEW PROJECT (The simpler text-based one - Keeping for reference if needed) ---
+    // This method is not using Cereal. It creates a simple text file.
     bool ProjectManager::create_new_project(const std::string& project_path, const std::string& project_name) {
         std::filesystem::path root_path(project_path);
+        
         std::filesystem::path project_root = root_path / project_name;
+        
 
-        // We don't need to check if it exists first, because create_directories will handle it.
         std::cout << "ProjectManager: Creating new project at '" << project_root.string() << "'" << std::endl;
 
-        // --- THE FIX ---
-        // We now use our new, more robust create_directories function for each path.
-        // This function is designed to handle complex relative paths safely.
         if (!FileManager::create_directories((project_root / "Assets" / "Scenes").string())) return false;
         if (!FileManager::create_directories((project_root / "Assets" / "Scripts").string())) return false;
         if (!FileManager::create_directories((project_root / "Assets" / "Images").string())) return false;
         if (!FileManager::create_directories((project_root / "Assets" / "Audio").string())) return false;
         if (!FileManager::create_directories((project_root / "Assets" / "Models").string())) return false;
 
-        // Create the main project file itself (e.g., "TestProject.salixproj").
         std::filesystem::path project_file_path = project_root / (project_name + ".salixproj");
-        
-        // Check if file already exists before creating it
+
         if (FileManager::path_exists(project_file_path.string())){
              std::cout << "ProjectManager: Project file already exists." << std::endl;
         }
@@ -97,91 +106,160 @@ namespace Salix {
     }
 
     // --- DEVELOPMENT-ONLY METHODS ---
-    
+
     bool ProjectManager::create_new_external_project(const std::string& project_path, const std::string& project_name) {
-        // --- 1. Construct all paths using the robust std::filesystem::path object ---
-        std::filesystem::path project_root = std::filesystem::path(project_path) / project_name;
+        // --- 1. Construct all paths ---
+        std::filesystem::path root_path(project_path);
+        std::filesystem::path project_root = root_path / project_name;
         std::filesystem::path dest_assets_dir = project_root / "Assets";
+        std::filesystem::path dest_scripts_dir = dest_assets_dir / "Scripts";
         std::filesystem::path dest_scenes_dir = dest_assets_dir / "Scenes";
         std::filesystem::path dest_images_dir = dest_assets_dir / "Images";
         std::filesystem::path dest_audio_dir = dest_assets_dir / "Audio";
         std::filesystem::path dest_models_dir = dest_assets_dir / "Models";
+        g_project_root_path = project_root;
 
-        // Check if the project already exists.
-        if (FileManager::path_exists(project_root.string())) {
+        if ( FileManager::path_exists( project_root.string() ) ) {
             std::cout << "ProjectManager: Project '" << project_name << "' already exists. No action taken." << std::endl;
             return true;
         }
-        
+
         std::cout << "ProjectManager: Creating new project '" << project_name << "' at '" << project_path << "'" << std::endl;
 
         // --- 2. Create Destination Directory Structure ---
         if (!FileManager::create_directories(dest_scenes_dir.string())) return false;
-        if (!FileManager::create_directories((dest_assets_dir / "Scripts").string())) return false;
+        if (!FileManager::create_directories((dest_scripts_dir).string())) return false;
         if (!FileManager::create_directories(dest_images_dir.string())) return false;
-        if (!FileManager::create_directories((dest_audio_dir / "Audio").string())) return false;
-        if (!FileManager::create_directories((dest_models_dir / "Models").string())) return false;
-        
-        // --- 3. Generate the Project File from the Template ---
-        std::cout << "ProjectManager: Generating project file..." << std::endl;
-        
-        // Use filesystem paths for source templates as well for consistency.
-        std::filesystem::path project_template_src = "src/Salix/resources/templates/default/project.json";
-        
-        std::ifstream template_file(project_template_src);
-        if (!template_file.is_open()) {
-            std::cerr << "ProjectManager Error: Could not open project template at '" << project_template_src.string() << "'" << std::endl;
-            return false;
+        if (!FileManager::create_directories(dest_audio_dir.string())) return false;
+        if (!FileManager::create_directories(dest_models_dir.string())) return false;
+
+        // --- 3. Generate the Project File (.salixproj) from Template using Cereal ---
+        std::cout << "ProjectManager: Generating project file using Cereal..." << std::endl;
+
+        std::filesystem::path project_config_template_src = "src/Salix/resources/templates/default/project.json";
+
+        Salix::ProjectConfig project_config;
+
+        // --- START DEBUG & PARSING CODE ---
+        // This block now contains all logic for reading the template file and parsing it.
+
+        // Print the absolute path the program is trying to open
+        std::cout << "DEBUG: Attempting to open project template from absolute path: "
+                  << std::filesystem::absolute(project_config_template_src).string() << std::endl;
+        // Print the current working directory - this is key to find out where all our file operations are starting from.
+        std::cout << "DEBUG: Current Working Directory is: '" << std::filesystem::current_path() 
+                  << "'." << std::endl;
+
+        // Check file size (debug)
+        if (FileManager::is_regular_file_and_exists(project_config_template_src.string())) {
+            std::cout << "DEBUG: File size: " << FileManager::get_file_size(project_config_template_src.string()) << " bytes" << std::endl;
+        } else {
+            std::cout << "DEBUG: File does not exist or is not a regular file." << std::endl;
         }
 
-        nlohmann::ordered_json project_data;
-        template_file >> project_data;
-        template_file.close();
+        // Read the entire file content into a string buffer using FileManager utility
+        std::string file_content_buffer = FileManager::read_file_content(project_config_template_src.string());
 
+        // DEBUG: Hex dump of the content read (useful for invisible characters)
+        std::cout << FileManager::generate_hex_dump(project_config_template_src.string());
+
+        
+        // Create a stringstream from the buffer.
+        std::stringstream ss(file_content_buffer);
+
+        // --- Cereal Deserialization: Parse from the stringstream ---
+        try {
+            cereal::JSONInputArchive archive(ss); // Archive parses from stringstream 'ss'
+            std::cout << "DEBUG: Buffer content:\n" << file_content_buffer << std::endl;
+
+            archive (
+                cereal::make_nvp("project_data", project_config.project_data),
+                cereal::make_nvp("build_settings", project_config.build_settings)
+            );
+
+        } catch (const cereal::Exception& e) {
+            std::cerr << "ProjectManager: Error: Failed to deserialize project configuration template: " <<
+            e.what() << std::endl;
+            return false; // Return false on deserialization error
+        }
+        // --- END DEBUG & PARSING CODE ---
+        
+        // --- Modify the ProjectConfig object in C++ memory (rest of your original code) ---
         std::string project_file_name = project_name + ".salixproj";
-        project_data["project_data"] = {
-            { "project_path", std::filesystem::absolute(project_root).string() },
-            { "project_file_name",project_file_name },
-            { "project_name", project_name },
-            { "scenes", project_data["project_data"]["scenes"] },
-            { "starting_scene", project_data["project_data"]["starting_scene"]}
+        project_config.project_data.project_path = std::filesystem::absolute(project_root).string();
+        project_config.project_data.project_file_name = project_file_name;
+        project_config.project_data.project_name = project_name;
 
-        };
+        // This line is redundant and can be removed
+        // project_config.build_settings.engine_version = project_config.build_settings.engine_version; 
+        project_config.build_settings.game_dll_name = project_name + ".dll";
 
-        project_data["build_settings"] = {
-            {"engine_version", project_data["build_settings"]["engine_version"]},
-            {"game_dll_name",  project_name + ".dll"}
-        };
+        bool default_scene_exists_in_config = false;
+        for (const auto& scene_info: project_config.project_data.scenes) {
+            if (scene_info.name == "Default") {
+                default_scene_exists_in_config = true;
+                break;
+            }
+        }
+        if (!default_scene_exists_in_config) {
+            project_config.project_data.scenes.emplace_back("Default", "Assets/Scenes/Default.scene");
+        }
+        project_config.project_data.starting_scene = "Default";
 
         std::filesystem::path project_file_dest = project_root / project_file_name;
-        std::ofstream new_project_file(project_file_dest);
-        new_project_file << std::setw(4) << project_data << std::endl;
-        new_project_file.close();
+        std::ofstream new_project_file_os(project_file_dest);
+        if ( !new_project_file_os.is_open() ) {
+            std::cerr << "ProjectManager Error: Could not create new project file at '" << project_file_dest.string() << "'" << std::endl;
+            return false;
+        }
+      
+        try {
+            cereal::JSONOutputArchive archive(new_project_file_os);
+            archive(project_config);
+        } catch (const cereal::Exception& e) {
+            std::cerr << "ProjectManager: Error: Failed to serialize project config: " << e.what() << std::endl;
+            new_project_file_os.close();
+            return false;
+        }
+        new_project_file_os.close();
 
-        // --- 4. Copy the other template files (scene and sprite) ---
-        std::cout << "ProjectManager: Copying default assets..." << std::endl;
-        
-        // Define the CORRECT source paths, based on your directory structure.
-        std::filesystem::path scene_template_src = "src/Salix/resources/templates/default/Assets/Scenes/JSON/Default.json";
+        // --- 4. Copying default asset templates (unchanged) ---
+        std::cout << "ProjectManager: Copying default asset templates..." << std::endl;
+
+        // std::filesystem::path scene_template_src = "src/Salix/resources/templates/default/Assets/Scenes/JSON/Default.json";
+        //std::filesystem::path scene_manifest_template_src = "src/Salix/resources/templates/default/Assets/Scenes/Default.scene.manifest";
         std::filesystem::path sprite_template_src = "src/Salix/resources/templates/default/Assets/Images/Sprites/test.png";
-
-        // Define the destination paths using the path objects.
-        std::filesystem::path scene_template_dest = dest_scenes_dir / "Default.scene";
+        
+        //std::filesystem::path scene_template_dest = dest_scenes_dir / "Default.scene";
+        //std::filesystem::path scene_manifest_dest = dest_scenes_dir / "Default.scene.manifest";
         std::filesystem::path sprite_template_dest = dest_images_dir / "test.png";
 
-        if (!FileManager::copy_file(scene_template_src.string(), scene_template_dest.string())) return false;
-        if (!FileManager::copy_file(sprite_template_src.string(), sprite_template_dest.string())) return false;
+        /*if ( !FileManager::copy_file(scene_template_src.string(), scene_template_dest.string() ) ){
+            std::cerr << "ProjectManager Error: Failed to copy default scene template." << std::endl;
+            return false;
+        }
+         */
+        // The manifest file might play a part at a later implementation but it's not required for now.
+        /* if ( !FileManager::copy_file(scene_manifest_template_src.string(), scene_manifest_dest.string()) ) {
+            std::cerr << "ProjectManager Error: Failed to copy default scene manifest template." << std::endl;
+            return false;
+        }
+        */
 
-
+        if (!FileManager::copy_file(sprite_template_src.string(), sprite_template_dest.string())) {
+            std::cerr << "ProjectManager Error: Failed to copy default sprite template." << std::endl;
+            return false;
+        }
+        
         std::cout << "ProjectManager: Successfully created new project '" << project_name << "'." << std::endl;
         return true;
     }
-    
+
 
     bool ProjectManager::create_new_internal_project(const std::string& project_name) {
         // This is the wrapper that calls the external version with our fixed sandbox path.
-        const std::string internal_path = "src/Sandbox";
-        return create_new_external_project(internal_path, project_name);
+        const std::filesystem::path internal_path = "src/Sandbox";
+        return create_new_external_project(internal_path.string(), project_name);
     }
     // --- END OF DEVELOPER-ONLY METHODS ---
 
@@ -193,26 +271,56 @@ namespace Salix {
         }
 
         if (pimpl->active_project) {
-            pimpl->active_project->shutdown();
+            pimpl->active_project->shutdown(); // Shutdown current project if any
         }
 
-        std::filesystem::path path_obj(project_file_path);
-        std::string project_name = path_obj.stem().string();
-        std::string root_path = path_obj.parent_path().string();
+        std::cout << "ProjectManager: Loading project from '" << project_file_path << "'..." << std::endl;
 
-        pimpl->active_project = std::make_unique<Project>(project_name, root_path);
+        Salix::ProjectConfig loaded_config; // Object to hold deserialized project data
 
-        // --- SIMULATE PARSING THE FILE ---
-        pimpl->active_project->add_scene_path("Assets/Scenes/MainLevel.scene");
-        pimpl->active_project->set_starting_scene("MainLevel");
+        // --- Cereal Deserialization of ProjectConfig ---
+        std::ifstream project_file_is(project_file_path);
+        if (!project_file_is.is_open()) {
+            std::cerr << "ProjectManager Error: Could not open project file '" << project_file_path << "' for reading." << std::endl;
+            return false;
+        }
+
+        try {
+            cereal::JSONInputArchive archive(project_file_is);
+            archive(loaded_config); // Load the entire project config
+        } catch (const cereal::Exception& e) {
+            std::cerr << "ProjectManager Error: Failed to deserialize project config from '" << project_file_path << "': " << e.what() << std::endl;
+            project_file_is.close();
+            return false;
+        }
+        project_file_is.close(); // Close the file stream after deserialization
+
+        // --- Use the loaded_config to create and initialize the Project ---
+        // The Project constructor that takes name and root_path is ideal here.
+        pimpl->active_project = std::make_unique<Project>(
+            loaded_config.project_data.project_name,
+            loaded_config.project_data.project_path
+        );
+
+        // Now, populate the Project with loaded scene paths and starting scene info
+        // Your Project::add_scene_path method signature is `const std::string& path_to_scene_file`.
+        // If you later change it to accept name, you'd modify this line accordingly.
+        for (const auto& scene_info : loaded_config.project_data.scenes) {
+            pimpl->active_project->add_scene_path(scene_info.name, scene_info.path);
+        }
+        pimpl->active_project->set_starting_scene(loaded_config.project_data.starting_scene);
+
 
         // --- KICK OFF THE CHAIN OF COMMAND ---
         if (pimpl->active_project) {
-            pimpl->active_project->initialize(pimpl->asset_manager);
+            // The Project will now initialize itself, which includes creating the SceneManager
+            // and telling it to load the starting scene.
+            pimpl->active_project->initialize(pimpl->asset_manager); // Pass the asset manager
         }
+        std::cout << "ProjectManager: Successfully loaded project '" << loaded_config.project_data.project_name << "'." << std::endl;
         return true;
     }
-    
+
 
     Project* ProjectManager::get_active_project(){
         if (pimpl->active_project) {
@@ -222,10 +330,8 @@ namespace Salix {
     }
 
     void ProjectManager::set_active_project(const std::string& /*project_name*/) {
-        // Search file system or perhaps,
-        // use a recent_projects map<const std::string& project_name, const std::string& file_path>() 
-        // to find the project file then go the process of creating and loading the project from that data.
-        // like its done in 'load_project'.
-        pimpl->active_project = std::make_unique<Project>();  // placeholder for now. This method isn't used yet.
+        // This method still needs to be fully implemented if you use it.
+        // It would likely involve loading a project similarly to load_project.
+        pimpl->active_project = std::make_unique<Project>(); // placeholder for now.
     }
 } // namespace Salix
