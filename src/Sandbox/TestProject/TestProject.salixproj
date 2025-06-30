@@ -1,11 +1,24 @@
 {
-    "build_settings": {
-        "game_dll_name": "TestProject.dll"
-    },
-    "engine_version": "0.1.0",
-    "project_name": "TestProject",
-    "scenes": [
-        "Assets/Scenes/Default.scene"
-    ],
-    "starting_scene": "Assets/Scenes/Default.scene"
+    "value0": {
+        "project_data": {
+            "project_path": "C:\\Users\\nadir\\repos\\CPP\\SalixGameStudio\\src\\Sandbox\\TestProject",
+            "project_file": "TestProject.salixproj",
+            "project_name": "TestProject",
+            "scenes": [
+                {
+                    "name": "Default.scene",
+                    "path": "Assets/Scenes/Default.scene"
+                },
+                {
+                    "name": "Default",
+                    "path": "Assets/Scenes/Default.scene"
+                }
+            ],
+            "starting_scene": "Default"
+        },
+        "build_settings": {
+            "engine_version": "0.1.0",
+            "game_dll_name": "TestProject.dll"
+        }
+    }
 }
