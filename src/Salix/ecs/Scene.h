@@ -28,12 +28,17 @@ class AssetManager;
         void on_unload();
         bool load_content_from_file(const std::string& project_root_path,  AssetManager* assetManager);
 
+         // Tries to deserialize content from this scene's file path.
+        bool load_from_file();
+        // Loops through entities and tells them to load their assets (textures, etc.).
+        void load_assets(AssetManager* asset_manager);
+
         // A method to create a new entity within this scene.
         Entity* create_entity(const std::string& new_entity_name = "Entity");
         
         // A method to get an Entity by name.
         Entity* get_entity_by_name(const std::string& entity_name);  // Had to add this for testing in 'Game/GameState.cpp'
-        
+        std::vector<Entity*> get_entities(); 
         // --- Public Getters for Shell Info ---
         const std::string& get_name() const;
         const std::string& get_file_path() const; 

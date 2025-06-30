@@ -137,70 +137,7 @@ namespace Salix {
         // --- Fallback Injection + Serialization ---
         std::cerr << "Scene Warning: Scene file missing or invalid. Injecting default entity for '" << name << "'..." << std::endl;
         std::cout <<"[SCENE:] name is: " <<  this->name << std::endl;
-        Entity* player = create_entity("Player");
-        
-        if (player) {
-            std::cout << "[SCENE:] Player Entity Created..." << std::endl;
-        }
-
-        Transform* transform = player->get_transform();
-        if (transform) {
-            transform->position = { 640.0f, 360.0f, 0.0f };
-            transform->rotation = { 0.0f, 0.0f, 0.0f };
-            transform->scale    = { 1.0f, 1.0f, 1.0f };
-            std::cout << "[SCENE:] player->transform exists and attributes updated. " << std::endl;
-        }
-        
-        Sprite2D* player_sprite = player->add_element<Sprite2D>();
-
-        if (player_sprite != nullptr) {
-            std::cout << "[SCENE:] player_sprite successfully created." << std::endl;
-
-            player_sprite->texture_path = "Assets/Images/test.png";
-            std::cout << "[SCENE:] Assigned texture path to Sprite2D." << std::endl;
-             // try to load texture after serialization
-            player_sprite->load_texture(asset_manager, player_sprite->get_texture_path()); // crashing here
-            std::cout << "[SCENE:] Loaded texture: " << player_sprite->get_texture_path() << std::endl;
-        }
-
-        // --- Ensure the scene directory exists ---
-        std::error_code ec;
-        std::filesystem::create_directories(full_path.parent_path(), ec);
-        if (ec) {
-            std::cerr << "[ERROR] Failed to create scene directory '" << full_path.parent_path().string()
-                    << "': " << ec.message() << std::endl;
-        } else {
-            std::cout << "[DEBUG] Scene directory ready: " << full_path.parent_path().string() << std::endl;
-        }
-        /* --- TEST DEBUG CODE ---
-        if (!std::filesystem::exists(full_path.parent_path())) {
-            std::cerr << "[DEBUG] Directory does NOT exist at time of open()." << std::endl;
-        }
-        std::cout << "[DEBUG] Full path: '" << full_path.string() << "'" << std::endl;
-        std::ofstream dummy("Assets/Scenes/test_file.txt");
-            dummy << "test";
-        // --- END TEST DEBUG CODE --- 
-        */
-        // --- Prepare to write the scene file ---
-        std::cout << "[DEBUG] Attempting to write scene file: " << full_path.string() << std::endl;
-
-        std::ofstream os(full_path.string(), std::ios::out | std::ios::trunc);
-        if (!os.is_open()) {
-            std::cerr << "[ERROR] Could not open scene file for writing: " << full_path.string() << std::endl;
-        } else {
-            try {
-                cereal::JSONOutputArchive archive(os);
-                archive(*this);  // Serialize entire scene object
-                std::cout << "[SUCCESS] Scene '" << name << "' saved to: " << full_path.string() << std::endl;
-            } catch (const cereal::Exception& e) {
-                std::cerr << "[ERROR] Failed to serialize scene: " << e.what() << std::endl;
-            } catch (const std::exception& e) {
-                std::cerr << "[ERROR] std::exception while serializing: " << e.what() << std::endl;
-            } catch (...) {
-                std::cerr << "[ERROR] Unknown exception during serialization." << std::endl;
-            }
-        }
-       
+    
         
     }
 
@@ -232,6 +169,50 @@ namespace Salix {
         }
     }
 
+    bool Salix::Scene::load_from_file() {
+        // 1. Get the scene's relative path and combine it with the project root.
+        std::filesystem::path full_path = Salix::g_project_root_path / path;
+
+        // 2. Check if the file exists. If not, we can't load it.
+        if (!FileManager::path_exists(full_path.string())) {
+            std::cout << "Scene Info: File '" << full_path.string() << "' does not exist." << std::endl;
+            return false;
+        }
+
+        // 3. Open the file for reading.
+        std::ifstream is(full_path.string());
+        if (!is.is_open()) {
+            std::cerr << "Scene Error: Could not open file '" << full_path.string() << "' for reading." << std::endl;
+            return false;
+        }
+
+        std::cout << "Scene: Loading content from '" << full_path.string() << "'..." << std::endl;
+
+        // 4. Try to deserialize the data into this object (`*this`).
+        try {
+            cereal::JSONInputArchive archive(is);
+            archive(*this); // Populates this Scene object with data from the file
+            return true;  // Success!
+        } catch (const cereal::Exception& e) {
+            std::cerr << "Scene Error: Failed to deserialize '" << name << "': " << e.what() << std::endl;
+            return false; // Deserialization failed.
+        }
+    }
+
+    // Loops through entities and tells them to load their assets (textures, etc.).
+    void Scene::load_assets(AssetManager* asset_manager) {
+        std::cout << "Scene '" << get_name() << "': Loading assets for entities..." << std::endl;
+
+        // Loop through all entities currently in this scene
+        for (Entity* entity : get_entities()) {
+            if (entity) {
+                // Tell each entity to perform its on_load logic,
+                // which will then tell its components to load their assets.
+                entity->on_load(asset_manager);
+            }
+        }
+    }
+
     Entity* Scene::create_entity(const std::string& name_val) { // Renamed parameter for clarity
         auto new_entity_owner = std::make_unique<Entity>();
         Entity* new_entity = new_entity_owner.get();
@@ -258,6 +239,21 @@ namespace Salix {
     }
     return nullptr; // Not found
     }
+    
+    std::vector<Entity*> Scene::get_entities() {
+        std::vector<Entity*> raw_pointers;
+        // Reserve space for efficiency (optional but good practice).
+        raw_pointers.reserve(pimpl->entities.size());
+        
+        // Loop through the vector of unique_ptrs.
+        for (const auto& entity_ptr : pimpl->entities) {
+        
+        // Get the raw pointer from the unique_ptr and add it to our new vector.
+        raw_pointers.push_back(entity_ptr.get());
+        }
+
+        return raw_pointers;
+    }
 
     // --- CEREAL IMPLEMENTATION ---
     template <class Archive>
@@ -269,7 +265,7 @@ namespace Salix {
         // When deserializing (loading a shell), pimpl->entities might be empty.
         // When deserializing a FULL scene (e.g., in SceneManager::load_scene, which loads shell+content),
         // or when saving a loaded scene, this will serialize/deserialize the Pimpl's entities.
-        archive(cereal::make_nvp("entities", pimpl)); // Corrected key name for Pimpl's content
+        archive(cereal::make_nvp("entities", pimpl->entities)); // Corrected key name for Pimpl's content
     }
 
     // Explicit instantiations for Scene

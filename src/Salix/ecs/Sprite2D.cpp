@@ -14,7 +14,7 @@
 #include <filesystem>
 
 namespace Salix {
-    extern std::filesystem::path g_project_root_path;
+
     struct Sprite2D::Pimpl {
         ITexture* texture = nullptr;
             int width = 0;
@@ -45,45 +45,27 @@ namespace Salix {
         load_texture(asset_manager, texture_path);
     }
 
-    void Sprite2D::load_texture(AssetManager* asset_manager, const std::string& file_path) {
-        if (file_path.empty()) {
-            std::cerr << "Warning: Provided texture path is empty.\n";
+    void Sprite2D::load_texture(AssetManager* asset_manager, const std::string& relative_file_path) {
+        if (relative_file_path.empty()) {
+            std::cerr << "Warning: Sprite2D::load_texture called with an empty path.\n";
             return;
         }
-         // ---- ADD THIS DEBUG BLOCK ----
-        std::cout << "\n--- SPRITE2D DEBUG ---" << std::endl;
-        std::cout << "1. Project Root Path = '" << g_project_root_path.string() << "'" << std::endl;
-        std::cout << "2. Incoming file_path  = '" << file_path << "'" << std::endl;
-        // --- END DEBUG BLOCK ---
-        
-        // 1. Create a path object from the project-relative string
-        std::filesystem::path relative_path(file_path);
 
-        // 2. Combine the project's root path with the relative asset path.
-        //    The '/' operator is the correct, platform-agnostic way to join paths.
-        std::filesystem::path absolute_path = g_project_root_path / relative_path;
+        // 1. Store the portable, project-relative path.
+        this->texture_path = relative_file_path;
 
-        // 3. Normalize the path. This resolves any ".." or "." segments and
-        //    converts separators to the OS-preferred format (e.g., '\' on Windows).
-        absolute_path = absolute_path.lexically_normal();
+        // 2. Ask the AssetManager to load it using the relative path.
+        //    The AssetManager is now responsible for converting it to an absolute path.
+        pimpl->texture = asset_manager->get_texture(this->texture_path);
 
-        // 4. Use the final, absolute path string to load the resource.
-        texture_path = absolute_path.string();
-        // ---- ADD THIS FINAL DEBUG BLOCK ----
-        std::cout << "\n--- FINAL POINTER CHECK ---" << std::endl;
-        std::cout << "1. asset_manager pointer is: " << (asset_manager ? "VALID" : "!!! NULL !!!") << std::endl;
-        std::cout << "2. pimpl pointer is:         " << (pimpl ? "VALID" : "!!! NULL !!!") << std::endl;
-        std::cout << "--- ABOUT TO CALL get_texture ---\n" << std::endl;
-        // ------------------------------------
-        std::cout << "Sprite2D: load_texture - texture_path is set to '" << texture_path << "'" << std::endl;
-        pimpl->texture = asset_manager->get_texture(texture_path);  // this is where it crashes
+        // 3. Update dimensions if the texture was loaded successfully.
         if (pimpl->texture) {
             pimpl->width = pimpl->texture->get_width();
             pimpl->height = pimpl->texture->get_height();
         } else {
             pimpl->width = 0;
             pimpl->height = 0;
-            std::cerr << "Warning: Failed to load texture for Sprite2D: " << texture_path << std::endl;
+            std::cerr << "Warning: Failed to load texture for Sprite2D using relative path: " << this->texture_path << std::endl;
         }
     }
 
@@ -111,6 +93,10 @@ namespace Salix {
                 
                 // Calculate the rotation and pivot in pixels
                 Point pivot_point;
+                /* --- TEST CODE ---
+                 pivot_point.x = static_cast<int>(world_pos.x -(dest_rect.w * pivot.x));
+                pivot_point.y = static_cast<int>(world_pos.y -(dest_rect.h * pivot.y));
+                */
                 pivot_point.x = static_cast<int>(dest_rect.w * pivot.x);
                 pivot_point.y = static_cast<int>(dest_rect.h * pivot.y);
 
@@ -144,9 +130,11 @@ namespace Salix {
     void Sprite2D::serialize(Archive& archive){
         archive(cereal::base_class<RenderableElement>(this));
         // The serialize function now accesses the public member directly.
-        archive (
-            cereal::make_nvp("color", color), cereal::make_nvp("offset", offset),
-            cereal::make_nvp("pivot", pivot), cereal::make_nvp("flip_h", flip_h),
+        archive(
+            cereal::make_nvp("color", color),
+            cereal::make_nvp("offset", offset),
+            cereal::make_nvp("pivot", pivot),
+            cereal::make_nvp("flip_h", flip_h),
             cereal::make_nvp("flip_v", flip_v),
             cereal::make_nvp("sorting_layer", sorting_layer),
             cereal::make_nvp("texture_path", texture_path)
@@ -157,6 +145,5 @@ namespace Salix {
     template void Sprite2D::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive& );
     template void Sprite2D::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
     template void Sprite2D::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
-
 
 } // namespace Salix

@@ -46,15 +46,29 @@ namespace Salix {
     // A useful method for re-loading textures and setting Renderable elements to
     // their loaded textures width and height.
     void Entity::on_load(AssetManager* asset_manager) {
+        // Reset runtime caches before populating them
+        pimpl->transform = nullptr;
+        pimpl->renderable_elements.clear();
+
+        // For each element that was just deserialized...
         for (auto& element : pimpl->all_elements) {
-            
             if(element) {
-                element->owner = this;
+                // 1. Re-establish the owner link
+                element->set_owner(this);
+
+                // 2. Re-populate the cached raw pointers
+                if (auto* t = dynamic_cast<Transform*>(element.get())) {
+                    pimpl->transform = t;
+                }
+                if (auto* r = dynamic_cast<RenderableElement*>(element.get())) {
+                    pimpl->renderable_elements.push_back(r);
+                }
+
+                // 3. Tell the element to load its own assets
                 element->on_load(asset_manager);
             }
         }
     }
-
     
     void Entity::update(float delta_time) {
         for (auto& element : pimpl->all_elements) {
@@ -137,9 +151,10 @@ namespace Salix {
     template<class Archive>
     void Entity::serialize(Archive& archive) {
         archive(
-            cereal::make_nvp("PimplData", pimpl)
+        cereal::make_nvp("name", pimpl->name),
+        cereal::make_nvp("id", pimpl->id),
+        cereal::make_nvp("elements", pimpl->all_elements)
         );
-        
     }
 
     template void Entity::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);

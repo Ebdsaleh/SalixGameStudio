@@ -19,7 +19,9 @@ namespace Salix {
             virtual void initialize() {}
             virtual void update(float /*delta_time*/) {}
             virtual void shutdown() {}
-            
+            void set_owner(Entity* owner_entity) {
+                owner = owner_entity;
+            }
             template <class Archive>
             void serialize(Archive& /* archive*/) {
                 /// The base class of the hierarchy has no parent to serialize.
