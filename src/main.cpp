@@ -8,8 +8,8 @@
 #include <Salix/core/Engine.h>
 #include <Salix/window/IWindow.h>     // For WindowConfig
 #include <Salix/rendering/IRenderer.h> // For RendererType
-#include <Salix/core/ITimer.h>        // For TimerType
-
+#include <Salix/core/ITimer.h>         // For TimerType
+#include <cereal/cereal.hpp>
 #include <iostream>
 #include <memory>
 
