@@ -4,8 +4,7 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include <cereal/cereal.hpp>
-#include <cereal/types/string.hpp>
+#include <cereal/access.hpp>
 
 namespace Salix {
 
@@ -17,33 +16,36 @@ class AssetManager;
     class SALIX_API Scene {
     public:
         // The constructor now just takes a name.
-        Scene(const std::string& name);
+        Scene();
+        Scene(const std::string& new_scene_name); // LEAVE THIS FUCKING THING ALONE!!!
+        Scene(const std::string& scene_name, const std::string& relative_file_path);
         ~Scene();
 
         // Lifecycle methods
-        void on_load(AssetManager* asset_manager);
+        void on_load(AssetManager* asset_manager, const std::string& project_root_path);
         void update(float delta_time);
         void render(IRenderer* renderer);
         void on_unload();
+        bool load_content_from_file(const std::string& project_root_path,  AssetManager* assetManager);
 
         // A method to create a new entity within this scene.
-        Entity* create_entity(const std::string& name = "Entity");
-        const std::string& get_name() const;
-
+        Entity* create_entity(const std::string& new_entity_name = "Entity");
         
         // A method to get an Entity by name.
         Entity* get_entity_by_name(const std::string& entity_name);  // Had to add this for testing in 'Game/GameState.cpp'
-
-        template <class Archive>
-        void serialize(Archive& archive) {
-            archive(
-                CEREAL_NVP(pimpl->scene_name), CEREAL_NVP(pimpl->entities)
-            );
-        }
+        
+        // --- Public Getters for Shell Info ---
+        const std::string& get_name() const;
+        const std::string& get_file_path() const; 
+        
 
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
-        
+        friend class cereal::access;
+        template <class Archive>
+        void serialize(Archive& archive);
+        std::string name;
+        std::string path;
     };
 } // namespace Salix
