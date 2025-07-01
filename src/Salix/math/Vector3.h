@@ -180,5 +180,18 @@ namespace Salix {
         return Vector3 { result_x, result_y, result_z };
     }
 
-    
+    /// Calculates the dot product of two vectors.
+    inline float dot(const Vector3& a, const Vector3& b) {
+        return a.x * b.x + a.y * b.y + a.z * b.z;
+    }
+
+    /// Calculates the cross product of two vectors, returning a new vector
+    /// that is perpendicular to both a and b.
+    inline Vector3 cross(const Vector3& a, const Vector3& b) {
+        return Vector3(
+            a.y * b.z - a.z * b.y,
+            a.z * b.x - a.x * b.z,
+            a.x * b.y - a.y * b.x
+        );
+    }     
 } // namespace Salix

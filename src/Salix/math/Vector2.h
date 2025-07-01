@@ -160,4 +160,14 @@ namespace Salix {
         return Vector2 { result_x, result_y };
     }
     
+    // Calculates the dot product of two 2D vectors.
+    inline float dot(const Vector2& a, const Vector2& b) {
+        return a.x * b.x + a.y * b.y;
+    }
+    
+    // Calculates the 2D pseudo-cross product, which returns a scalar (float).
+    // This is useful for determining winding order and orientation.
+    inline float cross(const Vector2& a, const Vector2& b) {
+        return a.x * b.y - a.y * b.x;
+    }
 } // namespace Salix
