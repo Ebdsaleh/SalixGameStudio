@@ -4,6 +4,7 @@
 #include <Salix/core/Core.h>
 #include <cmath>  // For the sqrtf function.
 #include <cereal/cereal.hpp>
+#include <vector>
 namespace Salix {
 
     struct SALIX_API Vector3 {
@@ -38,37 +39,146 @@ namespace Salix {
             // When loading, it finds the key "x" and reads its value into the 'x' member.
             archive(cereal::make_nvp("x", x), cereal::make_nvp("y", y), cereal::make_nvp("z", z));
         }
+
+        Vector3& operator+=(const Vector3& other) {
+        // Modify this object's members
+        x += other.x;
+        y += other.y;
+        z += other.z;
+
+        // Return a reference to this object
+        return *this;
+    }
+
+    Vector3& operator-=(const Vector3& other) {
+        x -= other.x;
+        y -= other.y;
+        z -= other.z;
+        return *this;
+    }
+
+    Vector3& operator*=(float scalar) {
+        x *= scalar;
+        y *= scalar;
+        z *= scalar;
+        return *this;
+    }
+
+    Vector3& operator/=(float divisor) {
+        if (divisor != 0.0f) {
+            x /= divisor;
+            y /= divisor;
+            z /= divisor;
+        } else {
+            // Handle error, e.g., set to zero or log a warning.
+            x = 0.0f;
+            y = 0.0f;
+            z = 0.0f;
+        }
+        return *this;
+    }
     };
 
     // Operator overloads
     // Adding Vector3's.
-    Vector3 operator+(const Vector3& a, const Vector3& b);
+    inline Vector3 operator+(const Vector3& a, const Vector3& b) {
+        return {a.x + b.x, a.y + b.y, a.z + b.z};
+    }
 
-    Vector3 operator+(const Vector3& a, float increment);
+    inline Vector3 operator+(const Vector3& a, float increment) {
+        return Vector3 { a.x + increment, a.y + increment, a.x + increment };
+    }
 
-    Vector3 operator+(float increment, const Vector3& a);
+    inline Vector3 operator+(float increment, const Vector3& a) {
+        return Vector3 { increment + a.x, increment + a.y, increment + a.z };
+    }
 
-    // Subtracting Vector3's
+    // Subtracting Vector3's.
+    inline Vector3 operator-(const Vector3& a, const Vector3& b) {
+        return {a.x - b.x, a.y - b.y, a.z - b.z};
+    }
 
-    Vector3 operator-(const Vector3& a, const Vector3& b); 
+    inline Vector3 operator-(const Vector3& a, float decrement) {
+        return Vector3 { a.x - decrement, a.y - decrement, a.z - decrement };
+    }
 
-    Vector3 operator-(const Vector3& a, float decrement);
-
-    Vector3 operator-(float decrement, Vector3& a);
+    inline Vector3 operator-(float decrement, const Vector3& a) {
+        return Vector3 { decrement - a.x, decrement - a.y, decrement - a.z };
+    }
 
     // Multiplying Vector3's.
-    Vector3 operator*(const Vector3& a, const Vector3& b);
+    inline Vector3 operator*(const Vector3& a, const Vector3& b) {
+        return {a.x * b.x, a.y * b.y, a.z * b.z};
+    }
 
-    Vector3 operator*(float scalar, const Vector3& a);
+    inline Vector3 operator*(float scalar, const Vector3& a) {
+        return Vector3 { scalar * a.x, scalar * a.y, scalar * a.z };
+    }
 
-    Vector3 operator*(const Vector3& a, float scalar);
+    inline Vector3 operator*(const Vector3& a, float scalar) {
+        return Vector3 { a.x * scalar, a.y * scalar, a.z * scalar };
+    }
 
     // Dividing Vector3's.
-    Vector3 operator/(const Vector3& a, const Vector3& b);
+    inline Vector3 operator/(const Vector3& a, const Vector3& b) {
+        // Check each axis individually to handle division by Zero safely.
 
-    Vector3 operator/(const Vector3& a, float divisor);
+        float result_x = 0.0f;
+        if (b.x != 0.0f) {
+            result_x = a.x / b.x;
+        } else {
+            std::cerr << "Warning: Division by zero on X-axis!" << std::endl;
+        }
 
-    Vector3 operator/(float divisor, const Vector3& a);
+        float result_y = 0.0f;
+        if (b.y !=0) {
+            result_y = a.y / b.y;
+        } else {
+            std::cerr << "Warning: Division by zero on Y-axis!" << std::endl;
+        }
 
-     
+        float result_z = 0.0f;
+        if (b.z !=0) {
+            result_z = a.z / b.z;
+        } else {
+            std::cerr << "Warning: Division by zero on Z-axis!" << std::endl;
+        }
+        return { result_x, result_y, result_z };
+    }
+
+    // Vector3 / float
+    inline Vector3 operator/(const Vector3& a, float divisor) {
+        if (divisor == 0.0f) {
+            std::cerr << "Warning: Division by zero scalar/divisor!" << std::endl;
+            return Vector3 { 0.0f, 0.0f, 0.0f };
+        }
+        return Vector3 { a.x / divisor, a.y / divisor, a.z / divisor };
+    }
+
+    inline Vector3 operator/(float divisor, const Vector3& a) {
+        float result_x = 0.0f;
+        if (a.x != 0.0f) {
+            result_x = divisor / a.x;
+        } else {
+            std::cerr << "Warning: Division by zero on X-axis!" << std::endl;
+        }
+
+        float result_y = 0.0f;
+        if (a.y != 0.0f) {
+            result_y = divisor / a.y;
+        } else {
+            std::cerr << "Warning: Division by zero on Y-axis!" << std::endl;
+        }
+
+        float result_z = 0.0f;
+        if (a.z != 0.0f) {
+            result_z = divisor / a.z;
+        } else {
+            std::cerr << "Warning: Division by zero on Z-axis!" << std::endl;
+        }
+
+        return Vector3 { result_x, result_y, result_z };
+    }
+
+    
 } // namespace Salix

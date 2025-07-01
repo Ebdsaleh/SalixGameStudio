@@ -34,37 +34,130 @@ namespace Salix {
             // When loading, it finds the key "x" and reads its value into the 'x' member.
             archive(cereal::make_nvp("x", x), cereal::make_nvp("y", y));
         }
+
+        Vector2& operator+=(const Vector2& other) {
+        // Modify this object's members
+        x += other.x;
+        y += other.y;
+        // Return a reference to this object
+        return *this;
+    }
+
+    Vector2& operator-=(const Vector2& other) {
+        x -= other.x;
+        y -= other.y;
+        return *this;
+    }
+
+    Vector2& operator*=(float scalar) {
+        x *= scalar;
+        y *= scalar;
+        return *this;
+    }
+
+    Vector2& operator/=(float divisor) {
+        if (divisor != 0.0f) {
+            x /= divisor;
+            y /= divisor;
+        } else {
+            // Handle error, e.g., set to zero or log a warning.
+            x = 0.0f;
+            y = 0.0f;
+        }
+        return *this;
+    }
+
     };
 
-    // --- Overloading declarations ---
+    // --- Overloading definitions ---
     // Addition
-    Vector2 operator+(const Vector2& a, const Vector2& b);
+    inline Vector2 operator+(const Vector2& a, const Vector2& b) {
+        return Vector2 { a.x + b.x, a.y + b.y };
+    }
 
-    Vector2 operator+(const Vector2& a, float increment);
+    inline Vector2 operator+(const Vector2& a, float increment) {
+        return Vector2 { a.x + increment, a.y + increment };
+    }
 
-    Vector2 operator+(float increment, const Vector2& a);
+    inline Vector2 operator+(float increment, const Vector2& a) {
+        return Vector2 { increment + a.x, increment + a.y };
+    }
 
     // Subtraction
-    Vector2 operator-(const Vector2& a, const Vector2& b);
+    inline Vector2 operator-(const Vector2& a, const Vector2& b) {
+        return Vector2 { a.x-b.x, a.y - b.y };
+    }
 
-    Vector2 operator-(const Vector2& a, float decrement);
+    inline Vector2 operator-(const Vector2& a, float decrement) {
+        return Vector2 { a.x - decrement, a.y - decrement };
+    }
 
-    Vector2 operator-(float decrement, const Vector2& a);
+    inline Vector2 operator-(float decrement, const Vector2& a) {
+        return Vector2 { decrement - a.x, decrement - a.y };
+    }
 
-    // Multiplication
-    Vector2 operator*(const Vector2& a, const Vector2& b);
+    // Multiplication 
+    // Multiply 2 Vector2's
+    inline Vector2 operator*(const Vector2& a, const Vector2& b) {
+        return Vector2 { a.x * b.x, a.y * b.y };
+    }
 
-    Vector2 operator*(const Vector2& a, float scalar);
+    // Multiply Vector2 and a float 
+    inline Vector2 operator*(const Vector2& a, float scalar) {
+        return Vector2 { a.x * scalar, a.y * scalar };
+    }
 
-    Vector2 operator*(float scalar, const Vector2& a);
+    // Multiply a float and a Vector2
+    inline Vector2 operator*(float scalar, const Vector2& a) {
+        return Vector2 {  scalar * a.x, scalar * a.y };
+    }
 
-    // Division
-    Vector2 operator/(const Vector2& a, const Vector2& b);
+    // Vector2 Division
+    inline Vector2 operator/(const Vector2& a, const Vector2& b){
+        // Division by zero check.
+        float result_x = 0.0f;
+        if (b.x != 0.0f) {
+            result_x = a.x / b.x;
+        } else {
+            std::cerr << "Warning: Division by zero on X-axis!" << std::endl;
+        }
 
-    Vector2 operator/(const Vector2& a, float divisor);
+        float result_y = 0.0f;
+        if (b.y != 0.0f) {
+            result_y = a.y / b.y;
+        } else {
+            std::cerr << "Warning: Division by zero on Y-axis!" << std::endl;
+        }
+        return Vector2 { result_x, result_y };
+    }
 
-    Vector2 operator/(float divisor, const Vector2& a);
+    // Vector2 / float
+    inline Vector2 operator/(const Vector2& a, float divisor) {
+        if (divisor == 0.0f) {
+            std::cerr << "Warning: Division by zero scalar/divisor!" << std::endl;
+            return Vector2 { 0.0f, 0.0f };
+        }
+        return Vector2 { a.x / divisor, a.y / divisor };
+    }
 
-    
+    // float / Vector 2
+    inline Vector2 operator/(float divisor, const Vector2& a) {
+        float result_x = 0.0f;
+        if (a.x != 0.0f) {
+            result_x = divisor / a.x;
+        } else {
+            std::cerr << "Warning: Division by zero on X-axis!" << std::endl;
+            
+        }
+
+        float result_y = 0.0f;
+        if (a.y != 0.0f) {
+            result_y = divisor / a.y;
+        } else {
+            std::cerr << "Warning: Division by zero on Y-axis!" << std::endl;
+        }
+
+        return Vector2 { result_x, result_y };
+    }
     
 } // namespace Salix
