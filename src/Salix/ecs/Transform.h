@@ -16,18 +16,30 @@ namespace Salix {
             Transform();
             virtual ~Transform();
 
-            // --- Public Data ---
-            // Keeping these public for now, for the sake of simplicity.
-
-            // Local transform properties (relative to its parent)
-            Vector3 position;
-            Vector3 rotation;
-            Vector3 scale;
 
             // Calculate World Transform
             Vector3 get_world_position();
             Vector3 get_world_rotation();
             Vector3 get_world_scale();
+
+            void set_position(const Vector3& new_position);
+            void set_position(const float new_x, float new_y, float new_z);
+            
+            void set_rotation(const Vector3& new_rotation);
+            void set_rotation(const float new_x, float new_y, float new_z);
+
+            void set_scale(const Vector3& new_scale);
+            void set_scale(const float new_x, float new_y, float new_z);
+
+            void translate(const Vector3& delta_position);
+            void translate(const float new_dp_x, float new_dp_y, float new_dp_z);
+
+            void rotate(const Vector3& delta_rotation);
+            void rotate(const float new_dr_x, float new_dr_y, float new_dr_z);
+
+            const Vector3& get_position() const;
+            const Vector3& get_rotation() const;
+            const Vector3& get_scale() const;
 
             // --- Hierarchy Methods ---
             void set_parent(Transform* new_parent);
@@ -53,7 +65,11 @@ namespace Salix {
             // Private methods called by set_parent and the destructor
             void add_child(Transform* child);
             void remove_child(Transform* child);
-
+            // These members are now private.
+            // Local transform properties (relative to its parent)
+            Vector3 position;
+            Vector3 rotation;
+            Vector3 scale;
     };
     
 } // namespace Salix

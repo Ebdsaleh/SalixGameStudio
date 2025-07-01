@@ -18,7 +18,7 @@ namespace Salix {
     struct Transform::Pimpl {
         Transform* parent = nullptr;  // Runtime varaible
         std::vector<Transform*> children;  // Runtime variable
-
+        
         Pimpl() = default;
         template <class Archive>
         void serialize(Archive & archive) {
@@ -110,6 +110,59 @@ namespace Salix {
             return pimpl->parent->get_world_scale() * scale;
         }
         // If no parent, return local scale Vector3
+        return scale;
+    }
+    // --- SETTTERS ---
+    // --- POSITION ---
+    void Transform::set_position(const Vector3& new_position) {
+        position = new_position;
+    }
+    void Transform::set_position(const float new_x, float new_y, float new_z) {
+        position = { new_x, new_y, new_z };
+    }
+    
+
+    // --- ROTATION ---
+    void Transform::set_rotation(const Vector3& new_rotation) {
+        rotation = new_rotation;
+    }
+    void Transform::set_rotation(const float new_x, float new_y, float new_z) {
+        rotation = { new_x, new_y, new_z };
+    }
+
+    // --- SCALE ---
+    void Transform::set_scale(const Vector3& new_scale) {
+        scale = new_scale;
+    }
+    void Transform::set_scale(const float new_x, float new_y, float new_z) {
+        scale = { new_x, new_y, new_z };
+    }
+
+    // --- TRANSLATORS ---
+    void Transform::translate(const Vector3& delta_position) {
+        position += delta_position;
+    }
+    void Transform::translate(const float new_dp_x, float new_dp_y, float new_dp_z) {
+        position += { new_dp_x, new_dp_y, new_dp_z };
+    }
+
+    void Transform::rotate(const Vector3& delta_rotation) {
+     rotation += delta_rotation;
+    }
+
+    void Transform::rotate(const float new_dr_x, float new_dr_y, float new_dr_z) {
+     rotation += { new_dr_x, new_dr_y, new_dr_z};
+    }
+
+    const Vector3& Transform::get_position() const {
+    return position;
+}
+
+    const Vector3& Transform::get_rotation() const {
+        return rotation;
+    }
+
+    const Vector3& Transform::get_scale() const {
         return scale;
     }
 
