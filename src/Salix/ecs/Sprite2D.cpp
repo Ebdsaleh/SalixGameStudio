@@ -93,12 +93,14 @@ namespace Salix {
                 
                 // Calculate the rotation and pivot in pixels
                 Point pivot_point;
-                /* --- TEST CODE ---
-                 pivot_point.x = static_cast<int>(world_pos.x -(dest_rect.w * pivot.x));
+                
+                // pivot point now takes in the world position.
+                pivot_point.x = static_cast<int>(world_pos.x -(dest_rect.w * pivot.x));
                 pivot_point.y = static_cast<int>(world_pos.y -(dest_rect.h * pivot.y));
-                */
-                pivot_point.x = static_cast<int>(dest_rect.w * pivot.x);
-                pivot_point.y = static_cast<int>(dest_rect.h * pivot.y);
+                
+                // --- Previous implementation ---
+                // pivot_point.x = static_cast<int>(dest_rect.w * pivot.x);
+                // pivot_point.y = static_cast<int>(dest_rect.h * pivot.y);
 
                 // Determine the final flip state.
                 SpriteFlip flip_state = SpriteFlip::None;
