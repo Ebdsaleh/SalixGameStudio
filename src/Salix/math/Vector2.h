@@ -170,4 +170,9 @@ namespace Salix {
     inline float cross(const Vector2& a, const Vector2& b) {
         return a.x * b.y - a.y * b.x;
     }
+
+    /// Returns a new vector that is perpendicular (rotated 90 degrees counter-clockwise) to the input vector.
+    inline Vector2 perp(const Vector2& v) {
+        return Vector2(-v.y, v.x);
+    }
 } // namespace Salix
