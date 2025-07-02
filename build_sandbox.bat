@@ -69,6 +69,7 @@ cl.exe ^
     /I "%SDL2_PATH%\include" ^
     /I "%SDL2_IMAGE_PATH%\include" ^
     /I "src" ^
+    /I "%cd%\vendor" ^
     /LD ^
     /Fe"%BUILD_DIR%\%DLL_NAME%" ^
     %SANDBOX_SOURCES% ^
