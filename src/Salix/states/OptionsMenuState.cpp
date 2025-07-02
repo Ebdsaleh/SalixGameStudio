@@ -1,5 +1,6 @@
 // Salix/states/OptionsMenuState.cpp
 #include <Salix/states/OptionsMenuState.h>
+#include <Salix/core/InitContext.h>
 #include <iostream>
 
 namespace Salix {
@@ -7,8 +8,9 @@ namespace Salix {
     OptionsMenuState::OptionsMenuState() {}
     OptionsMenuState::~OptionsMenuState() {}
 
-    void OptionsMenuState::on_enter(Engine* /*engine*/) {
+    void OptionsMenuState::on_enter(const InitContext& new_context) {
         std::cout << "Entering OptionsMenuState..." << std::endl;
+        context = new_context;
     }
 
     void OptionsMenuState::on_exit() {
