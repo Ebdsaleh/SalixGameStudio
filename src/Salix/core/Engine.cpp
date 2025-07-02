@@ -222,7 +222,7 @@ namespace Salix {
     void Engine::push_state(IAppState* /*state*/) {}
     void Engine::pop_state() {}
     void Engine::change_state(IAppState* /*state*/) {}
-    EngineMode Engine::get_mode() { return pimpl->engine_mode; }
+    EngineMode Engine::get_mode() const { return pimpl->engine_mode; }
     void Engine::set_mode(EngineMode mode) { pimpl->engine_mode = mode; }
 
     // NEW: Provide a fully populated InitContext on demand
