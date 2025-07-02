@@ -15,13 +15,14 @@ namespace Salix {
     class Scene;
     class IRenderer;
     class AssetManager;
+    struct InitContext;
 
     class SALIX_API SceneManager {
     public:
         SceneManager();
         ~SceneManager();
 
-        void initialize(AssetManager* asset_manager);
+        void initialize(const InitContext& new_context);
         void shutdown();
 
         void update(float delta_time);

@@ -24,7 +24,7 @@ namespace Salix {
 
         // The EditorState creates and initializes the ProjectManager.
         project_manager = std::make_unique<ProjectManager>();
-        project_manager->initialize(asset_manager);
+        project_manager->initialize(context);
     }
 
     void EditorState::on_exit() {

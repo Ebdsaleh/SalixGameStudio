@@ -1,11 +1,12 @@
 // Salix/core/EngineInterface.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <Salix/states/IAppState.h>
 #include <Salix/core/EngineMode.h>
 
 namespace Salix {
 
-    class EngineInterface {
+    class SALIX_API EngineInterface {
     public:
         virtual void switch_state(AppStateType state) = 0;
         virtual void set_mode(EngineMode mode) = 0;

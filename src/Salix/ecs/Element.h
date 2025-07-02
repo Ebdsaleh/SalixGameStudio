@@ -1,6 +1,7 @@
 // Salix/ecs/Element.h
 #pragma once
 #include <Salix/core/Core.h>
+#include <Salix/core/InitContext.h>
 #include <cereal/cereal.hpp>
 
 namespace Salix {
@@ -15,7 +16,7 @@ namespace Salix {
             virtual ~Element() = default;
             // These are the lifecycle methods that the Entity will call.
             // They are virtual so that concrete elements can override them.
-            virtual void on_load(AssetManager* asset_manager) {(void) asset_manager;}  // Useful for RenderableElement - types.
+            virtual void on_load(const InitContext& context) {(void) context.asset_manager;}  // Useful for RenderableElement - types.
             virtual void initialize() {}
             virtual void update(float /*delta_time*/) {}
             virtual void shutdown() {}

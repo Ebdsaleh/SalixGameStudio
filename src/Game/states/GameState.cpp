@@ -66,7 +66,7 @@ namespace Salix {
         
         // --- SETUP ---
         project_manager = std::make_unique<ProjectManager>();
-        project_manager->initialize(asset_manager);
+        project_manager->initialize(context);
 
         
         // Now, use the absolute path to load the project file
@@ -89,7 +89,7 @@ namespace Salix {
             // ...create the default scene.
             current_project->create_and_save_default_scene();
             // ...and then load the assets for the newly created content.
-            scene_manager->get_active_scene()->load_assets(asset_manager);
+            scene_manager->get_active_scene()->load_assets(context);
         }
 
         std::cout << "GameState setup complete. Starting game loop..." << std::endl;

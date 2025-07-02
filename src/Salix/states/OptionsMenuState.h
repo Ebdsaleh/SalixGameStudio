@@ -1,9 +1,10 @@
  // Salix/states/OptionsMenuState.h
 #pragma once
+#include <Salix/core/InitContext.h>
 #include <Salix/states/IAppState.h>
 
 namespace Salix {
-    struct InitContext;
+
     class OptionsMenuState : public IAppState {
         public:
             OptionsMenuState();

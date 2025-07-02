@@ -1,4 +1,5 @@
 // Salix/management/SceneManager.cpp
+#include <Salix/core/InitContext.h>
 #include <Salix/management/SceneManager.h>
 #include <Salix/management/FileManager.h>
 #include <Salix/ecs/Entity.h>
@@ -24,15 +25,15 @@ namespace Salix {
     struct SceneManager::Pimpl {
         std::vector<std::unique_ptr<Scene>> scene_list;
         Scene* active_scene = nullptr;
-        AssetManager* asset_manager = nullptr;
+        InitContext context;
         std::string project_root_path;
     };
     SceneManager::SceneManager() : pimpl(std::make_unique<Pimpl>()) {}
 
     SceneManager::~SceneManager() = default;
 
-    void SceneManager::initialize(AssetManager* asset_manager_ptr) {
-        pimpl->asset_manager = asset_manager_ptr;
+    void SceneManager::initialize(const InitContext& new_context) {
+        pimpl->context = new_context;
         std::cout<< "SceneManager Initialized." << std::endl;
     }
 
@@ -268,7 +269,7 @@ namespace Salix {
             std::cout << "SceneManager: Initializing loaded entities..." << std::endl;
             for (const auto& entity : pimpl->active_scene->get_entities()) {
                 if (entity) {
-                    entity->on_load(pimpl->asset_manager);
+                    entity->on_load(pimpl->context);
                 }
             }
         // --------------------------------

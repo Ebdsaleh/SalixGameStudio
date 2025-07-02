@@ -14,6 +14,7 @@ namespace Salix {
     class IRenderer;
     class AssetManager;
     class FileManager;
+    struct InitContext;
 
     class SALIX_API Project {
     public:
@@ -21,7 +22,7 @@ namespace Salix {
         Project(const std::string& project_name, const std::string& project_root_path);
         ~Project();
 
-        void initialize(AssetManager* asset_manager);
+        void initialize(const InitContext& new_context);
         void shutdown();
         void update(float delta_time);
         void render(IRenderer* renderer);

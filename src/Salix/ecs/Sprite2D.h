@@ -16,12 +16,13 @@ namespace Salix {
     class ITexture;
     class IRenderer;
     class AssetManager;
+    struct InitContext;
     class SALIX_API Sprite2D : public RenderableElement {
         public:
             Sprite2D();
             virtual ~Sprite2D();
             
-            void on_load(AssetManager* asset_manager) override;
+            void on_load(const InitContext& new_context) override;
             // A method to load a texture for this sprite using the AssetManager
             void load_texture(class AssetManager* asset_manager, const std::string& file_path);
 

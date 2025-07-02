@@ -5,6 +5,7 @@
 // =================================================================================
 
 // We only need to include the headers for the components we directly interact with here.
+
 #include <Salix/core/Engine.h>
 #include <Salix/window/IWindow.h>     // For WindowConfig
 #include <Salix/rendering/IRenderer.h> // For RendererType

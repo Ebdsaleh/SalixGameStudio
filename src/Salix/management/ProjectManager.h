@@ -2,9 +2,9 @@
 #pragma once
 
 #include <Salix/core/Core.h>
+#include <Salix/management/FileManager.h>
 #include <string>
 #include <memory>
-#include <Salix/management/FileManager.h>
 
 namespace Salix {
 
@@ -12,6 +12,7 @@ namespace Salix {
     class Project;
     class IRenderer;
     class AssetManager;
+    struct InitContext;
 
     // Added SALIX_API to the class declaration.
     class SALIX_API ProjectManager {
@@ -19,7 +20,7 @@ namespace Salix {
             ProjectManager();
             ~ProjectManager();
             
-            void initialize(AssetManager* asset_manager);
+            void initialize(const InitContext& new_context);  // needed for AssetManager
             void shutdown();
             void update(float delta_time);
             void render(IRenderer* renderer);

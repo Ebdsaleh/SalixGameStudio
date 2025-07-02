@@ -11,6 +11,7 @@
 #include <Salix/management/FileManager.h>
 #include <Salix/management/ProjectConfig.h>
 #include <Salix/management/SceneData.h>
+#include <Salix/core/InitContext.h>
 #include <filesystem>  
 #include <fstream>     
 #include <iostream>
@@ -31,7 +32,7 @@ namespace Salix {
     // --- Pimpl struct definition ---
     struct ProjectManager::Pimpl {
         std::unique_ptr<Project> active_project;
-        AssetManager* asset_manager = nullptr; // The PM needs to know about the AssetManager
+        InitContext context;
     };
 
     // --- Constructor and Destructor ---
@@ -40,8 +41,8 @@ namespace Salix {
 
 
     // --- Lifecycle Methods ---
-    void ProjectManager::initialize(AssetManager* asset_manager_ptr) {
-        pimpl->asset_manager = asset_manager_ptr;
+    void ProjectManager::initialize(const InitContext& new_context) {
+        pimpl->context = new_context;
         std::cout << "ProjectManager Initialized." << std::endl;
        
     }
@@ -312,7 +313,7 @@ namespace Salix {
         if (pimpl->active_project) {
             // The Project will now initialize itself, which includes creating the SceneManager
             // and telling it to load the starting scene.
-            pimpl->active_project->initialize(pimpl->asset_manager); // Pass the asset manager
+            pimpl->active_project->initialize(pimpl->context); // Pass the asset manager
         }
         std::cout << "ProjectManager: Successfully loaded project '" << loaded_config.project_data.project_name << "'." << std::endl;
         return true;
@@ -371,7 +372,7 @@ namespace Salix {
             // and telling it to load the starting scene.
             std::cout << "ProjectManager::load_project_from_file - active_project set to '" <<
                 pimpl->active_project->get_name() << "'..." << std::endl;
-            pimpl->active_project->initialize(pimpl->asset_manager); // Pass the asset manager
+            pimpl->active_project->initialize(pimpl->context); // Pass the asset manager
         }
         std::cout << "ProjectManager: Successfully loaded project '" << loaded_config.project_data.project_name << "'." << std::endl;
         return get_active_project();

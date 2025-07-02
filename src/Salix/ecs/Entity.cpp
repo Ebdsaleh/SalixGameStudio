@@ -3,6 +3,7 @@
 // Author:      SalixGameStudio
 // Description: Implements the Entity class using the PIMPL idiom.
 // =================================================================================
+#include <Salix/core/InitContext.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/RenderableElement.h>
@@ -23,6 +24,7 @@ namespace Salix {
         std::vector<RenderableElement*> renderable_elements;
         Transform* transform = nullptr;
         SimpleGuid id = SimpleGuid::generate();
+        InitContext context;
 
         Pimpl() = default;
         template<class Archive>
@@ -45,7 +47,8 @@ namespace Salix {
 
     // A useful method for re-loading textures and setting Renderable elements to
     // their loaded textures width and height.
-    void Entity::on_load(AssetManager* asset_manager) {
+    void Entity::on_load(const InitContext& new_context) {
+        pimpl->context = new_context;
         // Reset runtime caches before populating them
         pimpl->transform = nullptr;
         pimpl->renderable_elements.clear();
@@ -63,9 +66,11 @@ namespace Salix {
                 if (auto* r = dynamic_cast<RenderableElement*>(element.get())) {
                     pimpl->renderable_elements.push_back(r);
                 }
-
-                // 3. Tell the element to load its own assets
-                element->on_load(asset_manager);
+                // 3. Call the element's one-time setup function. This is where
+                // PlayerMovement or any ScriptElement will get its pointer to the Transform.
+                element->initialize();
+                // 4. Tell the element to load its own assets
+                element->on_load(pimpl->context);
             }
         }
     }
@@ -114,6 +119,7 @@ namespace Salix {
         // 5. Return the completed list of non-owning raw pointers.
         return raw_pointers;
     }
+
 
     // --- Private Helper Implementations (can safely access pimpl) ---
     void Entity::add_element_internal(std::unique_ptr<Element> element) {

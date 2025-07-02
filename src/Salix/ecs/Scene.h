@@ -12,26 +12,27 @@ namespace Salix {
 class Entity;
 class IRenderer;
 class AssetManager;
+struct InitContext;
 
     class SALIX_API Scene {
     public:
         // The constructor now just takes a name.
         Scene();
-        Scene(const std::string& new_scene_name); // LEAVE THIS FUCKING THING ALONE!!!
+        Scene(const std::string& new_scene_name);
         Scene(const std::string& scene_name, const std::string& relative_file_path);
         ~Scene();
 
         // Lifecycle methods
-        void on_load(AssetManager* asset_manager, const std::string& project_root_path);
+        void on_load(const InitContext& new_context, const std::string& project_root_path); // need for AssetManager
         void update(float delta_time);
         void render(IRenderer* renderer);
         void on_unload();
-        bool load_content_from_file(const std::string& project_root_path,  AssetManager* assetManager);
+        bool load_content_from_file(const std::string& project_root_path);
 
          // Tries to deserialize content from this scene's file path.
         bool load_from_file();
         // Loops through entities and tells them to load their assets (textures, etc.).
-        void load_assets(AssetManager* asset_manager);
+        void load_assets(const InitContext& new_context);
 
         // A method to create a new entity within this scene.
         Entity* create_entity(const std::string& new_entity_name = "Entity");

@@ -1,5 +1,6 @@
 // Salix/states/LaunchState.h
 #pragma once
+#include <Salix/core/InitContext.h>
 #include <Salix/states/IAppState.h>
 
 namespace Salix {

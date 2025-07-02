@@ -2,6 +2,7 @@
 #pragma once
 
 #include <Salix/states/IAppState.h>
+#include <Salix/core/InitContext.h>
 #include <memory>
 
 
@@ -11,7 +12,6 @@ namespace Salix {
     class ProjectManager;
     class AssetManager;
     class IRenderer;
-    struct InitContext;
 
     class EditorState : public IAppState{
         public:

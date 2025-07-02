@@ -3,6 +3,7 @@
 // =================================================================================
 #pragma once
 
+#include <Salix/core/InitContext.h>
 #include <Salix/states/IAppState.h>  
 #include <memory>
 
@@ -11,7 +12,6 @@ namespace Salix {
     // Forward declarations for the pointers we will hold
     class ProjectManager;
     class AssetManager;
-    struct InitContext;
 
     class GameState : public IAppState{
         public:

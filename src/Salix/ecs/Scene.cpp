@@ -1,4 +1,5 @@
 // Salix/ecs/Scene.cpp
+#include <Salix/core/InitContext.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Transform.h>  // used for test code.
@@ -28,7 +29,7 @@ namespace Salix {
     // Scene::Pimpl struct definition (Pimpl holds only entities)
     struct Scene::Pimpl {
         std::vector<std::unique_ptr<Entity>> entities;
-
+        InitContext context;
         Pimpl() = default; // Default constructor
 
         template <class Archive>
@@ -57,12 +58,12 @@ namespace Salix {
 
     // --- NEW: Method to load the scene's content (entities/elements) from its file into Pimpl ---
     // This is the core "load on demand" logic, called by on_load().
-    bool Scene::load_content_from_file(const std::string& project_root_path, AssetManager* asset_manager) {
+    bool Scene::load_content_from_file(const std::string& project_root_path) {
         if (!pimpl->entities.empty()) {
             std::cout << "Scene: Content for '" << name << "' already loaded. Re-initializing entities." << std::endl;
             for (auto& entity : pimpl->entities) {
                 if (entity) {
-                    entity->on_load(asset_manager);
+                    entity->on_load(pimpl->context);
                 }
             }
             return true;
@@ -92,7 +93,7 @@ namespace Salix {
         std::cout << "Scene: Content loaded for '" << name << "'. Initializing " << pimpl->entities.size() << " entities..." << std::endl;
         for (auto& entity : pimpl->entities) {
             if (entity) {
-                entity->on_load(asset_manager);
+                entity->on_load(pimpl->context);
             }
         }
 
@@ -103,8 +104,9 @@ namespace Salix {
 
     // --- Lifecycle methods ---
     // Corrected: on_load now calls load_content_from_file and includes project_root_path
-    void Scene::on_load(AssetManager* asset_manager, const std::string& project_root_path) {
+    void Scene::on_load(const InitContext& new_context, const std::string& project_root_path) {
         Salix::g_project_root_path = project_root_path;
+        pimpl->context = new_context;
         std::cout << "Scene '" << name << "' on_load: Triggering content load and entity initializations." << std::endl;
 
         std::filesystem::path full_path = std::filesystem::path(project_root_path) / path;
@@ -122,7 +124,7 @@ namespace Salix {
 
                     for (auto& entity : pimpl->entities) {
                         if (entity) {
-                            entity->on_load(asset_manager);
+                            entity->on_load(pimpl->context);
                         }
                     }
                     // return;
@@ -200,15 +202,19 @@ namespace Salix {
     }
 
     // Loops through entities and tells them to load their assets (textures, etc.).
-    void Scene::load_assets(AssetManager* asset_manager) {
+    void Scene::load_assets(const InitContext& new_context) {
         std::cout << "Scene '" << get_name() << "': Loading assets for entities..." << std::endl;
+        // check against the asset_manager so we know if the pimpl->context has been assigned correctly.
+        if (!pimpl->context.asset_manager) {
+            pimpl->context = new_context;
+        }
 
         // Loop through all entities currently in this scene
         for (Entity* entity : get_entities()) {
             if (entity) {
                 // Tell each entity to perform its on_load logic,
                 // which will then tell its components to load their assets.
-                entity->on_load(asset_manager);
+                entity->on_load(pimpl->context);
             }
         }
     }

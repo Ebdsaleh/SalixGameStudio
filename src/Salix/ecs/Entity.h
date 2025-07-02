@@ -23,13 +23,14 @@ namespace Salix {
     class Transform;
     class IRenderer;
     class AssetManager;
+    struct InitContext;
 
     class SALIX_API Entity{
     public:
         Entity();
         ~Entity(); // Destructor MUST be in the header
 
-        void on_load(AssetManager* asset_manager);
+        void on_load(const InitContext& new_context);
         void update(float delta_time);
         void render(IRenderer* renderer);
         Transform* get_transform() const;
@@ -41,6 +42,27 @@ namespace Salix {
         const SimpleGuid&  get_id() const;
 
         // --- PUBLIC TEMPLATE METHODS (defined in the header) ---
+        // New public template overload for add_element.
+        template<typename T>
+        void add_element(std::unique_ptr<T> element) {
+            // This check ensures you can only add things that inherit from Element.
+            static_assert(std::is_base_of<Element, T>::value, "Type T must be derived from Salix::Element");
+
+            if (!element) {
+                return;
+            }
+
+            // Get the raw pointer before we move ownership.
+            Element* raw_ptr = element.get();
+            raw_ptr->set_owner(this);
+
+            // Call the private helper to do the real work.
+            // The compiler can now safely convert std::unique_ptr<T> to std::unique_ptr<Element>.
+            add_element_internal(std::move(element));
+
+            // Call initialize to complete the setup.
+            raw_ptr->initialize();
+    }
 
         template<typename T>
         T* add_element() {

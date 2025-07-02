@@ -1,5 +1,8 @@
 // Salix/management/Project.cpp
+#include <Salix/core/InitContext.h>
 #include <Salix/management/Project.h>
+#include <Salix/ecs/ScriptElement.h>
+#include <Salix/scripting/ScriptFactory.h> // Include the script factory.
 #include <Salix/management/SceneManager.h>
 #include <Salix/management/FileManager.h>
 #include <Salix/management/ProjectConfig.h>
@@ -12,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <algorithm>
 #include <cereal/archives/json.hpp>
 #include <cereal/types/string.hpp>
@@ -20,6 +24,8 @@
 #include <cereal/types/memory.hpp>
 #include <cereal/cereal.hpp>
 #include <cereal/archives/binary.hpp>
+#include <windows.h> // Required for LoadLibraryA
+#include <Salix/scripting/ScriptLoader.h>
 
 namespace Salix {
     struct Project::Pimpl {
@@ -29,7 +35,7 @@ namespace Salix {
         std::string project_file_name;
         std::string starting_scene;
         std::map<std::string, std::string> scene_paths;
-        AssetManager* asset_manager = nullptr;
+        InitContext context;
 
         // --- Build Settings (to match BuildSettings in ProjectConfig) ---
         std::string engine_version;
@@ -77,15 +83,16 @@ namespace Salix {
 
     Project::~Project() = default;
 
-    void Project::initialize(AssetManager* asset_manager) {
+    void Project::initialize(const InitContext& new_context) {
         std::cout << "Project Initializing..." << std::endl;
-        pimpl->asset_manager = asset_manager;
-        if(pimpl->asset_manager == nullptr){
+        pimpl->context = new_context;
+        
+        if(pimpl->context.asset_manager == nullptr){
             std::cerr << "Project::initialize - AssetManager pointer is null_ptr, cancelling Project initialization." <<
                 std::endl;
         }
         pimpl->scene_manager = std::make_unique<SceneManager>();
-        pimpl->scene_manager->initialize(pimpl->asset_manager);
+        pimpl->scene_manager->initialize(pimpl->context);
         pimpl->scene_manager->set_project_root_path(pimpl->root_path);
 
         // Populate SceneManager with lightweight scene shells
@@ -93,7 +100,17 @@ namespace Salix {
             pimpl->scene_manager->create_scene(pair.first, pair.second);
         }
         
-        // THAT'S IT. We stop here. We do NOT call set_active_scene yet.
+        // Now that the project is set up, load its specific game logic DLL.
+        std::cout << "Project: Loading game script DLL '" << pimpl->game_dll_name << "'..." << std::endl;
+
+        std::filesystem::path dll_path = std::filesystem::current_path() / "build" / pimpl->game_dll_name;
+
+        if (!ScriptLoader::load_script_library(dll_path.string())) {
+            std::cerr << "FATAL ERROR: Could not load game DLL at '" << dll_path.string() << "'!" << std::endl;
+            return;
+        } else {
+            std::cout << "Project: Game script DLL loaded successfully." << std::endl;
+        }
     }
 
     void Project::shutdown() {
@@ -206,13 +223,24 @@ namespace Salix {
     Sprite2D* sprite = player->add_element<Sprite2D>();
 
     // 3. Set the default properties.
-    transform->position = { 640.0f, 360.0f, 0.0f };
-    transform->rotation = { 0.0f, 0.0f, 0.0f };
-    transform->scale = { 1.0f, 1.0f, 1.0f };
+    transform->set_position({ 640.0f, 360.0f, 0.0f });
+    transform->set_rotation({ 0.0f, 0.0f, 0.0f });
+    transform->set_scale({ 1.0f, 1.0f, 1.0f });
 
     sprite->texture_path = "Assets/Images/test.png";
 
-    sprite->load_texture(pimpl->asset_manager, sprite->get_texture_path());
+    sprite->load_texture(pimpl->context.asset_manager, sprite->get_texture_path());
+    // --- THIS IS THE CHANGE ---
+    // Instead of player->add_element<PlayerMovement>(), we use the factory.
+    std::unique_ptr<ScriptElement> script_element = Salix::ScriptFactory::get().create_script("PlayerMovement");
+
+    if (script_element) {
+        std::cout << "SCRIPTELEMENT EXISTS: - Type name: " << typeid(*script_element).name() << std::endl;
+        // Use the new public method. The unique_ptr will be correctly moved and converted.
+        player->add_element(std::move(script_element));
+        
+    }
+    // -------------------------
 
     // 4. Tell the SceneManager to save the now-populated active scene to its file.
     pimpl->scene_manager->save_active_scene();

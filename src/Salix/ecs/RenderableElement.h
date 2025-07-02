@@ -8,6 +8,7 @@ namespace Salix {
     // Forward declare the renderer interface
     class IRenderer;
     class AssetManager;
+    struct InitContext;
     // This is a specialized type of Element for anything that needs to be drawn
     class SALIX_API RenderableElement : public Element {
     public:
@@ -15,7 +16,7 @@ namespace Salix {
         // This means any class that  inherits from RenderableElement MUST provide its own
         // implementation of the render method.
         virtual void render(IRenderer* renderer) = 0;
-        virtual void on_load(AssetManager* asset_manager) override = 0;
+        virtual void on_load(const InitContext& new_context) override = 0;
         template <class Archive>
         void serialize(Archive& archive) {
             // This is the crucial part. It tells Cereal to first serialize

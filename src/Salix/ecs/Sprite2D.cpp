@@ -1,4 +1,5 @@
 // Salix/ecs/Sprite2D.cpp
+#include <Salix/core/InitContext.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/Entity.h> // We need this to get the owner's Transform.
 #include <Salix/ecs/Transform.h>
@@ -19,7 +20,7 @@ namespace Salix {
         ITexture* texture = nullptr;
             int width = 0;
             int height = 0;
-
+            InitContext context;
             Pimpl() = default;
 
             template <class Archive>
@@ -40,9 +41,10 @@ namespace Salix {
 
     Sprite2D::~Sprite2D() = default;
 
-    void Sprite2D::on_load(AssetManager* asset_manager) {
+    void Sprite2D::on_load(const InitContext& new_context) {
+        pimpl->context = new_context;
         if(texture_path.empty()) { return; }
-        load_texture(asset_manager, texture_path);
+        load_texture(pimpl->context.asset_manager, texture_path);
     }
 
     void Sprite2D::load_texture(AssetManager* asset_manager, const std::string& relative_file_path) {
