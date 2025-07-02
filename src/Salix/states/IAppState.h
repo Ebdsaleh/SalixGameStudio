@@ -1,14 +1,11 @@
-// Salix/states/IAppState
 #pragma once
 #include <Salix/core/Core.h>
 
 namespace Salix {
 
-    // Forward declations
-    class Engine;
     class IRenderer;
+    struct InitContext;
 
-    // A type-safe enum to indentify the application states.
     enum class AppStateType {
         None,
         Launch,
@@ -16,19 +13,14 @@ namespace Salix {
         Game,
         Options
     };
-   
 
     class SALIX_API IAppState {
-        public:
-            virtual ~IAppState() = default;
+    public:
+        virtual ~IAppState() = default;
 
-            // Called once when the state is entered.
-            virtual void on_enter(Engine* engine) = 0;
-            // Called once when the state is exited.
-            virtual void on_exit() = 0;
-
-            // Called every frame.
-            virtual void update(float delta_time) = 0;
-            virtual void render(IRenderer* renderer) = 0;
+        virtual void on_enter(const InitContext& context) = 0;
+        virtual void on_exit() = 0;
+        virtual void update(float delta_time) = 0;
+        virtual void render(IRenderer* renderer) = 0;
     };
-} // namespace Salix
+}
