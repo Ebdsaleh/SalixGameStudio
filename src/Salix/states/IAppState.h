@@ -16,6 +16,13 @@ namespace Salix {
         Game,
         Options
     };
+    enum class EngineMode {
+        NONE,
+        GAME,
+        EDITOR,
+        OPTIONS,
+        LAUNCH
+    };
 
     class SALIX_API IAppState {
         public:
