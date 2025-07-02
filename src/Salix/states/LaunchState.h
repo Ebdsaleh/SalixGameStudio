@@ -4,7 +4,7 @@
 
 namespace Salix {
 
-    class Engine;
+    struct InitContext;
     class IInputManager;
     class LaunchState : public IAppState{
         public:
@@ -12,7 +12,7 @@ namespace Salix {
             virtual ~LaunchState();
 
             // Implement IAppState interface
-            void on_enter(class Engine* engine) override;
+            void on_enter(const InitContext& new_context) override;
             void on_exit() override;
             void update(float delta_time) override;
             void render(class IRenderer* renderer) override;
@@ -20,7 +20,7 @@ namespace Salix {
         private:
             private:
         // Non-owning pointers to the systems we need to talk to.
-        Engine* engine_ptr;
+        InitContext context;
         IInputManager* input_manager_ptr;
     };
 } // namespace Salix

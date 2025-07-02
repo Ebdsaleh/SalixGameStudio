@@ -1,18 +1,18 @@
 // Salix/states/LaunchState.cpp
 #include <Salix/states/LaunchState.h>
-#include <Salix/core/Engine.h>
+#include <Salix/core/InitContext.h>
 #include <Salix/input/IInputManager.h>
 #include <iostream>
 
 namespace Salix {
 
-    LaunchState::LaunchState() : engine_ptr(nullptr), input_manager_ptr(nullptr){}
+    LaunchState::LaunchState() : input_manager_ptr(nullptr){}
     LaunchState::~LaunchState() {}
 
-    void LaunchState::on_enter(Engine* engine) {
+    void LaunchState::on_enter(const InitContext& new_context) {
         std::cout << "Entering LaunchState..." << std::endl;
-        engine_ptr = engine;
-        input_manager_ptr = engine_ptr->get_input_manager();
+        context = new_context;
+        input_manager_ptr = context.input_manager;
     }
 
     void LaunchState::on_exit() {
@@ -24,19 +24,19 @@ namespace Salix {
         if (input_manager_ptr->is_down(KeyCode::E)) {
             // Switch to 'EditorState'.
             std::cout << "'E' key press detected. Switching to EditorState." << std::endl;
-            engine_ptr->switch_state(AppStateType::Editor);
+            context.engine->switch_state(AppStateType::Editor);
         }
         
         if (input_manager_ptr->is_down(KeyCode::G)) {
             // Switch to 'GameState'.
             std::cout << "'G' key press detected.Switching to GameState." << std::endl;
-            engine_ptr->switch_state(AppStateType::Game);
+            context.engine->switch_state(AppStateType::Game);
         }
         
         if (input_manager_ptr->is_down(KeyCode::O)) {
             // Switch to 'OptionsMenuState
             std::cout << "'O' key press detected.Switching to OptionsMenuState." << std::endl;
-            engine_ptr->switch_state(AppStateType::Options);
+            context.engine->switch_state(AppStateType::Options);
         }
     }
     
