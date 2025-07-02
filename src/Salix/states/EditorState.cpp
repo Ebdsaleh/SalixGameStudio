@@ -2,24 +2,24 @@
 #include <Salix/states/EditorState.h>
 #include <Salix/core/Engine.h>
 #include <Salix/management/ProjectManager.h>
+#include <Salix/core/InitContext.h>
 #include <iostream>
 
 namespace Salix {
 
     EditorState::EditorState() :
-        engine(nullptr),
         asset_manager(nullptr),
         renderer(nullptr) {}
 
     EditorState::~EditorState() {}
 
-    void EditorState::on_enter(Engine* owner_engine) {
+    void EditorState::on_enter(const InitContext& new_context) {
         std::cout << "Entering EditorState..." << std::endl;
-        engine = owner_engine;
+        context = new_context;
 
         // Get the core systems from the engine
-        asset_manager = engine->get_asset_manager();
-        renderer = engine->get_renderer();
+        asset_manager = context.asset_manager;
+        renderer = context.renderer;
 
         // The EditorState creates and initializes the ProjectManager.
         project_manager = std::make_unique<ProjectManager>();
