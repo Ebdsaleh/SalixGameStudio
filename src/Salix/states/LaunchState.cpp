@@ -1,6 +1,7 @@
 // Salix/states/LaunchState.cpp
 #include <Salix/states/LaunchState.h>
 #include <Salix/core/InitContext.h>
+#include <Salix/core/EngineMode.h>
 #include <Salix/input/IInputManager.h>
 #include <iostream>
 
@@ -12,6 +13,7 @@ namespace Salix {
     void LaunchState::on_enter(const InitContext& new_context) {
         std::cout << "Entering LaunchState..." << std::endl;
         context = new_context;
+        context.engine->set_mode(EngineMode::Launch);
         input_manager_ptr = context.input_manager;
     }
 

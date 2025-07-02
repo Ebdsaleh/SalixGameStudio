@@ -11,6 +11,7 @@ namespace Salix {
     void OptionsMenuState::on_enter(const InitContext& new_context) {
         std::cout << "Entering OptionsMenuState..." << std::endl;
         context = new_context;
+        context.engine->set_mode(EngineMode::Options);
     }
 
     void OptionsMenuState::on_exit() {

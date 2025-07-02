@@ -1,6 +1,6 @@
 // Salix/states/EditorState.cpp
 #include <Salix/states/EditorState.h>
-#include <Salix/core/Engine.h>
+#include <Salix/core/EngineMode.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/core/InitContext.h>
 #include <iostream>
@@ -16,6 +16,7 @@ namespace Salix {
     void EditorState::on_enter(const InitContext& new_context) {
         std::cout << "Entering EditorState..." << std::endl;
         context = new_context;
+        context.engine->set_mode(EngineMode::Editor);
 
         // Get the core systems from the engine
         asset_manager = context.asset_manager;
