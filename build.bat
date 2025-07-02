@@ -43,9 +43,22 @@ IF %ERRORLEVEL% NEQ 0 (
     echo ***************************************
     goto :eof
 )
-
+REM =================== TESTING BUILDING THE PROJECT ================================
 REM =================================================================================
-REM === STAGE 3: POST-BUILD AND RUN                                           ===
+REM === STAGE 3: Build the Sandbox Project DLL (THE NEW STEP)                   ===
+REM =================================================================================
+echo.
+echo [Master Build] Executing build_sandbox.bat...
+call build_sandbox.bat
+IF %ERRORLEVEL% NEQ 0 (
+    echo. & echo ***************************************
+    echo * Master Build HALTED: Sandbox DLL failed to compile. *
+    echo ***************************************
+    goto :eof
+)
+REM ================== END TESTING OF BUILDING THE PROJECT ==========================
+REM =================================================================================
+REM === STAGE 4: POST-BUILD AND RUN                                           ===
 REM =================================================================================
 echo.
 echo [Master Build] All components built successfully!
