@@ -36,6 +36,7 @@ namespace Salix {
         std::unique_ptr<EventManager> event_manager;
         // State stack logic...
         std::unique_ptr<IAppState> current_state;
+        EngineMode engine_mode = EngineMode::None;
         HMODULE game_dll_handle = nullptr;  // A handle to the loaded Game.dll
 
         // A function pointer that matches the signature of the GameFactory.
@@ -88,7 +89,7 @@ namespace Salix {
                 std::cerr << "Engine::initialize - Invalid or unsupported timer type requested." << std::endl;
                 return false;
         }
-        // <<< FIX: Must use pimpl-> to access the timer
+        // Must use pimpl-> to access the timer
         pimpl->timer->set_target_fps(target_fps);
 
         pimpl->input_manager = std::make_unique<SDLInputManager>();
@@ -174,21 +175,26 @@ namespace Salix {
             // For the states that are part of the Engine.
             case AppStateType::Launch:
                 new_state = std::make_unique<LaunchState>();
+                set_mode(EngineMode::Launch);
                 break;
             
             case AppStateType::Editor:
                 new_state = std::make_unique<EditorState>();
+                set_mode(EngineMode::Editor);
                 break;
             
             case AppStateType::Options:
                 new_state = std::make_unique<OptionsMenuState>();
+                set_mode(EngineMode::Options);
                 break;
+            
 
             // For any other state, assume it's a GameState and use the factory.
             default:
             if (pimpl->game_state_factory) {
                 // Ask the DLL to create the state.
                 new_state.reset(pimpl->game_state_factory(new_state_type));
+                set_mode(EngineMode::Game);
             }
             break;
         }
@@ -236,5 +242,6 @@ namespace Salix {
     void Engine::push_state(IAppState* /*state*/) {} // TODO
     void Engine::pop_state() {} // TODO
     void Engine::change_state(IAppState* /*state*/) {} // TODO
-
+    EngineMode Engine::get_mode() { return pimpl->engine_mode; }
+    void Engine::set_mode(EngineMode mode) { pimpl->engine_mode = mode; }
 } // namespace Salix
