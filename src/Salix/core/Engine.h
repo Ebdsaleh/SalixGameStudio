@@ -10,16 +10,10 @@
 #include <Salix/core/ITimer.h>          // For TimerType.
 #include <Salix/window/IWindow.h>       // For WindowConfig.
 #include <Salix/states/IAppState.h>     // This defines AppStateType.
+#include <Salix/core/EngineMode.h>
 #include <memory>                       // For std::unique_ptr.
 #include <vector>                       // For the state stack.
-enum class EngineMode {
-    None,
-    Launch,
-    Editor,
-    Game,
-    Options,
-    Debug
-};
+
 namespace Salix {
     // Forward declarations for types we only hold pointers to.
     class IInputManager;
@@ -28,10 +22,6 @@ namespace Salix {
     class EventManager;
     struct InitContext;
     
-    struct EngineContext {
-        EngineMode engine_mode = EngineMode::None;
-        // Optional: add other global signals in the future (e.g. build config, editor flags)
-    }; 
     class SALIX_API Engine {
     public:
         Engine();
