@@ -37,6 +37,7 @@ namespace Salix {
         std::unique_ptr<IAppState> current_state;
         EngineMode engine_mode = EngineMode::None;
         HMODULE game_dll_handle = nullptr;
+        InitContext context;
 
         using CreateStateFn = IAppState* (*)(AppStateType);
         CreateStateFn game_state_factory = nullptr;
@@ -101,9 +102,10 @@ namespace Salix {
             std::cerr << "FATAL ERROR: Could not find 'create_state' function in Game.dll!" << std::endl;
             return false;
         }
-
+        // Make the context object here
+        pimpl->context = make_context();
         pimpl->current_state = std::make_unique<LaunchState>();
-        pimpl->current_state->on_enter(this);
+        pimpl->current_state->on_enter(pimpl->context);
 
         pimpl->is_running = true;
         std::cout << "Engine initialized successfully." << std::endl;
@@ -156,8 +158,7 @@ namespace Salix {
 
         std::unique_ptr<IAppState> new_state;
 
-        // Get the context now (shared by all states)
-        InitContext context = make_context();
+        pimpl->context = make_context(); 
 
         switch (new_state_type) {
             case AppStateType::Launch:
@@ -186,7 +187,7 @@ namespace Salix {
         pimpl->current_state = std::move(new_state);
 
         if (pimpl->current_state) {
-            pimpl->current_state->on_enter(this);
+            pimpl->current_state->on_enter(pimpl->context);
         } else {
             std::cerr << "Engine::switch_state - Failed to create new state!" << std::endl;
         }
@@ -225,10 +226,13 @@ namespace Salix {
     void Engine::set_mode(EngineMode mode) { pimpl->engine_mode = mode; }
 
     // NEW: Provide a fully populated InitContext on demand
-    InitContext Engine::make_context() const {
+        InitContext Engine::make_context() const {
         InitContext ctx;
-        ctx.asset_manager = pimpl->asset_manager.get();
-        ctx.engine_mode = pimpl->engine_mode;
+        ctx.engine        = const_cast<Engine*>(this); // <-- Add this safely
+        ctx.asset_manager   = pimpl->asset_manager.get();
+        ctx.input_manager   = pimpl->input_manager.get();
+        ctx.renderer        = pimpl->renderer.get();
+        ctx.engine_mode     = pimpl->engine_mode;
         return ctx;
     }
 
