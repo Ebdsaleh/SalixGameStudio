@@ -26,7 +26,12 @@ namespace Salix {
     class AssetManager;
     class IEventPoller;
     class EventManager;
+    struct InitContext;
     
+    struct EngineContext {
+        EngineMode engine_mode = EngineMode::None;
+        // Optional: add other global signals in the future (e.g. build config, editor flags)
+    }; 
     class SALIX_API Engine {
     public:
         Engine();
@@ -51,6 +56,7 @@ namespace Salix {
         void switch_state(AppStateType new_state_type); 
         void set_mode(EngineMode engine_mode);
         EngineMode get_mode();
+        InitContext make_context() const;
     private:
         void process_input();
         void update(float delta_time);
