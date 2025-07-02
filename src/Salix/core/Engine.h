@@ -12,7 +12,14 @@
 #include <Salix/states/IAppState.h>     // This defines AppStateType.
 #include <memory>                       // For std::unique_ptr.
 #include <vector>                       // For the state stack.
-
+enum class EngineMode {
+    None,
+    Launch,
+    Editor,
+    Game,
+    Options,
+    Debug
+};
 namespace Salix {
     // Forward declarations for types we only hold pointers to.
     class IInputManager;
@@ -42,7 +49,8 @@ namespace Salix {
         void change_state(IAppState* state);
         // A public method to allow states to request a change.
         void switch_state(AppStateType new_state_type); 
-
+        void set_mode(EngineMode engine_mode);
+        EngineMode get_mode();
     private:
         void process_input();
         void update(float delta_time);
