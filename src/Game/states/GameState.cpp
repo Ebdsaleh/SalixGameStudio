@@ -4,6 +4,7 @@
 
 // Include all the headers for the systems and components we need to interact with
 #include <Salix/core/Core.h>
+#include <Salix/core/InitContext.h>
 #include <Salix/core/Engine.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
@@ -19,7 +20,6 @@
 namespace Salix {
 
     GameState::GameState() :
-    engine(nullptr),
     asset_manager(nullptr),
     renderer(nullptr) {}
 
@@ -46,10 +46,10 @@ namespace Salix {
         --- END NON-TEST CODE ---
     */
 
-    void GameState::on_enter(Engine* owner_engine) {
+    void GameState::on_enter(const InitContext& new_context) {
         std::cout << "Entering GameState..." << std::endl;
-        engine = owner_engine;
-        asset_manager = engine->get_asset_manager();
+        context = new_context;
+        asset_manager = context.asset_manager;
 
         // 1. Get the path to where the executable is being run from.
         std::filesystem::path current_working_dir = std::filesystem::current_path();
