@@ -1,6 +1,7 @@
 // Salix/ecs/CppScript.h
 
 #pragma once
+#include <Salix/core/Core.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <string>
 #include <cereal/access.hpp>

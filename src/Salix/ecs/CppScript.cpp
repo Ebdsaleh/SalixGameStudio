@@ -4,8 +4,8 @@
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/polymorphic.hpp>
-CEREAL_REGISTER_TYPE(Salix::ScriptElement)
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::ScriptElement)
+#include <Salix/core/SerializationRegistrations.h>
+
 namespace Salix {
 
     const std::string& CppScript::get_script_name() const {
@@ -14,11 +14,10 @@ namespace Salix {
 
     template<class Archive>
     void CppScript::serialize(Archive& archive) {
-        archive( cereal::base_class<ScriptElement>(this) );
-        archive( cereal::make_nvp("script_name", script_name) );
+        archive( cereal::base_class<ScriptElement>(this),
+        cereal::make_nvp("script_name", script_name) );
     }
 
-    // Add these explicit instantiations for the serialize function
     template void Salix::CppScript::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive&);
     template void Salix::CppScript::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive&);
     template void Salix::CppScript::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive&);
