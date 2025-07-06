@@ -1,6 +1,7 @@
 // Salix/rendering/IRenderer.h
 #pragma once
 #include <Salix/core/Core.h>
+#include <Salix/core/InitEnums.h>
 #include <Salix/math/Color.h>  // Need the Color definition to allow tinting while rendering sprites.
 #include <Salix/math/Point.h>
 #include <Salix/math/Rect.h>
@@ -16,13 +17,7 @@ namespace Salix {
         Both
     };
 
-    // An enum for declaring the type of renderer in use.
-    enum class RendererType {
-        SDL, // The default option
-        OpenGl, // OpenGl using the SDL API
-        Vulkan,  // For the future
-        DirectX, // For the future
-    };
+  
 
     // This is an abstract base class that defines the "contract" for any renderer.
 
@@ -39,9 +34,12 @@ namespace Salix {
 
         // Provide access to the window it owns, without giving up ownership.
         virtual IWindow* get_window() = 0;
-
+        virtual void* get_native_handle() = 0;
         // A contract that all renderers must know how to load a texture.
         virtual ITexture* load_texture(const char* file_path) = 0;
+
+        // This is essential to prevent drawing artifacts from previous frames.
+        virtual void clear() = 0; 
 
         // A contract for drawing a texture at a specific location.
         virtual void draw_texture(ITexture* texture, const Rect& dest_rect) = 0;
