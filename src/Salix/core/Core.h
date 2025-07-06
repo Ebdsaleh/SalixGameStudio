@@ -21,6 +21,13 @@
     #else   // Defined when the Engine uses the DLL
         #define GAME_API __declspec(dllimport)
     #endif
+ 
+    // --- FOR THE EDITOR ---
+    #ifdef SALIX_BUILD_EDITOR // Defined when building the Editor
+        #define EDITOR_API __declspec(dllexport)
+    #else   // Defined when the Engine uses the Editor
+        #define EDITOR_API __declspec(dllimport)
+    #endif
 #else
     #error Salix Engine only supports Windows for now!
 #endif
