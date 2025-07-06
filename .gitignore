@@ -1,12 +1,56 @@
-# Ignore the entire build directory
+# Ignore the entire build directory (recommended to output all build artifacts here)
 /build/
 
-# Ignore Visual Studio Code specific files
-.vscode/
-!/.vscode/c_cpp_properties.json
 
-# Ignore Visual Studio specif files
+# Ignore Visual Studio related files
 *.VC.db
-*.sln
+*.VC.opendb
+*.sdf
 *.suo
-*.vcxproj*
+*.user
+*.userosscpp
+*.bak
+*.ncb
+*.aps
+*.bsc
+*.sbr
+*.tlog
+*.vspscc
+*.vssscc
+*.build.log
+*.log
+*.ipch
+
+# Program Database files (debugging symbols)
+*.pdb
+*.ilk
+
+# Visual Studio Code specific files (if you're using VS Code, useful to ignore workspace-specific settings)
+.vscode/
+!/.vscode/c_cpp_properties.json  # Keep this if you want to share C++ IntelliSense config
+!/.vscode/settings.json          # Keep this if you want to share general workspace settings
+!/.vscode/tasks.json             # Keep this if you have shared build tasks
+!/.vscode/launch.json            # Keep this if you have shared debug configurations
+
+# CMake-related generated files
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# Generated dependency files (sometimes end up in source directories)
+*.d
+
+# Executables and Libraries
+*.exe
+*.dll
+*.lib
+*.so
+*.a
+*.dylib
+
+# Editor/OS specific junk
+.DS_Store # macOS
+Thumbs.db # Windows
