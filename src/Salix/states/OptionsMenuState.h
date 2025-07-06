@@ -1,7 +1,7 @@
  // Salix/states/OptionsMenuState.h
 #pragma once
-#include <Salix/core/InitContext.h>
 #include <Salix/states/IAppState.h>
+#include <memory>
 
 namespace Salix {
 
@@ -16,6 +16,8 @@ namespace Salix {
             void render(class IRenderer* renderer) override;
             
         private:
-            InitContext context;
+            struct Pimpl;
+            std::unique_ptr<Pimpl> pimpl;
+            
     };
 } // namespace Salix
