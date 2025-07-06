@@ -274,11 +274,9 @@ namespace Salix {
         archive(cereal::make_nvp("entities", pimpl->entities)); // Corrected key name for Pimpl's content
     }
 
-    // Explicit instantiations for Scene
     template void Scene::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);
     template void Scene::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
-    // Add Binary archives if you plan to use them (recommended for scenes)
     template void Scene::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
     template void Scene::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
-
+ 
 } // namespace Salix
