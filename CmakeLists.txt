@@ -1,0 +1,123 @@
+# SalixGameStudio/CmakeLists.txt  (root)
+# SalixGameStudio/CMakeLists.txt
+# This is the top-level CMakeLists.txt file for the Salix Game Studio project.
+# It defines the project, sets global compiler options, and includes subdirectories.
+
+# Specify the minimum required CMake version.
+# Using a modern version allows for simpler, more robust syntax.
+cmake_minimum_required(VERSION 3.15)
+
+# Define the project name, version, and the languages used.
+# CXX indicates C++ language.
+project(SalixGameStudio VERSION 0.1 LANGUAGES CXX)
+
+# Set the C++ standard to C++17 for the entire project.
+# CMAKE_CXX_STANDARD_REQUIRED ON ensures that the compiler strictly adheres to C++17.
+# CMAKE_CXX_EXTENSIONS OFF disables compiler-specific extensions for better portability.
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+# Common compiler flags based on the compiler being used.
+if(MSVC)
+    add_compile_options(/EHsc /W4 /wd4251)
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        add_compile_options(/RTC1)
+    endif()
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    add_compile_options(-Wall -Wextra -pedantic)
+    if(CMAKE_BUILD_TYPE MATCHES "Debug")
+        add_compile_options(-g)
+    endif()
+endif()
+
+# Define the global build output directory for core engine components.
+set(CORE_ENGINE_BUILD_DIR "${CMAKE_BINARY_DIR}")
+
+# Set default output directories for all executable and library targets.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CORE_ENGINE_BUILD_DIR}")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CORE_ENGINE_BUILD_DIR}")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CORE_ENGINE_BUILD_DIR}")
+
+# --- Vendor Libraries (SDL2, SDL2_image, ImGui) ---
+# Define paths to the include and library directories for SDL2 and SDL2_image.
+set(SDL2_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2/include")
+set(SDL2_LIB_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2/lib/x64")
+set(SDL2_IMAGE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_image/include")
+set(SDL2_IMAGE_LIB_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_image/lib/x64")
+
+# --- Dear ImGui Paths ---
+set(IMGUI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/imgui")
+set(IMGUI_BACKENDS_DIR "${CMAKE_SOURCE_DIR}/vendor/imgui/backends")
+
+# Create "IMPORTED" library targets for SDL2 and SDL2_image.
+add_library(SDL2_LIB STATIC IMPORTED)
+set_target_properties(SDL2_LIB PROPERTIES
+    IMPORTED_LOCATION "${SDL2_LIB_DIR}/SDL2.lib"
+    IMPORTED_IMPLIB "${SDL2_LIB_DIR}/SDL2.lib"
+    INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIR}"
+)
+add_library(SDL2MAIN_LIB STATIC IMPORTED)
+set_target_properties(SDL2MAIN_LIB PROPERTIES
+    IMPORTED_LOCATION "${SDL2_LIB_DIR}/SDL2main.lib"
+    IMPORTED_IMPLIB "${SDL2_LIB_DIR}/SDL2main.lib"
+    INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIR}"
+)
+add_library(SDL2_IMAGE_LIB STATIC IMPORTED)
+set_target_properties(SDL2_IMAGE_LIB PROPERTIES
+    IMPORTED_LOCATION "${SDL2_IMAGE_LIB_DIR}/SDL2_image.lib"
+    IMPORTED_IMPLIB "${SDL2_IMAGE_LIB_DIR}/SDL2_image.lib"
+    INTERFACE_INCLUDE_DIRECTORIES "${SDL2_IMAGE_INCLUDE_DIR}"
+)
+
+# --- Add Dear ImGui as a static library target ---
+# We compile ImGui itself into a static library.
+# IMPORTANT: Corrected backend filenames to imgui_impl_sdl2.cpp and imgui_impl_sdlrenderer2.cpp
+add_library(ImGui STATIC
+    "${IMGUI_INCLUDE_DIR}/imgui.cpp"
+    "${IMGUI_INCLUDE_DIR}/imgui_draw.cpp"
+    "${IMGUI_INCLUDE_DIR}/imgui_widgets.cpp"
+    "${IMGUI_INCLUDE_DIR}/imgui_demo.cpp" # Optional, include for demo window
+    "${IMGUI_INCLUDE_DIR}/imgui_tables.cpp" # Added imgui_tables.cpp
+    "${IMGUI_BACKENDS_DIR}/imgui_impl_sdl2.cpp"      # Corrected name
+    "${IMGUI_BACKENDS_DIR}/imgui_impl_sdlrenderer2.cpp" # Corrected name
+)
+
+# Set include directories for ImGui.
+# PUBLIC: Any target linking ImGui will get these include paths.
+target_include_directories(ImGui PUBLIC
+    "${IMGUI_INCLUDE_DIR}"
+    "${IMGUI_BACKENDS_DIR}"
+)
+
+# ImGui itself needs to link to SDL2.
+target_link_libraries(ImGui PRIVATE
+    SDL2_LIB
+)
+
+# Add top-level source directories
+add_subdirectory(src/Salix)
+add_subdirectory(src/Game)
+add_subdirectory(src/Editor)
+add_subdirectory(src/Launcher)
+# add_subdirectory(src/Sandbox/TestProject) # Keep this commented out for now
+
+# --- INSTALL RULES FOR CORE ENGINE RUNTIME DEPENDENCIES ---
+install(FILES "${SDL2_LIB_DIR}/SDL2.dll"
+              "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release"
+    CONFIGURATIONS Release
+)
+install(FILES "${SDL2_LIB_DIR}/SDL2.dll"
+              "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug"
+    CONFIGURATIONS Debug
+)
+
+# Optionally, you can also install the .lib files if needed for other projects
+# that might link them directly, though for runtime, only the DLLs are critical.
+# install(FILES "${SDL2_LIB_DIR}/SDL2.lib"
+#               "${SDL2_LIB_DIR}/SDL2main.lib"
+#               "${SDL2_IMAGE_LIB_DIR}/SDL2_image.lib"
+#     DESTINATION "${CORE_ENGINE_BUILD_DIR}/lib"
+# )
