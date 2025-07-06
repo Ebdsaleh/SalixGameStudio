@@ -23,6 +23,7 @@ namespace Salix{
         // The core rendering commands
         void begin_frame() override;
         void end_frame() override;
+        void clear() override;
         // Delcare Texture loading.
         ITexture* load_texture(const char* file_path) override;
         // Declare Texture Drawing
@@ -31,7 +32,8 @@ namespace Salix{
         void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
         // We now have a method to access the IWindow-inherited object.
         IWindow* get_window() override;
-        
+        void* get_native_handle() override;
+        SDL_Renderer* get_sdl_renderer();
         private:
         // The Renderer's own SDL_Renderer object
         ::SDL_Renderer* sdl_renderer;

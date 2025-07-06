@@ -29,7 +29,7 @@ namespace Salix {
 
         // 3. Get the native handle and create the actual SDL renderer.
         void* native_handle = window->get_native_handle();
-        sdl_renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(native_handle), -1, SDL_RENDERER_ACCELERATED);
+        sdl_renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(native_handle), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
         if (sdl_renderer == nullptr) {
             std::cout << "Renderer::initalize - SDL_CreateRenderer Failed!" << std::endl;
@@ -47,6 +47,15 @@ namespace Salix {
     return window.get();
     }
 
+    void* SDLRenderer::get_native_handle(){
+        return static_cast <void *> (sdl_renderer);
+    }
+
+    
+    SDL_Renderer* SDLRenderer::get_sdl_renderer() {
+        return sdl_renderer;
+    }
+
     void SDLRenderer::shutdown() {
         std::cout << "Shutting down renderer." << std::endl;
         if (sdl_renderer) {
@@ -55,6 +64,11 @@ namespace Salix {
 
         sdl_renderer = nullptr; // Prevent double-deletion  
         window = nullptr;
+    }
+
+    void SDLRenderer::clear() {
+        SDL_SetRenderDrawColor(sdl_renderer, 0, 0, 0, 255);
+        SDL_RenderClear(sdl_renderer);
     }
 
     void SDLRenderer::begin_frame() {
