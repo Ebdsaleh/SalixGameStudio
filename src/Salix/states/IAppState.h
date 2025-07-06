@@ -1,18 +1,10 @@
 #pragma once
 #include <Salix/core/Core.h>
-
+#include <Salix/core/InitEnums.h>
 namespace Salix {
 
     class IRenderer;
     struct InitContext;
-
-    enum class AppStateType {
-        None,
-        Launch,
-        Editor,
-        Game,
-        Options
-    };
 
     class SALIX_API IAppState {
     public:
