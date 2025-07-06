@@ -6,13 +6,9 @@
 #pragma once
 
 #include <Salix/core/Core.h>
+#include <Salix/core/InitEnums.h>
 
-namespace Salix {
-
-    enum class TimerType {
-        SDL,
-        Chrono
-    };
+namespace Salix { 
 
     class SALIX_API ITimer {
     public:
