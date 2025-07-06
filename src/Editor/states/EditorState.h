@@ -1,4 +1,4 @@
-// Salix/states/EditorState.h
+// Editor/states/EditorState.h
 #pragma once
 
 #include <Salix/states/IAppState.h>

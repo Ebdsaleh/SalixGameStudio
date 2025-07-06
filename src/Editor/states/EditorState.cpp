@@ -1,5 +1,5 @@
 // Salix/states/EditorState.cpp
-#include <Salix/states/EditorState.h>
+#include <Editor/states/EditorState.h>
 #include <Salix/core/EngineMode.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/core/InitContext.h>
@@ -16,6 +16,10 @@ namespace Salix {
     void EditorState::on_enter(const InitContext& new_context) {
         std::cout << "Entering EditorState..." << std::endl;
         context = new_context;
+        if(context.asset_manager == nullptr) {
+            std::cerr << "EditorState::on_enter - ERROR: context pointer members are nullptr! " <<
+                "Tested against 'context.asset_manager" << std::endl;
+        }
         context.engine->set_mode(EngineMode::Editor);
 
         // Get the core systems from the engine
