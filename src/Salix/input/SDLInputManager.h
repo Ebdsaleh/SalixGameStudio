@@ -15,7 +15,7 @@ namespace Salix {
 
             // The main update call that polls all devices.
             void update(float delta_time) override;
-            void process_event(IEvent& event);
+            void process_event(IEvent& event)override;
             // Keyboard Queries
             bool is_down(KeyCode key) const override;
             bool is_held_down(KeyCode key) const override;
