@@ -40,7 +40,8 @@ namespace Salix {
     enum class EventType {
         None, WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
         AppTick, AppUpdate, AppRender, KeyPressed, KeyReleased, KeyTyped,
-        MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled
+        MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
+        ImGuiInput // NEW: Event type for ImGui input capture
     };
 
     class SALIX_API IEvent {
@@ -51,7 +52,6 @@ namespace Salix {
         virtual const char* get_name() const = 0;
         virtual int get_category_flags() const = 0;
         virtual std::string to_string() const { return get_name(); }
-
         // The helper functions now correctly use the scoped enum values.
         inline bool is_in_category(EventCategory category) const {
             return get_category_flags() & static_cast<int>(category);
@@ -61,7 +61,9 @@ namespace Salix {
         inline bool is_keyboard_event() const { return is_in_category(EventCategory::Keyboard); }
         inline bool is_mouse_event() const { return is_in_category(EventCategory::Mouse); }
         inline bool is_mouse_button_event() const { return is_in_category(EventCategory::MouseButton); }
-        
+        virtual void* get_native_handle() { return nullptr; } // Default implementation returns nullptr
+        // This will be overridden by concrete SDL events to return the SDL_Event*
+
         bool handled = false;
     };
 
