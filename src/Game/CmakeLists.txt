@@ -1,0 +1,36 @@
+# SalixGameStudio/src/Game/CMakeLists.txt
+# Defines the Game shared library (DLL), which acts as the generic runtime environment.
+
+# Add a shared library target for the Game runtime.
+# List all source files that make up the Game.dll.
+# Paths are relative to this CMakeLists.txt file's location (src/Game/).
+add_library(Game SHARED
+    GameFactory.cpp
+    states/GameState.cpp
+    # Add any other .cpp files specific to Game.dll here
+)
+
+# Specify include directories for Game.
+# PUBLIC: Means these include paths are propagated to targets that link against Game.
+# "${CMAKE_SOURCE_DIR}/src": Allows includes like <Salix/core/Core.h>.
+target_include_directories(Game PUBLIC
+    "${CMAKE_SOURCE_DIR}/src"
+)
+
+# Link Game against SalixEngine and SDL2 libraries.
+# Game.dll depends on SalixEngine for core functionality.
+# It also needs SDL2 libraries if it directly uses SDL functions or types.
+target_link_libraries(Game PUBLIC
+    SalixEngine # Links against the SalixEngine target defined previously
+    SDL2_LIB
+    SDL2MAIN_LIB
+    SDL2_IMAGE_LIB
+)
+
+# Define a preprocessor macro specific to building the Game DLL.
+target_compile_definitions(Game PRIVATE SALIX_BUILD_GAME)
+
+# Set the output name for the DLL.
+set_target_properties(Game PROPERTIES
+    OUTPUT_NAME "Game"
+)
