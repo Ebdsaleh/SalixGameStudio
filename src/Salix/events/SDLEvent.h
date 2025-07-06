@@ -10,18 +10,22 @@
 #include <Salix/events/IEvent.h>
 #include <sstream>
 
-namespace Salix {
 
+
+// For EVENT_CLASS_TYPE (multiple lines, needs backslashes)
+#ifndef EVENT_CLASS_TYPE
+#define EVENT_CLASS_TYPE(type) static EventType get_static_type() { return EventType::##type; }\
+                                 virtual EventType get_event_type() const override { return get_static_type(); }\
+                                 virtual const char* get_name() const override { return #type; }
+#endif // EVENT_CLASS_TYPE <-- END THE IFNDEF BLOCK HERE
     
-    // Helper macro to implement the type-specific virtual functions.
-    #define EVENT_CLASS_TYPE(type) static EventType get_static_type() { return EventType::##type; }\
-                                    virtual EventType get_event_type() const override { return get_static_type(); }\
-                                    virtual const char* get_name() const override { return #type; }
-
     // Helper macro for setting the event category flags.
     // We now static_cast the result to an int to handle single enum class values correctly.
-    #define EVENT_CLASS_CATEGORY(category) virtual int get_category_flags() const override { return static_cast<int>(category); }
-
+   // For EVENT_CLASS_CATEGORY (single line)
+#ifndef EVENT_CLASS_CATEGORY // <-- CHECK IF NOT DEFINED
+#define EVENT_CLASS_CATEGORY(category) virtual int get_category_flags() const override { return static_cast<int>(category); }
+#endif // EVENT_CLASS_CATEGORY <-- END THE IFNDEF BLOCK HERE
+namespace Salix {
     //==============================================================================
     // KEYBOARD EVENTS
     //==============================================================================
@@ -179,6 +183,7 @@ namespace Salix {
 
     class WindowResizeEvent : public IEvent {
     public:
+        
         WindowResizeEvent(unsigned int width_in, unsigned int height_in)
             : width(width_in), height(height_in) {}
 
