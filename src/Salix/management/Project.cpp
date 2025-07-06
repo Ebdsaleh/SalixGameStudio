@@ -105,7 +105,7 @@ namespace Salix {
 
         std::filesystem::path dll_path = std::filesystem::current_path() / "build" / pimpl->game_dll_name;
 
-        if (!ScriptLoader::load_script_library(dll_path.string())) {
+        if (!ScriptLoader::load_script_library(dll_path.string(), pimpl->context)) {
             std::cerr << "FATAL ERROR: Could not load game DLL at '" << dll_path.string() << "'!" << std::endl;
             return;
         } else {
@@ -258,10 +258,9 @@ namespace Salix {
         cereal::make_nvp("game_dll_name", pimpl->game_dll_name)
     );
     }
-
-    template void Project::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive& );
-    template void Project::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive&);
-    template void Project::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
-    template void Project::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
+    template void Salix::Project::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive& );
+    template void Salix::Project::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive&);
+    template void Salix::Project::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
+    template void Salix::Project::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
 
 } // namespace Salix
