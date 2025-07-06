@@ -1,0 +1,130 @@
+# src/Sandbox/TestProject/CmakeLists.txt  (Sandbox/TestProject)
+# SalixGameStudio/src/Sandbox/TestProject/CMakeLists.txt
+# This CMakeLists.txt handles the build and packaging for a specific user game project (TestProject).
+
+# Define the output directory for this specific project's build.
+# CMAKE_CURRENT_SOURCE_DIR points to src/Sandbox/TestProject.
+# This will result in: SalixGameStudio/src/Sandbox/TestProject/build
+set(PROJECT_OUTPUT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/build")
+
+# Override the global output directories for targets defined within this subdirectory.
+# This ensures TestProject.dll and TestProject.exe are placed into PROJECT_OUTPUT_DIR.
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_OUTPUT_DIR}") # For EXEs and DLLs
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_OUTPUT_DIR}") # For .lib files
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_OUTPUT_DIR}") # For static .lib files
+
+# --- STAGE 1: COMPILE THE PROJECT'S SCRIPT DLL (e.g., TestProject.dll) ---
+# This DLL contains the user's custom game logic (e.g., PlayerMovement script).
+
+# Gather all .cpp files for the DLL.
+# This includes:
+# - Scripts from Assets/Scripts/
+# - ScriptInitList.cpp from Generated/ (if it contains compilable code for the DLL)
+file(GLOB PROJECT_DLL_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/Assets/Scripts/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Generated/ScriptInitList.cpp" # Include ScriptInitList.cpp from Generated
+)
+
+# Only add the library target if source files were found.
+if(PROJECT_DLL_SOURCES)
+    # Add a shared library target for the project's game logic.
+    add_library(TestProjectDll SHARED ${PROJECT_DLL_SOURCES})
+
+    # Specify include directories for TestProjectDll.
+    # PUBLIC: Propagates these includes to targets linking TestProjectDll.
+    # "${CMAKE_SOURCE_DIR}/src": Allows includes like <Salix/core/Core.h>.
+    # "${CMAKE_CURRENT_SOURCE_DIR}": Allows includes like "PlayerMovement.h" from the project root.
+    # "${CMAKE_CURRENT_SOURCE_DIR}/Generated": For generated headers like ScriptIncludes.h.
+    target_include_directories(TestProjectDll PUBLIC
+        "${CMAKE_SOURCE_DIR}/src"
+        "${CMAKE_CURRENT_SOURCE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Generated"
+    )
+
+    # Link TestProjectDll against the necessary engine and SDL libraries.
+    # It needs SalixEngine for core functionality and SDL if its scripts use SDL types directly.
+    target_link_libraries(TestProjectDll PUBLIC
+        SalixEngine # Links against the engine core
+        SDL2_LIB    # If any SDL types are exposed in headers used by scripts
+        SDL2MAIN_LIB
+        SDL2_IMAGE_LIB
+    )
+
+    # Set the output name for the project's DLL.
+    set_target_properties(TestProjectDll PROPERTIES
+        OUTPUT_NAME "TestProject"
+    )
+else()
+    message(WARNING "No .cpp files found for TestProject.dll. It will not be built.")
+endif()
+
+
+# --- STAGE 2: COMPILE THE PROJECT'S EXECUTABLE (e.g., TestProject.exe) ---
+# This is the standalone executable for the TestProject game.
+
+# Add an executable target for the TestProject game.
+# It uses the 'Generated/main.cpp' as its entry point.
+add_executable(TestProjectExe
+    "${CMAKE_CURRENT_SOURCE_DIR}/Generated/main.cpp"
+)
+
+# Specify include directories for TestProjectExe.
+# PRIVATE: These include paths are only for the executable itself.
+target_include_directories(TestProjectExe PRIVATE
+    "${CMAKE_SOURCE_DIR}/src"         # For Salix headers (e.g., Engine.h, InitContext.h)
+    "${CMAKE_CURRENT_SOURCE_DIR}"     # For project-specific headers
+    "${CMAKE_CURRENT_SOURCE_DIR}/Generated" # For generated headers like ScriptIncludes.h
+)
+
+# Link TestProjectExe against the necessary libraries.
+# It directly links SalixEngine (for Salix::Engine) and Game (for GameState).
+# It also links TestProjectDll to ensure its import library is linked.
+# SDL2 libs are needed as the EXE directly initializes SDL components.
+target_link_libraries(TestProjectExe PRIVATE
+    SalixEngine
+    Game
+    # Link to the TestProjectDll target if it was successfully added.
+    # This ensures the import library for TestProject.dll is linked.
+    # Note: CMake automatically handles the dependency, building TestProjectDll before TestProjectExe.
+    $<$<TARGET_EXISTS:TestProjectDll>:TestProjectDll>
+    SDL2_LIB
+    SDL2MAIN_LIB
+    SDL2_IMAGE_LIB
+)
+
+# Set the output name for the executable.
+set_target_properties(TestProjectExe PROPERTIES
+    OUTPUT_NAME "TestProject"
+)
+
+
+# --- STAGE 3: COPY RUNTIME DEPENDENCIES TO PROJECT'S BUILD DIRECTORY (Packaging) ---
+# These 'install' rules define what files get copied where when 'cmake --install .' is run.
+# The destination is relative to the install prefix, which we'll set to PROJECT_OUTPUT_DIR.
+
+# Install the TestProjectExe into the root of the project's build directory.
+install(TARGETS TestProjectExe DESTINATION ".")
+
+# Install the TestProjectDll (if it was successfully built).
+if(TARGET TestProjectDll)
+    install(TARGETS TestProjectDll DESTINATION ".")
+endif()
+
+# Install core engine DLLs from the main engine build directory.
+# CORE_ENGINE_BUILD_DIR is defined in the top-level CMakeLists.txt.
+install(FILES "${CORE_ENGINE_BUILD_DIR}/SalixEngine.dll"
+              "${CORE_ENGINE_BUILD_DIR}/Game.dll"
+    DESTINATION "."
+)
+
+# Install SDL2 runtime DLLs from the vendor directory.
+install(FILES "${SDL2_LIB_DIR}/SDL2.dll"
+              "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll"
+    DESTINATION "."
+)
+
+# Install project assets and the .salixproj file into the project's build directory.
+# Copy the entire 'Assets' folder content.
+install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Assets/" DESTINATION "Assets" FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
+# Copy the .salixproj file.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/TestProject.salixproj" DESTINATION ".")
