@@ -1,0 +1,32 @@
+// Sandbox/TestProject/Assets/Scripts/PlayerMovement.h
+#pragma once
+
+// We must include the base class we are inheriting from.
+#include <Salix/ecs/CppScript.h> // <-- Inherit from CppScript now
+#include <Salix/scripting/ScriptRegistration.h>
+// Forward declare any engine types we need pointers to.
+// This avoids including the full header and keeps compile times fast.
+namespace Salix {
+    class Transform;
+}
+
+// Our new PlayerMovement script is a type of ScriptElement.
+// It will be compiled into the TestProject.dll, so it doesn't need any special API macros.
+class PlayerMovement : public Salix::CppScript {
+    SCRIPT_SERIALIZATION_BODY(PlayerMovement);
+public:
+    PlayerMovement();
+    // We will override the standard lifecycle methods from the Element base class.
+    void initialize() override;
+    void update(float delta_time) override;
+    void shutdown() override;
+
+private:
+    // It's good practice to cache pointers to components we use frequently.
+    // This avoids calling get_component every frame.
+    Salix::Transform* transform = nullptr;
+};
+#include <cereal/types/polymorphic.hpp>
+
+CEREAL_REGISTER_TYPE(PlayerMovement)
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::CppScript, PlayerMovement)

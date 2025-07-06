@@ -1,0 +1,31 @@
+// GamePlugin.cpp inside TestProject.dll
+#include <cereal/cereal.hpp>
+#include <cereal/types/polymorphic.hpp>
+#include <Salix/core/EngineInterface.h>
+#include <Salix/core/IPlugin.h>
+#include "PlayerMovement.h" // or whatever your script is
+
+using namespace Salix;
+
+class TestProjectPlugin : public IPlugin {
+public:
+    void on_register_types() override {
+        CEREAL_REGISTER_TYPE(PlayerMovement);
+        CEREAL_REGISTER_POLYMORPHIC_RELATION(CppScript, PlayerMovement);
+    }
+
+    void on_startup(InitContext& context) override {
+        // Optional: register scripts, assets, gameplay logic, etc.
+    }
+
+    void on_shutdown() override {
+        // Optional: cleanup or unhook
+    }
+};
+
+// Export a factory function for the engine
+extern "C" __declspec(dllexport)
+IPlugin* create_plugin() {
+    static TestProjectPlugin plugin;
+    return &plugin;
+}

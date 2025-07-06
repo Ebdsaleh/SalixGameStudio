@@ -1,0 +1,59 @@
+// Sandbox/TestProject/Assets/Scripts/player_movement.cpp
+#include "PlayerMovement.h"
+// --- THIS LINE MUST BE INCLUDED OR ELSE WE CANNOT REGISTER THIS SCRIPT ---
+// We need to include the header that defines our new macro.
+#include <Salix/scripting/ScriptRegistration.h>
+#include <cereal/types/polymorphic.hpp>
+// We need to include the full definitions for the components we use.
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Transform.h>
+#include <iostream>
+
+PlayerMovement::PlayerMovement() {
+    // Set the unique name that matches the name used in REGISTER_SCRIPT
+    script_name = "PlayerMovement";
+}
+
+void PlayerMovement::initialize() {
+    std::cout << "PlayerMovement script initializing..." << std::endl;
+
+    // On initialization, we get the Transform component from our owner Entity
+    // and store a pointer to it for quick access during update.
+    if (owner) {
+        transform = owner->get_element<Salix::Transform>();
+    }
+
+    if (!transform) {
+        std::cerr << "PlayerMovement Error: Could not find a Transform component on the owner entity." << std::endl;
+    }
+}
+
+void PlayerMovement::update(float delta_time) {
+    // This is our main game logic loop for this script.
+    // We check if our cached transform pointer is valid before using it.
+    if (transform) {
+        // Define a speed in units (e.g., pixels) per second.
+        float speed = 20.0f;
+
+        // Create a direction vector. {1, 0, 0} is to the right.
+        Salix::Vector3 direction = { 1.0f, 0.0f, 0.0f };
+
+        // Calculate the movement for this frame and apply it.
+        Salix::Vector3 movement = direction * speed * delta_time;
+        transform->translate(movement);
+    }
+}
+
+void PlayerMovement::shutdown() {
+    // This is called when the entity is destroyed.
+    // We don't have any resources to clean up, but it's good practice to have.
+    std::cout << "PlayerMovement script shutting down..." << std::endl;
+}
+
+
+
+// --- THIS LINE MUST BE ADDED AT THE END OF THE FILE ---
+// This automatically registers the PlayerMovement class with the ScriptFactory.
+REGISTER_SCRIPT(PlayerMovement)
+
+
