@@ -13,4 +13,4 @@
 // It must be exported from the Game.dll so the Engine can find it.
 // We use extern "C" to prevent C++ name mangling, which makes the function
 // much easier and more reliable to load at runtime.
-extern "C" GAME_API Salix::IAppState* create_state(Salix::AppStateType state_type);
+extern "C" GAME_API Salix::IAppState* create_game_state(Salix::AppStateType state_type);

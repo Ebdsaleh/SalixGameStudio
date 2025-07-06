@@ -5,6 +5,7 @@
 
 #include <Salix/core/InitContext.h>
 #include <Salix/states/IAppState.h>  
+#include <Salix/core/EngineInterface.h>
 #include <memory>
 
 namespace Salix {
@@ -30,5 +31,6 @@ namespace Salix {
             // It holds non-owning pointers to the engine systems it needs.
             AssetManager* asset_manager;
             IRenderer* renderer;
+            EngineInterface* engine;
     };
 } // namespace Salix

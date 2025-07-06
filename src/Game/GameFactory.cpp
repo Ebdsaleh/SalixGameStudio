@@ -6,7 +6,7 @@
 #include <Game/GameAPI.h>
 #include <Game/states/GameState.h>
 
-Salix::IAppState* create_state(Salix::AppStateType state_type) {
+Salix::IAppState* create_game_state(Salix::AppStateType state_type) {
     switch (state_type) {
         case Salix::AppStateType::Game:
             // Now the DLL will create the GameState.

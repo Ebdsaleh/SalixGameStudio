@@ -4,6 +4,7 @@
 
 // Include all the headers for the systems and components we need to interact with
 #include <Salix/core/Core.h>
+#include <Salix/core/EngineInterface.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/core/EngineMode.h>
 #include <Salix/management/ProjectManager.h>
@@ -48,52 +49,66 @@ namespace Salix {
 
     void GameState::on_enter(const InitContext& new_context) {
         std::cout << "Entering GameState..." << std::endl;
+
+        // Capture the context
         context = new_context;
+
+        // --- VALIDATE CONTEXT FIRST ---
+        if (!context.engine) { std::cerr << "[GameState] FATAL: Engine is null in InitContext\n"; return; }
+        if (!context.asset_manager) { std::cerr << "[GameState] FATAL: AssetManager is null in InitContext\n"; return; }
+
         asset_manager = context.asset_manager;
-        context.engine->set_mode(EngineMode::Game);
-        // 1. Get the path to where the executable is being run from.
-        std::filesystem::path current_working_dir = std::filesystem::current_path();
+        renderer      = context.renderer;
+        engine        = context.engine;
 
-        // 2. Define the relative path from that location to your project folder.
-        std::filesystem::path relative_path_to_project = "src/Sandbox/TestProject";
+        std::cout << "[GameState] Context pointers set. EngineMode = "
+                << static_cast<int>(context.engine_mode) << std::endl;
 
-        // 3. Combine them to create the true absolute path and set our global variable.
-        Salix::g_project_root_path = (current_working_dir / relative_path_to_project).lexically_normal();
+        // --- Set the project root ---
+        std::filesystem::path cwd = std::filesystem::current_path();
+        std::filesystem::path project_path = cwd / "src/Sandbox/TestProject";
+        g_project_root_path = project_path.lexically_normal();
 
-        std::cout << "DEBUG: Project root path set to: " << Salix::g_project_root_path.string() << std::endl;
-       
+        std::cout << "DEBUG: Project root path set to: " << g_project_root_path << std::endl;
 
-        
-        // --- SETUP ---
-        project_manager = std::make_unique<ProjectManager>();
-        project_manager->initialize(context);
+        try {
+            // --- Allocate and initialize the ProjectManager ---
+            std::cout << "[GameState] Creating ProjectManager..." << std::endl;
+            project_manager = std::make_unique<ProjectManager>();
+            project_manager->initialize(context);  // Pass full InitContext instead of just asset_manager
+            std::cout << "ProjectManager Initialized." << std::endl;
 
-        
-        // Now, use the absolute path to load the project file
-        std::filesystem::path project_file_path = Salix::g_project_root_path / "TestProject.salixproj";
-        Project* current_project = project_manager->load_project_from_file(project_file_path.string());
+            std::filesystem::path project_file_path = g_project_root_path / "TestProject.salixproj";
+            std::cout << "[GameState] Loading project from " << project_file_path << std::endl;
 
-        if (!current_project) {
-            std::cerr << "FATAL: Could not load project." << std::endl;
-            return;
+            Project* current_project = project_manager->load_project_from_file(project_file_path.string());
+
+            if (!current_project) {
+                std::cerr << "[GameState] FATAL: Could not load project from file.\n";
+                return;
+            }
+
+            SceneManager* scene_manager = current_project->get_scene_manager();
+            scene_manager->set_active_scene(current_project->get_starting_scene());
+
+            std::cout << "[GameState] Loading active scene..." << std::endl;
+            bool loaded = scene_manager->load_active_scene();
+
+            if (!loaded) {
+                std::cerr << "[GameState] Warning: Scene load failed. Creating default scene." << std::endl;
+                current_project->create_and_save_default_scene();
+                scene_manager->get_active_scene()->load_assets(context);
+            }
+
+            std::cout << "GameState setup complete. Starting game loop..." << std::endl;
+
+        } catch (const std::exception& ex) {
+            std::cerr << "[GameState] EXCEPTION: " << ex.what() << std::endl;
+        } catch (...) {
+            std::cerr << "[GameState] UNKNOWN ERROR during on_enter()\n";
         }
-
-        SceneManager* scene_manager = current_project->get_scene_manager();
-        scene_manager->set_active_scene(current_project->get_starting_scene());
-
-        // Try to load the scene file.
-        bool loaded_successfully = scene_manager->load_active_scene();
-
-        // If loading failed...
-        if (!loaded_successfully) {
-            // ...create the default scene.
-            current_project->create_and_save_default_scene();
-            // ...and then load the assets for the newly created content.
-            scene_manager->get_active_scene()->load_assets(context);
-        }
-
-        std::cout << "GameState setup complete. Starting game loop..." << std::endl;
     }
+
 
     void GameState::on_exit() {
         std::cout << "Exiting GameState..." << std::endl;
