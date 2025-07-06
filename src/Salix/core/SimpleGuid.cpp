@@ -42,4 +42,5 @@ namespace Salix {
     template void SimpleGuid::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
     template void SimpleGuid::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
 
+
 } // namespace Salix
