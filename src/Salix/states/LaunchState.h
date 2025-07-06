@@ -19,9 +19,10 @@ namespace Salix {
             void render(class IRenderer* renderer) override;
         
         private:
-            private:
         // Non-owning pointers to the systems we need to talk to.
-        InitContext context;
-        IInputManager* input_manager_ptr;
+        struct Pimpl;
+        std::unique_ptr<Pimpl> pimpl;
+        
+        
     };
 } // namespace Salix
