@@ -1,5 +1,4 @@
 // Salix/core/SerializationRegistrations.h
-// Salix/core/SerializationRegistrations.h
 #pragma once
 
 // --- Step 1: Include Archives (Essential) ---
@@ -39,19 +38,19 @@ namespace cereal
 {
     // This custom "save" function will be used whenever Cereal encounters a CppScript.
     template <class Archive>
-    void save(Archive& ar, const Salix::CppScript& script)
+    void save(Archive& archive, const Salix::CppScript& script)
     {
         // We save the script's unique registered name as a string.
-        ar(cereal::make_nvp("script_name", script.get_script_name()));
+        archive(cereal::make_nvp("script_name", script.get_script_name()));
     }
 
     // This custom "load_and_construct" function tells Cereal how to create a script object.
     template <class Archive>
-    void load_and_construct(Archive& ar, cereal::construct<Salix::CppScript>& construct)
+    void load_and_construct(Archive& archive, cereal::construct<Salix::CppScript>& construct)
     {
         // First, read the script's name from the file.
         std::string script_name;
-        ar(cereal::make_nvp("script_name", script_name));
+        archive(cereal::make_nvp("script_name", script_name));
 
         // Use our ScriptFactory to create the correct derived script type (e.g., PlayerMovement).
         // The factory returns a unique_ptr to the base ScriptElement.
