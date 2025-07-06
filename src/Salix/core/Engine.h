@@ -30,7 +30,7 @@ namespace Salix {
 
             // The main phases of the engine's lifecycle.
             // This new signature solves the circular dependency and is very clear.
-            bool initialize(const WindowConfig& config, RendererType renderer_type, TimerType timer_type, int target_fps = 60);
+            bool initialize(const WindowConfig& config, RendererType renderer_type, AppStateType initial_state, GuiType gui_type, TimerType timer_type, int target_fps = 60);
             void run();
             void shutdown();
 
@@ -39,7 +39,8 @@ namespace Salix {
             AssetManager* get_asset_manager();
             IInputManager* get_input_manager();
             EventManager* get_event_manager();
-            bool is_running() const;
+            bool is_running() const override;
+            bool const is_running(bool keep_running) override;
             void push_state(IAppState* state);
             void pop_state();
             void change_state(IAppState* state);
