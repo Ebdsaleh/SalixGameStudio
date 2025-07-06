@@ -91,4 +91,5 @@ namespace Salix {
     template void Color::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
     template void Color::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
     template void Color::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
+    
 } // namespace Salix
