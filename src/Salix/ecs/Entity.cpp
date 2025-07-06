@@ -167,6 +167,5 @@ namespace Salix {
     template void Entity::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
     template void Entity::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
     template void Entity::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &); 
-    
 
 } // namespace Salix
