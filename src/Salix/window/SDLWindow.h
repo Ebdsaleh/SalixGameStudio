@@ -25,6 +25,7 @@ namespace Salix {
 
         int get_width() const override;
         int get_height() const override;
+        void query_dimensions(int& out_width, int& out_height) const override;
 
     private:
         // The actual, underlying SDL_Window object.

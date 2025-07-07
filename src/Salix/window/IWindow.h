@@ -33,7 +33,7 @@ namespace Salix {
         // The renderer will know how to cast and use this.
         virtual void* get_native_handle() const = 0;
         // ---------------------------------------------
-
+        virtual void query_dimensions(int& out_width, int& out_height) const = 0;
         virtual int get_width() const = 0;
         virtual int get_height() const = 0;
     };

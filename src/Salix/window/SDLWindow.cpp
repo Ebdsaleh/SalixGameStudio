@@ -69,4 +69,16 @@ namespace Salix {
         return window_config.height;
     }
 
+    void SDLWindow::query_dimensions(int& out_width, int& out_height) const {
+        if (window) {
+            SDL_GetWindowSize(window, &out_width, &out_height);
+        } else {
+            // If the SDL window hasn't been created or has been destroyed,
+            // return zero dimensions to indicate an invalid state.
+            out_width = 0;
+            out_height = 0;
+        }
+
+    }
+
 } // namespace Salix
