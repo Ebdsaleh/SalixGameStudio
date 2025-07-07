@@ -1,6 +1,7 @@
 // Salix/gui/imgui/ImGuiThemeManager.cpp
 
-#include "ImGuiThemeManager.h"
+#include <Salix/gui/imgui/ImGuiThemeManager.h>
+#include <Salix/gui/imgui/ImGuiTheme.h>
 #include <imgui.h>
 #include <fstream>
 #include <filesystem>
@@ -18,7 +19,7 @@ namespace Salix {
     };
 
     ImGuiThemeManager::ImGuiThemeManager() : pimpl(std::make_unique<Pimpl>()) {}
-
+    ImGuiThemeManager::~ImGuiThemeManager() = default;
     bool ImGuiThemeManager::initialize(IGui* gui_system) {
         pimpl->gui_ref = gui_system;
         return true;
@@ -30,12 +31,15 @@ namespace Salix {
     }
 
     bool ImGuiThemeManager::register_theme(std::unique_ptr<ITheme> theme) {
-        const std::string& name = theme->get_name();
-        if (pimpl->theme_registry.count(name))
-            return false;
-        pimpl->theme_registry[name] = std::move(const_cast<std::unique_ptr<ITheme>&>(theme));
-        return true;
+    const std::string& name = theme->get_name(); // Get name before moving
+    if (pimpl->theme_registry.count(name)) {
+        std::cerr << "ImGuiThemeManager Error: Theme '" << name << "' already registered." << std::endl;
+        return false;
     }
+    pimpl->theme_registry[name] = std::move(theme); // CORRECT: Just std::move(theme)
+    std::cout << "ImGuiThemeManager: Theme '" << name << "' registered." << std::endl;
+    return true;
+}
 
     bool ImGuiThemeManager::unregister_theme(const std::string& theme_name) {
         return pimpl->theme_registry.erase(theme_name) > 0;

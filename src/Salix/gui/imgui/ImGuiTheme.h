@@ -14,6 +14,7 @@ namespace Salix {
     public:
         ImGuiTheme();
         ImGuiTheme(const std::string& theme_name);
+        ~ImGuiTheme() override;
         bool  apply(IGui* gui_system) override;
         const std::string& get_name() const override;
         ImGuiThemeData* get_theme_data();

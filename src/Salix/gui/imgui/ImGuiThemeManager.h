@@ -5,6 +5,7 @@
 #include <Salix/gui/IThemeManager.h>
 #include <Salix/gui/ITheme.h>
 #include <unordered_map>
+#include <iostream>
 #include <string>
 #include <memory>
 #include <vector>
@@ -18,6 +19,7 @@ namespace Salix {
     class SALIX_API ImGuiThemeManager : public IThemeManager {
     public:
         ImGuiThemeManager();
+        ~ImGuiThemeManager() override;
         bool initialize(IGui* gui_system) override;
         void shutdown() override;
 

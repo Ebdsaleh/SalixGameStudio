@@ -23,6 +23,8 @@ namespace Salix {
             pimpl->theme_data = std::make_unique<ImGuiThemeData>();
     }
 
+    ImGuiTheme::~ImGuiTheme() = default;
+
     bool ImGuiTheme::apply(IGui* gui_system) {
         if (gui_system == nullptr)  { return false; }
         // Apply default Dear ImGui style for now
