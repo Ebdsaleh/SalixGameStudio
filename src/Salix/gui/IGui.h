@@ -2,7 +2,8 @@
 #pragma once
 #include <Salix/core/Core.h> // For SALIX_API
 #include <string> // For std::string
-#include <imgui/imgui.h>
+#include <imgui/imgui.h> // Only include ImGui's core header if SALIX_GUI_IMGUI is defined
+
 
 namespace Salix {
     // Forward declarations for engine interfaces that a GUI might need to interact with

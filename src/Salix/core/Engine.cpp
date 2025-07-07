@@ -219,6 +219,7 @@ namespace Salix {
 
                 break; // Safe to break here, as no GUI system is expected.
             case GuiType::ImGui: 
+                
                 pimpl->gui_system = std::make_unique<SDLImGui>();
                 if (!pimpl->gui_system->initialize(
                         pimpl->renderer->get_window(),
