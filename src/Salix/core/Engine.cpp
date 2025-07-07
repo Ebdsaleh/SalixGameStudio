@@ -4,26 +4,47 @@
 // Description: Implements the main Engine class, which orchestrates all subsystems.
 // =================================================================================
 
+// C++ includes
+#include <iostream>
+
+// Core includes
 #include <Salix/core/InitContext.h>
 #include <Salix/core/Engine.h>
-#include <Windows.h>
 #include <Salix/core/SDLTimer.h>
 #include <Salix/core/ChronoTimer.h>
+
+// Rendering includes
+#include <Salix/rendering/SDLRenderer.h>
+
+// Input includes
 #include <Salix/input/SDLInputManager.h>
 #include <Salix/input/ImGuiInputManager.h>
-#include <Salix/rendering/SDLRenderer.h>
-#include <Salix/assets/AssetManager.h>
-#include <Salix/states/IAppState.h>
-#include <Salix/states/LaunchState.h>
+
+// Gui includes
 #include <Salix/gui/IGui.h>
+#include <Salix/gui/IThemeManager.h>
+// Gui/Imgui includes
 #include <Salix/gui/imgui/SDLImGui.h>
-#include <Salix/states/OptionsMenuState.h>
+#include <Salix/gui/imgui/ImGuiThemeManager.h>
+
+// Asset management includes
+#include <Salix/assets/AssetManager.h>
+
+// Events includes
 #include <Salix/events/IEventPoller.h>
 #include <Salix/events/SDLEventPoller.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/events/ApplicationEventListener.h>
+
+// States includes
+#include <Salix/states/IAppState.h>
+#include <Salix/states/LaunchState.h>
+#include <Salix/states/OptionsMenuState.h>
+
+// 3rd-party includes
+#include <Windows.h>
 #include <SDL.h>
-#include <iostream>
+
 
 namespace Salix {
 
@@ -37,6 +58,7 @@ namespace Salix {
         std::unique_ptr<ITimer> timer;
         std::unique_ptr<IEventPoller> event_poller;
         std::unique_ptr<EventManager> event_manager;
+        std::unique_ptr<IThemeManager> theme_manager;
         std::unique_ptr<ApplicationEventListener> app_event_listener;       
         std::unique_ptr<IAppState> current_state;
         TimerType timer_type;
@@ -216,14 +238,16 @@ namespace Salix {
         switch (pimpl->gui_type) {
             case GuiType::None:
                 std::cout << "[ENGINE] GUI system not initialized (GuiType is None)." << std::endl;
-
+                pimpl->gui_system = nullptr;
                 break; // Safe to break here, as no GUI system is expected.
             case GuiType::ImGui: 
-                
+                pimpl->theme_manager = std::make_unique<ImGuiThemeManager>();  // This must be intialized first.
+
                 pimpl->gui_system = std::make_unique<SDLImGui>();
+                
                 if (!pimpl->gui_system->initialize(
                         pimpl->renderer->get_window(),
-                        pimpl->renderer.get())
+                        pimpl->renderer.get(), pimpl->theme_manager.get())
                     ) {
                     std::cerr << "Engine Error: GUI system initialization failed!" << std::endl;
                     // IMPORTANT: If GUI init fails, the whole engine initialization fails.
@@ -232,6 +256,17 @@ namespace Salix {
                 } else {
                     std::cout << "[ENGINE] GUI system initialized." << std::endl;
                 }
+
+
+                // Initialize the Theme Manager (AFTER GUI System is initialized)
+                // The Theme Manager needs the IGui* to apply themes.
+                if (!pimpl->theme_manager->initialize(pimpl->gui_system.get())) {
+                    std::cerr << "Engine Error: Theme Manager failed to initialize with GUI system!" << std::endl;
+                    return false;
+                } else {
+                    std::cout << "[ENGINE] Theme Manager initialized." << std::endl;
+                }
+
 
                 if (auto* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_system.get())) {
                     sdl_imgui->setup_event_polling(
@@ -244,6 +279,7 @@ namespace Salix {
                     // This is a critical error if SDLImGui was just created and casting fails.
                     return false; // <--- REINSTATED return false for critical cast failure
                 }
+
                 break; 
             
             default: // This case handles unsupported GUI types
@@ -291,6 +327,10 @@ namespace Salix {
         if (pimpl->gui_system) {
             pimpl->gui_system->shutdown();
             pimpl->gui_system.reset();
+        }
+        if (pimpl->theme_manager) {
+            pimpl->theme_manager->shutdown();
+            pimpl->theme_manager.reset();
         }
         pimpl->app_event_listener.reset();
         pimpl->event_poller.reset();
@@ -461,6 +501,8 @@ namespace Salix {
         } else {
             std::cout << "Engine::make_context - InputManager = 'gui_input_manager'." << std::endl;
             ctx.input_manager = pimpl->gui_input_manager.get();
+            // Only assign the pimpl->theme_manager if we're in a GUI context.
+            ctx.theme_manager = pimpl->theme_manager.get();
         }
 
        
