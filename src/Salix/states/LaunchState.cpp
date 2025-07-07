@@ -6,6 +6,7 @@
 #include <Salix/gui/IGui.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/window/IWindow.h>
+#include <Salix/gui/ITheme.h>
 #include <ImGuiFileDialog.h>
 #include <memory>
 #include <iostream>
@@ -43,6 +44,13 @@ namespace Salix {
         } else {
             std::cout << "LaunchState: ✅ GUI system received." << std::endl;
             
+        }
+        if (pimpl->context.theme_manager) {
+            std::cout << "LaunchState: ✅ Theme Manager received in InitContext." << std::endl;
+            // You would put the theme registration and application code here later.
+            // For now, just confirming its presence.
+        } else {
+            std::cerr << "LaunchState Warning: Theme Manager is null in InitContext!" << std::endl;
         }
     }
 
