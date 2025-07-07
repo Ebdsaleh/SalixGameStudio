@@ -10,8 +10,7 @@
 #include <Salix/events/ImGuiInputEvent.h> // For the event definition
 
 // Forward declarations for specific SDL types if your Pimpl needs them directly
-// struct SDL_Window; // Already handled by SDLWindow.h's native handle
-// struct SDL_Renderer; // Already handled by SDLRenderer.h's native handle
+class IThemeManager;
 
 namespace Salix {
     
@@ -19,7 +18,7 @@ namespace Salix {
     public:
         SDLImGui();
         ~SDLImGui() override; // Ensure override is present for virtual destructor
-        bool initialize(IWindow* window, IRenderer* renderer) override;
+        bool initialize(IWindow* window, IRenderer* renderer, IThemeManager* theme_manager) override;
         void shutdown() override;
         void new_frame() override;
         void render() override;

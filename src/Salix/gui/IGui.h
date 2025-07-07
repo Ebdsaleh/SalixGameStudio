@@ -9,7 +9,7 @@ namespace Salix {
     // Forward declarations for engine interfaces that a GUI might need to interact with
     class IWindow;
     class IRenderer;
-
+    class IThemeManager;
     class SALIX_API IGui {
     public:
         virtual ~IGui() = default;
@@ -17,7 +17,7 @@ namespace Salix {
         // Initializes the GUI system.
         // The concrete implementation will cast the 'window' and 'renderer'
         // to their specific types (e.g., SDLWindow*, SDLRenderer*) internally.
-        virtual bool initialize(IWindow* window, IRenderer* renderer) = 0;
+        virtual bool initialize(IWindow* window, IRenderer* renderer, IThemeManager* theme_manager) = 0;
 
         // Shuts down the GUI system and cleans up resources.
         virtual void shutdown() = 0;

@@ -7,7 +7,7 @@
 #include <backends/imgui_impl_sdlrenderer2.h> // Or imgui_impl_opengl3.h if using OpenGL
 #include <iostream>
 #include <SDL.h>
-
+#include <Salix/gui/imgui/ImGuiThemeManager.h>
 #include <Salix/events/IEventPoller.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/events/ImGuiInputEvent.h> // To dispatch the ImGuiInputEvent
@@ -19,7 +19,7 @@ namespace Salix {
         IRenderer* i_renderer = nullptr; // Not strictly needed to store, but fine if you use it
         SDL_Window* sdl_window = nullptr; // Actual native SDL_Window pointer
         SDL_Renderer* sdl_renderer = nullptr; // Actual native SDL_Renderer pointer
-
+        ImGuiThemeManager* theme_manager = nullptr;
         IEventPoller* event_poller = nullptr;   // <-- NEW: Store IEventPoller
         EventManager* event_manager = nullptr;   // <-- NEW: Store EventManager
         RawEventCallbackHandle raw_event_callback_handle = 0; // <-- NEW: Store the handle
@@ -38,14 +38,28 @@ namespace Salix {
         // The rest of the shutdown logic is handled in SDLImGui::shutdown()
     }
 
-    bool SDLImGui::initialize(IWindow* window_interface, IRenderer* renderer_interface) {
+    bool SDLImGui::initialize(IWindow* window_interface, IRenderer* renderer_interface, IThemeManager* theme_manager_interface) {
         if (!window_interface || !renderer_interface) { 
             std::cerr << "SDLImGui::initialize(IWindow*, IRenderer*) incorrect arguments types or null detected." << std::endl;
             return false;
         }
         pimpl->i_window = window_interface;
         pimpl->i_renderer = renderer_interface;
+        // try to cast the internal IThemeManager* to the correct type of ImGuiThemeManager
+        if (theme_manager_interface) {
 
+        pimpl->theme_manager = dynamic_cast<ImGuiThemeManager*>(theme_manager_interface);
+        } else {
+            pimpl->theme_manager = nullptr;
+        }
+        // if cast was unsucessful, report back as false.
+        if (!pimpl->theme_manager) {
+            std::cerr << "SDLImGui::initialize - Failed when trying to cast theme_manager_interface to <ImGuiThemeManager*>" <<
+                std::endl;
+                return false;
+        }
+        // If successful, we continue as normal.
+        
         // Cast IWindow* and IRenderer* to concrete SDL types to get raw pointers
         // Assuming your SDLWindow and SDLRenderer implement get_native_handle()
         pimpl->sdl_window = static_cast<SDL_Window*>(window_interface->get_native_handle());
