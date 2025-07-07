@@ -17,6 +17,7 @@ namespace Salix {
     class IGui;
     class IEventPoller;
     class IEventManager;
+    class IThemeManager;
 
     struct SALIX_API InitContext {
         RendererType  renderer_type = RendererType::None;
@@ -31,6 +32,7 @@ namespace Salix {
         IWindow* window = nullptr;
         IEventPoller* event_poller;
         IEventManager* event_manager;
+        IThemeManager* theme_manager;
         EngineMode engine_mode = EngineMode::None;
         std::string project_file_path;
         std::string  project_dll_path;
