@@ -57,7 +57,7 @@ namespace Salix {
         // --- Convenience / Workflow Methods ---
 
         // Loads a font from a file, registers it, and optionally applies it.
-        bool load_font_from_file(const std::string& file_path, const std::string& font_name, float font_size, bool apply_immediately = false) = 0;
+        bool load_font_from_file(const std::string& file_path, const std::string& font_name, float font_size, bool apply_immediately = false);
 
         // Loads all fonts from a specified directory and registers them.
         // This would typically scan for font files (e.g., .ttf, .otf) and register them.
@@ -70,6 +70,9 @@ namespace Salix {
         bool purge_font(const std::string& font_name);
 
         // NOTE: The concrete implementation of this class will require an std::map<const std::const&, std::unique_ptr>
+    private:
+    struct Pimpl;
+    std::unique_ptr<Pimpl> pimpl;
     };
 
 } // namespace Salix
