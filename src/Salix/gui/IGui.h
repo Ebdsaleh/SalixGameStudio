@@ -10,6 +10,7 @@ namespace Salix {
     class IWindow;
     class IRenderer;
     class IThemeManager;
+    class IFontManager;
     class SALIX_API IGui {
     public:
         virtual ~IGui() = default;
@@ -17,7 +18,9 @@ namespace Salix {
         // Initializes the GUI system.
         // The concrete implementation will cast the 'window' and 'renderer'
         // to their specific types (e.g., SDLWindow*, SDLRenderer*) internally.
-        virtual bool initialize(IWindow* window, IRenderer* renderer, IThemeManager* theme_manager) = 0;
+        virtual bool initialize(
+            IWindow* window, IRenderer* renderer,
+            IThemeManager* theme_manager, IFontManager* font_manager) = 0;
 
         // Shuts down the GUI system and cleans up resources.
         virtual void shutdown() = 0;
@@ -40,7 +43,8 @@ namespace Salix {
 
         // Controls the visibility of the GUI's mouse cursor.
         virtual void set_mouse_cursor_visible(bool visible) = 0;
-
+        
+        virtual IFontManager* get_font_manager() = 0;
         // Saves the current GUI layout/configuration to a file.
         virtual void save_layout(const std::string& file_path) = 0;
 

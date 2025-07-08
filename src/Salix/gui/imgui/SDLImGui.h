@@ -11,14 +11,15 @@
 
 // Forward declarations for specific SDL types if your Pimpl needs them directly
 class IThemeManager;
-
+class IFontManager;
 namespace Salix {
     
     class SALIX_API SDLImGui : public IGui {
     public:
         SDLImGui();
         ~SDLImGui() override; // Ensure override is present for virtual destructor
-        bool initialize(IWindow* window, IRenderer* renderer, IThemeManager* theme_manager) override;
+        bool initialize(IWindow* window, IRenderer* renderer,
+             IThemeManager* theme_managerm IFontManager* font_manager) override;
         void shutdown() override;
         void new_frame() override;
         void render() override;
