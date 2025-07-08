@@ -39,12 +39,18 @@ namespace Salix {
         // This abstracts away multi-window/multi-viewport management if the GUI library supports it.
         virtual void update_and_render_platform_windows() = 0;
 
+        virtual IWindow* get_window() = 0;
+
+        virtual IRenderer* get_renderer() = 0;
+
+        virtual IThemeManager* get_theme_manager() = 0;
+
+        virtual IFontManager* get_font_manager() = 0;
         // --- Basic GUI Configuration / Persistence ---
 
         // Controls the visibility of the GUI's mouse cursor.
         virtual void set_mouse_cursor_visible(bool visible) = 0;
         
-        virtual IFontManager* get_font_manager() = 0;
         // Saves the current GUI layout/configuration to a file.
         virtual void save_layout(const std::string& file_path) = 0;
 
