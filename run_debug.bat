@@ -10,7 +10,7 @@ REM --- Console Art Header ---
 echo.
 echo +---------------------------------------------------------------------------------+
 echo ^|                                                                                 ^|
-echo ^|                        Salix Game Studio (Debug)                              ^|
+echo ^|                        Salix Game Studio (Debug)                                ^|
 echo ^|                                                                                 ^|
 echo +---------------------------------------------------------------------------------+
 echo.
