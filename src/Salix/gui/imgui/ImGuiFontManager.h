@@ -78,7 +78,7 @@ namespace Salix {
         bool purge_font(const std::string& font_name);
 
 
-        // Remember std::map<const std::const&, std::unique_ptr> for the font_registry.
+        // Remember std::map<const std::string, std::unique_ptr<IFont>> for the font_registry.
 
     private:
 
