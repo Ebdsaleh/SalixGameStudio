@@ -42,6 +42,9 @@ namespace Salix {
         // Returns true if applied successfully, false if font not found or application failed.
         virtual bool apply_font(const std::string& font_name) = 0;
 
+        // Rebuilds the Font Atlas Texture, required after applying a font to a theme.
+        virtual bool rebuild_font_atlas_texture() = 0;
+
         // Gets a list of all registered font names.
         virtual std::vector<std::string> get_registered_fonts() const = 0;
 
