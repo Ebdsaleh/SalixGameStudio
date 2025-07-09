@@ -61,7 +61,7 @@ namespace Salix {
     void OptionsMenuState::render(IRenderer* renderer) {
         // Render the options UI here in the future.
         if (renderer) {
-            renderer->clear();
+           
         }
        
     }
