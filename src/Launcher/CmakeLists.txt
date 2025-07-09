@@ -1,4 +1,4 @@
-# src/Launcher/CmakeLists.txt (Launcher)
+# src/Launcher/CmakeLists.txt (Launcher)# src/Launcher/CMakeLists.txt
 # SalixGameStudio/src/Launcher/CMakeLists.txt
 # Defines the SalixGameStudio executable, which acts as the main launcher.
 
@@ -26,6 +26,9 @@ target_link_libraries(SalixGameStudio PRIVATE
     SDL2_LIB
     SDL2MAIN_LIB
     SDL2_IMAGE_LIB
+    # NEW: Explicitly link SDL2_TTF_LIB and ImGui as they are now dependencies of SalixEngine
+    SDL2_TTF_LIB
+    ImGui       
 )
 
 # Set the output name for the executable.

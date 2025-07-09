@@ -22,7 +22,11 @@ add_library(SalixEngine SHARED
     events/SDLEventPoller.cpp 
     events/ApplicationEventListener.cpp
     gui/imgui/ImGuiTheme.cpp
+    gui/imgui/ImGuiThemeData.cpp
     gui/imgui/ImGuiThemeManager.cpp
+    gui/imgui/ImguiFont.cpp
+    gui/imgui/ImguiFontData.cpp
+    gui/imgui/ImGuiFontManager.cpp
     gui/imgui/SDLImGui.cpp
     input/SDLInputManager.cpp
     input/ImGuiInputManager.cpp
@@ -60,6 +64,7 @@ target_link_libraries(SalixEngine PUBLIC
     SDL2_LIB
     SDL2MAIN_LIB
     SDL2_IMAGE_LIB
+    SDL2_TTF_LIB # NEW: Link SDL2_ttf
     ImGui # Link against the ImGui static library defined in the root CMakeLists.txt
 )
 

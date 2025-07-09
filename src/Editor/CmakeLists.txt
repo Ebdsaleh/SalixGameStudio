@@ -1,4 +1,5 @@
 # src/Editor/CmakeLists.txt (Editor)
+# src/Editor/CMakeLists.txt
 # SalixGameStudio/src/Editor/CMakeLists.txt
 # Defines the SalixEditor shared library (DLL).
 
@@ -24,6 +25,9 @@ target_link_libraries(SalixEditor PUBLIC
     SDL2_LIB
     SDL2MAIN_LIB
     SDL2_IMAGE_LIB
+    # NEW: Explicitly link SDL2_TTF_LIB and ImGui as they are now dependencies of SalixEngine
+    SDL2_TTF_LIB # <--- ADDED
+    ImGui        # <--- ADDED
 )
 
 # Define a preprocessor macro specific to building the Editor DLL.

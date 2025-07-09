@@ -44,6 +44,8 @@ set(SDL2_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2/include")
 set(SDL2_LIB_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2/lib/x64")
 set(SDL2_IMAGE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_image/include")
 set(SDL2_IMAGE_LIB_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_image/lib/x64")
+set(SDL2_TTF_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_ttf/include") 
+set(SDL2_TTF_LIB_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_ttf/lib/x64")     
 
 # --- Dear ImGui Paths ---
 set(IMGUI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/imgui")
@@ -70,6 +72,13 @@ set_target_properties(SDL2_IMAGE_LIB PROPERTIES
     IMPORTED_LOCATION "${SDL2_IMAGE_LIB_DIR}/SDL2_image.lib"
     IMPORTED_IMPLIB "${SDL2_IMAGE_LIB_DIR}/SDL2_image.lib"
     INTERFACE_INCLUDE_DIRECTORIES "${SDL2_IMAGE_INCLUDE_DIR}"
+)
+# Create "IMPORTED" library target for SDL2_ttf.
+add_library(SDL2_TTF_LIB STATIC IMPORTED)
+set_target_properties(SDL2_TTF_LIB PROPERTIES
+    IMPORTED_LOCATION "${SDL2_TTF_LIB_DIR}/SDL2_ttf.lib"
+    IMPORTED_IMPLIB "${SDL2_TTF_LIB_DIR}/SDL2_ttf.lib"
+    INTERFACE_INCLUDE_DIRECTORIES "${SDL2_TTF_INCLUDE_DIR}"
 )
 
 # --- Add Dear ImGui as a static library target ---
@@ -113,6 +122,15 @@ install(FILES "${SDL2_LIB_DIR}/SDL2.dll"
 )
 install(FILES "${SDL2_LIB_DIR}/SDL2.dll"
               "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug"
+    CONFIGURATIONS Debug
+)
+# NEW: Install SDL2_ttf.dll
+install(FILES "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release"
+    CONFIGURATIONS Release
+)
+install(FILES "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug"
     CONFIGURATIONS Debug
 )

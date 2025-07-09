@@ -1,3 +1,4 @@
+# SalixGameStudio/src/Game/CMakeLists.txt (Game)
 # SalixGameStudio/src/Game/CMakeLists.txt
 # Defines the Game shared library (DLL), which acts as the generic runtime environment.
 
@@ -25,6 +26,9 @@ target_link_libraries(Game PUBLIC
     SDL2_LIB
     SDL2MAIN_LIB
     SDL2_IMAGE_LIB
+    # NEW: Explicitly link SDL2_TTF_LIB and ImGui as they are now dependencies of SalixEngine
+    SDL2_TTF_LIB # <--- ADDED
+    ImGui        # <--- ADDED
 )
 
 # Define a preprocessor macro specific to building the Game DLL.
