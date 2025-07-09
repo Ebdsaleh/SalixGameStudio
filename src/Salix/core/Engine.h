@@ -49,6 +49,8 @@ namespace Salix {
             void set_mode(EngineMode engine_mode) override;
             EngineMode get_mode() const override;
             InitContext make_context() const;
+            float get_time_scale() const override;
+            void set_time_scale(float new_time_scale) override;
         private:
             void process_input();
             void update(float delta_time);

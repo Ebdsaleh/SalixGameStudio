@@ -14,6 +14,7 @@ namespace Salix {
         virtual ~EngineInterface() = default;
         virtual bool is_running() const = 0;
         virtual const bool is_running(bool keep_running) = 0;
-
+        virtual float get_time_scale() const = 0;
+        virtual void set_time_scale(float new_time_scale) = 0;
     };
 } // namespace Salix

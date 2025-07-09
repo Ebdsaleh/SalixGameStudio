@@ -23,9 +23,11 @@
 // Gui includes
 #include <Salix/gui/IGui.h>
 #include <Salix/gui/IThemeManager.h>
+#include <Salix/gui/IFontManager.h>
 // Gui/Imgui includes
 #include <Salix/gui/imgui/SDLImGui.h>
 #include <Salix/gui/imgui/ImGuiThemeManager.h>
+#include <Salix/gui/imgui/ImGuiFontManager.h>
 
 // Asset management includes
 #include <Salix/assets/AssetManager.h>
@@ -44,12 +46,14 @@
 // 3rd-party includes
 #include <Windows.h>
 #include <SDL.h>
+#include <SDL_ttf.h>
 
 
 namespace Salix {
 
     struct Engine::Pimpl {
         bool is_running;
+        float time_scale = 1.0f;
         RendererType renderer_type;
         std::unique_ptr<IRenderer> renderer;
         std::unique_ptr<AssetManager> asset_manager;
@@ -59,6 +63,7 @@ namespace Salix {
         std::unique_ptr<IEventPoller> event_poller;
         std::unique_ptr<EventManager> event_manager;
         std::unique_ptr<IThemeManager> theme_manager;
+        std::unique_ptr<IFontManager> font_manager;
         std::unique_ptr<ApplicationEventListener> app_event_listener;       
         std::unique_ptr<IAppState> current_state;
         TimerType timer_type;
@@ -115,13 +120,22 @@ namespace Salix {
         const WindowConfig& config, RendererType renderer_type, AppStateType initial_state, GuiType gui_type,
         TimerType timer_type, int target_fps
     ) {
-
+        
         // --- INITIALIZE SDL---
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
             std::cerr << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
             return false;
         }
         
+        // --- INITIALIZE SDL_TTF ---
+         // --- INITIALIZE SDL_ttf ---
+        if (TTF_Init() == -1) {
+            std::cerr << "Engine::initialize - SDL_ttf could not be initialized! TTF_Error: " << TTF_GetError() << std::endl;
+            SDL_Quit(); // Ensure SDL is quit if TTF fails
+            return false;
+        }
+        std::cout << "SDL_ttf initialized successfully." << std::endl;
+
 
 
         // --- INITIALIZE RENDERER
@@ -241,18 +255,24 @@ namespace Salix {
                 pimpl->gui_system = nullptr;
                 break; // Safe to break here, as no GUI system is expected.
             case GuiType::ImGui: 
+
+
+                // --- SETUP ALL IMGUI REQUIRED CLASSES ---
                 pimpl->theme_manager = std::make_unique<ImGuiThemeManager>();  // This must be intialized first.
 
+                pimpl->font_manager = std::make_unique<ImGuiFontManager>();
                 pimpl->gui_system = std::make_unique<SDLImGui>();
                 
                 if (!pimpl->gui_system->initialize(
                         pimpl->renderer->get_window(),
-                        pimpl->renderer.get(), pimpl->theme_manager.get())
+                        pimpl->renderer.get(),
+                        pimpl->theme_manager.get(),
+                        pimpl->font_manager.get())
                     ) {
                     std::cerr << "Engine Error: GUI system initialization failed!" << std::endl;
                     // IMPORTANT: If GUI init fails, the whole engine initialization fails.
                     // We MUST return false from Engine::initialize here.
-                    return false; // <--- REINSTATED return false for initialization failure
+                    return false;
                 } else {
                     std::cout << "[ENGINE] GUI system initialized." << std::endl;
                 }
@@ -263,9 +283,19 @@ namespace Salix {
                 if (!pimpl->theme_manager->initialize(pimpl->gui_system.get())) {
                     std::cerr << "Engine Error: Theme Manager failed to initialize with GUI system!" << std::endl;
                     return false;
-                } else {
-                    std::cout << "[ENGINE] Theme Manager initialized." << std::endl;
+                } 
+                
+                
+                std::cout << "[ENGINE] Theme Manager initialized." << std::endl;
+                
+
+                if (!pimpl->font_manager->initialize(pimpl->gui_system.get())) {
+                    std::cerr << "Engine Error: Font Manager failed to initialize with GUI system!" << std::endl;
+                    return false;
                 }
+                
+                std::cout << "[ENGINE] Font Manager initialized." << std::endl;
+                
 
 
                 if (auto* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_system.get())) {
@@ -273,18 +303,21 @@ namespace Salix {
                         pimpl->event_poller.get(),
                         pimpl->event_manager.get()
                     );
+
                     std::cout << "[ENGINE] SDLImGui event polling setup complete." << std::endl;
+
                 } else {
+
                     std::cerr << "Engine Error: Failed to cast gui_system to SDLImGui* for event polling setup." << std::endl;
                     // This is a critical error if SDLImGui was just created and casting fails.
-                    return false; // <--- REINSTATED return false for critical cast failure
+                    return false;
                 }
 
                 break; 
             
             default: // This case handles unsupported GUI types
                 std::cerr << "Engine Error: Unsupported GuiType requested!" << std::endl;
-                return false; // <--- REINSTATED return false for unsupported type
+                return false; 
         }
 
 
@@ -313,8 +346,10 @@ namespace Salix {
             pimpl->timer->tick_start();
             float delta_time = pimpl->timer->get_delta_time();
 
+            // Apply time_scale to delta_time.
+            float scaled_delta_time = delta_time * pimpl->time_scale;
             process_input();
-            update(delta_time);
+            update(scaled_delta_time);
             render();
 
             pimpl->timer->tick_end();
@@ -328,10 +363,19 @@ namespace Salix {
             pimpl->gui_system->shutdown();
             pimpl->gui_system.reset();
         }
+
+        // Shutdown ThemeManager
         if (pimpl->theme_manager) {
             pimpl->theme_manager->shutdown();
             pimpl->theme_manager.reset();
         }
+
+        // Shutdown FontManager
+        if (pimpl->font_manager) {
+            pimpl->font_manager->shutdown();
+            pimpl->font_manager.reset();
+        }
+
         pimpl->app_event_listener.reset();
         pimpl->event_poller.reset();
 
@@ -357,6 +401,7 @@ namespace Salix {
             FreeLibrary(pimpl->editor_dll_handle);
             pimpl->editor_dll_handle = nullptr; // Clear handle after freeing
         }
+        TTF_Quit();
         SDL_Quit();
     }
 
@@ -372,11 +417,7 @@ namespace Salix {
             }
         });
 
-        // --- REMOVED: This check is no longer needed here, as ApplicationEventListener handles quit directly ---
-        // if (get_input_manager() && get_input_manager()->wants_to_quit()) {
-        //     std::cout << "DEBUG: Engine - wants_to_quit() returned true, setting is_running to false." << std::endl;
-        //     pimpl->is_running = false;
-        // }
+       
     }
 
     void Engine::switch_state(AppStateType new_state_type) {
@@ -480,7 +521,8 @@ namespace Salix {
     void Engine::change_state(IAppState* /*state*/) {}
     EngineMode Engine::get_mode() const { return pimpl->engine_mode; }
     void Engine::set_mode(EngineMode mode) { pimpl->engine_mode = mode; }
-
+    float Engine::get_time_scale() const { return pimpl->time_scale; }
+    void Engine::set_time_scale(float new_time_scale) { pimpl->time_scale = new_time_scale; }
     // NEW: Provide a fully populated InitContext on demand
         InitContext Engine::make_context() const {
         InitContext ctx;
@@ -503,6 +545,7 @@ namespace Salix {
             ctx.input_manager = pimpl->gui_input_manager.get();
             // Only assign the pimpl->theme_manager if we're in a GUI context.
             ctx.theme_manager = pimpl->theme_manager.get();
+            ctx.font_manager = pimpl->font_manager.get();
         }
 
        
