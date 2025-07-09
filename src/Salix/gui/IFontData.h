@@ -10,7 +10,7 @@ namespace Salix {
     // This allows for polymorphic handling of font data.
     struct SALIX_API IFontData {
         virtual ~IFontData() = default;
-
+        
         // Returns the unique name of this font data.
         virtual const std::string& get_name() const = 0;
 
