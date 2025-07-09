@@ -56,5 +56,8 @@ namespace Salix {
 
         // Loads a GUI layout/configuration from a file.
         virtual void load_layout(const std::string& file_path) = 0;
+
+        // To re-initialize the ImGui backend (including font texture)
+        virtual void reinitialize_backend() = 0;
     };
 }
