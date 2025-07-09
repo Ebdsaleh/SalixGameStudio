@@ -7,6 +7,10 @@
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/window/IWindow.h>
 #include <Salix/gui/ITheme.h>
+#include <Salix/gui/IThemeManager.h>
+#include <Salix/gui/IFont.h>
+#include <Salix/gui/IFontManager.h>
+#include <Salix/gui/imgui/ImGuiTheme.h>
 #include <ImGuiFileDialog.h>
 #include <memory>
 #include <iostream>
@@ -19,8 +23,10 @@ namespace Salix {
         bool should_switch_to_editor = false;
         bool should_switch_to_game = false;
         bool should_quit_engine = false;
+        bool should_close_dialog = false;
         bool show_new_project_dialog = false;
         bool show_open_project_dialog = false;
+        bool show_run_project_dialog = false;
 
         void reset_transition_flags();
         void present_launcher();
@@ -28,6 +34,7 @@ namespace Salix {
         void handle_transitions();
         void open_new_project_dialog();
         void open_existing_project_dialog();
+        void open_existing_project_to_run_dialog();
         void handle_file_dialogs();
      };
     LaunchState::LaunchState() : pimpl(std::make_unique<Pimpl>()) {}
@@ -45,13 +52,53 @@ namespace Salix {
             std::cout << "LaunchState: ✅ GUI system received." << std::endl;
             
         }
+
+        // --- NEW: Register Default Font ---
+        if (pimpl->context.font_manager) {
+            const std::string default_font_name = "Roboto-Regular"; 
+            const std::string default_font_path = "Assets/Fonts/Roboto-Regular.ttf";
+            const float default_font_size = 16.0f; // Or 20.0f as per your ImGuiThemeData
+
+            // Only load and register if the font doesn't already exist
+            if (!pimpl->context.font_manager->get_font(default_font_name)) {
+                if (!pimpl->context.font_manager->load_font_from_file(
+                        default_font_path,
+                        default_font_name,
+                        default_font_size,
+                        false // Do NOT apply immediately, theme manager will apply
+                    )) {
+                    std::cerr << "LaunchState Error: Failed to load and register default font!" << std::endl;
+                    // This might be a critical error if no font can be loaded.
+                    // You might want to return false here if font is mandatory.
+                } else {
+                    std::cout << "LaunchState: Default font '" << default_font_name << "' registered." << std::endl;
+                }
+            }
+        } else {
+            std::cerr << "LaunchState Warning: Font Manager is null, cannot register default font." << std::endl;
+        }
+        // --- END NEW ---
+
+
+        // --- Existing Theme Application Logic ---
         if (pimpl->context.theme_manager) {
             std::cout << "LaunchState: ✅ Theme Manager received in InitContext." << std::endl;
-            // You would put the theme registration and application code here later.
-            // For now, just confirming its presence.
+
+            const std::string default_theme_name = "Default ImGui Theme";
+            if (!pimpl->context.theme_manager->get_theme(default_theme_name)) {
+                pimpl->context.theme_manager->register_theme(std::make_unique<ImGuiTheme>(default_theme_name));
+            }
+
+            // Apply the default theme
+            if (!pimpl->context.theme_manager->apply_theme(default_theme_name)) {
+                std::cerr << "LaunchState Error: Failed to apply default ImGui theme!" << std::endl;
+            } else {
+                std::cout << "LaunchState: Default ImGui Theme applied." << std::endl;
+            }
         } else {
             std::cerr << "LaunchState Warning: Theme Manager is null in InitContext!" << std::endl;
         }
+    
     }
 
     void LaunchState::on_exit() {
@@ -122,7 +169,6 @@ namespace Salix {
         // Use a unique name like "LauncherMainViewport"
         ImGui::Begin("LauncherMainViewport", nullptr, window_flags); // nullptr for p_open as it's always open
         ImGui::Text("Welcome to Salix Game Studio!");
-        ImGui::Text("Press 'E' for Editor, 'G' for Game, 'O' for Options.");
         ImGui::Separator();
 
         if (ImGui::Button("New Project")) {
@@ -135,6 +181,11 @@ namespace Salix {
             std::cout << "Open Project button clicked!" << std::endl;
             // Future: Trigger open project dialog
             open_existing_project_dialog();
+        }
+
+        if (ImGui::Button("Run Project")) {
+            std::cout << "Run Project button clicked!" << std::endl;
+            open_existing_project_to_run_dialog();
         }
 
         if (ImGui::Button("Options")) {
@@ -152,26 +203,24 @@ namespace Salix {
     }
 
     void LaunchState::Pimpl::process_input() {
-        // --- Handle keyboard input for state switching ---
-        // Ensure this logic is outside the ImGui::Begin/End block if it needs to trigger state switches
-        if (context.input_manager->is_down(KeyCode::E)) {
-            std::cout << "'E' key press detected. Switching to EditorState." << std::endl;
-            should_switch_to_editor = true; // Set flag
+        if (context.input_manager->is_down(KeyCode::Escape)) {
+            if (show_new_project_dialog) {
+                ImGuiFileDialog::Instance()->Close();
+                show_new_project_dialog = false;
+                std::cout << "Escape key: New Project dialog closed." << std::endl;
+            } else if (show_open_project_dialog) {
+                ImGuiFileDialog::Instance()->Close();
+                show_open_project_dialog = false;
+                std::cout << "Escape key: Open Project dialog closed." << std::endl;
+            } else if (show_run_project_dialog) { // NEW: Handle Run Project dialog
+                ImGuiFileDialog::Instance()->Close();
+                show_run_project_dialog = false;
+                std::cout << "Escape key: Run Project dialog closed." << std::endl;
+            } else {
+                should_quit_engine = true;
+                std::cout << "Escape key detected. Quitting engine." << std::endl;
+            }
         }
-        
-        if (context.input_manager->is_down(KeyCode::G)) {
-            std::cout << "'G' key press detected.Switching to GameState." << std::endl;
-            should_switch_to_game = true; // Set flag
-        }
-        
-        if (context.input_manager->is_down(KeyCode::O)) {
-            std::cout << "'O' key press detected.Switching to OptionsMenuState." << std::endl;
-            should_switch_to_options = true; // Set flag
-        }
-        // --- END UI building and Input Handling ---
-
-        // --- Now, handle state switches AFTER ImGui::End() ---
-        
     }
 
     void LaunchState::Pimpl::handle_transitions() {
@@ -257,6 +306,31 @@ namespace Salix {
         show_open_project_dialog = true;
     }
 
+    void LaunchState::Pimpl::open_existing_project_to_run_dialog() {
+
+        ImVec2 dialog_size = ImVec2(800, 600);
+        ImVec2 dialog_pos = ImVec2(
+            (ImGui::GetIO().DisplaySize.x - dialog_size.x) * 0.5f,
+            (ImGui::GetIO().DisplaySize.y - dialog_size.y) * 0.5f
+        );
+        ImGui::SetNextWindowSize(dialog_size);
+        ImGui::SetNextWindowPos(dialog_pos);
+
+        IGFD::FileDialogConfig config;
+        config.path = ".";
+        config.fileName = "";
+        config.countSelectionMax = 1;
+        config.userDatas = nullptr;
+        config.flags = ImGuiFileDialogFlags_Modal;
+        ImGuiFileDialog::Instance()->OpenDialog(
+            "ChooseExistingProjectToRun", // Unique dialog key for run dialog
+            "Run Existing Project",       // Dialog title
+            ".salixproj",                 // Filter for .salixproj files
+            config
+        );
+        show_run_project_dialog = true;
+    }
+
     void LaunchState::Pimpl::handle_file_dialogs() {
         if (show_new_project_dialog) {
             if (ImGuiFileDialog::Instance()->Display("ChooseNewProjectLocation")) {
@@ -269,6 +343,12 @@ namespace Salix {
                     std::cout << "New Project Name: " << file_name << std::endl;
                     std::cout << "New Project Folder: " << folder_path << std::endl;
 
+                    // --- NEW: Trigger EditorState transition for New Project ---
+                    // You would typically create the new project file/structure here first.
+                    // For now, just trigger the state switch.
+                    should_switch_to_editor = true;
+                    // No return here, as Close() and flag reset still need to happen.
+                    // --- END NEW ---
                     // Future: Call ProjectManager to create project
                 }
                 ImGuiFileDialog::Instance()->Close();
@@ -288,11 +368,38 @@ namespace Salix {
                     std::cout << "Open Project Name: " << file_name << std::endl;
                     std::cout << "Open Project Folder: " << folder_path << std::endl;
 
+                    // --- NEW: Trigger EditorState transition for Open Project ---
+                    // You would typically load the project here first.
+                    // For now, just trigger the state switch.
+                    should_switch_to_editor = true;
+                    // No return here, as Close() and flag reset still need to happen.
+                    // --- END NEW ---
                     // Future: Call ProjectManager to load project
                 }
                 ImGuiFileDialog::Instance()->Close();
                 show_open_project_dialog = false; // Dialog closed
             }
         }
+
+        // Handle "Run Project" dialog
+        if (show_run_project_dialog) {
+            if (ImGuiFileDialog::Instance()->Display("ChooseExistingProjectToRun")) { // Use correct dialog key
+                if (ImGuiFileDialog::Instance()->IsOk()) {
+                    std::string file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
+                    std::string file_name = ImGuiFileDialog::Instance()->GetCurrentFileName();
+                    std::string folder_path = ImGuiFileDialog::Instance()->GetCurrentPath();
+
+                    std::cout << "Run Project selected path: " << file_path_name << std::endl;
+                    std::cout << "Run Project Name: " << file_name << std::endl;
+                    std::cout << "Run Project Folder: " << folder_path << std::endl;
+
+                    should_switch_to_game = true; // Set flag to switch to GameState
+                }
+                ImGuiFileDialog::Instance()->Close();
+                show_run_project_dialog = false; // Dialog closed
+            }
+        }
     }
+
+    
 } // namespace Salix
