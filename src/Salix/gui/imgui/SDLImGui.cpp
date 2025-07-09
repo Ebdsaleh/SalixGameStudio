@@ -7,6 +7,7 @@
 #include <backends/imgui_impl_sdlrenderer2.h> // Or imgui_impl_opengl3.h if using OpenGL
 #include <iostream>
 #include <SDL.h>
+#include <Salix/gui/imgui/ImGuiFontManager.h>
 #include <Salix/gui/imgui/ImGuiThemeManager.h>
 #include <Salix/events/IEventPoller.h>
 #include <Salix/events/EventManager.h>
@@ -19,13 +20,12 @@ namespace Salix {
         IRenderer* i_renderer = nullptr; // Not strictly needed to store, but fine if you use it
         SDL_Window* sdl_window = nullptr; // Actual native SDL_Window pointer
         SDL_Renderer* sdl_renderer = nullptr; // Actual native SDL_Renderer pointer
-        ImGuiThemeManager* theme_manager = nullptr;
+        IThemeManager* i_theme_manager = nullptr;
+        IFontManager* i_font_manager = nullptr;
         IEventPoller* event_poller = nullptr;   // <-- NEW: Store IEventPoller
         EventManager* event_manager = nullptr;   // <-- NEW: Store EventManager
         RawEventCallbackHandle raw_event_callback_handle = 0; // <-- NEW: Store the handle
 
-        bool initialize_with_SDL(SDL_Window* window, SDL_Renderer* renderer);
-        
         // Helper to unregister the callback on shutdown
         void unregister_raw_event_callback_if_registered();
     };
@@ -38,28 +38,20 @@ namespace Salix {
         // The rest of the shutdown logic is handled in SDLImGui::shutdown()
     }
 
-    bool SDLImGui::initialize(IWindow* window_interface, IRenderer* renderer_interface, IThemeManager* theme_manager_interface) {
+    bool SDLImGui::initialize(IWindow* window_interface, IRenderer* renderer_interface,
+         IThemeManager* theme_manager_interface, IFontManager* font_manager_interface) {
         if (!window_interface || !renderer_interface) { 
             std::cerr << "SDLImGui::initialize(IWindow*, IRenderer*) incorrect arguments types or null detected." << std::endl;
             return false;
         }
+
+
         pimpl->i_window = window_interface;
         pimpl->i_renderer = renderer_interface;
-        // try to cast the internal IThemeManager* to the correct type of ImGuiThemeManager
-        if (theme_manager_interface) {
+        pimpl->i_theme_manager = theme_manager_interface;
+        pimpl->i_font_manager = font_manager_interface;
 
-        pimpl->theme_manager = dynamic_cast<ImGuiThemeManager*>(theme_manager_interface);
-        } else {
-            pimpl->theme_manager = nullptr;
-        }
-        // if cast was unsucessful, report back as false.
-        if (!pimpl->theme_manager) {
-            std::cerr << "SDLImGui::initialize - Failed when trying to cast theme_manager_interface to <ImGuiThemeManager*>" <<
-                std::endl;
-                return false;
-        }
-        // If successful, we continue as normal.
-        
+
         // Cast IWindow* and IRenderer* to concrete SDL types to get raw pointers
         // Assuming your SDLWindow and SDLRenderer implement get_native_handle()
         pimpl->sdl_window = static_cast<SDL_Window*>(window_interface->get_native_handle());
@@ -92,32 +84,17 @@ namespace Salix {
         ImGui_ImplSDL2_InitForSDLRenderer(pimpl->sdl_window, pimpl->sdl_renderer);
         ImGui_ImplSDLRenderer2_Init(pimpl->sdl_renderer);
 
+        // This explicitly creates the font texture.
+        //ImGui_ImplSDLRenderer2_CreateDeviceObjects();
+
+
+        io.Fonts->AddFontDefault(); // Load ImGui's default font
+        io.Fonts->Build();          // Build the font atlas (CPU side)
+        ImGui_ImplSDLRenderer2_UpdateTexture(io.Fonts->TexData);
         std::cout << "SDLImGui: ✅ Initialized Dear ImGui backend." << std::endl;
         return true;
     }
     
-    // This helper method is part of Pimpl implementation
-    bool SDLImGui::Pimpl::initialize_with_SDL(SDL_Window* sdl_window_ptr, SDL_Renderer* sdl_renderer_ptr) {
-        // This method is now effectively merged into SDLImGui::initialize directly above.
-        // You can remove this Pimpl method declaration and definition entirely,
-        // as its logic is now contained within the main initialize.
-        // Keeping it for now to avoid breaking your current structure, but it's redundant.
-        if (!sdl_renderer_ptr || !sdl_window_ptr) {
-            std::cerr << "SDLImGui Error: Window or Renderer is null during Pimpl::initialize_with_SDL." << std::endl;
-            return false;
-        }
-        sdl_window = sdl_window_ptr; // Store the raw pointers in Pimpl
-        sdl_renderer = sdl_renderer_ptr; // Store the raw pointers in Pimpl
-
-        // IMGUI INITIALIZATION (already done in SDLImGui::initialize)
-        // This section should be removed from here if merging.
-        // It's duplicated logic if initialize_with_SDL is still called.
-        // The ImGui_ImplSDL2_InitForSDLRenderer and ImGui_ImplSDLRenderer2_Init calls
-        // should only happen once in SDLImGui::initialize().
-        
-        std::cout << "SDLImGui: ✅ Pimpl::initialize_with_SDL called." << std::endl; // Debug print
-        return true;
-    }
 
     // New setup_event_polling method implementation
     void SDLImGui::setup_event_polling(IEventPoller* event_poller_ptr, EventManager* event_manager_ptr) {
@@ -195,6 +172,18 @@ namespace Salix {
         }
     }
 
+    IWindow* SDLImGui::get_window() { return pimpl->i_window; }
+
+    IRenderer* SDLImGui::get_renderer() { return pimpl->i_renderer; }
+
+    IThemeManager* SDLImGui::get_theme_manager() { return pimpl->i_theme_manager; }
+
+    IFontManager* SDLImGui::get_font_manager() { return pimpl->i_font_manager; }
+
+
+
+
+
     void SDLImGui::set_mouse_cursor_visible(bool visible) {
         ImGuiIO& io = ImGui::GetIO();
         // This flag tells ImGui whether *it* should manage the cursor.
@@ -215,6 +204,48 @@ namespace Salix {
     void SDLImGui::load_layout(const std::string& file_path) {
         ImGui::LoadIniSettingsFromDisk(file_path.c_str());
         std::cout << "SDLImGui: Layout loaded from " << file_path << std::endl;
+    }
+
+    // NEW: Implementation of reinitialize_backend()
+    void SDLImGui::reinitialize_backend() {
+        if (!ImGui::GetCurrentContext()) {
+            std::cerr << "SDLImGui::reinitialize_backend - ImGui context is null. Cannot reinitialize." << std::endl;
+            return;
+        }
+        if (!pimpl->sdl_window || !pimpl->sdl_renderer) {
+            std::cerr << "SDLImGui::reinitialize_backend - SDL window or renderer is null. Cannot reinitialize." << std::endl;
+            return;
+        }
+
+        // --- CRITICAL FIX: Manually manage font texture destruction and creation ---
+        // This is necessary because ImGui_ImplSDLRenderer2_CreateDeviceObjects is empty
+        // and DestroyDeviceObjects only marks for destruction.
+
+        // 1. Mark font atlas texture for destruction and update it
+        // This will call SDL_DestroyTexture
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.Fonts->TexData != nullptr) {
+            io.Fonts->TexData->SetStatus(ImTextureStatus_WantDestroy);
+            ImGui_ImplSDLRenderer2_UpdateTexture(io.Fonts->TexData);
+        }
+
+        // 2. Re-initialize the backend (this is still needed for other state)
+        ImGui_ImplSDLRenderer2_Shutdown(); // Full backend shutdown
+        ImGui_ImplSDL2_Shutdown();
+
+        ImGui_ImplSDL2_InitForSDLRenderer(pimpl->sdl_window, pimpl->sdl_renderer);
+        ImGui_ImplSDLRenderer2_Init(pimpl->sdl_renderer);
+
+        // 3. Mark font atlas for creation and update it
+        // This will call SDL_CreateTexture and SDL_UpdateTexture
+        if (io.Fonts->TexData != nullptr) { // Ensure TexData is valid after re-init
+            io.Fonts->TexData->SetStatus(ImTextureStatus_WantCreate);
+            ImGui_ImplSDLRenderer2_UpdateTexture(io.Fonts->TexData);
+        } else {
+            std::cerr << "SDLImGui Error: io.Fonts->TexData is null after backend re-initialization. Cannot recreate font texture." << std::endl;
+        }
+        
+        std::cout << "SDLImGui: Backend re-initialized successfully." << std::endl;
     }
 
 } // namespace Salix
