@@ -135,6 +135,17 @@ install(FILES "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
     CONFIGURATIONS Debug
 )
 
+# Ensure Assets/Fonts are copied to the correct subdirectory
+# The DESTINATION should be the build directory, and the subdirectory 'Assets/Fonts'
+# will be created relative to it.
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Fonts/"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug/Assets/Fonts" 
+    CONFIGURATIONS Debug
+)
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Fonts/"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release/Assets/Fonts"
+    CONFIGURATIONS Release
+)
 # Define compile-time feature flags for the entire project
 add_definitions(-DSALIX_GUI_IMGUI)
 add_definitions(-DSALIX_BACKEND_SDL)
