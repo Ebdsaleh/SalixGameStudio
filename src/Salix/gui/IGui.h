@@ -11,13 +11,14 @@ namespace Salix {
     class IRenderer;
     class IThemeManager;
     class IFontManager;
-
+    enum ImGuiFileDialogFlags_ : int;
     struct FileDialogResult {
         bool is_ok = false;
         std::string file_path_name;
         std::string file_name;
         std::string folder_path;
     };
+
 
     class SALIX_API IGui {
     public:
@@ -82,13 +83,16 @@ namespace Salix {
         virtual FileDialogResult get_dialog_result(const std::string& key) const = 0;
         // Call this to display all active dialogs. Should be called once per frame.
         virtual void display_dialogs() = 0;
-        // --- END NEW ---
 
-        // --- NEW: Abstract Input Handling for GUI ---
+        // Sets the common file dialog properties
+        virtual void set_common_dialog_properties() = 0;
+
+        virtual FileDialogResult populate_dialog_result(const std::string& key) = 0;
+
+        // --- Abstract Input Handling for GUI ---
         // This method receives raw input events (e.g., from EventPoller)
         // and processes them for GUI-level interactions (like Escape to close dialogs).
         // Returns true if the input was consumed by the GUI.
         virtual bool process_raw_input_event(void* native_event) = 0; // e.g., SDL_Event*
-        // --- END NEW ---
     };
 }
