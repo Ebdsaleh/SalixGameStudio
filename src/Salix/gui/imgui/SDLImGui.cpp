@@ -12,6 +12,7 @@
 #include <Salix/events/IEventPoller.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/events/ImGuiInputEvent.h> // To dispatch the ImGuiInputEvent
+#include <ImGuiFileDialog.h>
 
 namespace Salix {
 
@@ -22,14 +23,20 @@ namespace Salix {
         SDL_Renderer* sdl_renderer = nullptr; // Actual native SDL_Renderer pointer
         IThemeManager* i_theme_manager = nullptr;
         IFontManager* i_font_manager = nullptr;
-        IEventPoller* event_poller = nullptr;   // <-- NEW: Store IEventPoller
-        EventManager* event_manager = nullptr;   // <-- NEW: Store EventManager
-        RawEventCallbackHandle raw_event_callback_handle = 0; // <-- NEW: Store the handle
+        IEventPoller* event_poller = nullptr;   // <-- Store IEventPoller
+        EventManager* event_manager = nullptr;   // <-- Store EventManager
+        RawEventCallbackHandle raw_event_callback_handle = 0; // <-- Store the handle
+
+        std::unordered_map<std::string, bool> active_dialog_keys; // NEW: Tracks which dialogs are currently open
+
+        // Store dialog results for the current frame
+        mutable std::unordered_map<std::string, FileDialogResult> dialog_results_this_frame;
 
         // Helper to unregister the callback on shutdown
         void unregister_raw_event_callback_if_registered();
     };
 
+  
     SDLImGui::SDLImGui() : pimpl(std::make_unique<Pimpl>()) {}
 
     SDLImGui::~SDLImGui() {
@@ -111,6 +118,8 @@ namespace Salix {
             [&](void* native_event) {
                 // Cast the void* back to SDL_Event* and pass to ImGui's backend
                 ImGui_ImplSDL2_ProcessEvent(static_cast<SDL_Event*>(native_event));
+
+                process_raw_input_event(native_event);
             }
         );
         std::cout << "SDLImGui: Registered raw SDL event callback with handle " << pimpl->raw_event_callback_handle << std::endl;
@@ -217,9 +226,6 @@ namespace Salix {
             return;
         }
 
-        // --- CRITICAL FIX: Manually manage font texture destruction and creation ---
-        // This is necessary because ImGui_ImplSDLRenderer2_CreateDeviceObjects is empty
-        // and DestroyDeviceObjects only marks for destruction.
 
         // 1. Mark font atlas texture for destruction and update it
         // This will call SDL_DestroyTexture
@@ -246,6 +252,155 @@ namespace Salix {
         }
         
         std::cout << "SDLImGui: Backend re-initialized successfully." << std::endl;
+    }
+
+
+
+    // --- Implement Abstract File Dialog Control ---
+    bool SDLImGui::open_save_file_dialog(
+        const std::string& key, const std::string& title, const std::string& filters, 
+        const std::string& default_path, const std::string& default_filename) {
+        set_common_dialog_properties(); 
+
+        IGFD::FileDialogConfig config;
+        config.path = default_path;
+        config.fileName = default_filename;
+        config.countSelectionMax = 1;
+        config.userDatas = nullptr;
+        config.flags = ImGuiFileDialogFlags_ConfirmOverwrite | ImGuiFileDialogFlags_Modal;
+
+        ImGuiFileDialog::Instance()->OpenDialog(key, title, filters.c_str(), config);
+        // Set internal flag based on the key
+        pimpl->active_dialog_keys[key] = true; // Mark dialog as active
+        return true;
+    }
+
+
+
+    bool SDLImGui::open_load_file_dialog(
+        const std::string& key, const std::string& title, const std::string& filters,
+        const std::string& default_path) {
+            
+        set_common_dialog_properties();
+        IGFD::FileDialogConfig config;
+        config.path = default_path;
+        config.fileName = "";
+        config.countSelectionMax = 1;
+        config.userDatas = nullptr;
+        config.flags = ImGuiFileDialogFlags_Modal;
+
+        ImGuiFileDialog::Instance()->OpenDialog(key, title, filters.c_str(), config);
+        pimpl->active_dialog_keys[key] = true; // Mark dialog as active
+        return true;
+    }
+
+
+    bool SDLImGui::open_folder_dialog(
+        const std::string& key, const std::string& title, const std::string& default_path) {
+        
+        set_common_dialog_properties();
+        IGFD::FileDialogConfig config;
+        config.path = default_path;
+        config.flags = ImGuiFileDialogFlags_Modal;
+          
+        ImGuiFileDialog::Instance()->OpenDialog(key, title, "", config); // No filters for folder dialog
+        pimpl->active_dialog_keys[key] = true; // Mark dialog as active
+        return true;
+    }
+
+
+    bool SDLImGui::is_dialog_open(const std::string& key) const {
+        return pimpl->active_dialog_keys.count(key) > 0; // Check if key exists in active map    
+    }
+
+    
+    bool SDLImGui::is_dialog_closed_this_frame(const std::string& key) const {
+        // This relies on the `display_dialogs()` method setting results for the current frame.
+        return pimpl->dialog_results_this_frame.count(key) > 0; // Check if result was stored this frame    
+    }
+
+
+    void SDLImGui::display_dialogs() {
+        // Clear results from previous frame
+        pimpl->dialog_results_this_frame.clear();
+
+        // Iterate through all currently active dialogs and display them
+        // Create a copy of keys to avoid modifying map during iteration
+        std::vector<std::string> keys_to_display;
+        for (const auto& pair : pimpl->active_dialog_keys) {
+            keys_to_display.push_back(pair.first);
+        }
+
+        for (const std::string& key : keys_to_display) {
+            // Check if the dialog is still open by ImGuiFileDialog itself
+            // ImGuiFileDialog::Instance()->IsOpened() returns true if *any* dialog is open.
+            // We need to pass the specific key to Display().
+            if (ImGuiFileDialog::Instance()->Display(key)) { // Display returns true when dialog is closed
+                // Dialog was just closed this frame (either OK or Cancel)
+                pimpl->dialog_results_this_frame[key] = populate_dialog_result(key); // Store result
+                ImGuiFileDialog::Instance()->Close(); // Explicitly close (though Display() might have already)
+                pimpl->active_dialog_keys.erase(key); // Remove from active list
+            }
+        }
+    }
+
+
+    FileDialogResult SDLImGui::get_dialog_result(const std::string& key) const {
+        auto it = pimpl->dialog_results_this_frame.find(key);
+        if (it != pimpl->dialog_results_this_frame.end()) {
+            return it->second;
+        }
+        return FileDialogResult(); // Return empty/default result if key not found
+    }
+
+
+   bool SDLImGui::process_raw_input_event(void* native_event) {
+        if (!native_event) {
+            return false;
+        }
+
+        SDL_Event* sdl_event = static_cast<SDL_Event*>(native_event);
+        ImGui_ImplSDL2_ProcessEvent(sdl_event); // Let ImGui (and ImGuiFileDialog) process the event first
+
+        bool event_consumed_by_gui = false;
+
+        if (sdl_event->type == SDL_KEYDOWN) {
+            if (sdl_event->key.keysym.sym == SDLK_ESCAPE) {
+                if (ImGuiFileDialog::Instance()->IsOpened()) {
+                    ImGuiFileDialog::Instance()->Close(); // Explicitly close dialog
+                    event_consumed_by_gui = true;
+                    std::cout << "Escape key: Dialog closed by GUI system." << std::endl;
+                }
+            }
+            // No explicit handling for SDLK_RETURN (Enter) needed here,
+            // as ImGuiFileDialog typically handles it internally.
+        }
+
+        return event_consumed_by_gui;
+    } 
+
+
+    void SDLImGui::set_common_dialog_properties() {
+        ImVec2 dialog_size = ImVec2(800, 600);
+        ImVec2 dialog_pos = ImVec2(
+            (ImGui::GetIO().DisplaySize.x - dialog_size.x) * 0.5f,
+            (ImGui::GetIO().DisplaySize.y - dialog_size.y) * 0.5f
+        );
+        ImGui::SetNextWindowSize(dialog_size);
+        ImGui::SetNextWindowPos(dialog_pos);
+    }
+
+    // NEW: Helper to populate FileDialogResult
+    FileDialogResult SDLImGui::populate_dialog_result(const std::string& key) {
+        FileDialogResult result;
+        if (key.empty()) { return result; }
+        result.is_ok = ImGuiFileDialog::Instance()->IsOk();
+        if (result.is_ok) {
+            result.file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
+            result.file_name = ImGuiFileDialog::Instance()->GetCurrentFileName();
+            result.folder_path = ImGuiFileDialog::Instance()->GetCurrentPath();
+        }
+        return result;
     }
 
 } // namespace Salix
