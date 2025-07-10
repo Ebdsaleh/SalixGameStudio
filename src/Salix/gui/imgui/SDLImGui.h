@@ -14,7 +14,6 @@
 class IThemeManager;
 class IFontManager;
 
-enum ImGuiFileDialogFlags_ : int;
 struct FileDialogResult {
         bool is_ok = false;
         std::string file_path_name;
@@ -55,6 +54,8 @@ namespace Salix {
         bool is_dialog_closed_this_frame(const std::string& key) const override;
         FileDialogResult get_dialog_result(const std::string& key) const override;
         void display_dialogs() override;
+        void set_common_dialog_properties() override;
+        FileDialogResult populate_dialog_result(const std::string& key) override;
 
         // --- Implement Abstract Input Handling for GUI ---
         bool process_raw_input_event(void* native_event) override;
