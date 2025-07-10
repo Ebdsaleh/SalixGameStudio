@@ -11,6 +11,14 @@ namespace Salix {
     class IRenderer;
     class IThemeManager;
     class IFontManager;
+
+    struct FileDialogResult {
+        bool is_ok = false;
+        std::string file_path_name;
+        std::string file_name;
+        std::string folder_path;
+    };
+
     class SALIX_API IGui {
     public:
         virtual ~IGui() = default;
@@ -59,5 +67,28 @@ namespace Salix {
 
         // To re-initialize the ImGui backend (including font texture)
         virtual void reinitialize_backend() = 0;
+
+        // --- NEW: Abstract File Dialog Control ---
+        // Returns true if dialog was opened. Dialog will be displayed in subsequent new_frame/render calls.
+        virtual bool open_save_file_dialog(const std::string& key, const std::string& title, const std::string& filters, const std::string& default_path = ".", const std::string& default_filename = "") = 0;
+        virtual bool open_load_file_dialog(const std::string& key, const std::string& title, const std::string& filters, const std::string& default_path = ".") = 0;
+        virtual bool open_folder_dialog(const std::string& key, const std::string& title, const std::string& default_path = ".") = 0;
+
+        // Returns true if a dialog is currently open.
+        virtual bool is_dialog_open(const std::string& key) const = 0;
+        // Returns true if a dialog was just closed this frame (either OK or Cancel).
+        virtual bool is_dialog_closed_this_frame(const std::string& key) const = 0;
+        // Returns the result of a closed dialog. Only valid if is_dialog_closed_this_frame() and result.is_ok is true.
+        virtual FileDialogResult get_dialog_result(const std::string& key) const = 0;
+        // Call this to display all active dialogs. Should be called once per frame.
+        virtual void display_dialogs() = 0;
+        // --- END NEW ---
+
+        // --- NEW: Abstract Input Handling for GUI ---
+        // This method receives raw input events (e.g., from EventPoller)
+        // and processes them for GUI-level interactions (like Escape to close dialogs).
+        // Returns true if the input was consumed by the GUI.
+        virtual bool process_raw_input_event(void* native_event) = 0; // e.g., SDL_Event*
+        // --- END NEW ---
     };
 }
