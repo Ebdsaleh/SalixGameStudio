@@ -24,13 +24,9 @@ namespace Salix {
         bool should_switch_to_game = false;
         bool should_quit_engine = false;
         bool should_close_dialog = false;
-        bool show_new_project_dialog = false;
-        bool show_open_project_dialog = false;
-        bool show_run_project_dialog = false;
-
+        
         void reset_transition_flags();
         void present_launcher();
-        void process_input();
         void handle_transitions();
         void open_new_project_dialog();
         void open_existing_project_dialog();
@@ -117,7 +113,6 @@ namespace Salix {
 
             pimpl->handle_file_dialogs();
 
-            pimpl->process_input();
         } 
         pimpl->handle_transitions();
     }
@@ -174,18 +169,18 @@ namespace Salix {
         if (ImGui::Button("New Project")) {
             std::cout << "New Project button clicked!" << std::endl;
             // Future: Trigger new project workflow.
-            open_new_project_dialog();
+            context.gui->open_save_file_dialog("ChooseNewProjectLocation", "Create New Project", ".salixproj");
         }
 
         if (ImGui::Button("Open Project")) {
             std::cout << "Open Project button clicked!" << std::endl;
             // Future: Trigger open project dialog
-            open_existing_project_dialog();
+            context.gui->open_load_file_dialog("ChooseExistingProject", "Open An Existing Project", ".salixproj");
         }
 
         if (ImGui::Button("Run Project")) {
             std::cout << "Run Project button clicked!" << std::endl;
-            open_existing_project_to_run_dialog();
+            context.gui->open_load_file_dialog("ChooseExistingProjectToRun", "Run Existing Project", ".salixproj");
         }
 
         if (ImGui::Button("Options")) {
@@ -202,26 +197,7 @@ namespace Salix {
         
     }
 
-    void LaunchState::Pimpl::process_input() {
-        if (context.input_manager->is_down(KeyCode::Escape)) {
-            if (show_new_project_dialog) {
-                ImGuiFileDialog::Instance()->Close();
-                show_new_project_dialog = false;
-                std::cout << "Escape key: New Project dialog closed." << std::endl;
-            } else if (show_open_project_dialog) {
-                ImGuiFileDialog::Instance()->Close();
-                show_open_project_dialog = false;
-                std::cout << "Escape key: Open Project dialog closed." << std::endl;
-            } else if (show_run_project_dialog) { // NEW: Handle Run Project dialog
-                ImGuiFileDialog::Instance()->Close();
-                show_run_project_dialog = false;
-                std::cout << "Escape key: Run Project dialog closed." << std::endl;
-            } else {
-                should_quit_engine = true;
-                std::cout << "Escape key detected. Quitting engine." << std::endl;
-            }
-        }
-    }
+    
 
     void LaunchState::Pimpl::handle_transitions() {
         if (should_switch_to_options) {
@@ -247,17 +223,7 @@ namespace Salix {
 
     void LaunchState::Pimpl::open_new_project_dialog() {
         
-        // Set desired size and position for the dialog
-        // You can adjust these values as needed.
-        // For example, 800x600 pixels, centered.
-        ImVec2 dialog_size = ImVec2(800, 600);
-        ImVec2 dialog_pos = ImVec2(
-            (ImGui::GetIO().DisplaySize.x - dialog_size.x) * 0.5f,
-            (ImGui::GetIO().DisplaySize.y - dialog_size.y) * 0.5f
-        );
-        ImGui::SetNextWindowSize(dialog_size);
-        ImGui::SetNextWindowPos(dialog_pos);
-
+        context.gui->set_common_dialog_properties();
         // 1. Create an instance of FileDialogConfig
         IGFD::FileDialogConfig config;
         config.path = ".";
@@ -273,23 +239,12 @@ namespace Salix {
                 ".salixproj",               // Filter for .salixproj files
                 config
             );
-            show_new_project_dialog = true; // Set flag to indicate dialog is open
+            context.gui->open_save_file_dialog("ChooseNewProjectLocation", "Create New Project", ".salixproj", config.path, config.fileName);
         }
     
     void LaunchState::Pimpl::open_existing_project_dialog() {
         
-        // Set desired size and position for the dialog
-        // You can adjust these values as needed.
-        // For example, 800x600 pixels, centered.
-        ImVec2 dialog_size = ImVec2(800, 600);
-        ImVec2 dialog_pos = ImVec2(
-            (ImGui::GetIO().DisplaySize.x - dialog_size.x) * 0.5f,
-            (ImGui::GetIO().DisplaySize.y - dialog_size.y) * 0.5f
-        );
-        ImGui::SetNextWindowSize(dialog_size);
-        ImGui::SetNextWindowPos(dialog_pos);
-
-        // 1. Create an instance of FileDialogConfig
+        context.gui->set_common_dialog_properties();
         IGFD::FileDialogConfig config;
         config.path = ".";
         config.fileName = "";
@@ -303,19 +258,12 @@ namespace Salix {
             ".salixproj",
             config
         );
-        show_open_project_dialog = true;
+        context.gui->open_load_file_dialog("ChooseExistingProject", "Open An Existing Project", ".salixproj");
     }
 
     void LaunchState::Pimpl::open_existing_project_to_run_dialog() {
 
-        ImVec2 dialog_size = ImVec2(800, 600);
-        ImVec2 dialog_pos = ImVec2(
-            (ImGui::GetIO().DisplaySize.x - dialog_size.x) * 0.5f,
-            (ImGui::GetIO().DisplaySize.y - dialog_size.y) * 0.5f
-        );
-        ImGui::SetNextWindowSize(dialog_size);
-        ImGui::SetNextWindowPos(dialog_pos);
-
+        context.gui->set_common_dialog_properties();
         IGFD::FileDialogConfig config;
         config.path = ".";
         config.fileName = "";
@@ -328,78 +276,36 @@ namespace Salix {
             ".salixproj",                 // Filter for .salixproj files
             config
         );
-        show_run_project_dialog = true;
+        context.gui->open_load_file_dialog("ChooseExistingProjectToRun", "Run Existing Project", ".salixproj");
     }
 
     void LaunchState::Pimpl::handle_file_dialogs() {
-        if (show_new_project_dialog) {
-            if (ImGuiFileDialog::Instance()->Display("ChooseNewProjectLocation")) {
-                if (ImGuiFileDialog::Instance()->IsOk()) {
-                    std::string file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
-                    std::string file_name = ImGuiFileDialog::Instance()->GetCurrentFileName();
-                    std::string folder_path = ImGuiFileDialog::Instance()->GetCurrentPath();
+        // NEW: Call IGui to display all active dialogs (this updates ImGuiFileDialog internal state)
+        context.gui->display_dialogs();
 
-                    std::cout << "New Project selected path: " << file_path_name << std::endl;
-                    std::cout << "New Project Name: " << file_name << std::endl;
-                    std::cout << "New Project Folder: " << folder_path << std::endl;
-
-                    // --- NEW: Trigger EditorState transition for New Project ---
-                    // You would typically create the new project file/structure here first.
-                    // For now, just trigger the state switch.
-                    should_switch_to_editor = true;
-                    // No return here, as Close() and flag reset still need to happen.
-                    // --- END NEW ---
-                    // Future: Call ProjectManager to create project
-                }
-                ImGuiFileDialog::Instance()->Close();
-                show_new_project_dialog = false; // Dialog closed
+        // Check results of dialogs that were closed this frame
+        if (context.gui->is_dialog_closed_this_frame("ChooseNewProjectLocation")) {
+            FileDialogResult result = context.gui->get_dialog_result("ChooseNewProjectLocation");
+            if (result.is_ok) {
+                std::cout << "New Project selected path: " << result.file_path_name << std::endl;
+                should_switch_to_editor = true;
             }
         }
 
-        // Handle "Open Project" dialog
-        if (show_open_project_dialog) {
-            if (ImGuiFileDialog::Instance()->Display("ChooseExistingProject")) {
-                if (ImGuiFileDialog::Instance()->IsOk()) {
-                    std::string file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
-                    std::string file_name = ImGuiFileDialog::Instance()->GetCurrentFileName();
-                    std::string folder_path = ImGuiFileDialog::Instance()->GetCurrentPath();
-
-                    std::cout << "Open Project selected path: " << file_path_name << std::endl;
-                    std::cout << "Open Project Name: " << file_name << std::endl;
-                    std::cout << "Open Project Folder: " << folder_path << std::endl;
-
-                    // --- NEW: Trigger EditorState transition for Open Project ---
-                    // You would typically load the project here first.
-                    // For now, just trigger the state switch.
-                    should_switch_to_editor = true;
-                    // No return here, as Close() and flag reset still need to happen.
-                    // --- END NEW ---
-                    // Future: Call ProjectManager to load project
-                }
-                ImGuiFileDialog::Instance()->Close();
-                show_open_project_dialog = false; // Dialog closed
+        if (context.gui->is_dialog_closed_this_frame("ChooseExistingProject")) {
+            FileDialogResult result = context.gui->get_dialog_result("ChooseExistingProject");
+            if (result.is_ok) {
+                std::cout << "Open Project selected path: " << result.file_path_name << std::endl;
+                should_switch_to_editor = true;
             }
         }
 
-        // Handle "Run Project" dialog
-        if (show_run_project_dialog) {
-            if (ImGuiFileDialog::Instance()->Display("ChooseExistingProjectToRun")) { // Use correct dialog key
-                if (ImGuiFileDialog::Instance()->IsOk()) {
-                    std::string file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
-                    std::string file_name = ImGuiFileDialog::Instance()->GetCurrentFileName();
-                    std::string folder_path = ImGuiFileDialog::Instance()->GetCurrentPath();
-
-                    std::cout << "Run Project selected path: " << file_path_name << std::endl;
-                    std::cout << "Run Project Name: " << file_name << std::endl;
-                    std::cout << "Run Project Folder: " << folder_path << std::endl;
-
-                    should_switch_to_game = true; // Set flag to switch to GameState
-                }
-                ImGuiFileDialog::Instance()->Close();
-                show_run_project_dialog = false; // Dialog closed
+        if (context.gui->is_dialog_closed_this_frame("ChooseExistingProjectToRun")) {
+            FileDialogResult result = context.gui->get_dialog_result("ChooseExistingProjectToRun");
+            if (result.is_ok) {
+                std::cout << "Run Project selected path: " << result.file_path_name << std::endl;
+                should_switch_to_game = true;
             }
         }
     }
-
-    
 } // namespace Salix
