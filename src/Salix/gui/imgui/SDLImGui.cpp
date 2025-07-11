@@ -12,7 +12,10 @@
 #include <Salix/events/IEventPoller.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/events/ImGuiInputEvent.h> // To dispatch the ImGuiInputEvent
-#include <ImGuiFileDialog.h>
+#include <ImGuiFileDialog.h> 
+#include <Salix/gui/IDialog.h>
+#include <Salix/gui/DialogBox.h>
+#include <memory>
 
 namespace Salix {
 
@@ -28,7 +31,7 @@ namespace Salix {
         RawEventCallbackHandle raw_event_callback_handle = 0; // <-- Store the handle
 
         std::unordered_map<std::string, bool> active_dialog_keys; // NEW: Tracks which dialogs are currently open
-
+        std::unordered_map<std::string, std::unique_ptr<DialogBox>> dialog_registry; // store all the registered dialogs
         // Store dialog results for the current frame
         mutable std::unordered_map<std::string, FileDialogResult> dialog_results_this_frame;
 
@@ -167,9 +170,11 @@ namespace Salix {
 
     void SDLImGui::render() {
         // ImGui::Render() prepares the draw data
+       
         ImGui::Render();
         // Render ImGui's draw data using the backend
         ImGui_ImplSDLRenderer2_RenderDrawData(ImGui::GetDrawData(), pimpl->sdl_renderer);
+       
     }
 
     void SDLImGui::update_and_render_platform_windows() {
@@ -325,21 +330,52 @@ namespace Salix {
         pimpl->dialog_results_this_frame.clear();
 
         // Iterate through all currently active dialogs and display them
-        // Create a copy of keys to avoid modifying map during iteration
-        std::vector<std::string> keys_to_display;
+        std::vector<std::string> keys_to_process; // Use a new name to avoid confusion with existing copy
         for (const auto& pair : pimpl->active_dialog_keys) {
-            keys_to_display.push_back(pair.first);
+            keys_to_process.push_back(pair.first);
         }
 
-        for (const std::string& key : keys_to_display) {
-            // Check if the dialog is still open by ImGuiFileDialog itself
-            // ImGuiFileDialog::Instance()->IsOpened() returns true if *any* dialog is open.
-            // We need to pass the specific key to Display().
-            if (ImGuiFileDialog::Instance()->Display(key)) { // Display returns true when dialog is closed
+        for (const std::string& key : keys_to_process) {
+            // Retrieve the DialogBox instance from the registry
+            auto it_registry = pimpl->dialog_registry.find(key);
+            if (it_registry == pimpl->dialog_registry.end()) {
+                // This should ideally not happen if active_dialog_keys is consistent with dialog_registry
+                std::cerr << "SDLImGui::display_dialogs - Active dialog '" << key << "' not found in registry." << std::endl;
+                pimpl->active_dialog_keys.erase(key); // Remove from active list if not found
+                continue; // Skip to next dialog
+            }
+
+            DialogBox* dialog_instance = it_registry->second.get();
+
+            // **CRITICAL FIX 1: Check if the dialog needs to be opened (first frame it's active)**
+            // ImGuiFileDialog::Instance()->IsOpened(key.c_str()) checks if IGFD internally considers it open.
+            // If it's in our active_dialog_keys but IGFD doesn't know it's open, then open it.
+            if (!ImGuiFileDialog::Instance()->IsOpened(key.c_str())) { // Check if IGFD has it open already
+                // If it's active in our map but not yet opened by IGFD, then open it now.
+                // This happens on the first frame show_dialog_by_key() is called for it.
+
+                // CRITICAL FIX 2: Apply common properties just before opening
+                // This ensures the size and position are set for the FIRST frame the dialog appears.
+                set_common_dialog_properties(); // 
+
+                dialog_instance->Open(); // This calls ImGuiFileDialog::Instance()->OpenDialog() 
+                std::cout << "DEBUG: Dialog '" << key << "' just called Open() for the first time." << std::endl; // Debug
+            }
+
+            // Now, call Display() every frame it's active (including the first after Open())
+            if (ImGuiFileDialog::Instance()->Display(key.c_str())) { // Display returns true when dialog is closed [cite: 198]
                 // Dialog was just closed this frame (either OK or Cancel)
-                pimpl->dialog_results_this_frame[key] = populate_dialog_result(key); // Store result
-                ImGuiFileDialog::Instance()->Close(); // Explicitly close (though Display() might have already)
-                pimpl->active_dialog_keys.erase(key); // Remove from active list
+                FileDialogResult result = populate_dialog_result(key);
+                pimpl->dialog_results_this_frame[key] = result;
+
+                const FileDialogCallback& callback = dialog_instance->get_callback(); // Get the callback [cite: 79]
+                if (callback) { // Check if a callback was set
+                    callback(result); // Execute the callback with the result
+                }
+
+                ImGuiFileDialog::Instance()->Close(); // Explicitly close (though Display() might have already) [cite: 200]
+                pimpl->active_dialog_keys.erase(key); // Remove from active list [cite: 201]
+                std::cout << "DEBUG: Dialog '" << key << "' was just closed and removed from active list." << std::endl; // Debug
             }
         }
     }
@@ -370,6 +406,8 @@ namespace Salix {
                     ImGuiFileDialog::Instance()->Close(); // Explicitly close dialog
                     event_consumed_by_gui = true;
                     std::cout << "Escape key: Dialog closed by GUI system." << std::endl;
+                    pimpl->active_dialog_keys.clear();
+                    std::cout << "DEBUG: active_dialog_keys cleared due to Escape." << std::endl;
                 }
             }
             // No explicit handling for SDLK_RETURN (Enter) needed here,
@@ -401,6 +439,70 @@ namespace Salix {
             result.folder_path = ImGuiFileDialog::Instance()->GetCurrentPath();
         }
         return result;
+    }
+
+    DialogBox* SDLImGui::create_dialog(std::string& key, std::string& title, DialogType type, bool overwrite) {
+        // Check if dialog already exists in the registry
+        auto it = pimpl->dialog_registry.find(key);
+        if (it != pimpl->dialog_registry.end()) {
+            std::cerr << "SDLImGui::create_dialog - Dialog with key '" << key <<
+            "' already exists. Returning existing dialog." << std::endl;
+            return it->second.get(); // Return existing dialog
+        }
+
+        // Create the concrete dialog wrapper object
+        auto dialog_box = std::make_unique<DialogBox> ( key, title, type, overwrite);
+
+        // Set flags based on overwrite
+        if (overwrite) {
+            dialog_box->get_config().flags |= ImGuiFileDialogFlags_ConfirmOverwrite;
+        }
+
+        // Store the dialog in the registry and get a raw pointer
+        DialogBox* raw_dialog_ptr = dialog_box.get();
+
+        // CRITICAL FIX: Use the register_dialog method to add it to the registry.
+        // register_dialog takes ownership of the unique_ptr.
+        if (!register_dialog(std::move(dialog_box))) { // Call the method
+            std::cerr << "SDLImGui::create_dialog - Failed to register dialog '" << key << "' after creation." << std::endl;
+            return nullptr; // Return null if registration fails
+        }
+
+        std::cout << "SDLImGui: Dialog '" << key << "' created and registered." << std::endl;
+        return raw_dialog_ptr;
+    }
+
+    
+    bool SDLImGui::register_dialog(std::unique_ptr<DialogBox> dialog) {
+        if (!dialog) {
+            std::cerr << "SDLImGui::register_dialog - Provided dialog is null." << std::endl;
+            return false;
+        }
+
+        std::string key = dialog->get_key();
+        if (pimpl->dialog_registry.count(key)) { // Check if key already exists
+            std::cerr << "SDLImGui::register_dialog - Dialog with key '" << key << "' already registered." << std::endl;
+            return false;
+        }
+
+        // emplace returns a pair<iterator, bool>, where bool is true if insertion happened.
+        auto [it, inserted] = pimpl->dialog_registry.emplace(key, std::move(dialog));
+        
+        if (inserted) {
+            std::cout << "SDLImGui: Dialog '" << key << "' registered." << std::endl;
+            return true;
+        } else {
+            // This case should ideally not be hit due to the .count(key) check above,
+            // but it's good defensive programming.
+            std::cerr << "SDLImGui::register_dialog - Failed to register dialog '" << key << "' (unexpected error)." << std::endl;
+            return false;
+        }
+    }
+
+    void SDLImGui::show_dialog_by_key(std::string& key) {
+        if (key.empty()) { return;}  // empty string
+        pimpl->active_dialog_keys[key] = true;
+        std::cout << "DEBUG: Dialog '" << key << "' marked as active." << std::endl;
     }
 
 } // namespace Salix

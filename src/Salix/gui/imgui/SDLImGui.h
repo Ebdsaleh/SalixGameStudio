@@ -13,6 +13,8 @@
 // Forward declarations for specific SDL types if your Pimpl needs them directly
 class IThemeManager;
 class IFontManager;
+class DialogBox;
+enum class DialogType;
 
 struct FileDialogResult {
         bool is_ok = false;
@@ -57,6 +59,10 @@ namespace Salix {
         void set_common_dialog_properties() override;
         FileDialogResult populate_dialog_result(const std::string& key) override;
 
+        DialogBox* create_dialog(std::string& key, std::string& title, DialogType type, bool overwrite) override;
+        bool register_dialog(std::unique_ptr<DialogBox> dialog) override;
+
+        void show_dialog_by_key(std::string& key) override;
         // --- Implement Abstract Input Handling for GUI ---
         bool process_raw_input_event(void* native_event) override;
         
