@@ -21,6 +21,7 @@ add_library(SalixEngine SHARED
     events/EventManager.cpp 
     events/SDLEventPoller.cpp 
     events/ApplicationEventListener.cpp
+    gui/DialogBox.cpp
     gui/imgui/ImGuiTheme.cpp
     gui/imgui/ImGuiThemeData.cpp
     gui/imgui/ImGuiThemeManager.cpp
