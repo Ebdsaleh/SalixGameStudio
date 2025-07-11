@@ -396,7 +396,6 @@ namespace Salix {
         }
 
         SDL_Event* sdl_event = static_cast<SDL_Event*>(native_event);
-        ImGui_ImplSDL2_ProcessEvent(sdl_event); // Let ImGui (and ImGuiFileDialog) process the event first
 
         bool event_consumed_by_gui = false;
 
