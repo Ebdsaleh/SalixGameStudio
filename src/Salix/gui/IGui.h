@@ -3,7 +3,7 @@
 #include <Salix/core/Core.h> // For SALIX_API
 #include <string> // For std::string
 #include <imgui/imgui.h> // Only include ImGui's core header if SALIX_GUI_IMGUI is defined
-
+#include <Salix/gui/IDialog.h>
 
 namespace Salix {
     // Forward declarations for engine interfaces that a GUI might need to interact with
@@ -11,6 +11,7 @@ namespace Salix {
     class IRenderer;
     class IThemeManager;
     class IFontManager;
+    class DialogBox;
     enum ImGuiFileDialogFlags_ : int;
     struct FileDialogResult {
         bool is_ok = false;
@@ -88,7 +89,12 @@ namespace Salix {
         virtual void set_common_dialog_properties() = 0;
 
         virtual FileDialogResult populate_dialog_result(const std::string& key) = 0;
+        
+        virtual DialogBox* create_dialog(std::string& key, std::string& title, DialogType type, bool overwrite) = 0;
 
+        virtual bool register_dialog(std::unique_ptr<DialogBox> dialog) = 0;
+
+        virtual void show_dialog_by_key(std::string& key) = 0;
         // --- Abstract Input Handling for GUI ---
         // This method receives raw input events (e.g., from EventPoller)
         // and processes them for GUI-level interactions (like Escape to close dialogs).
