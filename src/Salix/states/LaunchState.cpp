@@ -11,9 +11,11 @@
 #include <Salix/gui/IFont.h>
 #include <Salix/gui/IFontManager.h>
 #include <Salix/gui/imgui/ImGuiTheme.h>
+#include <Salix/gui/DialogBox.h>
 #include <ImGuiFileDialog.h>
 #include <memory>
 #include <iostream>
+
 
 namespace Salix {
 
@@ -25,13 +27,21 @@ namespace Salix {
         bool should_quit_engine = false;
         bool should_close_dialog = false;
         
+        // dialog box references
+        std::string new_project_key = "ChooseNewProjectLocation";
+        std::string new_project_title = "Create New Project";
+
+        std::string open_project_key = "ChooseExistingProject";
+        std::string open_project_title = "Open An Existing Project";
+
+        std::string run_project_key = "ChooseExistingProjectToRun";
+        std::string run_project_title ="Run An Existing Project";
+
         void reset_transition_flags();
         void present_launcher();
         void handle_transitions();
-        void open_new_project_dialog();
-        void open_existing_project_dialog();
-        void open_existing_project_to_run_dialog();
-        void handle_file_dialogs();
+        void create_dialog_boxes();
+        
      };
     LaunchState::LaunchState() : pimpl(std::make_unique<Pimpl>()) {}
     LaunchState::~LaunchState() {}
@@ -94,12 +104,18 @@ namespace Salix {
         } else {
             std::cerr << "LaunchState Warning: Theme Manager is null in InitContext!" << std::endl;
         }
-    
+        
+        // Create File Dialogs
+        pimpl->create_dialog_boxes();      
+        
     }
+
+
 
     void LaunchState::on_exit() {
         std::cout << "Exiting LaunchState..." << std::endl;
         if (pimpl->context.renderer) { pimpl->context.renderer->clear(); }
+        
     }
 
     void LaunchState::update(float /*delta_time*/) {
@@ -111,8 +127,8 @@ namespace Salix {
             
             pimpl->present_launcher();
 
-            pimpl->handle_file_dialogs();
-
+            pimpl->context.gui->display_dialogs();
+            
         } 
         pimpl->handle_transitions();
     }
@@ -169,18 +185,18 @@ namespace Salix {
         if (ImGui::Button("New Project")) {
             std::cout << "New Project button clicked!" << std::endl;
             // Future: Trigger new project workflow.
-            context.gui->open_save_file_dialog("ChooseNewProjectLocation", "Create New Project", ".salixproj");
+            context.gui->show_dialog_by_key(new_project_key);
         }
 
         if (ImGui::Button("Open Project")) {
             std::cout << "Open Project button clicked!" << std::endl;
             // Future: Trigger open project dialog
-            context.gui->open_load_file_dialog("ChooseExistingProject", "Open An Existing Project", ".salixproj");
+            context.gui->show_dialog_by_key(open_project_key);
         }
 
         if (ImGui::Button("Run Project")) {
             std::cout << "Run Project button clicked!" << std::endl;
-            context.gui->open_load_file_dialog("ChooseExistingProjectToRun", "Run Existing Project", ".salixproj");
+            context.gui->show_dialog_by_key(run_project_key);
         }
 
         if (ImGui::Button("Options")) {
@@ -221,91 +237,74 @@ namespace Salix {
         }
     }
 
-    void LaunchState::Pimpl::open_new_project_dialog() {
-        
-        context.gui->set_common_dialog_properties();
-        // 1. Create an instance of FileDialogConfig
-        IGFD::FileDialogConfig config;
-        config.path = ".";
-        config.fileName = "";
-        config.countSelectionMax = 1;
-        config.userDatas = nullptr;
-        config.flags = ImGuiFileDialogFlags_ConfirmOverwrite | ImGuiFileDialogFlags_Modal;
+    void LaunchState::Pimpl::create_dialog_boxes() {
 
-        // Open the save file dialog
-        ImGuiFileDialog::Instance()->OpenDialog(
-                "ChooseNewProjectLocation", // Unique dialog key
-                "Create New Project",       // Dialog title
-                ".salixproj",               // Filter for .salixproj files
-                config
-            );
-            context.gui->open_save_file_dialog("ChooseNewProjectLocation", "Create New Project", ".salixproj", config.path, config.fileName);
-        }
+        // New Project
+        
+        DialogBox* new_project_dialog = context.gui->create_dialog(
+            new_project_key,
+            new_project_title,
+            DialogType::File,
+            true);
+        
+        new_project_dialog->SetFilters(std::string(".salixproj"));
+
+        new_project_dialog->SetCallback([this](const FileDialogResult& result) {
+            
+            if (result.is_ok) {
+                // will add new project creation method later
+                this->should_switch_to_editor = true;
+                std::cout << "Action: New Project selected (via callback)." << std::endl; // Add a debug message
+            } else {
+                std::cout << "Action: New Project dialog canceled (via callback)." << std::endl;
+            }
+        });
+
+
+        // Open Project
+        
+        DialogBox* open_project_dialog = context.gui->create_dialog(
+            open_project_key,
+            open_project_title,
+            DialogType::File,
+            false);
+
+        open_project_dialog->SetFilters(std::string(".salixproj"));
+
+        open_project_dialog->SetCallback([this](const FileDialogResult& result) {
+            
+            if (result.is_ok) {
+                // will add new project creation method later
+                this->should_switch_to_editor = true;
+                std::cout << "Action: Open Project selected (via callback)." << std::endl; // Add a debug message
+            } else {
+                std::cout << "Action: Open Project dialog canceled (via callback)." << std::endl;
+            }
+        });
+
+        // Run Project
+        
+        DialogBox* run_project_dialog = context.gui->create_dialog(
+           run_project_key,
+           run_project_title,
+           DialogType::File,
+           false);
+
+        run_project_dialog->SetFilters(std::string(".salixproj"));
+
+        run_project_dialog->SetCallback([this](const FileDialogResult& result) {
+            
+            if (result.is_ok) {
+                // will add new project creation method later
+                this->should_switch_to_game = true;
+                std::cout << "Action: Run Project selected (via callback)." << std::endl; // Add a debug message
+            } else {
+                std::cout << "Action: Run Project dialog canceled (via callback)." << std::endl;
+            }
+        });
+
+    }
     
-    void LaunchState::Pimpl::open_existing_project_dialog() {
-        
-        context.gui->set_common_dialog_properties();
-        IGFD::FileDialogConfig config;
-        config.path = ".";
-        config.fileName = "";
-        config.countSelectionMax = 1;
-        config.userDatas = nullptr;
-        config.flags = ImGuiFileDialogFlags_Modal;
 
-        ImGuiFileDialog::Instance()->OpenDialog( 
-            "ChooseExistingProject",
-            "Open An Existing Project",
-            ".salixproj",
-            config
-        );
-        context.gui->open_load_file_dialog("ChooseExistingProject", "Open An Existing Project", ".salixproj");
-    }
-
-    void LaunchState::Pimpl::open_existing_project_to_run_dialog() {
-
-        context.gui->set_common_dialog_properties();
-        IGFD::FileDialogConfig config;
-        config.path = ".";
-        config.fileName = "";
-        config.countSelectionMax = 1;
-        config.userDatas = nullptr;
-        config.flags = ImGuiFileDialogFlags_Modal;
-        ImGuiFileDialog::Instance()->OpenDialog(
-            "ChooseExistingProjectToRun", // Unique dialog key for run dialog
-            "Run Existing Project",       // Dialog title
-            ".salixproj",                 // Filter for .salixproj files
-            config
-        );
-        context.gui->open_load_file_dialog("ChooseExistingProjectToRun", "Run Existing Project", ".salixproj");
-    }
-
-    void LaunchState::Pimpl::handle_file_dialogs() {
-        // NEW: Call IGui to display all active dialogs (this updates ImGuiFileDialog internal state)
-        context.gui->display_dialogs();
-
-        // Check results of dialogs that were closed this frame
-        if (context.gui->is_dialog_closed_this_frame("ChooseNewProjectLocation")) {
-            FileDialogResult result = context.gui->get_dialog_result("ChooseNewProjectLocation");
-            if (result.is_ok) {
-                std::cout << "New Project selected path: " << result.file_path_name << std::endl;
-                should_switch_to_editor = true;
-            }
-        }
-
-        if (context.gui->is_dialog_closed_this_frame("ChooseExistingProject")) {
-            FileDialogResult result = context.gui->get_dialog_result("ChooseExistingProject");
-            if (result.is_ok) {
-                std::cout << "Open Project selected path: " << result.file_path_name << std::endl;
-                should_switch_to_editor = true;
-            }
-        }
-
-        if (context.gui->is_dialog_closed_this_frame("ChooseExistingProjectToRun")) {
-            FileDialogResult result = context.gui->get_dialog_result("ChooseExistingProjectToRun");
-            if (result.is_ok) {
-                std::cout << "Run Project selected path: " << result.file_path_name << std::endl;
-                should_switch_to_game = true;
-            }
-        }
-    }
+    
 } // namespace Salix
