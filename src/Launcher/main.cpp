@@ -13,6 +13,7 @@
 #include <Salix/core/ITimer.h>         // For TimerType
 #include <Salix/core/InitContext.h>
 #include <Salix/states/IAppState.h>
+#include <Salix/core/ApplicationConfig.h>
 #include <iostream>
 #include <memory>
 #define _CRTDBG_MAP_ALLOC
@@ -40,19 +41,24 @@ int main(int argc, char* argv[]) {
     _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     
     
-    // 1. Create the configuration for our window.
-    Salix::WindowConfig config;
-    config.title = "Salix Game Studio v0.1";
-    config.width = 1280;
-    config.height = 720;
+    // 1. Create the configuration for our application.
+    Salix::ApplicationConfig config;
+    config.window_config.title = "Salix Game Studio v0.1";
+    config.window_config.width = 1280; 
+    config.window_config.height = 720;
+    config.gui_type = Salix::GuiType::ImGui;
+    config.initial_state = Salix::AppStateType::Launch;
+    config.renderer_type = Salix::RendererType::SDL;
+    config.timer_type = Salix::TimerType::SDL;
+    config.target_fps = 60;
+
 
     // 2. Create the main engine object using a smart pointer for safety.
     auto engine = std::make_unique<Salix::Engine>();
 
     // 3. Initialize the engine with our configuration and desired subsystems.
     // This now calls the new, correct initialize method.
-    if (engine->initialize(config, Salix::RendererType::SDL, Salix::AppStateType::Launch,
-        Salix::GuiType::ImGui, Salix::TimerType::SDL, 60)) {
+    if (engine->initialize(config)) {
         // engine->switch_state(Salix::AppStateType::Launch);
         // 4. If initialization was successful, run the main game loop.
         engine->run();
