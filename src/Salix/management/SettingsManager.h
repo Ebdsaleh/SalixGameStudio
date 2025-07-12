@@ -28,18 +28,18 @@ namespace Salix {
         // @param yaml_path: The path to the user-facing .yaml config file.
         // @param out_config: The config struct to be populated.
         // @return: True if settings were successfully loaded, false otherwise.
-        bool loadSettings(const std::string& yaml_path, ApplicationConfig& out_config);
+        bool load_settings(const std::string& yaml_path, ApplicationConfig& out_config);
 
         // Saves the given configuration to the YAML file.
         // This would be used by an in-engine settings editor.
         // @param yaml_path: The path to the user-facing .yaml config file.
         // @param config: The config struct to save.
         // @return: True if settings were successfully saved, false otherwise.
-        bool saveSettings(const std::string& yaml_path, const ApplicationConfig& config);
+        bool save_settings(const std::string& yaml_path, const ApplicationConfig& config);
 
     private:
         // Generates the path for the binary cache file from the YAML path.
-        std::string getCachePath(const std::string& yaml_path) const;
+        std::string get_cache_path(const std::string& yaml_path) const;
     };
 
 } // namespace Salix

@@ -19,7 +19,7 @@
 namespace Salix {
 
     // Helper function to convert YAML node to AppStateType enum
-    void parseAppStateType(const YAML::Node& node, AppStateType& type) {
+    void parse_app_state_type(const YAML::Node& node, AppStateType& type) {
         if (!node) return; // Do nothing if the node doesn't exist
         std::string val = node.as<std::string>();
         if (val == "Launch") type = AppStateType::Launch;
@@ -29,7 +29,7 @@ namespace Salix {
     }
     
     // Helper function to convert YAML node to RendererType enum
-    void parseRendererType(const YAML::Node& node, RendererType& type) {
+    void parse_renderer_type(const YAML::Node& node, RendererType& type) {
         if (!node) return; // Do nothing if the node doesn't exist
         std::string val = node.as<std::string>();
         if (val == "SDL") type = RendererType::SDL;
@@ -37,7 +37,7 @@ namespace Salix {
     }
     
     // Helper function to convert YAML node to GuiType enum
-    void parseGuiType(const YAML::Node& node, GuiType& type) {
+    void parse_gui_type(const YAML::Node& node, GuiType& type) {
         if (!node) return;
         std::string val = node.as<std::string>();
         if (val == "ImGui") type = GuiType::ImGui;
@@ -45,16 +45,16 @@ namespace Salix {
     }
 
     // Helper function to convert YAML node to TimerType enum
-    void parseTimerType(const YAML::Node& node, TimerType& type) {
+    void parse_timer_type(const YAML::Node& node, TimerType& type) {
         if (!node) return;
         std::string val = node.as<std::string>();
         if (val == "SDL") type = TimerType::SDL;
         else if (val == "Chrono") type = TimerType::Chrono;
     }
 
-    bool SettingsManager::loadSettings(const std::string& yaml_path, ApplicationConfig& out_config)
+    bool SettingsManager::load_settings(const std::string& yaml_path, ApplicationConfig& out_config)
     {
-        std::string cache_path = getCachePath(yaml_path);
+        std::string cache_path = get_cache_path(yaml_path);
 
         // Check if cache is valid and up-to-date
         if (std::filesystem::exists(cache_path) && std::filesystem::exists(yaml_path) &&
@@ -87,17 +87,24 @@ namespace Salix {
                 if (root["Window"]["height"]) out_config.window_config.height = root["Window"]["height"].as<int>();
             }
             if (root["Engine"]) {
-                parseAppStateType(root["Engine"]["initial_state"], out_config.initial_state);
+                parse_app_state_type(root["Engine"]["initial_state"], out_config.initial_state);
                 if (root["Engine"]["target_fps"]) out_config.target_fps = root["Engine"]["target_fps"].as<int>();
             }
             if (root["Renderer"]) {
-                parseRendererType(root["Renderer"]["type"], out_config.renderer_type);
+                parse_renderer_type(root["Renderer"]["type"], out_config.renderer_type);
             }
             if (root["GUI"]) {
-                parseGuiType(root["GUI"]["type"], out_config.gui_type);
+                parse_gui_type(root["GUI"]["type"], out_config.gui_type);
+
+                if (root["GUI"]["dialog_width_ratio"]) {
+                    out_config.gui_settings.dialog_width_ratio = root["GUI"]["dialog_width_ratio"].as<float>();
+                }
+                if (root["GUI"]["dialog_height_ratio"]) {
+                    out_config.gui_settings.dialog_height_ratio = root["GUI"]["dialog_height_ratio"].as<float>();
+                }
             }
             if (root["Timer"]) {
-                parseTimerType(root["Timer"]["type"], out_config.timer_type);
+                parse_timer_type(root["Timer"]["type"], out_config.timer_type);
             }
             
             std::cout << "SettingsManager: Loaded settings from YAML file '" << yaml_path << "'" << std::endl;
@@ -118,14 +125,14 @@ namespace Salix {
         return true;
     }
 
-    bool SettingsManager::saveSettings(const std::string& yaml_path, const ApplicationConfig& config)
+    bool SettingsManager::save_settings(const std::string& yaml_path, const ApplicationConfig& config)
     {
         // (Implementation omitted for brevity)
         std::cout << "SettingsManager: saveSettings() is not yet implemented." << std::endl;
         return false;
     }
 
-    std::string SettingsManager::getCachePath(const std::string& yaml_path) const
+    std::string SettingsManager::get_cache_path(const std::string& yaml_path) const
     {
         return std::filesystem::path(yaml_path).replace_extension(".cache").string();
     }
