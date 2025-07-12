@@ -1,4 +1,4 @@
-// Salix/input/SDLInputManager.h
+// Salix/input/sdl/SDLInputManager.h
 #pragma once
 #include <Salix/input/IInputManager.h>
 #include <SDL.h>

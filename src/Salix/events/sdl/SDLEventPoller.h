@@ -1,5 +1,5 @@
 // =================================================================================
-// Filename:    Salix/events/SDLEventPoller.h
+// Filename:    Salix/events/sdl/SDLEventPoller.h
 // Author:      SalixGameStudio
 // Description: Declares the SDL implementation of the IEventPoller interface.
 // =================================================================================

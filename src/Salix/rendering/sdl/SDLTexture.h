@@ -1,4 +1,4 @@
-// Salix/rendering/SDLTexture.h
+// Salix/rendering/sdl/SDLTexture.h
 #pragma once
 #include <Salix/rendering/ITexture.h>
 #include <SDL.h>

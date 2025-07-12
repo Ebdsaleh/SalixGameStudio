@@ -2,7 +2,7 @@
 #include <Salix/events/ApplicationEventListener.h> // Include its own header
 #include <Salix/core/Engine.h>                 // To access the Engine pointer
 #include <Salix/events/IEvent.h>               // To access IEvent types
-#include <Salix/events/SDLEvent.h>              // To access WindowCloseEvent
+#include <Salix/events/sdl/SDLEvent.h>              // To access WindowCloseEvent
 #include <iostream>                             // For debug output
 
 namespace Salix {

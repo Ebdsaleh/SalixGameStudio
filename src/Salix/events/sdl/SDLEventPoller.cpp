@@ -1,6 +1,6 @@
-// Salix/events/SDLEventPoller.cpp
-#include <Salix/events/SDLEventPoller.h>
-#include <Salix/events/SDLEvent.h> // Needed to create our concrete events (KeyPressedEvent, etc.)
+// Salix/events/sdl/SDLEventPoller.cpp
+#include <Salix/events/sdl/SDLEventPoller.h>
+#include <Salix/events/sdl/SDLEvent.h> // Needed to create our concrete events (KeyPressedEvent, etc.)
 #include <SDL.h> // Full SDL include needed here for SDL_Event definition and polling
 // #include <Salix/core/Log.h> // Commented out, as you don't have logging yet
 

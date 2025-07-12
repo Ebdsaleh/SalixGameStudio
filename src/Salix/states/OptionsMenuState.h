@@ -1,4 +1,4 @@
- // Salix/states/OptionsMenuState.h
+// Salix/states/OptionsMenuState.h
 #pragma once
 #include <Salix/states/IAppState.h>
 #include <memory>

@@ -1,11 +1,11 @@
 // =================================================================================
-// Filename:    Salix/input/SDLInputManager.cpp
+// Filename:    Salix/input/sdl/SDLInputManager.cpp
 // Author:      SalixGameStudio
 // Description: Implements the stateful, event-driven, and overloaded IInputManager
 //              interface using SDL as the backend.
 // =================================================================================
-#include <Salix/input/SDLInputManager.h>
-#include <Salix/events/SDLEvent.h> // Needed for casting to get event data
+#include <Salix/input/sdl/SDLInputManager.h>
+#include <Salix/events/sdl/SDLEvent.h> // Needed for casting to get event data
 #include <SDL.h>   
 #include <iostream>                // For SDLK_* keycodes in the translator
 

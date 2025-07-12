@@ -1,4 +1,4 @@
-// Salix/events/SDLEventBase.h
+// Salix/events/sdl/SDLEventBase.h
 // New file for an intermediate base class for SDL-originating events.
 #pragma once
 

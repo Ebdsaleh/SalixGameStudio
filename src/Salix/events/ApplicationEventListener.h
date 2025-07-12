@@ -3,7 +3,7 @@
 #include <Salix/core/Core.h>
 #include <Salix/events/IEventListener.h> // Inherit from IEventListener
 #include <Salix/events/IEvent.h>        // For IEvent
-#include <Salix/events/SDLEvent.h>       // For WindowCloseEvent type (or any other application events)
+#include <Salix/events/sdl/SDLEvent.h>       // For WindowCloseEvent type (or any other application events)
 #include <memory>
 
 namespace Salix {

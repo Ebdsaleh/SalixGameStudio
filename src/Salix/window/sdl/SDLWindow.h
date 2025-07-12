@@ -1,5 +1,5 @@
 // =================================================================================
-// Filename:    Salix/window/SDLWindow.h
+// Filename:    Salix/window/sdl/SDLWindow.h
 // Author:      Nadir Saleh
 // Created:     2025-06-20
 // Description: Declares the SDLWindow class, a concrete implementation of IWindow

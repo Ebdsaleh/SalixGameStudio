@@ -15,10 +15,10 @@
 #include <Salix/core/ChronoTimer.h>
 
 // Rendering includes
-#include <Salix/rendering/SDLRenderer.h>
+#include <Salix/rendering/sdl/SDLRenderer.h>
 
 // Input includes
-#include <Salix/input/SDLInputManager.h>
+#include <Salix/input/sdl/SDLInputManager.h>
 #include <Salix/input/ImGuiInputManager.h>
 
 // Gui includes
@@ -26,7 +26,7 @@
 #include <Salix/gui/IThemeManager.h>
 #include <Salix/gui/IFontManager.h>
 // Gui/Imgui includes
-#include <Salix/gui/imgui/SDLImGui.h>
+#include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/gui/imgui/ImGuiThemeManager.h>
 #include <Salix/gui/imgui/ImGuiFontManager.h>
 
@@ -35,7 +35,7 @@
 
 // Events includes
 #include <Salix/events/IEventPoller.h>
-#include <Salix/events/SDLEventPoller.h>
+#include <Salix/events/sdl/SDLEventPoller.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/events/ApplicationEventListener.h>
 

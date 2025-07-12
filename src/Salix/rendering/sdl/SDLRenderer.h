@@ -1,4 +1,4 @@
-// Salix/rendering/Renderer.h
+// Salix/rendering/sdl/SDLRenderer.h
 #pragma once
 #include <Salix/rendering/IRenderer.h> // We need to include the interface we are implementing.
 #include <SDL.h>

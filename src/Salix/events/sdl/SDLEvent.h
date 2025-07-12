@@ -1,12 +1,12 @@
 // =================================================================================
-// Filename:    Salix/events/SDLEvent.h
+// Filename:    Salix/events/sdl/SDLEvent.h
 // Author:      SalixGameStudio
 // Description: Declares the concrete event classes that wrap native SDL events,
 //              implementing the SDLEventBase, which inherits from IEvent interface.
 // =================================================================================
 #pragma once
 
-#include <Salix/events/SDLEventBase.h>
+#include <Salix/events/sdl/SDLEventBase.h>
 #include <Salix/events/IEvent.h>
 #include <sstream>
 
