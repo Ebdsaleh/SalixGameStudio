@@ -2,7 +2,7 @@
 #include <Salix/gui/imgui/ImGuiTheme.h>
 #include <Salix/gui/IGui.h>
 #include <Salix/gui/imgui/ImGuiThemeData.h> // Correctly included for ImGuiThemeData definition
-#include <Salix/gui/imgui/SDLImGui.h>     // Correctly included for dynamic_cast<SDLImGui*>
+#include <Salix/gui/imgui/sdl/SDLImGui.h>     // Correctly included for dynamic_cast<SDLImGui*>
 #include <iostream>                       // For std::cerr, std::cout
 
 // --- Required Includes for ImGui Core and Backend (No #ifdefs here) ---

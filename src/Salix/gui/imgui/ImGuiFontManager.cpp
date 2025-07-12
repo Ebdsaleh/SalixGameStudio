@@ -2,7 +2,7 @@
 #include <Salix/gui/imgui/ImGuiFontManager.h>
 #include <Salix/gui/imgui/ImGuiFont.h>
 #include <Salix/gui/imgui/ImGuiFontData.h>
-#include <Salix/gui/imgui/SDLImGui.h>
+#include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/gui/IFont.h> // For IFont interface (if you have one)
 #include <Salix/gui/IGui.h> // For IGui interface (to get renderer)
 #include <Salix/rendering/IRenderer.h> // For IRenderer::get_native_handle()
