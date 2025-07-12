@@ -9,6 +9,7 @@
 
 // Core includes
 #include <Salix/core/InitContext.h>
+#include <Salix/core/ApplicationConfig.h>
 #include <Salix/core/Engine.h>
 #include <Salix/core/SDLTimer.h>
 #include <Salix/core/ChronoTimer.h>
@@ -66,6 +67,7 @@ namespace Salix {
         std::unique_ptr<IFontManager> font_manager;
         std::unique_ptr<ApplicationEventListener> app_event_listener;       
         std::unique_ptr<IAppState> current_state;
+        std::unique_ptr<ApplicationConfig>  app_config;
         TimerType timer_type;
         EngineMode engine_mode = EngineMode::None;
         HMODULE game_dll_handle = nullptr;
@@ -116,11 +118,10 @@ namespace Salix {
         SDL_Quit(); // SDL shutdown last
     }
 
-    bool Engine::initialize(
-        const WindowConfig& config, RendererType renderer_type, AppStateType initial_state, GuiType gui_type,
-        TimerType timer_type, int target_fps
-    ) {
-        
+    bool Engine::initialize(const ApplicationConfig& config) {
+
+        pimpl->app_config = std::make_unique<ApplicationConfig>(config);
+            
         // --- INITIALIZE SDL---
         if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0) {
             std::cerr << "Engine::initialize - SDL could not be initialized! SDL_Error: " << SDL_GetError() << std::endl;
@@ -139,8 +140,8 @@ namespace Salix {
 
 
         // --- INITIALIZE RENDERER
-        pimpl->renderer_type = renderer_type;
-        switch (renderer_type) {
+        pimpl->renderer_type = config.renderer_type;
+        switch (config.renderer_type) {
             case RendererType::SDL:
                 pimpl->renderer = std::make_unique<SDLRenderer>();
                 break;
@@ -150,7 +151,7 @@ namespace Salix {
                 return false;
         }
 
-        if (!pimpl->renderer->initialize(config)) {
+        if (!pimpl->renderer->initialize(config.window_config)) {
             std::cerr << "Engine::initialize - Renderer subsystem failed to initialize." << std::endl;
             return false;
         }
@@ -165,7 +166,7 @@ namespace Salix {
 
 
         // --- INITIALIZE TIMER ---
-        switch (timer_type) {
+        switch (config.timer_type) {
             case TimerType::SDL:
                 pimpl->timer = std::make_unique<SDLTimer>();
                 break;
@@ -176,8 +177,8 @@ namespace Salix {
                 std::cerr << "Engine::initialize - Invalid or unsupported timer type requested." << std::endl;
                 return false;
         }
-        pimpl->timer_type = timer_type;
-        pimpl->timer->set_target_fps(target_fps);
+        pimpl->timer_type = config.timer_type;
+        pimpl->timer->set_target_fps(config.target_fps);
 
 
 
@@ -248,7 +249,7 @@ namespace Salix {
 
 
         // --- ASSIGN GUI TYPE ---
-        pimpl->gui_type = gui_type;
+        pimpl->gui_type = config.gui_type;
         switch (pimpl->gui_type) {
             case GuiType::None:
                 std::cout << "[ENGINE] GUI system not initialized (GuiType is None)." << std::endl;
@@ -328,9 +329,9 @@ namespace Salix {
         
 
         // --- SWITCH INTO THE INITIAL STATE PASSED INTO THIS METHOD ---
-        switch_state(initial_state);
+        switch_state(config.initial_state);
         if (!pimpl->current_state) { // Check if switch_state failed to create the initial state
-            std::cerr << "Engine::initialize - Failed to set initial state to " << static_cast<int>(initial_state) << ". Engine cannot start." << std::endl;
+            std::cerr << "Engine::initialize - Failed to set initial state to " << static_cast<int>(config.initial_state) << ". Engine cannot start." << std::endl;
             return false;
         }
 
@@ -526,6 +527,7 @@ namespace Salix {
     // NEW: Provide a fully populated InitContext on demand
         InitContext Engine::make_context() const {
         InitContext ctx;
+        ctx.app_config      = pimpl->app_config.get();
         ctx.engine          = const_cast<Engine*>(this); // <-- Add this safely
         ctx.renderer_type   = pimpl->renderer_type;
         ctx.timer           = pimpl->timer.get();
