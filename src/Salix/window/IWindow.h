@@ -7,16 +7,12 @@
 // =================================================================================
 #pragma once
 #include <Salix/core/Core.h>
+#include <Salix/window/WindowConfig.h>
 #include <string>
 
 namespace Salix {
 
-    // A simple struct to hold window configuration.
-    struct WindowConfig {
-        const char* title = "SalixGameStudio";
-        int width = 1280;
-        int height = 720;
-    };
+    
 
     class SALIX_API IWindow {
     public:
