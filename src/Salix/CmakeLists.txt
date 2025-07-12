@@ -16,7 +16,7 @@ add_library(SalixEngine SHARED
     ecs/Sprite2D.cpp
     ecs/Transform.cpp
     events/EventManager.cpp
-    events/SDLEventPoller.cpp
+    events/sdl/SDLEventPoller.cpp
     events/ApplicationEventListener.cpp
     gui/DialogBox.cpp
     gui/imgui/ImGuiTheme.cpp
@@ -25,8 +25,8 @@ add_library(SalixEngine SHARED
     gui/imgui/ImguiFont.cpp
     gui/imgui/ImguiFontData.cpp
     gui/imgui/ImGuiFontManager.cpp
-    gui/imgui/SDLImGui.cpp
-    input/SDLInputManager.cpp
+    gui/imgui/sdl/SDLImGui.cpp
+    input/sdl/SDLInputManager.cpp
     input/ImGuiInputManager.cpp
     management/FileManager.cpp
     management/Project.cpp
@@ -36,13 +36,15 @@ add_library(SalixEngine SHARED
     math/Color.cpp
     math/Vector2.cpp
     math/Vector3.cpp
-    rendering/SDLRenderer.cpp
-    rendering/SDLTexture.cpp
+    rendering/sdl/SDLRenderer.cpp
+    rendering/sdl/SDLTexture.cpp
+    rendering/opengl/OpenGLRenderer.cpp
     scripting/ScriptFactory.cpp
     scripting/ScriptLoader.cpp
     states/LaunchState.cpp
     states/OptionsMenuState.cpp
-    window/SDLWindow.cpp
+    window/sdl/SDLWindow.cpp
+    "${CMAKE_SOURCE_DIR}/vendor/glad/src/glad.c"
 )
 
 # Specify include directories for SalixEngine.
@@ -51,6 +53,9 @@ target_include_directories(SalixEngine PUBLIC
     "${CMAKE_SOURCE_DIR}/vendor"
     "${CMAKE_SOURCE_DIR}/vendor/imgui"
     "${CMAKE_SOURCE_DIR}/vendor/imgui/backends"
+    "${CMAKE_SOURCE_DIR}/vendor/glad/include" 
+    "${CMAKE_SOURCE_DIR}/vendor/glad/include" 
+    
 )
 
 # Link SalixEngine against its dependencies.
