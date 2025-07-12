@@ -1,0 +1,21 @@
+# Salix Game Studio Configuration File
+
+Window:
+  title: Salix Game Studio v0.1.0
+  width: 1280
+  height: 720
+
+Renderer:
+  type: SDL
+
+Engine:
+  initial_state: Launch
+  target_fps: 60
+
+GUI:
+  type: ImGui
+  dialog_width_ratio: 0.7
+  dialog_height_ratio: 0.75
+
+Timer:
+  type: SDL
