@@ -1,4 +1,4 @@
-# src/Launcher/CmakeLists.txt (Launcher)# src/Launcher/CMakeLists.txt
+# src/Launcher/CMakeLists.txt
 # SalixGameStudio/src/Launcher/CMakeLists.txt
 # Defines the SalixGameStudio executable, which acts as the main launcher.
 
@@ -12,23 +12,17 @@ add_executable(SalixGameStudio
 # Specify include directories for the Launcher.
 # PRIVATE: These include paths are only for the Launcher target itself.
 target_include_directories(SalixGameStudio PRIVATE
-    "${CMAKE_SOURCE_DIR}/src" # For Salix headers (e.g., Engine.h, InitContext.h)
+    "${CMAKE_SOURCE_DIR}/src" # For Salix headers (e.g., Engine.h, ApplicationConfig.h)
 )
 
 # Link the Launcher against the necessary libraries.
-# PRIVATE: These libraries are only linked by the Launcher itself.
-# It needs to link against SalixEngine, SalixEditor, and Game (their import libraries).
-# It also needs SDL2 libraries as it directly uses SDL entry points (SDL2main.lib).
+# It needs to link against the core engine and its plugins.
+# Because SalixEngine is linked with PUBLIC dependencies, this executable
+# will automatically get the necessary SDL2, ImGui, and yaml-cpp links.
 target_link_libraries(SalixGameStudio PRIVATE
     SalixEngine
     SalixEditor
     Game
-    SDL2_LIB
-    SDL2MAIN_LIB
-    SDL2_IMAGE_LIB
-    # NEW: Explicitly link SDL2_TTF_LIB and ImGui as they are now dependencies of SalixEngine
-    SDL2_TTF_LIB
-    ImGui       
 )
 
 # Set the output name for the executable.

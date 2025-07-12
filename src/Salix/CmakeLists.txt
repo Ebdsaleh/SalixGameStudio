@@ -1,11 +1,8 @@
-# src/Salix/CmakeLists.txt  (Salix)
-# SalixGameStudio/src/Salix/CMakeLists.txt
+# src/Salix/CMakeLists.txt  (Salix)
+# src/Salix/CMakeLists.txt
 # Defines the SalixEngine shared library (DLL).
 
 # Add a shared library target for the core engine.
-# SHARED: Specifies that this will be a dynamic-link library (DLL on Windows).
-# List all source files that make up the SalixEngine.
-# Paths are relative to this CMakeLists.txt file's location (src/Salix/).
 add_library(SalixEngine SHARED
     assets/AssetManager.cpp
     core/ChronoTimer.cpp
@@ -18,8 +15,8 @@ add_library(SalixEngine SHARED
     ecs/Scene.cpp
     ecs/Sprite2D.cpp
     ecs/Transform.cpp
-    events/EventManager.cpp 
-    events/SDLEventPoller.cpp 
+    events/EventManager.cpp
+    events/SDLEventPoller.cpp
     events/ApplicationEventListener.cpp
     gui/DialogBox.cpp
     gui/imgui/ImGuiTheme.cpp
@@ -35,6 +32,7 @@ add_library(SalixEngine SHARED
     management/Project.cpp
     management/ProjectManager.cpp
     management/SceneManager.cpp
+    management/SettingsManager.cpp
     math/Color.cpp
     math/Vector2.cpp
     math/Vector3.cpp
@@ -45,37 +43,30 @@ add_library(SalixEngine SHARED
     states/LaunchState.cpp
     states/OptionsMenuState.cpp
     window/SDLWindow.cpp
-    # Add any other .cpp files for the SalixEngine here
 )
 
 # Specify include directories for SalixEngine.
-# PUBLIC: Means these include paths are also propagated to targets that link against SalixEngine.
-# "${CMAKE_SOURCE_DIR}/src": Allows includes like <Salix/core/Core.h> from anywhere in the src tree.
-# "${CMAKE_SOURCE_DIR}/vendor": For third-party headers like Cereal.
 target_include_directories(SalixEngine PUBLIC
     "${CMAKE_SOURCE_DIR}/src"
     "${CMAKE_SOURCE_DIR}/vendor"
-    "${CMAKE_SOURCE_DIR}/vendor/imgui"          # For imgui.h
-    "${CMAKE_SOURCE_DIR}/vendor/imgui/backends" # For imgui_impl_sdl2.h
+    "${CMAKE_SOURCE_DIR}/vendor/imgui"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/backends"
 )
 
-# Link SalixEngine against the SDL2 libraries.
-# PUBLIC: Means any target linking SalixEngine will also implicitly link these SDL libraries.
+# Link SalixEngine against its dependencies.
 target_link_libraries(SalixEngine PUBLIC
     SDL2_LIB
     SDL2MAIN_LIB
     SDL2_IMAGE_LIB
-    SDL2_TTF_LIB # NEW: Link SDL2_ttf
-    ImGui # Link against the ImGui static library defined in the root CMakeLists.txt
+    SDL2_TTF_LIB
+    ImGui
+    yaml-cpp
 )
 
 # Define a preprocessor macro specific to building the SalixEngine.
-# PRIVATE: This definition is only for the SalixEngine target itself.
 target_compile_definitions(SalixEngine PRIVATE SALIX_BUILD_ENGINE)
 
 # Set the output name for the DLL.
-# While CMake often infers this correctly for SHARED libraries,
-# explicitly setting it ensures the desired name "SalixEngine.dll".
 set_target_properties(SalixEngine PROPERTIES
     OUTPUT_NAME "SalixEngine"
 )

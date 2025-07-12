@@ -18,16 +18,11 @@ target_include_directories(SalixEditor PUBLIC
     "${CMAKE_SOURCE_DIR}/src" # For Salix headers (e.g., <Salix/core/Core.h>)
 )
 
-# Link SalixEditor against SalixEngine and SDL2 libraries.
-# The editor depends on the core engine and potentially SDL for its UI.
+# Link SalixEditor against SalixEngine.
+# The editor depends on the core engine and will inherit all of its PUBLIC
+# dependencies automatically (SDL2, ImGui, yaml-cpp, etc.).
 target_link_libraries(SalixEditor PUBLIC
     SalixEngine
-    SDL2_LIB
-    SDL2MAIN_LIB
-    SDL2_IMAGE_LIB
-    # NEW: Explicitly link SDL2_TTF_LIB and ImGui as they are now dependencies of SalixEngine
-    SDL2_TTF_LIB # <--- ADDED
-    ImGui        # <--- ADDED
 )
 
 # Define a preprocessor macro specific to building the Editor DLL.

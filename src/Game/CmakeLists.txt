@@ -18,17 +18,11 @@ target_include_directories(Game PUBLIC
     "${CMAKE_SOURCE_DIR}/src"
 )
 
-# Link Game against SalixEngine and SDL2 libraries.
-# Game.dll depends on SalixEngine for core functionality.
-# It also needs SDL2 libraries if it directly uses SDL functions or types.
+# Link Game against SalixEngine.
+# Because SalixEngine has PUBLIC linkage for its dependencies, the Game
+# library will automatically inherit the links to SDL2, ImGui, yaml-cpp, etc.
 target_link_libraries(Game PUBLIC
     SalixEngine # Links against the SalixEngine target defined previously
-    SDL2_LIB
-    SDL2MAIN_LIB
-    SDL2_IMAGE_LIB
-    # NEW: Explicitly link SDL2_TTF_LIB and ImGui as they are now dependencies of SalixEngine
-    SDL2_TTF_LIB # <--- ADDED
-    ImGui        # <--- ADDED
 )
 
 # Define a preprocessor macro specific to building the Game DLL.
