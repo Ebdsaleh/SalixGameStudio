@@ -2,8 +2,8 @@
 #include <Salix/states/OptionsMenuState.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/rendering/IRenderer.h>
-#include <Salix/rendering/SDLRenderer.h>
-#include <Salix/gui/imgui/SDLImGui.h>
+#include <Salix/rendering/sdl/SDLRenderer.h>
+#include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <imgui.h>
 #include <memory>
 #include <iostream>
