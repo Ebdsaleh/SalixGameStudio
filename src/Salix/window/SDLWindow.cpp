@@ -28,7 +28,7 @@ namespace Salix {
 
         // Create the actual SDL window using the configuration.
         window = SDL_CreateWindow(
-            window_config.title,
+            window_config.title.c_str(),
             SDL_WINDOWPOS_CENTERED,
             SDL_WINDOWPOS_CENTERED,
             window_config.width,
