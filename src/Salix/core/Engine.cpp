@@ -263,6 +263,7 @@ namespace Salix {
 
                 pimpl->font_manager = std::make_unique<ImGuiFontManager>();
                 pimpl->gui_system = std::make_unique<SDLImGui>();
+                pimpl->gui_system->set_app_config(pimpl->app_config.get());
                 
                 if (!pimpl->gui_system->initialize(
                         pimpl->renderer->get_window(),
