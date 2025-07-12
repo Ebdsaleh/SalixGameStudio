@@ -65,7 +65,7 @@ namespace Salix {
         void show_dialog_by_key(std::string& key) override;
         // --- Implement Abstract Input Handling for GUI ---
         bool process_raw_input_event(void* native_event) override;
-        
+        void set_app_config(ApplicationConfig* config) override;
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;

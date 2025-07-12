@@ -1,5 +1,6 @@
 // Salix/gui/imgui/SDLImGui.cpp
 #include <Salix/gui/imgui/SDLImGui.h>
+#include <Salix/core/ApplicationConfig.h>
 #include <imgui/imgui.h>
 #include <Salix/window/SDLWindow.h> // Assuming SDLWindow has get_native_handle()
 #include <Salix/rendering/SDLRenderer.h> // Assuming SDLRenderer has get_native_handle()
@@ -29,7 +30,7 @@ namespace Salix {
         IEventPoller* event_poller = nullptr;   // <-- Store IEventPoller
         EventManager* event_manager = nullptr;   // <-- Store EventManager
         RawEventCallbackHandle raw_event_callback_handle = 0; // <-- Store the handle
-
+        ApplicationConfig* app_config = nullptr;
         std::unordered_map<std::string, bool> active_dialog_keys; // NEW: Tracks which dialogs are currently open
         std::unordered_map<std::string, std::unique_ptr<DialogBox>> dialog_registry; // store all the registered dialogs
         // Store dialog results for the current frame
@@ -418,7 +419,19 @@ namespace Salix {
 
 
     void SDLImGui::set_common_dialog_properties() {
+        // 1. Declare dialog_size here, in the main scope, with a default value.
         ImVec2 dialog_size = ImVec2(800, 600);
+
+        // 2. If the config exists, we'll UPDATE the dialog_size variable.
+        if (pimpl->app_config) {
+            float width = pimpl->app_config->window_config.width * pimpl->app_config->gui_settings.dialog_width_ratio;
+            float height = pimpl->app_config->window_config.height * pimpl->app_config->gui_settings.dialog_height_ratio;
+            
+            // Assign a new value to the existing dialog_size variable
+            dialog_size = ImVec2(width, height);
+        }
+
+        // 3. Now, dialog_size can be used here because it was declared in the outer scope.
         ImVec2 dialog_pos = ImVec2(
             (ImGui::GetIO().DisplaySize.x - dialog_size.x) * 0.5f,
             (ImGui::GetIO().DisplaySize.y - dialog_size.y) * 0.5f
@@ -502,6 +515,10 @@ namespace Salix {
         if (key.empty()) { return;}  // empty string
         pimpl->active_dialog_keys[key] = true;
         std::cout << "DEBUG: Dialog '" << key << "' marked as active." << std::endl;
+    }
+
+    void SDLImGui::set_app_config(ApplicationConfig*  config) {
+        pimpl->app_config = config;
     }
 
 } // namespace Salix

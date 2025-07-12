@@ -4,6 +4,7 @@
 #include <string> // For std::string
 #include <imgui/imgui.h> // Only include ImGui's core header if SALIX_GUI_IMGUI is defined
 #include <Salix/gui/IDialog.h>
+#include <Salix/core/ApplicationConfig.h>
 
 namespace Salix {
     // Forward declarations for engine interfaces that a GUI might need to interact with
@@ -100,5 +101,7 @@ namespace Salix {
         // and processes them for GUI-level interactions (like Escape to close dialogs).
         // Returns true if the input was consumed by the GUI.
         virtual bool process_raw_input_event(void* native_event) = 0; // e.g., SDL_Event*
+
+        virtual void set_app_config(ApplicationConfig* config) = 0;
     };
 }
