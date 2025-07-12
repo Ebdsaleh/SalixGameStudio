@@ -12,7 +12,6 @@
 #include <Salix/window/IWindow.h>       // For WindowConfig.
 #include <Salix/states/IAppState.h>     // This defines AppStateType.
 #include <Salix/core/EngineMode.h>
-#include <Salix/core/ApplicationConfig.h>
 #include <memory>                       // For std::unique_ptr.
 #include <vector>                       // For the state stack.
 
@@ -23,6 +22,7 @@ namespace Salix {
     class IEventPoller;
     class EventManager;
     struct InitContext;
+    struct ApplicationConfig;
     
     class SALIX_API Engine : public EngineInterface {
         public:
