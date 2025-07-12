@@ -12,6 +12,7 @@
 #include <Salix/window/IWindow.h>       // For WindowConfig.
 #include <Salix/states/IAppState.h>     // This defines AppStateType.
 #include <Salix/core/EngineMode.h>
+#include <Salix/core/ApplicationConfig.h>
 #include <memory>                       // For std::unique_ptr.
 #include <vector>                       // For the state stack.
 
@@ -30,7 +31,7 @@ namespace Salix {
 
             // The main phases of the engine's lifecycle.
             // This new signature solves the circular dependency and is very clear.
-            bool initialize(const WindowConfig& config, RendererType renderer_type, AppStateType initial_state, GuiType gui_type, TimerType timer_type, int target_fps = 60);
+            bool initialize(const ApplicationConfig& config);
             void run();
             void shutdown();
 
