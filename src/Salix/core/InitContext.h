@@ -19,8 +19,10 @@ namespace Salix {
     class IEventManager;
     class IThemeManager;
     class IFontManager;
+    struct ApplicationConfig;
 
     struct SALIX_API InitContext {
+        const ApplicationConfig* app_config;
         RendererType  renderer_type = RendererType::None;
         GuiType gui_type = GuiType::None;
         IGui* gui;
