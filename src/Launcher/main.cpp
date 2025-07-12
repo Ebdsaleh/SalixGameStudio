@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
 
     // 2. Load settings from the file.
     // The manager will populate the 'config' object.
-    if (!settings_manager.loadSettings("config.yaml", config)) {
+    if (!settings_manager.load_settings("config.yaml", config)) {
         std::cerr << "Fatal Error: Could not load configuration file. Exiting." << std::endl;
         return 1; // Exit if config can't be loaded
     }
