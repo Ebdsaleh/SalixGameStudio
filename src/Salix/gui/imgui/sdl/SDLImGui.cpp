@@ -1,9 +1,9 @@
 // Salix/gui/imgui/SDLImGui.cpp
-#include <Salix/gui/imgui/SDLImGui.h>
+#include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/core/ApplicationConfig.h>
 #include <imgui/imgui.h>
-#include <Salix/window/SDLWindow.h> // Assuming SDLWindow has get_native_handle()
-#include <Salix/rendering/SDLRenderer.h> // Assuming SDLRenderer has get_native_handle()
+#include <Salix/window/sdl/SDLWindow.h> 
+#include <Salix/rendering/sdl/SDLRenderer.h> 
 #include <backends/imgui_impl_sdl2.h>
 #include <backends/imgui_impl_sdlrenderer2.h> // Or imgui_impl_opengl3.h if using OpenGL
 #include <iostream>
