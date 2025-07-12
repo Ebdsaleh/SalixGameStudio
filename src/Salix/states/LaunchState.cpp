@@ -247,7 +247,7 @@ namespace Salix {
             DialogType::File,
             true);
         
-        new_project_dialog->SetFilters(std::string(".salixproj"));
+        new_project_dialog->SetFilters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
 
         new_project_dialog->SetCallback([this](const FileDialogResult& result) {
             
@@ -269,7 +269,7 @@ namespace Salix {
             DialogType::File,
             false);
 
-        open_project_dialog->SetFilters(std::string(".salixproj"));
+        open_project_dialog->SetFilters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
 
         open_project_dialog->SetCallback([this](const FileDialogResult& result) {
             
@@ -290,7 +290,7 @@ namespace Salix {
            DialogType::File,
            false);
 
-        run_project_dialog->SetFilters(std::string(".salixproj"));
+        run_project_dialog->SetFilters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
 
         run_project_dialog->SetCallback([this](const FileDialogResult& result) {
             
