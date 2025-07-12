@@ -14,6 +14,7 @@
 #include <Salix/core/InitContext.h>
 #include <Salix/states/IAppState.h>
 #include <Salix/core/ApplicationConfig.h>
+#include <Salix/management/SettingsManager.h>
 #include <iostream>
 #include <memory>
 #define _CRTDBG_MAP_ALLOC
@@ -42,7 +43,10 @@ int main(int argc, char* argv[]) {
     
     
     // 1. Create the configuration for our application.
+     // 1. Create the settings manager and config object.
+    Salix::SettingsManager settings_manager;
     Salix::ApplicationConfig config;
+    /*
     config.window_config.title = "Salix Game Studio v0.1";
     config.window_config.width = 1280; 
     config.window_config.height = 720;
@@ -51,26 +55,25 @@ int main(int argc, char* argv[]) {
     config.renderer_type = Salix::RendererType::SDL;
     config.timer_type = Salix::TimerType::SDL;
     config.target_fps = 60;
+    */
 
+    // 2. Load settings from the file.
+    // The manager will populate the 'config' object.
+    if (!settings_manager.loadSettings("config.yaml", config)) {
+        std::cerr << "Fatal Error: Could not load configuration file. Exiting." << std::endl;
+        return 1; // Exit if config can't be loaded
+    }
 
-    // 2. Create the main engine object using a smart pointer for safety.
+    // 3. Create and initialize the engine with the loaded config.
     auto engine = std::make_unique<Salix::Engine>();
-
-    // 3. Initialize the engine with our configuration and desired subsystems.
-    // This now calls the new, correct initialize method.
     if (engine->initialize(config)) {
-        // engine->switch_state(Salix::AppStateType::Launch);
-        // 4. If initialization was successful, run the main game loop.
         engine->run();
     } else {
         std::cerr << "Fatal Error: Engine failed to initialize." << std::endl;
     }
+
     std::cout << "Engine is shutting down." << std::endl;
-    // 5. Shutdown the engine, which cleans up all subsystems.
-    // The unique_ptr will also call the destructor when it goes out of scope,
-    // but explicit shutdown is good practice.
     engine->shutdown();
 
-    // The program exits here.
     return 0;
 }
