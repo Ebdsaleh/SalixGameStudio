@@ -6,7 +6,7 @@ Window:
   height: 720
 
 Renderer:
-  type: SDL
+  type: OpenGL
 
 Engine:
   initial_state: Launch
