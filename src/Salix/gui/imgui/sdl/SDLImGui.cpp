@@ -181,7 +181,7 @@ namespace Salix {
     void SDLImGui::update_and_render_platform_windows() {
         // Update and Render additional Platform Windows (for multi-viewport/docking)
         ImGuiIO& io = ImGui::GetIO();
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        if (io.ConfigFlags& ImGuiConfigFlags_ViewportsEnable) {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
         }
@@ -364,18 +364,18 @@ namespace Salix {
             }
 
             // Now, call Display() every frame it's active (including the first after Open())
-            if (ImGuiFileDialog::Instance()->Display(key.c_str())) { // Display returns true when dialog is closed [cite: 198]
+            if (ImGuiFileDialog::Instance()->Display(key.c_str())) { // Display returns true when dialog is closed.
                 // Dialog was just closed this frame (either OK or Cancel)
                 FileDialogResult result = populate_dialog_result(key);
                 pimpl->dialog_results_this_frame[key] = result;
 
-                const FileDialogCallback& callback = dialog_instance->get_callback(); // Get the callback [cite: 79]
+                const FileDialogCallback& callback = dialog_instance->get_callback(); // Get the callback.
                 if (callback) { // Check if a callback was set
                     callback(result); // Execute the callback with the result
                 }
 
-                ImGuiFileDialog::Instance()->Close(); // Explicitly close (though Display() might have already) [cite: 200]
-                pimpl->active_dialog_keys.erase(key); // Remove from active list [cite: 201]
+                ImGuiFileDialog::Instance()->Close(); // Explicitly close (though Display() might have already).
+                pimpl->active_dialog_keys.erase(key); // Remove from active list.
                 std::cout << "DEBUG: Dialog '" << key << "' was just closed and removed from active list." << std::endl; // Debug
             }
         }

@@ -1,6 +1,6 @@
 // Salix/gui/imgui/SDLImGui.h
 #pragma once
-
+#include <Salix/core/Core.h>
 #include <Salix/gui/IGui.h>
 #include <imgui/imgui.h>
 #include <memory>
