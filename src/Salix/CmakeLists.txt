@@ -2,7 +2,6 @@
 # src/Salix/CMakeLists.txt
 # Defines the SalixEngine shared library (DLL).
 
-# Add a shared library target for the core engine.
 add_library(SalixEngine SHARED
     assets/AssetManager.cpp
     core/ChronoTimer.cpp
@@ -39,23 +38,25 @@ add_library(SalixEngine SHARED
     rendering/sdl/SDLRenderer.cpp
     rendering/sdl/SDLTexture.cpp
     rendering/opengl/OpenGLRenderer.cpp
+    rendering/opengl/OpenGLTexture.cpp
+    rendering/opengl/OpenGLShaderProgram.cpp
     scripting/ScriptFactory.cpp
     scripting/ScriptLoader.cpp
     states/LaunchState.cpp
     states/OptionsMenuState.cpp
     window/sdl/SDLWindow.cpp
-    "${CMAKE_SOURCE_DIR}/vendor/glad/src/glad.c"
 )
 
 # Specify include directories for SalixEngine.
 target_include_directories(SalixEngine PUBLIC
     "${CMAKE_SOURCE_DIR}/src"
     "${CMAKE_SOURCE_DIR}/vendor"
+    "${CMAKE_SOURCE_DIR}/vendor/cereal/include"
+    "${CMAKE_SOURCE_DIR}/vendor/glm"
+    "${CMAKE_SOURCE_DIR}/vendor/glad/include"
     "${CMAKE_SOURCE_DIR}/vendor/imgui"
     "${CMAKE_SOURCE_DIR}/vendor/imgui/backends"
-    "${CMAKE_SOURCE_DIR}/vendor/glad/include" 
-    "${CMAKE_SOURCE_DIR}/vendor/glad/include" 
-    
+    "${CMAKE_SOURCE_DIR}/vendor/ImGuiFileDialog"
 )
 
 # Link SalixEngine against its dependencies.
@@ -66,6 +67,10 @@ target_link_libraries(SalixEngine PUBLIC
     SDL2_TTF_LIB
     ImGui
     yaml-cpp
+    glad
+    cereal
+    glm
+    OpenGL::GL
 )
 
 # Define a preprocessor macro specific to building the SalixEngine.

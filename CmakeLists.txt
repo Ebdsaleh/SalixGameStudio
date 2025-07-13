@@ -1,12 +1,6 @@
 # SalixGameStudio/CMakeLists.txt (root)
-# This is the top-level CMakeLists.txt file for the Salix Game Studio project.
-# It defines the project, sets global compiler options, and includes subdirectories.
-
-# Specify the minimum required CMake version.
-# Using a modern version allows for simpler, more robust syntax.
-# SalixGameStudio/CMakeLists.txt (root)
 cmake_minimum_required(VERSION 3.15)
-project(SalixGameStudio VERSION 0.1 LANGUAGES CXX)
+project(SalixGameStudio VERSION 0.1 LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -29,60 +23,60 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CORE_ENGINE_BUILD_DIR}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CORE_ENGINE_BUILD_DIR}")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CORE_ENGINE_BUILD_DIR}")
 
-# --- Vendor Libraries ---
+find_package(OpenGL REQUIRED)
+
+# --- Vendor Library Paths ---
 set(SDL2_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2/include")
 set(SDL2_LIB_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2/lib/x64")
 set(SDL2_IMAGE_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_image/include")
 set(SDL2_IMAGE_LIB_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_image/lib/x64")
 set(SDL2_TTF_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_ttf/include")
 set(SDL2_TTF_LIB_DIR "${CMAKE_SOURCE_DIR}/vendor/SDL2_ttf/lib/x64")
-set(IMGUI_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/vendor/imgui")
-set(IMGUI_BACKENDS_DIR "${CMAKE_SOURCE_DIR}/vendor/imgui/backends")
-set(IMGUI_FILE_DIALOG_DIR "${CMAKE_SOURCE_DIR}/vendor/ImGuiFileDialog")
 
-# --- CORRECTED: Create "IMPORTED" library targets for SDL2 ---
-# The INTERFACE_INCLUDE_DIRECTORIES property is critical. It tells any target
-# that links against these libraries where to find their header files.
+# --- Create IMPORTED Library Targets ---
 add_library(SDL2_LIB STATIC IMPORTED)
-set_target_properties(SDL2_LIB PROPERTIES
-    IMPORTED_LOCATION "${SDL2_LIB_DIR}/SDL2.lib"
-    INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIR}"
-)
+set_target_properties(SDL2_LIB PROPERTIES IMPORTED_LOCATION "${SDL2_LIB_DIR}/SDL2.lib" INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIR}")
 add_library(SDL2MAIN_LIB STATIC IMPORTED)
-set_target_properties(SDL2MAIN_LIB PROPERTIES
-    IMPORTED_LOCATION "${SDL2_LIB_DIR}/SDL2main.lib"
-    INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIR}"
-)
+set_target_properties(SDL2MAIN_LIB PROPERTIES IMPORTED_LOCATION "${SDL2_LIB_DIR}/SDL2main.lib" INTERFACE_INCLUDE_DIRECTORIES "${SDL2_INCLUDE_DIR}")
 add_library(SDL2_IMAGE_LIB STATIC IMPORTED)
-set_target_properties(SDL2_IMAGE_LIB PROPERTIES
-    IMPORTED_LOCATION "${SDL2_IMAGE_LIB_DIR}/SDL2_image.lib"
-    INTERFACE_INCLUDE_DIRECTORIES "${SDL2_IMAGE_INCLUDE_DIR}"
-)
+set_target_properties(SDL2_IMAGE_LIB PROPERTIES IMPORTED_LOCATION "${SDL2_IMAGE_LIB_DIR}/SDL2_image.lib" INTERFACE_INCLUDE_DIRECTORIES "${SDL2_IMAGE_INCLUDE_DIR}")
 add_library(SDL2_TTF_LIB STATIC IMPORTED)
-set_target_properties(SDL2_TTF_LIB PROPERTIES
-    IMPORTED_LOCATION "${SDL2_TTF_LIB_DIR}/SDL2_ttf.lib"
-    INTERFACE_INCLUDE_DIRECTORIES "${SDL2_TTF_INCLUDE_DIR}"
-)
+set_target_properties(SDL2_TTF_LIB PROPERTIES IMPORTED_LOCATION "${SDL2_TTF_LIB_DIR}/SDL2_ttf.lib" INTERFACE_INCLUDE_DIRECTORIES "${SDL2_TTF_INCLUDE_DIR}")
 
-# --- Add Dear ImGui as a static library target ---
+# --- Create INTERFACE Library for GLM (Header-Only) ---
+add_library(glm INTERFACE)
+target_include_directories(glm INTERFACE "${CMAKE_SOURCE_DIR}/vendor/glm")
+
+# --- Create INTERFACE Library for Cereal (Header-Only) ---
+add_library(cereal INTERFACE)
+target_include_directories(cereal INTERFACE "${CMAKE_SOURCE_DIR}/vendor/cereal/include")
+
+# --- Create STATIC Library for GLAD ---
+add_library(glad STATIC "${CMAKE_SOURCE_DIR}/vendor/glad/src/glad.c")
+target_include_directories(glad PUBLIC "${CMAKE_SOURCE_DIR}/vendor/glad/include")
+target_link_libraries(glad PUBLIC OpenGL::GL)
+
+# --- Create STATIC Library for ImGui ---
 add_library(ImGui STATIC
-    "${IMGUI_INCLUDE_DIR}/imgui.cpp"
-    "${IMGUI_INCLUDE_DIR}/imgui_draw.cpp"
-    "${IMGUI_INCLUDE_DIR}/imgui_widgets.cpp"
-    "${IMGUI_INCLUDE_DIR}/imgui_demo.cpp"
-    "${IMGUI_INCLUDE_DIR}/imgui_tables.cpp"
-    "${IMGUI_BACKENDS_DIR}/imgui_impl_sdl2.cpp"
-    "${IMGUI_BACKENDS_DIR}/imgui_impl_sdlrenderer2.cpp"
-    "${IMGUI_FILE_DIALOG_DIR}/ImGuiFileDialog.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/imgui.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/imgui_draw.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/imgui_widgets.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/imgui_demo.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/imgui_tables.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/backends/imgui_impl_sdl2.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/backends/imgui_impl_sdlrenderer2.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/backends/imgui_impl_opengl3.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/ImGuiFileDialog/ImGuiFileDialog.cpp"
 )
 target_include_directories(ImGui PUBLIC
-    "${IMGUI_INCLUDE_DIR}"
-    "${IMGUI_BACKENDS_DIR}"
-    "${IMGUI_FILE_DIALOG_DIR}"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui"
+    "${CMAKE_SOURCE_DIR}/vendor/imgui/backends"
+    "${CMAKE_SOURCE_DIR}/vendor/ImGuiFileDialog"
 )
-target_link_libraries(ImGui PRIVATE SDL2_LIB)
+target_link_libraries(ImGui PRIVATE SDL2_LIB glad)
 
 # --- Add yaml-cpp from the vendor directory ---
+set(YAML_CPP_BUILD_TOOLS OFF) # <-- This disables the sandbox/parse/read executables
 add_subdirectory(vendor/yaml-cpp)
 if(MSVC)
   target_compile_options(yaml-cpp PRIVATE /W3)
@@ -94,29 +88,16 @@ add_subdirectory(src/Game)
 add_subdirectory(src/Editor)
 add_subdirectory(src/Launcher)
 
+
 # --- INSTALL RULES ---
-install(FILES "${SDL2_LIB_DIR}/SDL2.dll"
-              "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll"
-              "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
-    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release"
-    CONFIGURATIONS Release
-)
-install(FILES "${SDL2_LIB_DIR}/SDL2.dll"
-              "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll"
-              "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
-    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug"
-    CONFIGURATIONS Debug
-)
+install(FILES "${SDL2_LIB_DIR}/SDL2.dll" "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll" "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release" CONFIGURATIONS Release)
+install(FILES "${SDL2_LIB_DIR}/SDL2.dll" "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll" "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug" CONFIGURATIONS Debug)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Fonts/"
-    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug/Assets/Fonts"
-    CONFIGURATIONS Debug
-)
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug/Assets/Fonts" CONFIGURATIONS Debug)
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Fonts/"
-    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release/Assets/Fonts"
-    CONFIGURATIONS Release
-)
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release/Assets/Fonts" CONFIGURATIONS Release)
 
 # --- Define compile-time feature flags ---
-add_definitions(-DSALIX_GUI_IMGUI)
-add_definitions(-DSALIX_BACKEND_SDL)
-add_definitions(-DSALIX_IMAGE_SDL)
+add_definitions(-DSALIX_GUI_IMGUI -DSALIX_BACKEND_SDL -DSALIX_IMAGE_SDL)
