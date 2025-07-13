@@ -80,19 +80,41 @@ namespace Salix {
     void OpenGLShaderProgram::use() const {
         glUseProgram(ID);
     }
-    
+
+    // --- NEW: Robust Uniform Setters with Error Checking ---
+
     void OpenGLShaderProgram::setMat4(const std::string& name, const glm::mat4& mat) const {
-        glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(mat));
+        GLint location = glGetUniformLocation(ID, name.c_str());
+        if (location == -1) {
+            std::cerr << "SHADER WARNING: Uniform '" << name << "' not found in shader program " << ID << std::endl;
+        }
+        glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(mat));
     }
 
     void OpenGLShaderProgram::setInt(const std::string& name, int value) const {
-        glUniform1i(glGetUniformLocation(ID, name.c_str()), value);
+        GLint location = glGetUniformLocation(ID, name.c_str());
+        if (location == -1) {
+            std::cerr << "SHADER WARNING: Uniform '" << name << "' not found in shader program " << ID << std::endl;
+        }
+        glUniform1i(location, value);
     }
 
     void OpenGLShaderProgram::setVec4(const std::string& name, const glm::vec4& value) const {
-        glUniform4fv(glGetUniformLocation(ID, name.c_str()), 1, glm::value_ptr(value));
+        GLint location = glGetUniformLocation(ID, name.c_str());
+        if (location == -1) {
+            std::cerr << "SHADER WARNING: Uniform '" << name << "' not found in shader program " << ID << std::endl;
+        }
+        glUniform4fv(location, 1, glm::value_ptr(value));
     }
 
+    // You should also add a robust version for setVec3 if you have one
+    void OpenGLShaderProgram::setVec3(const std::string& name, const glm::vec3& value) const {
+        GLint location = glGetUniformLocation(ID, name.c_str());
+        if (location == -1) {
+            std::cerr << "SHADER WARNING: Uniform '" << name << "' not found in shader program " << ID << std::endl;
+        }
+        glUniform3fv(location, 1, glm::value_ptr(value));
+    }
     // --- REMOVED GLSL Shader Sources from here ---
     // These should only be defined in OpenGLRenderer.cpp where they are used to create the shader program objects.
 
