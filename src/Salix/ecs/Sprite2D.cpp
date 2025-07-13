@@ -35,7 +35,7 @@ namespace Salix {
     Sprite2D::Sprite2D() : pimpl(std::make_unique<Pimpl>()){
         pivot = { 0.5f, 0.5f };
         texture_path = "";
-        color = Color(1.0f, 1.0f, 1.0f, 1.0f);
+        color = Color::from_rgba_int(255, 255, 255 ,255);
     }
         
 
@@ -96,13 +96,14 @@ namespace Salix {
                 // Calculate the rotation and pivot in pixels
                 Point pivot_point;
                 
+                // --- For SDL2Renderer ---
                 // pivot point now takes in the world position.
-                pivot_point.x = static_cast<int>(world_pos.x -(dest_rect.w * pivot.x));
-                pivot_point.y = static_cast<int>(world_pos.y -(dest_rect.h * pivot.y));
+                // pivot_point.x = static_cast<int>(world_pos.x -(dest_rect.w * pivot.x));
+                // pivot_point.y = static_cast<int>(world_pos.y -(dest_rect.h * pivot.y));
                 
-                // --- Previous implementation ---
-                // pivot_point.x = static_cast<int>(dest_rect.w * pivot.x);
-                // pivot_point.y = static_cast<int>(dest_rect.h * pivot.y);
+                // --- For OpenGLRenderer ---
+                pivot_point.x = static_cast<int>(dest_rect.w * pivot.x);
+                pivot_point.y = static_cast<int>(dest_rect.h * pivot.y);
 
                 // Determine the final flip state.
                 SpriteFlip flip_state = SpriteFlip::None;
