@@ -65,11 +65,13 @@ namespace Salix {
     uniform sampler2D textureSampler;
     uniform vec4 tintColor; // New uniform for tinting/coloring
 
+    
     void main()
     {
         FragColor = texture(textureSampler, TexCoord) * tintColor; // Apply tint
     }
     )";
+    
 
     const char* COLOR_VERTEX_SHADER_SOURCE = R"(
     #version 450 core
@@ -169,18 +171,38 @@ namespace Salix {
         std::cout << "DEBUG: Quad geometry setup complete using DSA." << std::endl;
     }
 
+
+
+
     void OpenGLRenderer::Pimpl::setup_shaders() {
         texture_shader = std::make_unique<OpenGLShaderProgram>(TEXTURE_VERTEX_SHADER_SOURCE, TEXTURE_FRAGMENT_SHADER_SOURCE);
-        // FIX: Corrected typo from COLOR_VERTEX_FRAGMENT_SHADER_SOURCE
+        
         color_shader = std::make_unique<OpenGLShaderProgram>(COLOR_VERTEX_SHADER_SOURCE, COLOR_FRAGMENT_SHADER_SOURCE); 
 
         // Set the texture sampler uniform once (it refers to texture unit 0)
         texture_shader->use();
+
+        // --- ADD THESE DEBUG LINES ---
+        GLint modelLoc = glGetUniformLocation(texture_shader->ID, "model");
+        GLint projLoc = glGetUniformLocation(texture_shader->ID, "projection");
+        GLint texSamplerLoc = glGetUniformLocation(texture_shader->ID, "textureSampler");
+        GLint tintColorLoc = glGetUniformLocation(texture_shader->ID, "tintColor");
+
+        std::cout << "DEBUG: Texture Shader Uniform Locations: "
+              << "model=" << modelLoc
+              << ", projection=" << projLoc
+              << ", textureSampler=" << texSamplerLoc
+              << ", tintColor=" << tintColorLoc << std::endl;
+    // --- END DEBUG LINES ---
+
+
         texture_shader->setInt("textureSampler", 0); // Ensure the sampler is set to texture unit 0
         glUseProgram(0); // Unuse shader
 
         std::cout << "DEBUG: Shaders setup complete." << std::endl;
     }
+
+
 
     void OpenGLRenderer::Pimpl::create_projection_matrix(int width, int height) {
         window_width = width;
@@ -429,6 +451,10 @@ namespace Salix {
         draw_sprite(texture, dest_rect, 0.0, nullptr, Color(255, 255, 255, 255), SpriteFlip::None);
     }
     
+   
+
+
+    
     void OpenGLRenderer::draw_sprite(ITexture* texture, const Rect& dest_rect, double angle,
         const Point* pivot, const Color& color, SpriteFlip flip) {
         if (!texture) {
@@ -441,7 +467,13 @@ namespace Salix {
             std::cerr << "ERROR: Invalid texture type passed to OpenGLRenderer::draw_sprite." << std::endl;
             return;
         }
-
+        /*
+        std::cout << "DEBUG: Drawing sprite - Texture ID: " << opengl_texture->get_id()
+              << " DestRect: x=" << dest_rect.x << " y=" << dest_rect.y
+              << " w=" << dest_rect.w << " h=" << dest_rect.h 
+              << " Angle: " << angle << " Color: " << color.r << "," << color.g << "," << color.b << "," << color.a << std::endl;
+        --- END DEBUG LINE ---
+        */
         pimpl->texture_shader->use();
         pimpl->texture_shader->setMat4("projection", pimpl->projection_matrix);
         
@@ -509,7 +541,7 @@ namespace Salix {
         glBindVertexArray(0);                   // Unbind VAO
         glUseProgram(0);                        // Unuse shader program
      }
-
+     
 
     void OpenGLRenderer::set_clear_color(const Color& color) {
 
