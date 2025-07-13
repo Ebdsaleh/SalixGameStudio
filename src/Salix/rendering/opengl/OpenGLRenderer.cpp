@@ -3,47 +3,232 @@
 // Author:      SalixGameStudio
 // Description: Implementation of the OpenGLRenderer class.
 // =================================================================================
-#include <Salix/rendering/opengl/OpenGLRenderer.h>
-#include <Salix/window/sdl/SDLWindow.h> // We still use SDL for the window
+
+// IMPORTANT: Define STB_IMAGE_IMPLEMENTATION in *ONE* .cpp file only.
+// This tells the preprocessor to include the function implementations from stb_image.h.
+#define STB_IMAGE_IMPLEMENTATION 
+#include <stb/stb_image.h> // Make sure this path is correct for your project setup
+
+#include <Salix/rendering/opengl/OpenGLRenderer.h> // Your own header
+#include <Salix/rendering/opengl/OpenGLTexture.h>  // Your OpenGLTexture definition
+#include <Salix/window/sdl/SDLWindow.h>     // We still use SDL for the window
 #include <Salix/window/WindowConfig.h>
 #include <Salix/window/IWindow.h>
-#include <memory>
-#include <SDL.h>
-#include <iostream>
+#include <Salix/rendering/ITexture.h>       // For ITexture interface
+#include <Salix/math/Rect.h>                // For Rect
+#include <Salix/math/Color.h>               // For Color
+#include <Salix/math/Point.h>               // For Point
 
-// We will add GLAD here later
-// #include <glad/glad.h>
+// Include the header for your OpenGLShaderProgram class
+#include <Salix/rendering/opengl/OpenGLShaderProgram.h> 
+
+#include <glad/glad.h> // GLAD must be included before SDL_opengl.h (if used)
+#include <SDL.h>       // For SDL_GL_SwapWindow, SDL_GL_CreateContext, etc.
+#include <iostream>    // For debugging output
+#include <memory>      // For std::unique_ptr
+
+// GLM includes for matrix transformations
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp> // For glm::ortho, glm::translate, glm::scale, glm::rotate
+#include <glm/gtc/type_ptr.hpp>         // For glm::value_ptr
+
 
 namespace Salix {
 
-    struct OpenGLRenderer::Pimpl {
+    // --- GLSL Shader Sources as String Literals ---
+    // These are defined here as they are used to create the shader program objects in this file.
+    const char* TEXTURE_VERTEX_SHADER_SOURCE = R"(
+    #version 450 core
+    layout (location = 0) in vec2 aPos;
+    layout (location = 1) in vec2 aTexCoord;
 
+    uniform mat4 model;
+    uniform mat4 projection; 
+
+    out vec2 TexCoord;
+
+    void main()
+    {
+        gl_Position = projection * model * vec4(aPos, 0.0, 1.0);
+        TexCoord = aTexCoord;
+    }
+    )";
+
+    const char* TEXTURE_FRAGMENT_SHADER_SOURCE = R"(
+    #version 450 core
+    out vec4 FragColor;
+
+    in vec2 TexCoord;
+
+    uniform sampler2D textureSampler;
+    uniform vec4 tintColor; // New uniform for tinting/coloring
+
+    void main()
+    {
+        FragColor = texture(textureSampler, TexCoord) * tintColor; // Apply tint
+    }
+    )";
+
+    const char* COLOR_VERTEX_SHADER_SOURCE = R"(
+    #version 450 core
+    layout (location = 0) in vec2 aPos;
+
+    uniform mat4 model;
+    uniform mat4 projection; 
+
+    void main()
+    {
+        gl_Position = projection * model * vec4(aPos, 0.0, 1.0);
+    }
+    )";
+
+    const char* COLOR_FRAGMENT_SHADER_SOURCE = R"(
+    #version 450 core
+    out vec4 FragColor;
+
+    uniform vec4 objectColor;
+
+    void main()
+    {
+        FragColor = objectColor;
+    }
+    )";
+
+    // --- OpenGLRenderer Pimpl Implementation ---
+    struct OpenGLRenderer::Pimpl {
         std::unique_ptr<IWindow> window;
-        SDL_GLContext gl_context = nullptr; // The OpenGL context handle
+        SDL_GLContext gl_context = nullptr;
+
+        int window_width = 0;  // Store current window dimensions
+        int window_height = 0;
+
+        // OpenGL resources for 2D rendering
+        GLuint quad_vao = 0; // Vertex Array Object for the quad
+        GLuint quad_vbo = 0; // Vertex Buffer Object for the quad vertices (positions and texture coordinates)
+
+        std::unique_ptr<OpenGLShaderProgram> texture_shader; // For drawing textures/sprites
+        std::unique_ptr<OpenGLShaderProgram> color_shader;   // For drawing colored rectangles
+
+        glm::mat4 projection_matrix; // Orthographic projection matrix
+
+        // Private helper methods for Pimpl's internal setup
+        void setup_quad_geometry();
+        void setup_shaders();
+        void create_projection_matrix(int width, int height); // Takes window dimensions
+        void set_opengl_initial_state(); // Sets up blending, viewport, etc.
     };
 
+    // --- Pimpl Helper Function Implementations ---
+    void OpenGLRenderer::Pimpl::setup_quad_geometry() {
+        // Define a unit quad (0,0) to (1,1) with texture coordinates
+        // This quad will be scaled and translated by the model matrix to match dest_rect
+        float vertices[] = {
+            // Positions (x, y) // Texture Coords (u, v)
+            0.0f, 1.0f,         0.0f, 1.0f, // Top-left
+            1.0f, 0.0f,         1.0f, 0.0f, // Bottom-right
+            0.0f, 0.0f,         0.0f, 0.0f, // Bottom-left
+            
+            0.0f, 1.0f,         0.0f, 1.0f, // Top-left
+            1.0f, 1.0f,         1.0f, 1.0f, // Top-right
+            1.0f, 0.0f,         1.0f, 0.0f  // Bottom-right
+        };
 
-    OpenGLRenderer::OpenGLRenderer() : pimpl(std::make_unique<Pimpl>())
-    {
+        // 1. Create VAO and VBO directly using DSA functions
+        glCreateVertexArrays(1, &quad_vao); // Creates a VAO and stores its ID in quad_vao
+        glCreateBuffers(1, &quad_vbo);      // Creates a VBO and stores its ID in quad_vbo
+
+        // 2. Upload data to the VBO directly using DSA (glNamedBufferData)
+        // No need to bind GL_ARRAY_BUFFER globally.
+        glNamedBufferData(quad_vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        // 3. Configure VAO attributes and link to VBO directly using DSA functions
+        // These functions operate directly on 'quad_vao' by its ID.
+
+        // --- Configure Vertex Attribute 0 (Position: layout (location = 0) in shader) ---
+        // Specify which vertex buffer binding point this attribute uses (e.g., binding point 0)
+        glVertexArrayAttribBinding(quad_vao, 0, 0); 
+        // Specify the format of vertex attribute 0: 2 floats, not normalized, offset 0 from start of vertex data
+        glVertexArrayAttribFormat(quad_vao, 0, 2, GL_FLOAT, GL_FALSE, 0); 
+        // Enable vertex attribute 0 for the VAO
+        glEnableVertexArrayAttrib(quad_vao, 0);
+
+        // --- Configure Vertex Attribute 1 (Texture Coordinates: layout (location = 1) in shader) ---
+        // Specify which vertex buffer binding point this attribute uses (e.g., binding point 0, as it's from the same VBO)
+        glVertexArrayAttribBinding(quad_vao, 1, 0); 
+        // Specify the format of vertex attribute 1: 2 floats, not normalized, offset 2*sizeof(float)
+        glVertexArrayAttribFormat(quad_vao, 1, 2, GL_FLOAT, GL_FALSE, (2 * sizeof(float))); 
+        // Enable vertex attribute 1 for the VAO
+        glEnableVertexArrayAttrib(quad_vao, 1);
+
+        // 4. Link the VBO (quad_vbo) to the VAO's specified binding point (binding point 0)
+        // Parameters: VAO ID, binding index, VBO ID, offset into VBO, stride
+        glVertexArrayVertexBuffer(quad_vao, 0, quad_vbo, 0, 4 * sizeof(float)); 
+        
+        std::cout << "DEBUG: Quad geometry setup complete using DSA." << std::endl;
     }
 
-    OpenGLRenderer::~OpenGLRenderer()
-    {
-        // Ensure shutdown is called, as a safety net
-        shutdown();
+    void OpenGLRenderer::Pimpl::setup_shaders() {
+        texture_shader = std::make_unique<OpenGLShaderProgram>(TEXTURE_VERTEX_SHADER_SOURCE, TEXTURE_FRAGMENT_SHADER_SOURCE);
+        // FIX: Corrected typo from COLOR_VERTEX_FRAGMENT_SHADER_SOURCE
+        color_shader = std::make_unique<OpenGLShaderProgram>(COLOR_VERTEX_SHADER_SOURCE, COLOR_FRAGMENT_SHADER_SOURCE); 
+
+        // Set the texture sampler uniform once (it refers to texture unit 0)
+        texture_shader->use();
+        texture_shader->setInt("textureSampler", 0); // Ensure the sampler is set to texture unit 0
+        glUseProgram(0); // Unuse shader
+
+        std::cout << "DEBUG: Shaders setup complete." << std::endl;
     }
 
-    bool OpenGLRenderer::initialize(const WindowConfig& config)
-    {
+    void OpenGLRenderer::Pimpl::create_projection_matrix(int width, int height) {
+        window_width = width;
+        window_height = height;
+        // Create an orthographic projection matrix for 2D rendering.
+        // This maps pixel coordinates (0,0 at top-left) to OpenGL's clip space (-1 to 1).
+        // glm::ortho(left, right, bottom, top, near, far)
+        // For top-left origin: left=0, right=width, bottom=height, top=0 (inverted Y)
+        projection_matrix = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+        std::cout << "DEBUG: Projection matrix created for " << width << "x" << height << std::endl;
+    }
+
+    void OpenGLRenderer::Pimpl::set_opengl_initial_state() {
+        // Enable blending for transparency
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        // Disable depth testing for 2D rendering unless explicitly needed
+        glDisable(GL_DEPTH_TEST); 
+        // Set initial clear color
+        // glClearColor(0.1f, 0.1f, 0.2f, 1.0f); // Removed as it's set in clear() or set_clear_color()
+        // Set viewport to cover the entire window
+        glViewport(0, 0, window_width, window_height);
+
+        std::cout << "DEBUG: OpenGL initial state set." << std::endl;
+    }
+
+
+    // --- OpenGLRenderer Public Method Implementations ---
+
+    OpenGLRenderer::OpenGLRenderer() : pimpl(std::make_unique<Pimpl>()) {}
+
+    OpenGLRenderer::~OpenGLRenderer() {
+        shutdown(); // Ensure cleanup
+    }
+
+    bool OpenGLRenderer::initialize(const WindowConfig& config) {
+        // Move stbi_set_flip_vertically_on_load here to be called once globally
+        stbi_set_flip_vertically_on_load(true); 
+
         // --- Step 1: Set OpenGL Attributes BEFORE creating the window ---
-        // We want OpenGL 3.3
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
-        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
-        // We want to use the "Core" profile, which gives us modern OpenGL
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
+        SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
-        // We want a double-buffered window for smooth rendering
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24); // 24-bit depth buffer
+        
+        // Anti-aliasing (optional)
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4); // 4 samples
+
 
         // Now, create the window. It will be created with these OpenGL attributes.
         pimpl->window = std::make_unique<SDLWindow>();
@@ -58,61 +243,284 @@ namespace Salix {
             std::cerr << "OpenGLRenderer Error: Failed to create OpenGL context! SDL_Error: " << SDL_GetError() << std::endl;
             return false;
         }
-
         std::cout << "OpenGL context created successfully." << std::endl;
 
-        // --- Step 3 (Future): Initialize GLAD ---
-        // We'll add this code in the next step
-        // if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-        //     std::cerr << "OpenGLRenderer Error: Failed to initialize GLAD!" << std::endl;
-        //     return false;
-        // }
-        
+        // --- Step 3: Initialize GLAD ---
+        // This must happen AFTER the OpenGL context has been created and made current.
+        if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+            std::cerr << "OpenGLRenderer Error: Failed to initialize GLAD!" << std::endl;
+            return false;
+        }
+        std::cout << "Initialized GLAD. OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+
+        // Set the window dimensions inside Pimpl for projection matrix calculation
+        pimpl->window_width = config.width;
+        pimpl->window_height = config.height;
+
+        // --- Step 4: Setup OpenGL Resources via Pimpl helpers ---
+        pimpl->set_opengl_initial_state();
+        pimpl->setup_quad_geometry();
+        pimpl->setup_shaders();
+        pimpl->create_projection_matrix(config.width, config.height);
+
+
         std::cout << "OpenGLRenderer initialized successfully." << std::endl;
         return true;
     }
 
-    void OpenGLRenderer::shutdown()
-    {
+    void OpenGLRenderer::shutdown() {
+        // Clean up OpenGL resources (VAO, VBO, Shaders)
+        // These are handled by Pimpl's destructor or explicit calls
+
+        if (pimpl->quad_vao != 0) {
+            glDeleteVertexArrays(1, &pimpl->quad_vao);
+            pimpl->quad_vao = 0;
+        }
+
+        if (pimpl->quad_vbo != 0) {
+            // FIX: Corrected glDeleteVertexArrays to glDeleteBuffers for VBO
+            glDeleteBuffers(1, &pimpl->quad_vbo); 
+            pimpl->quad_vbo = 0;
+        }
+
+        pimpl->texture_shader.reset(); // Calls destructor, glDeleteProgram
+        pimpl->color_shader.reset();   // Calls destructor, glDeleteProgram
+
+        // Destroy OpenGL context
         if (pimpl->gl_context) {
             SDL_GL_DeleteContext(pimpl->gl_context);
             pimpl->gl_context = nullptr;
         }
+        // Shutdown SDL window
         if (pimpl->window) {
             pimpl->window->shutdown();
             pimpl->window.reset();
         }
+        std::cout << "OpenGLRenderer shut down." << std::endl;
     }
 
-    void OpenGLRenderer::begin_frame()
-    {
-        // For now, we'll just clear the screen to a test color
-        // In the future, this is where you'd bind framebuffers, etc.
-        clear();
+    void OpenGLRenderer::begin_frame() {
+        pimpl->set_opengl_initial_state();   // Re-set state in case ImGui or other things changed it.
+        // FIX: Removed glClearColor here, as it's set via set_clear_color or in set_opengl_initial_state
+        clear(); // Clear the buffer.
     }
 
-    void OpenGLRenderer::end_frame()
-    {
-        // Swaps the front and back buffers to display what we've rendered
+    void OpenGLRenderer::end_frame() {
+        // Swaps the front and back buffers to display what's rendered
         SDL_GL_SwapWindow(static_cast<SDL_Window*>(pimpl->window->get_native_handle()));
     }
 
-    void OpenGLRenderer::clear()
-    {
-        // TODO: Use OpenGL functions here once GLAD is initialized
-        // glClearColor(0.1f, 0.1f, 0.15f, 1.0f);
-        // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    void OpenGLRenderer::clear() {
+        // glClearColor is set in set_opengl_initial_state or via set_clear_color
+        // FIX: Removed redundant glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear both color and depth buffers
     }
+    
+    // IRenderer Interface methods (getters)
+    IWindow* OpenGLRenderer::get_window() { return pimpl->window.get(); }
 
-    IWindow* OpenGLRenderer::get_window()
-    {
-        return pimpl->window.get();
-    }
-
-    void* OpenGLRenderer::get_native_handle()
-    {
+    void* OpenGLRenderer::get_native_handle() {
         // The "native handle" for this renderer is its GL context
         return pimpl->gl_context;
+    }
+
+    // --- Texture Management ---
+
+    ITexture* OpenGLRenderer::load_texture(const char* file_path) {
+        int width, height, channels;
+        // (In OpenGL (0,0) is bottom-left, images often top-left)
+        // stbi_set_flip_vertically_on_load(true); // FIX: Moved to initialize()
+
+        unsigned char* data = stbi_load(file_path, &width, &height, &channels, 0);
+
+        if (!data) {
+            std::cerr << "ERROR: Failed to load texture: " << file_path << " - " << stbi_failure_reason() << std::endl;
+            return nullptr;
+        }
+
+        GLuint texture_id;
+        glGenTextures(1, &texture_id);
+        // While glGenTextures creates the ID, using glBindTexture here is still necessary
+        // for glTextureStorage2D and glTextureSubImage2D in some older GL versions (pre-4.5)
+        // or if not using the full DSA path for setup. However, for 4.5, direct access is preferred.
+        // The glTextureStorage2D and glTextureSubImage2D functions below are DSA.
+        glBindTexture(GL_TEXTURE_2D, texture_id); 
+        
+        // These are not DSA texture parameter setting, but valid.
+        // For DSA equivalents: glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+
+        GLenum format = GL_RGB;
+        GLenum internal_format = GL_RGB8;   // Specify internal format for GPU storage
+
+        if (channels == 4) {
+            format = GL_RGBA;
+            internal_format = GL_RGBA8;
+        } else if (channels == 3) {
+            format = GL_RGB;
+            internal_format = GL_RGB8;
+        } else {
+            std::cerr << "WARNING: Unsupported number of channels (" << channels << ") for texture: " <<
+            file_path << std::endl;
+
+            stbi_image_free(data);
+            glDeleteTextures(1, &texture_id);
+            return nullptr;
+        }
+
+        // Use glTextureStorage2D for immutable storage (OpenGL 4.5 feature)
+        // This allocates the memory once, making it more efficient.
+        glTextureStorage2D(texture_id, 1, internal_format, width, height);   // Mip levels = 1 for now.
+
+        // Then, upload data to the base mip level.
+        glTextureSubImage2D(texture_id, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
+
+        // Generate mipmaps for the immutable texture.
+        glGenerateTextureMipmap(texture_id);
+
+        stbi_image_free(data);
+        glBindTexture(GL_TEXTURE_2D, 0);    // Unbind texture.
+        
+        std::cout << "DEBUG: Loaded texture " << file_path << " (ID: " << texture_id <<
+        ", " << width << "x" << height << ")" << std::endl;
+        
+        return new OpenGLTexture(texture_id, width, height);
+    }
+    
+    void OpenGLRenderer::purge_texture(ITexture* texture) {
+        if (texture) {
+        // The OpenGLTexture destructor automatically calls glDeleteTextures
+            delete texture;
+            // FIX: Removed redundant texture = nullptr;
+        }
+    }
+
+    void OpenGLRenderer::draw_texture(ITexture* texture, const Rect& dest_rect) {
+        // draw_sprite handles draw_texture as a special case where angle=0, pivot=nullptr, color=white, no flip
+        draw_sprite(texture, dest_rect, 0.0, nullptr, Color(255, 255, 255, 255), SpriteFlip::None);
+    }
+    
+    void OpenGLRenderer::draw_sprite(ITexture* texture, const Rect& dest_rect, double angle,
+        const Point* pivot, const Color& color, SpriteFlip flip) {
+        if (!texture) {
+            std::cerr << "WARNING: Attempted to draw null sprite texture." << std::endl;
+            return;
+        }
+
+        OpenGLTexture* opengl_texture = dynamic_cast<OpenGLTexture*>(texture);
+        if (!opengl_texture) {
+            std::cerr << "ERROR: Invalid texture type passed to OpenGLRenderer::draw_sprite." << std::endl;
+            return;
+        }
+
+        pimpl->texture_shader->use();
+        pimpl->texture_shader->setMat4("projection", pimpl->projection_matrix);
+        
+        // Pass tint color to shader
+        pimpl->texture_shader->setVec4(
+            "tintColor", glm::vec4(
+            color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f)
+        ); 
+
+        // --- Calculate Model Matrix for Sprite ---
+        glm::mat4 model = glm::mat4(1.0f);
+        
+        // 1. Translate to the destination position (top-left of rect)
+        model = glm::translate(model, glm::vec3(dest_rect.x, dest_rect.y, 0.0f));
+
+        
+        // 2. Handle pivot point (translate origin to pivot, rotate, translate back)
+        // If pivot is provided, translate to pivot, rotate, then translate back from pivot.
+        // Pivot point is relative to the top-left of the destination rectangle.
+        if (pivot) {
+            // Translate to pivot before rotation
+            model = glm::translate(model, glm::vec3(pivot->x, pivot->y, 0.0f));
+            // Rotate around the Z-axis (for 2D)
+            model = glm::rotate(model, glm::radians((float)angle), glm::vec3(0.0f, 0.0f, 1.0f));
+            // Translate back from pivot after rotation
+            model = glm::translate(model, glm::vec3(-pivot->x, -pivot->y, 0.0f));
+        } else {
+            // No pivot, rotate around the top-left corner of the rect
+            model = glm::rotate(model, glm::radians((float)angle), glm::vec3(0.0f, 0.0f, 1.0f));
+        }
+        
+        // 3. Handle flipping (apply scale factors for flip)
+        float scale_x = (float)dest_rect.w;
+        float scale_y = (float)dest_rect.h;
+
+        if (flip == SpriteFlip::Horizontal) {
+            scale_x *= -1.0f; // Flip horizontally
+        } else if (flip == SpriteFlip::Vertical) {
+            scale_y *= -1.0f; // Flip vertically
+        } else if (flip == SpriteFlip::Both) {
+            scale_x *= -1.0f;
+            scale_y *= -1.0f;
+        }
+
+        // Note: For flipping with a pivot, the translation after scaling might need adjustment
+        // based on where the pivot is. A simple scale like this flips around the quad's origin (0,0).
+        // For accurate flipping around the rectangle's center, you'd translate to center, scale, then translate back.
+        // For simplicity here, it flips the quad in its local space before being moved to dest_rect.
+
+        // 4. Scale to the width and height of the destination rectangle
+        model = glm::scale(model, glm::vec3(scale_x, scale_y, 1.0f));
+
+        pimpl->texture_shader->setMat4("model", model);
+        // --- Texture Binding ---
+        glActiveTexture(GL_TEXTURE0); // Activate texture unit 0
+        glBindTexture(GL_TEXTURE_2D, opengl_texture->get_id());
+        // 'textureSampler' uniform was already set to 0 in ShaderProgram setup.
+
+        // --- Draw Call ---
+        glBindVertexArray(pimpl->quad_vao);
+        glDrawArrays(GL_TRIANGLES, 0, 6); // Draw 2 triangles (a quad)
+
+        // --- Cleanup (Optional but good practice) ---
+        glBindTexture(GL_TEXTURE_2D, 0);        // Unbind texture
+        glBindVertexArray(0);                   // Unbind VAO
+        glUseProgram(0);                        // Unuse shader program
+     }
+
+
+    void OpenGLRenderer::set_clear_color(const Color& color) {
+
+     glClearColor(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+
+    }
+
+
+    // (Note: draw_rectangle will need to use pimpl->color_shader)
+    void OpenGLRenderer::draw_rectangle(const Rect& rect, const Color& color, bool filled) {
+        // For drawing a filled rectangle, we can use the same quad geometry
+        // and apply a color-only shader.
+        pimpl->color_shader->use();
+
+        pimpl->color_shader->setMat4("projection", pimpl->projection_matrix);
+
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(rect.x, rect.y, 0.0f));
+        model = glm::scale(model, glm::vec3(rect.w, rect.h, 1.0f));
+        pimpl->color_shader->setMat4("model", model);
+            
+        pimpl->color_shader->setVec4("objectColor", glm::vec4(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f));
+
+        glBindVertexArray(pimpl->quad_vao);
+        if (filled) {
+            glDrawArrays(GL_TRIANGLES, 0, 6); // Draw 2 triangles for a filled quad
+        } else {
+            // For an unfilled rectangle, you'd typically draw a GL_LINE_LOOP
+            // or use a different VAO/VBO for lines. This is a basic implementation.
+            // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); // Temporary switch to line mode
+            // glDrawArrays(GL_TRIANGLES, 0, 6);
+            // glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); // Switch back
+        std::cerr << "WARNING: OpenGLRenderer::draw_rectangle - unfilled mode not fully implemented." << std::endl;
+        }
+
+        glBindVertexArray(0);
+        glUseProgram(0);
     }
 
 } // namespace Salix
