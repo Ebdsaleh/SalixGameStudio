@@ -388,6 +388,10 @@ namespace Salix {
             pimpl->timer->tick_start();
             float delta_time = pimpl->timer->get_delta_time();
 
+            // Try to force the gui_system remove the rendering from its previous frame.
+            if (pimpl->gui_system) {
+            pimpl->gui_system->new_frame();
+            }
             // Apply time_scale to delta_time.
             float scaled_delta_time = delta_time * pimpl->time_scale;
             process_input();
@@ -513,6 +517,7 @@ namespace Salix {
         } else {
             std::cerr << "Engine::switch_state - Failed to create new state!" << std::endl;
         }
+
     }
 
     void Engine::update(float delta_time) {
