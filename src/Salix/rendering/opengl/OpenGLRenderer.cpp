@@ -204,7 +204,6 @@ namespace Salix {
         // Set viewport to cover the entire window
         glViewport(0, 0, window_width, window_height);
 
-        std::cout << "DEBUG: OpenGL initial state set." << std::endl;
     }
 
 
@@ -266,9 +265,16 @@ namespace Salix {
         log_file << "[DEBUG] GLAD initialized... OK" << std::endl;
         log_file << "[DEBUG] OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
-        // --- Step 4: Setup OpenGL Resources ---
-        pimpl->window_width = config.width;
-        pimpl->window_height = config.height;
+        // --- NEW: Get the actual drawable size for High-DPI support ---
+        log_file << "[DEBUG] Getting drawable size..." << std::endl;
+        int drawable_width, drawable_height;
+        SDL_GL_GetDrawableSize(static_cast<SDL_Window*>(pimpl->window->get_native_handle()), &drawable_width, &drawable_height);
+        log_file << "[DEBUG] Window Size: " << config.width << "x" << config.height << std::endl;
+        log_file << "[DEBUG] Drawable Size: " << drawable_width << "x" << drawable_height << std::endl;
+
+        // --- Step 4: Setup OpenGL Resources using the correct drawable size ---
+        pimpl->window_width = drawable_width;
+        pimpl->window_height = drawable_height;
 
         log_file << "[DEBUG] Setting initial GL state..." << std::endl;
         pimpl->set_opengl_initial_state();
@@ -283,12 +289,13 @@ namespace Salix {
         log_file << "[DEBUG] Shaders setup... OK" << std::endl;
 
         log_file << "[DEBUG] Creating projection matrix..." << std::endl;
-        pimpl->create_projection_matrix(config.width, config.height);
+        pimpl->create_projection_matrix(drawable_width, drawable_height);
         log_file << "[DEBUG] Projection matrix created... OK" << std::endl;
 
         log_file << "[DEBUG] OpenGLRenderer::initialize FINISHED" << std::endl;
         return true;
     }
+
     void OpenGLRenderer::shutdown() {
         // Clean up OpenGL resources (VAO, VBO, Shaders)
         // These are handled by Pimpl's destructor or explicit calls
@@ -332,7 +339,7 @@ namespace Salix {
 
     void OpenGLRenderer::clear() {
         // glClearColor is set in set_opengl_initial_state or via set_clear_color
-        glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear both color and depth buffers
     }
     
