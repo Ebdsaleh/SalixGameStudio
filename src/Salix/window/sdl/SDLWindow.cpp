@@ -33,7 +33,7 @@ namespace Salix {
             SDL_WINDOWPOS_CENTERED,
             window_config.width,
             window_config.height,
-            SDL_WINDOW_SHOWN
+            SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL
         );
 
         // Check if the window was created successfully.
