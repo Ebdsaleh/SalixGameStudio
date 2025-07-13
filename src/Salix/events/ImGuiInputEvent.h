@@ -1,4 +1,4 @@
-// Salix/gui/imgui/ImGuiInputEvent.h
+// Salix/events/ImGuiInputEvent.h
 #pragma once
 #include <Salix/events/IEvent.h> // Inherit from IEvent
 #include <imgui.h> // For ImGuiIO flags (used in implementation, not directly here)
