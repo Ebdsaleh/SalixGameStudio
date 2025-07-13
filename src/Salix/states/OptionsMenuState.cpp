@@ -33,7 +33,7 @@ namespace Salix {
         // Handle input for changing options here in the future.
         // --- NEW: Build ImGui UI for OptionsMenuState ---
         if (pimpl->context.gui) { // Ensure GUI system is available
-            pimpl->context.gui->new_frame(); // Start the ImGui frame for this state
+           
 
             ImGui::Begin("Options Menu"); // Begin your Options Menu window
             ImGui::Text("--- Options Menu Content ---");

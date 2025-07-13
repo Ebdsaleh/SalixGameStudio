@@ -114,7 +114,10 @@ namespace Salix {
 
     void LaunchState::on_exit() {
         std::cout << "Exiting LaunchState..." << std::endl;
-        if (pimpl->context.renderer) { pimpl->context.renderer->clear(); }
+        if (pimpl->context.renderer) {
+            
+        }
+
         
     }
 
@@ -123,7 +126,6 @@ namespace Salix {
         pimpl->reset_transition_flags(); 
 
         if (pimpl->context.gui) {
-            pimpl->context.gui->new_frame(); // ImGui frame begins here
             
             pimpl->present_launcher();
 
