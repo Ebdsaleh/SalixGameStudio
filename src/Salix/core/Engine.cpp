@@ -16,7 +16,7 @@
 
 // Rendering includes
 #include <Salix/rendering/sdl/SDLRenderer.h>
-
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
 // Input includes
 #include <Salix/input/sdl/SDLInputManager.h>
 #include <Salix/input/ImGuiInputManager.h>
@@ -25,8 +25,10 @@
 #include <Salix/gui/IGui.h>
 #include <Salix/gui/IThemeManager.h>
 #include <Salix/gui/IFontManager.h>
+
 // Gui/Imgui includes
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
+#include <Salix/gui/imgui/opengl/OpenGLImGui.h>
 #include <Salix/gui/imgui/ImGuiThemeManager.h>
 #include <Salix/gui/imgui/ImGuiFontManager.h>
 
@@ -79,6 +81,7 @@ namespace Salix {
         using CreateStateFn = IAppState* (*)(AppStateType);
         CreateStateFn game_state_factory = nullptr;
         CreateStateFn editor_state_factory = nullptr;
+        void opengl_test(IRenderer* renderer);
     };
 
     Engine::Engine() : pimpl(std::make_unique<Pimpl>()) {
@@ -145,6 +148,12 @@ namespace Salix {
             case RendererType::SDL:
                 pimpl->renderer = std::make_unique<SDLRenderer>();
                 break;
+
+            case RendererType::OpenGL:
+                pimpl->renderer = std::make_unique<OpenGLRenderer>();
+                
+                break;
+
             default:
                 std::cerr << "Engine::initialize - Invalid or unsupported renderer type requested!" << std::endl;
                 SDL_Quit();
@@ -154,6 +163,12 @@ namespace Salix {
         if (!pimpl->renderer->initialize(config.window_config)) {
             std::cerr << "Engine::initialize - Renderer subsystem failed to initialize." << std::endl;
             return false;
+        }
+
+        if (config.renderer_type == RendererType::OpenGL) {
+            // pimpl->opengl_test(pimpl->renderer.get());
+            // For now, we can exit after the test to keep things simple
+            //return false; // Returning false here will cleanly shut down the engine after the test.
         }
 
 
@@ -257,12 +272,18 @@ namespace Salix {
                 break; // Safe to break here, as no GUI system is expected.
             case GuiType::ImGui: 
 
+                if (config.renderer_type == RendererType::SDL) {
+                    pimpl->gui_system = std::make_unique<SDLImGui>();
+
+                } else if (config.renderer_type == RendererType::OpenGL) {
+                    pimpl->gui_system = std::make_unique<OpenGLImGui>();
+                }
 
                 // --- SETUP ALL IMGUI REQUIRED CLASSES ---
                 pimpl->theme_manager = std::make_unique<ImGuiThemeManager>();  // This must be intialized first.
 
                 pimpl->font_manager = std::make_unique<ImGuiFontManager>();
-                pimpl->gui_system = std::make_unique<SDLImGui>();
+                
                 pimpl->gui_system->set_app_config(pimpl->app_config.get());
                 
                 if (!pimpl->gui_system->initialize(
@@ -299,19 +320,38 @@ namespace Salix {
                 std::cout << "[ENGINE] Font Manager initialized." << std::endl;
                 
 
+                if ( config.renderer_type == RendererType::SDL) {
+                    if (auto* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_system.get())) {
+                        sdl_imgui->setup_event_polling(
+                            pimpl->event_poller.get(),
+                            pimpl->event_manager.get()
+                        );
 
-                if (auto* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_system.get())) {
-                    sdl_imgui->setup_event_polling(
-                        pimpl->event_poller.get(),
-                        pimpl->event_manager.get()
-                    );
+                        std::cout << "[ENGINE] SDLImGui event polling setup complete." << std::endl;
+                    } else {
 
-                    std::cout << "[ENGINE] SDLImGui event polling setup complete." << std::endl;
+                        std::cerr << "Engine Error: Failed to cast gui_system to SDLImGui* for event polling setup." << std::endl;
+                        // This is a critical error if SDLImGui was just created and casting fails.
+                        return false;
+                    }
+                } else if (config.renderer_type == RendererType::OpenGL) {
+                    if (auto* opengl_imgui = dynamic_cast<OpenGLImGui*>(pimpl->gui_system.get())) {
+                        opengl_imgui->setup_event_polling(
+                            pimpl->event_poller.get(),
+                            pimpl->event_manager.get()
+                        );
 
+                        std::cout << "[ENGINE] OpenGLImGui event polling setup complete." << std::endl;
+                    } else {
+
+                        std::cerr << "Engine Error: Failed to cast gui_system to OpenGLImGui* for event polling setup." << std::endl;
+                        // This is a critical error if SDLImGui was just created and casting fails.
+                        return false;
+                    }
                 } else {
 
-                    std::cerr << "Engine Error: Failed to cast gui_system to SDLImGui* for event polling setup." << std::endl;
-                    // This is a critical error if SDLImGui was just created and casting fails.
+                    std::cerr << "Engine Error: Failed to cast the appropriate gui_system to the for event polling setup." << std::endl;
+                    // This is a critical error if X_ImGui was just created and casting fails.
                     return false;
                 }
 
@@ -495,12 +535,19 @@ namespace Salix {
             pimpl->current_state->render(pimpl->renderer.get());
         }
 
-        // Render GUI if active (this draws on top of whatever the state rendered)
-    if (pimpl->gui_system && pimpl->context.gui_type != GuiType::None) {
-        pimpl->gui_system->render(); // ImGui prepares and renders its draw data
-        pimpl->gui_system->update_and_render_platform_windows(); // For docking/viewports
-    }
+        // Render GUI if active
+        if (pimpl->gui_system) {
+            // 1. Prepare ImGui's draw data
+            pimpl->gui_system->render(); 
+        }
+        
+        // 2. Swap the main window's buffer to show the result
         pimpl->renderer->end_frame();
+
+        // 3. NOW, update and render any extra ImGui windows
+        if (pimpl->gui_system) {
+            pimpl->gui_system->update_and_render_platform_windows();
+        }
     }
 
     IRenderer* Engine::get_renderer() { return pimpl->renderer.get(); }
@@ -554,5 +601,43 @@ namespace Salix {
        
         return ctx;
     }
+
+     void Engine::Pimpl::opengl_test(IRenderer* renderer)
+    {
+        std::cout << "--- Starting OpenGL Sanity Test ---" << std::endl;
+        if (!renderer) {
+            std::cerr << "ERROR: Renderer is null for opengl_test." << std::endl;
+            return;
+        }
+
+        // Set the clear color to bright red in the renderer
+        // We'll assume a method like this exists or will be added to IRenderer
+        // For now, we know our OpenGLRenderer::clear() hardcodes a color.
+        
+        bool test_running = true;
+        int frame_count = 0;
+        const int max_frames = 300; // Keep the window open for about 5 seconds (at 60fps)
+
+        while (test_running && frame_count < max_frames)
+        {
+            // Handle events to keep the window from becoming unresponsive
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_QUIT) {
+                    test_running = false;
+                }
+            }
+
+            // The core rendering test
+            renderer->begin_frame(); // This will call clear()
+            renderer->end_frame();   // This will swap the window buffer
+
+            frame_count++;
+            SDL_Delay(16); // roughly 60fps
+        }
+
+        std::cout << "--- OpenGL Sanity Test Finished ---" << std::endl;
+    }
+
 
 } // namespace Salix
