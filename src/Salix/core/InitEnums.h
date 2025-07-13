@@ -7,7 +7,7 @@ namespace Salix {
     enum class RendererType {
         None, // initial setting, usually won't ever be set to this unless there's a specific reason.
         SDL, // The default option
-        OpenGl, // OpenGl using the SDL API
+        OpenGL, // OpenGl using the SDL API
         Vulkan,  // For the future
         DirectX, // For the future
     };
