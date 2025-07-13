@@ -33,6 +33,8 @@ namespace Salix {
         if (!node) return; // Do nothing if the node doesn't exist
         std::string val = node.as<std::string>();
         if (val == "SDL") type = RendererType::SDL;
+        // FIX: Add OpenGL renderer type parsing
+        else if (val == "OpenGL") type = RendererType::OpenGL; 
         // Add other renderer types here in the future
     }
     
@@ -125,12 +127,95 @@ namespace Salix {
         return true;
     }
 
-    bool SettingsManager::save_settings(const std::string& yaml_path, const ApplicationConfig& config)
+   bool SettingsManager::save_settings(const std::string& yaml_path, const ApplicationConfig& config)
     {
-        // (Implementation omitted for brevity)
-        std::cout << "SettingsManager: saveSettings() is not yet implemented." << std::endl;
-        return false;
+        if (yaml_path.empty()) { 
+            std::cerr << "SettingsManager Error: YAML path is empty for saving settings." << std::endl;
+            return false; 
+        }
+
+        try {
+            YAML::Emitter emitter;
+            emitter << YAML::BeginMap;
+
+            // Window Settings
+            emitter << YAML::Key << "Window";
+            emitter << YAML::BeginMap;
+            emitter << YAML::Key << "title" << YAML::Value << config.window_config.title;
+            emitter << YAML::Key << "width" << YAML::Value << config.window_config.width;
+            emitter << YAML::Key << "height" << YAML::Value << config.window_config.height;
+            emitter << YAML::EndMap;
+
+            // Engine Settings
+            emitter << YAML::Key << "Engine";
+            emitter << YAML::BeginMap;
+            emitter << YAML::Key << "initial_state" << YAML::Value;
+            // Convert enum to string for YAML output
+            switch (config.initial_state) {
+                case AppStateType::Launch:  emitter << "Launch"; break;
+                case AppStateType::Editor:  emitter << "Editor"; break;
+                case AppStateType::Game:    emitter << "Game"; break;
+                case AppStateType::Options: emitter << "Options"; break;
+                default: emitter << "Launch"; break; // Default case
+            }
+            emitter << YAML::Key << "target_fps" << YAML::Value << config.target_fps;
+            emitter << YAML::EndMap;
+
+            // Renderer Settings
+            emitter << YAML::Key << "Renderer";
+            emitter << YAML::BeginMap;
+            emitter << YAML::Key << "type" << YAML::Value;
+            switch (config.renderer_type) {
+                case RendererType::SDL:    emitter << "SDL"; break;
+                case RendererType::OpenGL: emitter << "OpenGL"; break; // FIX: Added OpenGL type
+                default: emitter << "SDL"; break; // Default case
+            }
+            emitter << YAML::EndMap;
+
+            // GUI Settings
+            emitter << YAML::Key << "GUI";
+            emitter << YAML::BeginMap;
+            emitter << YAML::Key << "type" << YAML::Value;
+            switch (config.gui_type) {
+                case GuiType::ImGui: emitter << "ImGui"; break;
+                case GuiType::None:  emitter << "None"; break;
+                default: emitter << "ImGui"; break; // Default case
+            }
+            emitter << YAML::Key << "dialog_width_ratio" << YAML::Value << config.gui_settings.dialog_width_ratio;
+            emitter << YAML::Key << "dialog_height_ratio" << YAML::Value << config.gui_settings.dialog_height_ratio;
+            emitter << YAML::EndMap;
+
+            // Timer Settings
+            emitter << YAML::Key << "Timer";
+            emitter << YAML::BeginMap;
+            emitter << YAML::Key << "type" << YAML::Value;
+            switch (config.timer_type) {
+                case TimerType::SDL:    emitter << "SDL"; break;
+                case TimerType::Chrono: emitter << "Chrono"; break;
+                default: emitter << "SDL"; break; // Default case
+            }
+            emitter << YAML::EndMap;
+
+            emitter << YAML::EndMap; // End root map
+
+            // Write to file
+            std::ofstream file(yaml_path);
+            if (!file.is_open()) {
+                std::cerr << "SettingsManager Error: Could not open file for writing: '" << yaml_path << "'" << std::endl;
+                return false;
+            }
+            file << emitter.c_str();
+            file.close();
+
+            std::cout << "SettingsManager: Saved settings to YAML file '" << yaml_path << "'" << std::endl;
+            return true;
+
+        } catch (const YAML::Exception& e) {
+            std::cerr << "SettingsManager Error: Failed to save YAML file '" << yaml_path << "'. Error: " << e.what() << std::endl;
+            return false;
+        }
     }
+ 
 
     std::string SettingsManager::get_cache_path(const std::string& yaml_path) const
     {
