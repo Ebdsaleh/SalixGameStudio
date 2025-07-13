@@ -18,6 +18,9 @@
 
 namespace Salix {
 
+    bool write_cache(const std::string& cache_path, const ApplicationConfig& config);
+    bool read_cache(const std::string& cache_path, ApplicationConfig& out_config);
+
     // Helper function to convert YAML node to AppStateType enum
     void parse_app_state_type(const YAML::Node& node, AppStateType& type) {
         if (!node) return; // Do nothing if the node doesn't exist
@@ -54,19 +57,14 @@ namespace Salix {
         else if (val == "Chrono") type = TimerType::Chrono;
     }
 
-    bool SettingsManager::load_settings(const std::string& yaml_path, ApplicationConfig& out_config)
-    {
+    bool SettingsManager::load_settings(const std::string& yaml_path, ApplicationConfig& out_config) {
         std::string cache_path = get_cache_path(yaml_path);
 
-        // Check if cache is valid and up-to-date
         if (std::filesystem::exists(cache_path) && std::filesystem::exists(yaml_path) &&
             std::filesystem::last_write_time(cache_path) >= std::filesystem::last_write_time(yaml_path))
         {
-            // --- FAST PATH: Load from binary cache ---
-            std::ifstream in(cache_path, std::ios::binary);
-            if (in.is_open()) {
-                in.read(reinterpret_cast<char*>(&out_config), sizeof(ApplicationConfig));
-                in.close();
+            // --- FAST PATH: Load from SAFE binary cache ---
+            if (read_cache(cache_path, out_config)) {
                 std::cout << "SettingsManager: Loaded settings from fast binary cache '" << cache_path << "'" << std::endl;
                 return true;
             }
@@ -75,14 +73,13 @@ namespace Salix {
         // --- SLOW PATH: Load from YAML and create cache ---
         if (!std::filesystem::exists(yaml_path)) {
             std::cerr << "SettingsManager Warning: YAML config file not found at '" << yaml_path << "'. Using default settings." << std::endl;
-            // We can still succeed here by using the default-constructed out_config
             return true;
         }
 
         try {
             YAML::Node root = YAML::LoadFile(yaml_path);
 
-            // --- CORRECTED PARSING LOGIC ---
+            // --- Full YAML Parsing Logic ---
             if (root["Window"]) {
                 if (root["Window"]["title"])  out_config.window_config.title  = root["Window"]["title"].as<std::string>();
                 if (root["Window"]["width"])  out_config.window_config.width  = root["Window"]["width"].as<int>();
@@ -97,7 +94,6 @@ namespace Salix {
             }
             if (root["GUI"]) {
                 parse_gui_type(root["GUI"]["type"], out_config.gui_type);
-
                 if (root["GUI"]["dialog_width_ratio"]) {
                     out_config.gui_settings.dialog_width_ratio = root["GUI"]["dialog_width_ratio"].as<float>();
                 }
@@ -111,11 +107,8 @@ namespace Salix {
             
             std::cout << "SettingsManager: Loaded settings from YAML file '" << yaml_path << "'" << std::endl;
 
-            // Now, create the binary cache for next time
-            std::ofstream out(cache_path, std::ios::binary);
-            if (out.is_open()) {
-                out.write(reinterpret_cast<const char*>(&out_config), sizeof(ApplicationConfig));
-                out.close();
+            // --- Create the SAFE binary cache ---
+            if (write_cache(cache_path, out_config)) {
                 std::cout << "SettingsManager: Created binary cache '" << cache_path << "'" << std::endl;
             }
 
@@ -220,6 +213,66 @@ namespace Salix {
     std::string SettingsManager::get_cache_path(const std::string& yaml_path) const
     {
         return std::filesystem::path(yaml_path).replace_extension(".cache").string();
+    }
+
+    // --- Private Helper Functions for Safe Caching ---
+
+    // Helper to write a std::string safely to a binary stream
+    void write_string(std::ofstream& stream, const std::string& str) {
+        size_t len = str.length();
+        stream.write(reinterpret_cast<const char*>(&len), sizeof(len));
+        stream.write(str.c_str(), len);
+    }
+
+    // Helper to read a std::string safely from a binary stream
+    void read_string(std::ifstream& stream, std::string& str) {
+        size_t len;
+        stream.read(reinterpret_cast<char*>(&len), sizeof(len));
+        std::vector<char> buffer(len);
+        stream.read(buffer.data(), len);
+        str.assign(buffer.data(), len);
+    }
+
+    // Writes the entire config to a binary cache file
+    bool write_cache(const std::string& cache_path, const ApplicationConfig& config) {
+        std::ofstream out(cache_path, std::ios::binary);
+        if (!out.is_open()) return false;
+
+        // Write simple types directly
+        out.write(reinterpret_cast<const char*>(&config.window_config.width), sizeof(config.window_config.width));
+        out.write(reinterpret_cast<const char*>(&config.window_config.height), sizeof(config.window_config.height));
+        out.write(reinterpret_cast<const char*>(&config.renderer_type), sizeof(config.renderer_type));
+        out.write(reinterpret_cast<const char*>(&config.initial_state), sizeof(config.initial_state));
+        out.write(reinterpret_cast<const char*>(&config.gui_type), sizeof(config.gui_type));
+        out.write(reinterpret_cast<const char*>(&config.timer_type), sizeof(config.timer_type));
+        out.write(reinterpret_cast<const char*>(&config.target_fps), sizeof(config.target_fps));
+        out.write(reinterpret_cast<const char*>(&config.gui_settings), sizeof(config.gui_settings));
+
+        // Write string safely
+        write_string(out, config.window_config.title);
+
+        return true;
+    }
+
+    // Reads the entire config from a binary cache file
+    bool read_cache(const std::string& cache_path, ApplicationConfig& out_config) {
+        std::ifstream in(cache_path, std::ios::binary);
+        if (!in.is_open()) return false;
+
+        // Read simple types directly
+        in.read(reinterpret_cast<char*>(&out_config.window_config.width), sizeof(out_config.window_config.width));
+        in.read(reinterpret_cast<char*>(&out_config.window_config.height), sizeof(out_config.window_config.height));
+        in.read(reinterpret_cast<char*>(&out_config.renderer_type), sizeof(out_config.renderer_type));
+        in.read(reinterpret_cast<char*>(&out_config.initial_state), sizeof(out_config.initial_state));
+        in.read(reinterpret_cast<char*>(&out_config.gui_type), sizeof(out_config.gui_type));
+        in.read(reinterpret_cast<char*>(&out_config.timer_type), sizeof(out_config.timer_type));
+        in.read(reinterpret_cast<char*>(&out_config.target_fps), sizeof(out_config.target_fps));
+        in.read(reinterpret_cast<char*>(&out_config.gui_settings), sizeof(out_config.gui_settings));
+
+        // Read string safely
+        read_string(in, out_config.window_config.title);
+
+        return true;
     }
 
 } // namespace Salix
