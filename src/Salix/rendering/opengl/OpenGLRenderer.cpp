@@ -26,6 +26,8 @@
 #include <SDL.h>       // For SDL_GL_SwapWindow, SDL_GL_CreateContext, etc.
 #include <iostream>    // For debugging output
 #include <memory>      // For std::unique_ptr
+#include <filesystem>
+#include <fstream>
 
 // GLM includes for matrix transformations
 #include <glm/glm.hpp>
@@ -215,59 +217,78 @@ namespace Salix {
     }
 
     bool OpenGLRenderer::initialize(const WindowConfig& config) {
-        // Move stbi_set_flip_vertically_on_load here to be called once globally
-        stbi_set_flip_vertically_on_load(true); 
+        // Open the log file for writing. This will create it or overwrite it.
+        std::ofstream log_file("gl_init.log");
+        if (!log_file.is_open()) {
+            // If we can't even open the log file, print to cerr as a last resort.
+            std::cerr << "FATAL DEBUG ERROR: Could not open gl_init.log for writing!" << std::endl;
+            return false;
+        }
 
-        // --- Step 1: Set OpenGL Attributes BEFORE creating the window ---
+        log_file << "[DEBUG] OpenGLRenderer::initialize START" << std::endl;
+        stbi_set_flip_vertically_on_load(true);
+
+        // --- Step 1: Set OpenGL Attributes ---
+        log_file << "[DEBUG] Setting SDL_GL_SetAttribute..." << std::endl;
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 4);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
-        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24); // 24-bit depth buffer
-        
-        // Anti-aliasing (optional)
+        SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
-        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4); // 4 samples
+        SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+        log_file << "[DEBUG] SDL_GL_SetAttribute... OK" << std::endl;
 
-
-        // Now, create the window. It will be created with these OpenGL attributes.
+        // --- Create Window ---
+        log_file << "[DEBUG] Creating SDLWindow..." << std::endl;
         pimpl->window = std::make_unique<SDLWindow>();
         if (!pimpl->window->initialize(config)) {
-            std::cerr << "OpenGLRenderer Error: Failed to initialize window." << std::endl;
+            log_file << "OpenGLRenderer Error: Failed to initialize window." << std::endl;
             return false;
         }
+        log_file << "[DEBUG] SDLWindow created... OK" << std::endl;
 
         // --- Step 2: Create the OpenGL Context ---
+        log_file << "[DEBUG] Creating OpenGL context..." << std::endl;
         pimpl->gl_context = SDL_GL_CreateContext(static_cast<SDL_Window*>(pimpl->window->get_native_handle()));
         if (pimpl->gl_context == nullptr) {
-            std::cerr << "OpenGLRenderer Error: Failed to create OpenGL context! SDL_Error: " << SDL_GetError() << std::endl;
+            log_file << "OpenGLRenderer Error: Failed to create OpenGL context! SDL_Error: " << SDL_GetError() << std::endl;
             return false;
         }
-        std::cout << "OpenGL context created successfully." << std::endl;
+        log_file << "[DEBUG] OpenGL context created... OK" << std::endl;
 
         // --- Step 3: Initialize GLAD ---
-        // This must happen AFTER the OpenGL context has been created and made current.
+        log_file << "[DEBUG] Initializing GLAD..." << std::endl;
         if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
-            std::cerr << "OpenGLRenderer Error: Failed to initialize GLAD!" << std::endl;
+            log_file << "OpenGLRenderer Error: Failed to initialize GLAD!" << std::endl;
             return false;
         }
-        std::cout << "Initialized GLAD. OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+        log_file << "[DEBUG] GLAD initialized... OK" << std::endl;
+        log_file << "[DEBUG] OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 
-        // Set the window dimensions inside Pimpl for projection matrix calculation
+        // --- Step 4: Setup OpenGL Resources ---
         pimpl->window_width = config.width;
         pimpl->window_height = config.height;
 
-        // --- Step 4: Setup OpenGL Resources via Pimpl helpers ---
+        log_file << "[DEBUG] Setting initial GL state..." << std::endl;
         pimpl->set_opengl_initial_state();
+        log_file << "[DEBUG] Initial GL state set... OK" << std::endl;
+
+        log_file << "[DEBUG] Setting up quad geometry..." << std::endl;
         pimpl->setup_quad_geometry();
+        log_file << "[DEBUG] Quad geometry setup... OK" << std::endl;
+
+        log_file << "[DEBUG] Setting up shaders..." << std::endl;
         pimpl->setup_shaders();
+        log_file << "[DEBUG] Shaders setup... OK" << std::endl;
+
+        log_file << "[DEBUG] Creating projection matrix..." << std::endl;
         pimpl->create_projection_matrix(config.width, config.height);
+        log_file << "[DEBUG] Projection matrix created... OK" << std::endl;
 
-
-        std::cout << "OpenGLRenderer initialized successfully." << std::endl;
+        log_file << "[DEBUG] OpenGLRenderer::initialize FINISHED" << std::endl;
         return true;
     }
-
     void OpenGLRenderer::shutdown() {
         // Clean up OpenGL resources (VAO, VBO, Shaders)
         // These are handled by Pimpl's destructor or explicit calls
@@ -278,7 +299,6 @@ namespace Salix {
         }
 
         if (pimpl->quad_vbo != 0) {
-            // FIX: Corrected glDeleteVertexArrays to glDeleteBuffers for VBO
             glDeleteBuffers(1, &pimpl->quad_vbo); 
             pimpl->quad_vbo = 0;
         }
@@ -312,7 +332,7 @@ namespace Salix {
 
     void OpenGLRenderer::clear() {
         // glClearColor is set in set_opengl_initial_state or via set_clear_color
-        // FIX: Removed redundant glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+        glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear both color and depth buffers
     }
     
@@ -394,7 +414,6 @@ namespace Salix {
         if (texture) {
         // The OpenGLTexture destructor automatically calls glDeleteTextures
             delete texture;
-            // FIX: Removed redundant texture = nullptr;
         }
     }
 
