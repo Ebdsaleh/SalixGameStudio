@@ -35,7 +35,7 @@ namespace Salix {
     Sprite2D::Sprite2D() : pimpl(std::make_unique<Pimpl>()){
         pivot = { 0.5f, 0.5f };
         texture_path = "";
-        color = Color::from_rgba_int(255, 255, 255 ,255);
+        color = White;
     }
         
 
