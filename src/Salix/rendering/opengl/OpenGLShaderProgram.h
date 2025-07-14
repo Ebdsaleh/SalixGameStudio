@@ -7,6 +7,7 @@
 #include <Salix/core/Core.h> // For SALIX_API
 #include <glm/glm.hpp>       // For glm::mat4, glm::vec4
 #include <glad/glad.h>       // For GLuint
+#include <string>
 #include <memory>            // For std::unique_ptr
 
 // No need for glm/gtc/type_ptr.hpp, string, iostream here.
@@ -18,7 +19,7 @@ namespace Salix {
         GLuint ID; // The OpenGL program ID 
 
         // Constructor takes pointers to the vertex and fragment shader source code.
-        OpenGLShaderProgram(const char* vertex_shader_source, const char* fragment_shader_source);
+        OpenGLShaderProgram(const std::string& vertex_path, const std::string& fragment_path);
         
         // Destructor to clean up the OpenGL program.
         ~OpenGLShaderProgram();

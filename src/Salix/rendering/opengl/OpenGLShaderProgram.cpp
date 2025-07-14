@@ -9,17 +9,32 @@
 #include <glm/gtc/type_ptr.hpp> // Needed here for glm::value_ptr
 #include <string>               // Needed here for std::string
 #include <iostream>             // Needed here for std::cerr
+#include <sstream>
+#include <fstream>
 #include <memory>               // Needed here for std::make_unique
-
 namespace Salix {
     
     // Pimpl struct definition
     struct OpenGLShaderProgram::Pimpl {
         // Utility function for checking shader compilation/linking errors.
         void checkCompileErrors(GLuint shader, const std::string& type); // Note: GLuint, not GLuint&
+        std::string read_file(const std::string& file_path);
     };
 
-    // Pimpl's checkCompileErrors implementation
+    std::string OpenGLShaderProgram::Pimpl::read_file(const std::string& filePath) {
+        std::ifstream fileStream(filePath, std::ios::in);
+        if (!fileStream.is_open()) {
+            std::cerr << "ERROR: Could not read file " << filePath << ". File does not exist or is inaccessible." << std::endl;
+            return "";
+        }
+        std::stringstream sstr;
+        sstr << fileStream.rdbuf();
+        return sstr.str();
+    }
+
+
+    
+    // Private checkCompileErrors implementation
     void OpenGLShaderProgram::Pimpl::checkCompileErrors(GLuint shader, const std::string& type) {
         int success;
         char infoLog[1024];
@@ -39,24 +54,38 @@ namespace Salix {
     }
 
     // OpenGLShaderProgram Class Implementation
-    OpenGLShaderProgram::OpenGLShaderProgram(
-        const char* vertex_shader_source,
-        const char* fragment_shader_source) : pimpl(std::make_unique<Pimpl>()) {
+    OpenGLShaderProgram::OpenGLShaderProgram(const std::string& vertex_path, const std::string& fragment_path) 
+        : pimpl(std::make_unique<Pimpl>()) {
         
+        
+        std::string vertex_code = pimpl->read_file(vertex_path);
+        std::string fragment_code = pimpl->read_file(fragment_path);
+        
+        if (vertex_code.empty() || fragment_code.empty()) {
+            ID = 0; // Ensure ID is zero on failure
+            return;
+        }
+
+        // Prepare the strings for use with OpenGL.
+        const char* vertex_shader_code = vertex_code.c_str();
+        const char* fragment_shader_code = fragment_code.c_str();
+
         // 1. Compile Shaders
         GLuint vertex, fragment;
 
         // Vertex Shader
         vertex = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertex, 1, &vertex_shader_source, NULL);
+        glShaderSource(vertex, 1, &vertex_shader_code, NULL);
         glCompileShader(vertex);
         pimpl->checkCompileErrors(vertex, "VERTEX"); // Use pimpl instance
 
+
         // Fragment Shader
         fragment = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragment, 1, &fragment_shader_source, NULL);
+        glShaderSource(fragment, 1, &fragment_shader_code, NULL);
         glCompileShader(fragment);
         pimpl->checkCompileErrors(fragment, "FRAGMENT"); // Use pimpl instance
+
 
         // Shader Program
         ID = glCreateProgram();
@@ -65,10 +94,14 @@ namespace Salix {
         glLinkProgram(ID);
         pimpl->checkCompileErrors(ID, "PROGRAM"); // Use pimpl instance
 
+        
         // Delete the shaders as they're linked into our program now and no longer necessary
         glDeleteShader(vertex);
         glDeleteShader(fragment);
     }
+
+
+
 
     OpenGLShaderProgram::~OpenGLShaderProgram() {
         if (ID != 0) {
