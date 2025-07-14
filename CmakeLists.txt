@@ -90,14 +90,27 @@ add_subdirectory(src/Launcher)
 
 
 # --- INSTALL RULES ---
+# SDL2.dll
 install(FILES "${SDL2_LIB_DIR}/SDL2.dll" "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll" "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release" CONFIGURATIONS Release)
+
 install(FILES "${SDL2_LIB_DIR}/SDL2.dll" "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll" "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug" CONFIGURATIONS Debug)
+
+# Assets/Fonts
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Fonts/"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug/Assets/Fonts" CONFIGURATIONS Debug)
+
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Fonts/"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release/Assets/Fonts" CONFIGURATIONS Release)
+
+# Assets/Shaders
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Shaders/"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug/Assets" CONFIGURATIONS Debug)
+
+install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Shaders/"
+    DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release/Assets" CONFIGURATIONS Release)
+
 
 # --- Define compile-time feature flags ---
 add_definitions(-DSALIX_GUI_IMGUI -DSALIX_BACKEND_SDL -DSALIX_IMAGE_SDL)
