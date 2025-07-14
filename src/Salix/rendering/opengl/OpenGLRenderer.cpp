@@ -37,67 +37,6 @@
 
 namespace Salix {
 
-    // --- GLSL Shader Sources as String Literals ---
-    // These are defined here as they are used to create the shader program objects in this file.
-    const char* TEXTURE_VERTEX_SHADER_SOURCE = R"(
-    #version 450 core
-    layout (location = 0) in vec2 aPos;
-    layout (location = 1) in vec2 aTexCoord;
-
-    uniform mat4 model;
-    uniform mat4 projection; 
-
-    out vec2 TexCoord;
-
-    void main()
-    {
-        gl_Position = projection * model * vec4(aPos, 0.0, 1.0);
-        TexCoord = aTexCoord;
-    }
-    )";
-
-    const char* TEXTURE_FRAGMENT_SHADER_SOURCE = R"(
-    #version 450 core
-    out vec4 FragColor;
-
-    in vec2 TexCoord;
-
-    uniform sampler2D textureSampler;
-    uniform vec4 tintColor; // New uniform for tinting/coloring
-
-    
-    void main()
-    {
-        FragColor = texture(textureSampler, TexCoord) * tintColor; // Apply tint
-    }
-    )";
-    
-
-    const char* COLOR_VERTEX_SHADER_SOURCE = R"(
-    #version 450 core
-    layout (location = 0) in vec2 aPos;
-
-    uniform mat4 model;
-    uniform mat4 projection; 
-
-    void main()
-    {
-        gl_Position = projection * model * vec4(aPos, 0.0, 1.0);
-    }
-    )";
-
-    const char* COLOR_FRAGMENT_SHADER_SOURCE = R"(
-    #version 450 core
-    out vec4 FragColor;
-
-    uniform vec4 objectColor;
-
-    void main()
-    {
-        FragColor = objectColor;
-    }
-    )";
-
     // --- OpenGLRenderer Pimpl Implementation ---
     struct OpenGLRenderer::Pimpl {
         std::unique_ptr<IWindow> window;
@@ -105,7 +44,10 @@ namespace Salix {
 
         int window_width = 0;  // Store current window dimensions
         int window_height = 0;
-
+        const std::string texture_vertex_file = "Assets/Shaders/OpenGL/2D/textured.vert";
+        const std::string texture_fragment_file = "Assets/Shaders/OpenGL/2D/textured.frag";
+        const std::string color_vertex_file = "Assets/Shaders/OpenGL/2D/color.vert";
+        const std::string color_fragment_file = "Assets/Shaders/OpenGL/2D/color.frag";
         // OpenGL resources for 2D rendering
         GLuint quad_vao = 0; // Vertex Array Object for the quad
         GLuint quad_vbo = 0; // Vertex Buffer Object for the quad vertices (positions and texture coordinates)
@@ -175,28 +117,29 @@ namespace Salix {
 
 
     void OpenGLRenderer::Pimpl::setup_shaders() {
-        texture_shader = std::make_unique<OpenGLShaderProgram>(TEXTURE_VERTEX_SHADER_SOURCE, TEXTURE_FRAGMENT_SHADER_SOURCE);
+        texture_shader = std::make_unique<OpenGLShaderProgram>(texture_vertex_file, texture_fragment_file);
         
-        color_shader = std::make_unique<OpenGLShaderProgram>(COLOR_VERTEX_SHADER_SOURCE, COLOR_FRAGMENT_SHADER_SOURCE); 
+        color_shader = std::make_unique<OpenGLShaderProgram>(color_vertex_file, color_fragment_file); 
 
         // Set the texture sampler uniform once (it refers to texture unit 0)
         texture_shader->use();
 
-        // --- ADD THESE DEBUG LINES ---
         GLint modelLoc = glGetUniformLocation(texture_shader->ID, "model");
         GLint projLoc = glGetUniformLocation(texture_shader->ID, "projection");
-        GLint texSamplerLoc = glGetUniformLocation(texture_shader->ID, "textureSampler");
-        GLint tintColorLoc = glGetUniformLocation(texture_shader->ID, "tintColor");
-
+        GLint texSamplerLoc = glGetUniformLocation(texture_shader->ID, "texture_sampler");
+        GLint tintColorLoc = glGetUniformLocation(texture_shader->ID, "tint_color");
+        
+        
+        // --- DEBUG LINES ---
         std::cout << "DEBUG: Texture Shader Uniform Locations: "
               << "model=" << modelLoc
               << ", projection=" << projLoc
-              << ", textureSampler=" << texSamplerLoc
-              << ", tintColor=" << tintColorLoc << std::endl;
-    // --- END DEBUG LINES ---
+              << ", texture_sampler=" << texSamplerLoc
+              << ", tint_color=" << tintColorLoc << std::endl;
+        // --- END DEBUG LINES ---
 
 
-        texture_shader->setInt("textureSampler", 0); // Ensure the sampler is set to texture unit 0
+        texture_shader->setInt("texture_sampler", 0); // Ensure the sampler is set to texture unit 0
         glUseProgram(0); // Unuse shader
 
         std::cout << "DEBUG: Shaders setup complete." << std::endl;
@@ -256,6 +199,8 @@ namespace Salix {
         SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
         SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
         SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+        // FIX: Request an 8-bit alpha buffer for the framebuffer
+        SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
         SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
         log_file << "[DEBUG] SDL_GL_SetAttribute... OK" << std::endl;
@@ -420,6 +365,7 @@ namespace Salix {
             return nullptr;
         }
 
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   // <--- TEST CODE
         // Use glTextureStorage2D for immutable storage (OpenGL 4.5 feature)
         // This allocates the memory once, making it more efficient.
         glTextureStorage2D(texture_id, 1, internal_format, width, height);   // Mip levels = 1 for now.
@@ -439,6 +385,9 @@ namespace Salix {
         return new OpenGLTexture(texture_id, width, height);
     }
     
+
+
+
     void OpenGLRenderer::purge_texture(ITexture* texture) {
         if (texture) {
         // The OpenGLTexture destructor automatically calls glDeleteTextures
@@ -467,20 +416,37 @@ namespace Salix {
             std::cerr << "ERROR: Invalid texture type passed to OpenGLRenderer::draw_sprite." << std::endl;
             return;
         }
-        /*
-        std::cout << "DEBUG: Drawing sprite - Texture ID: " << opengl_texture->get_id()
-              << " DestRect: x=" << dest_rect.x << " y=" << dest_rect.y
-              << " w=" << dest_rect.w << " h=" << dest_rect.h 
-              << " Angle: " << angle << " Color: " << color.r << "," << color.g << "," << color.b << "," << color.a << std::endl;
-        --- END DEBUG LINE ---
-        */
+        if (opengl_texture->get_id() == 0) {
+            std::cerr << "ERROR: Attempting to draw with a deleted/invalid OpenGLTexture ID (ID is 0)!" << std::endl;
+            return; // Don't try to draw with a bad ID
+        }
+        
+        // --- ADD THESE DEBUG CHECKS IMMEDIATELY HERE ---
+        GLboolean is_blending_enabled;
+        glGetBooleanv(GL_BLEND, &is_blending_enabled);
+        GLint blend_src_rgb, blend_dest_rgb;
+        glGetIntegerv(GL_BLEND_SRC_RGB, &blend_src_rgb); // GL_SRC_ALPHA is 0x0302
+        glGetIntegerv(GL_BLEND_DST_RGB, &blend_dest_rgb); // GL_ONE_MINUS_SRC_ALPHA is 0x0303
+
+        std::cout << "DEBUG: draw_sprite - Blending State: BLEND_ENABLED=" << (is_blending_enabled ? "TRUE" : "FALSE")
+              << ", BLEND_SRC_RGB=" << blend_src_rgb << " (0x" << std::hex << blend_src_rgb << std::dec << ")"
+              << ", BLEND_DST_RGB=" << blend_dest_rgb << " (0x" << std::hex << blend_dest_rgb << std::dec << ")" << std::endl;
+        // --- END ADDITION ---
+
+        //std::cout << "DEBUG: Drawing sprite - Texture ID: " << opengl_texture->get_id()
+        //      << " DestRect: x=" << dest_rect.x << " y=" << dest_rect.y
+        //      << " w=" << dest_rect.w << " h=" << dest_rect.h 
+        //      << " Angle: " << angle << " Color: " << color.r << "," << color.g << "," << color.b << "," << color.a << std::endl;
+        // --- END DEBUG LINE ---
+        
         pimpl->texture_shader->use();
         pimpl->texture_shader->setMat4("projection", pimpl->projection_matrix);
         
+        
         // Pass tint color to shader
         pimpl->texture_shader->setVec4(
-            "tintColor", glm::vec4(
-            color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f)
+            "tint_color", glm::vec4(
+            color.r, color.g , color.b , color.a )
         ); 
 
         // --- Calculate Model Matrix for Sprite ---
@@ -530,7 +496,7 @@ namespace Salix {
         // --- Texture Binding ---
         glActiveTexture(GL_TEXTURE0); // Activate texture unit 0
         glBindTexture(GL_TEXTURE_2D, opengl_texture->get_id());
-        // 'textureSampler' uniform was already set to 0 in ShaderProgram setup.
+        // 'texture_sampler' uniform was already set to 0 in ShaderProgram setup.
 
         // --- Draw Call ---
         glBindVertexArray(pimpl->quad_vao);
@@ -540,8 +506,11 @@ namespace Salix {
         glBindTexture(GL_TEXTURE_2D, 0);        // Unbind texture
         glBindVertexArray(0);                   // Unbind VAO
         glUseProgram(0);                        // Unuse shader program
-     }
+    }
      
+       
+
+    
 
     void OpenGLRenderer::set_clear_color(const Color& color) {
 
@@ -563,7 +532,7 @@ namespace Salix {
         model = glm::scale(model, glm::vec3(rect.w, rect.h, 1.0f));
         pimpl->color_shader->setMat4("model", model);
             
-        pimpl->color_shader->setVec4("objectColor", glm::vec4(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f));
+        pimpl->color_shader->setVec4("object_color", glm::vec4(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f));
 
         glBindVertexArray(pimpl->quad_vao);
         if (filled) {
