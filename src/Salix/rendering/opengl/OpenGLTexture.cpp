@@ -26,6 +26,9 @@ namespace Salix {
             glDeleteTextures(1, &pimpl->texture_id);
             std::cout << "DEBUG: OpenGLTexture " << pimpl->texture_id << std::endl;
             pimpl->texture_id = 0;  // Mark as deleted.
+        } else {
+        // This case means the destructor was called but ID was already 0 (double deletion attempt or already zeroed)
+        std::cout << "DEBUG: OpenGLTexture destructor called for already deleted/invalid ID (was 0)." << std::endl;
         }
     }
     
