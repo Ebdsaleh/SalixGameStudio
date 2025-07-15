@@ -16,7 +16,7 @@ namespace Salix {
     class ITimer;
     class IGui;
     class IEventPoller;
-    class IEventManager;
+    class EventManager;
     class IThemeManager;
     class IFontManager;
     struct ApplicationConfig;
@@ -34,7 +34,7 @@ namespace Salix {
         IRenderer* renderer = nullptr;
         IWindow* window = nullptr;
         IEventPoller* event_poller;
-        IEventManager* event_manager;
+        EventManager* event_manager;
         IThemeManager* theme_manager;
         IFontManager* font_manager;
         EngineMode engine_mode = EngineMode::None;
