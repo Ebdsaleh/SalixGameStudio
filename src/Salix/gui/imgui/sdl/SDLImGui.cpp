@@ -521,4 +521,8 @@ namespace Salix {
         pimpl->app_config = config;
     }
 
+    ApplicationConfig* SDLImGui::get_app_config() {
+        return pimpl->app_config;
+    }
+
 } // namespace Salix

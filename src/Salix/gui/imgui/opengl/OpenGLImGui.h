@@ -59,6 +59,7 @@ namespace Salix {
         // --- Implement Abstract Input Handling for GUI ---
         bool process_raw_input_event(void* native_event) override;
         void set_app_config(ApplicationConfig* config) override;
+        ApplicationConfig* get_app_config() override;
         // Specific method to set up event system dependencies.
         void setup_event_polling(IEventPoller* event_poller, EventManager* event_manager);
     private:

@@ -134,6 +134,11 @@ namespace Salix {
         pimpl->app_config = config;
     }
     
+
+    ApplicationConfig* OpenGLImGui::get_app_config() {
+        return pimpl->app_config;
+    }
+    
     void OpenGLImGui::Pimpl::unregister_raw_event_callback_if_registered() {
         if (event_poller && raw_event_callback_handle != 0) {
             event_poller->unregister_raw_event_callback(raw_event_callback_handle);

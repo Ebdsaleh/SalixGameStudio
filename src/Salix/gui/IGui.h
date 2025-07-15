@@ -103,5 +103,7 @@ namespace Salix {
         virtual bool process_raw_input_event(void* native_event) = 0; // e.g., SDL_Event*
 
         virtual void set_app_config(ApplicationConfig* config) = 0;
+
+        virtual ApplicationConfig* get_app_config() = 0;
     };
 }
