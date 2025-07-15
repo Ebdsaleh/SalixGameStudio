@@ -132,8 +132,11 @@ namespace Salix {
             return false;
         }
         
+
+
+
+
         // --- INITIALIZE SDL_TTF ---
-         // --- INITIALIZE SDL_ttf ---
         if (TTF_Init() == -1) {
             std::cerr << "Engine::initialize - SDL_ttf could not be initialized! TTF_Error: " << TTF_GetError() << std::endl;
             SDL_Quit(); // Ensure SDL is quit if TTF fails
@@ -247,21 +250,7 @@ namespace Salix {
 
 
 
-        // --- EDITOR DLL HANDLE 'editor_dll_handle' 'SalixEditor.dll' ---
-        std::cout << "Engine: Loading SalixEditor.dll..." << std::endl;
-        pimpl->editor_dll_handle = LoadLibraryA("SalixEditor.dll");
-        if (!pimpl->editor_dll_handle) {
-            std::cerr << "FATAL ERROR: Could not load SalixEditor.dll!" << std::endl;
-            return false;
-        }
-        std::cout << "[ENGINE] SalixEditor.dll loaded!" << std::endl;
-        pimpl->editor_state_factory = (Pimpl::CreateStateFn)GetProcAddress(pimpl->editor_dll_handle, "create_editor_state");
-        if (!pimpl->editor_state_factory) {
-            std::cerr << "FATAL ERROR: Could not find 'create_editor_state' in SalixEditor.dll!" << std::endl;
-            return false;
-        }
-        std::cout << "[ENGINE] Attempting to resolve create_editor_state..." << std::endl;
-
+        
 
 
         // --- ASSIGN GUI TYPE ---
@@ -366,9 +355,48 @@ namespace Salix {
         }
 
 
-        // --- INITIALIZE THE INIT CONTEXT ---
-        // Make the context object here
-        // pimpl->context = make_context(); 
+
+        // ---  INITIALIZE THE EDITOR FACTORY AND SET THE CONTEXT TO THE INITIALIIZE GUI SYSTEM.
+
+
+        // --- EDITOR DLL HANDLE 'editor_dll_handle' 'SalixEditor.dll' ---
+        std::cout << "Engine: Loading SalixEditor.dll..." << std::endl;
+        pimpl->editor_dll_handle = LoadLibraryA("SalixEditor.dll");
+        if (!pimpl->editor_dll_handle) {
+            std::cerr << "FATAL ERROR: Could not load SalixEditor.dll!" << std::endl;
+            return false;
+        }
+        std::cout << "[ENGINE] SalixEditor.dll loaded!" << std::endl;
+        pimpl->editor_state_factory = (Pimpl::CreateStateFn)GetProcAddress(pimpl->editor_dll_handle, "create_editor_state");
+        if (!pimpl->editor_state_factory) {
+            std::cerr << "FATAL ERROR: Could not find 'create_editor_state' in SalixEditor.dll!" << std::endl;
+            return false;
+        }
+        std::cout << "[ENGINE] Attempting to resolve create_editor_state..." << std::endl;
+
+
+        // --- Synchronize ImGui Context with the Editor DLL ---
+
+        // 1. Define the function pointer type for our new function.
+        typedef void(*SetImGuiContextFn)(ImGuiContext*);
+
+        // 2. Get the function's address from the loaded DLL.
+        SetImGuiContextFn set_context_func = (SetImGuiContextFn)GetProcAddress(pimpl->editor_dll_handle, "set_imgui_context");
+
+        // 3. Check if we found it and then call it.
+        if (set_context_func) {
+
+            // This is the crucial call: Pass the engine's current ImGui context
+            // to the function inside the DLL.
+            set_context_func(ImGui::GetCurrentContext());
+            std::cout << "[ENGINE] ImGui context synchronized with SalixEditor.dll." << std::endl;
+        } else {
+
+            // If we can't find the function, it's a fatal error.
+            std::cerr << "FATAL ERROR: Could not find 'set_imgui_context' function in SalixEditor.dll!" << std::endl;
+            return false;
+        }
+
 
         
 
