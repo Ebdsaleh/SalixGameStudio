@@ -7,10 +7,17 @@
 
 #include <Salix/core/Core.h>        // For the SALIX_API macro
 #include <Salix/states/IAppState.h> // For IAppState and AppStateType
-
+#include <imgui/imgui.h>
 #ifdef SALIX_BUILD_EDITOR
     // Exports the editor state's factory function
-    extern "C" EDITOR_API Salix::IAppState* create_editor_state(Salix::AppStateType state_type);
+    extern "C" {
+        EDITOR_API Salix::IAppState* create_editor_state(Salix::AppStateType state_type);
+        EDITOR_API void set_imgui_context(ImGuiContext* context); 
+    }
 #else
-    extern "C" Salix::IAppState* create_editor_state(Salix::AppStateType state_type);
+    extern "C" {
+        EDITOR_API Salix::IAppState* create_editor_state(Salix::AppStateType state_type);
+        EDITOR_API void set_imgui_context(ImGuiContext* context);
+    } 
 #endif
+
