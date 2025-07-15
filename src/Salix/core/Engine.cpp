@@ -109,6 +109,7 @@ namespace Salix {
         pimpl->timer.reset();
         pimpl->asset_manager.reset();
         pimpl->renderer.reset();
+        pimpl->app_config.reset();
 
         if (pimpl->game_dll_handle) {
             FreeLibrary(pimpl->game_dll_handle);
@@ -274,9 +275,11 @@ namespace Salix {
 
                 if (config.renderer_type == RendererType::SDL) {
                     pimpl->gui_system = std::make_unique<SDLImGui>();
+                    
 
                 } else if (config.renderer_type == RendererType::OpenGL) {
                     pimpl->gui_system = std::make_unique<OpenGLImGui>();
+                    
                 }
 
                 // --- SETUP ALL IMGUI REQUIRED CLASSES ---
@@ -610,7 +613,7 @@ namespace Salix {
      void Engine::Pimpl::opengl_test(IRenderer* renderer_param)
     {
         std::cout << "--- Starting OpenGL Sanity Test ---" << std::endl;
-        if (!renderer) {
+        if (!renderer_param) {
             std::cerr << "ERROR: Renderer is null for opengl_test." << std::endl;
             return;
         }
@@ -634,8 +637,8 @@ namespace Salix {
             }
 
             // The core rendering test
-            renderer->begin_frame(); // This will call clear()
-            renderer->end_frame();   // This will swap the window buffer
+            renderer_param->begin_frame(); // This will call clear()
+            renderer_param->end_frame();   // This will swap the window buffer
 
             frame_count++;
             SDL_Delay(16); // roughly 60fps
