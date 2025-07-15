@@ -54,7 +54,7 @@ namespace Salix {
 
         DialogBox* create_dialog(std::string& key, std::string& title, DialogType type, bool overwrite) override;
         bool register_dialog(std::unique_ptr<DialogBox> dialog) override;
-
+ 
         void show_dialog_by_key(std::string& key) override;
         // --- Implement Abstract Input Handling for GUI ---
         bool process_raw_input_event(void* native_event) override;

@@ -16,7 +16,7 @@
 #include <functional>
 #include <iostream>
 #include <SDL.h>
-
+ 
 namespace Salix {
     
     struct OpenGLImGui::Pimpl {
