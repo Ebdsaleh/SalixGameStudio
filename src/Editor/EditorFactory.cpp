@@ -19,3 +19,8 @@ Salix::IAppState* create_editor_state(Salix::AppStateType state_type) {
             return nullptr;
     }
 }
+
+// This will allow the ImGui context to traverse the Dll scope barrier.
+void set_imgui_context(ImGuiContext* context) {
+    ImGui::SetCurrentContext(context);
+}
