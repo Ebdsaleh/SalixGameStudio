@@ -9,6 +9,8 @@
 add_library(SalixEditor SHARED
     EditorFactory.cpp
     states/EditorState.cpp
+    panels/PanelManager.cpp
+    panels/WorldTreePanel.cpp
     # Add any other .cpp files specific to SalixEditor.dll here
 )
 
