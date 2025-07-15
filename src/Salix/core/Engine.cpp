@@ -81,7 +81,7 @@ namespace Salix {
         using CreateStateFn = IAppState* (*)(AppStateType);
         CreateStateFn game_state_factory = nullptr;
         CreateStateFn editor_state_factory = nullptr;
-        void opengl_test(IRenderer* renderer);
+        void opengl_test(IRenderer* renderer_param);
     };
 
     Engine::Engine() : pimpl(std::make_unique<Pimpl>()) {
@@ -590,6 +590,7 @@ namespace Salix {
         ctx.engine_mode     = pimpl->engine_mode;
         ctx.gui_type        = pimpl->gui_type;
         ctx.gui = pimpl->gui_system.get();
+        ctx.event_manager = pimpl->event_manager.get();
 
         if (ctx.engine_mode == EngineMode::Game) {
             std::cout << "Engine::make_context - InputManager = 'game_input_manager'." << std::endl;
@@ -606,7 +607,7 @@ namespace Salix {
         return ctx;
     }
 
-     void Engine::Pimpl::opengl_test(IRenderer* renderer)
+     void Engine::Pimpl::opengl_test(IRenderer* renderer_param)
     {
         std::cout << "--- Starting OpenGL Sanity Test ---" << std::endl;
         if (!renderer) {
