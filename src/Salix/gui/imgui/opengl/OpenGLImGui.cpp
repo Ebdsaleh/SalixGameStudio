@@ -20,6 +20,7 @@
 namespace Salix {
     
     struct OpenGLImGui::Pimpl {
+        ImGuiContext* context = nullptr;
         IWindow* i_window = nullptr; // Not strictly needed to store, but fine if you use it
         IRenderer* i_renderer = nullptr; // Not strictly needed to store, but fine if you use it
         SDL_Window* sdl_window = nullptr; // Actual native SDL_Window pointer
@@ -44,6 +45,7 @@ namespace Salix {
 
 
     OpenGLImGui::~OpenGLImGui() {
+        std::cout << "OpenGLImGui::~OpenGLImGui - Destructor called!" << std::endl;
         pimpl->unregister_raw_event_callback_if_registered();
     }
 
@@ -84,7 +86,7 @@ namespace Salix {
         io.Fonts->Build();          // Build the font atlas (CPU side)
 
         ImGui_ImplOpenGL3_UpdateTexture(io.Fonts->TexData);
-
+        pimpl->context = ImGui::GetCurrentContext();
         std::cout << "OpenGLImGui: Initialized successfully." << std::endl;
         return true;
     }
@@ -94,10 +96,11 @@ namespace Salix {
 
     void OpenGLImGui::shutdown() {
         // Unregister raw event callback first
+        std::cout << "OpenGLImGUi::Shutdown - Shutdown called." << std::endl;
         pimpl->unregister_raw_event_callback_if_registered();
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplSDL2_Shutdown();
-        if (ImGui::GetCurrentContext()) ImGui::DestroyContext();
+        if (ImGui::GetCurrentContext()) { ImGui::DestroyContext(); }
     }
 
 
@@ -513,5 +516,6 @@ namespace Salix {
         return event_consumed_by_gui;
     } 
     
-    
-}
+    ImGuiContext* OpenGLImGui::get_context() { return pimpl->context; }
+
+}  // namespace Salix.

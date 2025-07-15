@@ -21,6 +21,7 @@
 namespace Salix {
 
     struct SDLImGui::Pimpl {
+        ImGuiContext* context = nullptr;
         IWindow* i_window = nullptr; // Not strictly needed to store, but fine if you use it
         IRenderer* i_renderer = nullptr; // Not strictly needed to store, but fine if you use it
         SDL_Window* sdl_window = nullptr; // Actual native SDL_Window pointer
@@ -103,6 +104,7 @@ namespace Salix {
         io.Fonts->Build();          // Build the font atlas (CPU side)
         ImGui_ImplSDLRenderer2_UpdateTexture(io.Fonts->TexData);
         std::cout << "SDLImGui: ✅ Initialized Dear ImGui backend." << std::endl;
+        pimpl->context = ImGui::GetCurrentContext();
         return true;
     }
     
@@ -524,5 +526,7 @@ namespace Salix {
     ApplicationConfig* SDLImGui::get_app_config() {
         return pimpl->app_config;
     }
+
+    ImGuiContext* SDLImGui::get_context() { return pimpl->context; }
 
 } // namespace Salix

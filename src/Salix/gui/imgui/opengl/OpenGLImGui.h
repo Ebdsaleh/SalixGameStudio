@@ -62,6 +62,7 @@ namespace Salix {
         ApplicationConfig* get_app_config() override;
         // Specific method to set up event system dependencies.
         void setup_event_polling(IEventPoller* event_poller, EventManager* event_manager);
+        ImGuiContext* get_context() override;
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
