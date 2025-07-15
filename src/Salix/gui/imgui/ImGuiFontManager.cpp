@@ -3,11 +3,13 @@
 #include <Salix/gui/imgui/ImGuiFont.h>
 #include <Salix/gui/imgui/ImGuiFontData.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
+#include <Salix/gui/imgui/opengl/OpenGLImGui.h>
 #include <Salix/gui/IFont.h> // For IFont interface (if you have one)
 #include <Salix/gui/IGui.h> // For IGui interface (to get renderer)
 #include <Salix/rendering/IRenderer.h> // For IRenderer::get_native_handle()
 #include <filesystem>
 #include <iostream>
+#include <Salix/core/ApplicationConfig.h>
 #include <unordered_map> // For std::unordered_map
 #include <imgui.h> // For ImGuiIO, ImFontAtlas, ImFont
 #include <backends/imgui_impl_sdlrenderer2.h> // For ImGui_ImplSDLRenderer2_CreateFontsTexture
@@ -18,7 +20,7 @@ namespace Salix {
 
     // Pimpl struct definition
     struct ImGuiFontManager::Pimpl {
-        IGui* gui_ref = nullptr; // Non-owning pointer to the GUI system
+        IGui* gui_system = nullptr; // Non-owning pointer to the GUI system
         SDL_Renderer* sdl_renderer = nullptr; // Raw pointer to the backend renderer (for font texture creation)
         std::unordered_map<std::string, std::unique_ptr<IFont>> font_registry; // Registry for loaded fonts
         // ImFont* active_imgui_font = nullptr; // Optional: to track currently active ImGui font
@@ -37,10 +39,10 @@ namespace Salix {
             std::cerr << "ImGuiFontManager::initialize - 'gui_system' is null." << std::endl;
             return false;
         }
-        pimpl->gui_ref = gui_system;
+        pimpl->gui_system = gui_system;
 
         // Get the native renderer handle from the IGui system
-        IRenderer* renderer_interface = pimpl->gui_ref->get_renderer();
+        IRenderer* renderer_interface = pimpl->gui_system->get_renderer();
         if (!renderer_interface) {
             std::cerr << "ImGuiFontManager::initialize - IRenderer interface is null from IGui." << std::endl;
             return false;
@@ -59,7 +61,7 @@ namespace Salix {
     // Shuts down the Font Manager.
     void ImGuiFontManager::shutdown() {
         pimpl->font_registry.clear(); // Clear unique_ptrs in registry
-        pimpl->gui_ref = nullptr;
+        pimpl->gui_system = nullptr;
         pimpl->sdl_renderer = nullptr;
         std::cout << "ImGuiFontManager::shutdown - Operation Successful." << std::endl;
     }
@@ -94,20 +96,38 @@ namespace Salix {
 
 
       bool ImGuiFontManager::rebuild_font_atlas_texture() {
-        if (!pimpl->gui_ref) {
-            std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - IGui reference is null." << std::endl;
+
+        if (!pimpl->gui_system) {
+            std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - IGui reference is NULL." << std::endl;
             return false;
         }
 
         // Call the public backend method to recreate device objects (including font texture).
         // This is the correct way to trigger the font texture recreation from the font manager.
-        SDLImGui* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_ref);
-        if (sdl_imgui) {
-            sdl_imgui->reinitialize_backend(); // Call the new re-initialization method
-            std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
-            return true;
+        if (pimpl->gui_system->get_app_config()->renderer_type == RendererType::SDL) {
+            SDLImGui* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_system);
+            if (sdl_imgui) {
+
+                sdl_imgui->reinitialize_backend(); // Call the new re-initialization method
+                std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
+                return true;
+            } else {
+
+                std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Could not cast IGui* to SDLImGui*. Font texture not rebuilt." << std::endl;
+                return false;
+            }
+        } else if (pimpl->gui_system->get_app_config()->renderer_type == RendererType::OpenGL) {
+                OpenGLImGui* opengl_imgui = dynamic_cast<OpenGLImGui*>(pimpl->gui_system);
+                if (opengl_imgui) {
+                std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
+                return true;
+            } else {
+
+                std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Could not cast IGui* to OpenGLImGui*. Font texture not rebuilt." << std::endl;
+                return false;
+            }
         } else {
-            std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Could not cast IGui* to SDLImGui*. Font texture not rebuilt." << std::endl;
+            std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Unrecognized 'gui_system'!" << std::endl;
             return false;
         }
     }
