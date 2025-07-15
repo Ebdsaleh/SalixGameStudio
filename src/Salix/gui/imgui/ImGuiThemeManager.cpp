@@ -4,7 +4,8 @@
 #include <Salix/gui/imgui/ImGuiTheme.h>
 #include <Salix/gui/imgui/ImGuiThemeData.h>
 #include <Salix/gui/IFontManager.h>
-#include <imgui.h>
+#include <Salix/core/ApplicationConfig.h>
+#include <imgui/imgui.h>
 #include <fstream>
 #include <filesystem>
 #include <Salix/management/FileManager.h>
