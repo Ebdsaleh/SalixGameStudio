@@ -105,5 +105,7 @@ namespace Salix {
         virtual void set_app_config(ApplicationConfig* config) = 0;
 
         virtual ApplicationConfig* get_app_config() = 0;
+
+        virtual ImGuiContext* get_context() = 0;
     };
 }
