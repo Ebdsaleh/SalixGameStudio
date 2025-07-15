@@ -1,35 +1,29 @@
-// Editor/states/EditorState.h
+// =================================================================================
+// Filename:    Editor/states/EditorState.h
+// Author:      SalixGameStudio
+// Description: The main state for the Salix Editor application.
+// =================================================================================
 #pragma once
-
+#include <Editor/EditorAPI.h>
 #include <Salix/states/IAppState.h>
-#include <Salix/core/InitContext.h>
 #include <memory>
-
 
 namespace Salix {
 
-    // Forward declarations
-    class ProjectManager;
-    class AssetManager;
-    class IRenderer;
+    class EDITOR_API EditorState : public IAppState {
+    public:
+        EditorState();
+        ~EditorState();
 
-    class EditorState : public IAppState{
-        public:
-            EditorState();
-            virtual ~EditorState();
+        // IAppState interface implementation
+        void on_enter(const InitContext& new_context) override;
+        void on_exit() override;
+        void update(float delta_time) override;
+        void render(IRenderer* renderer_param) override;
 
-            // Implement the IAppState interface
-            void on_enter(const InitContext& new_context) override;
-            void on_exit()override;
-            void update(float delta_time) override;
-            void render(IRenderer* renderer) override;
-        
-        private:
-            // The EditorState OWNS the ProjectManager for the currently open project.
-            std::unique_ptr<ProjectManager> project_manager;
-            InitContext context;
-            // Non-owning pointers to the engine and its systems.
-            AssetManager* asset_manager;
-            IRenderer* renderer;
+    private:
+        // Using the Pimpl idiom to hide implementation details
+        struct Pimpl;
+        std::unique_ptr<Pimpl> pimpl;
     };
-} // namespace Salix
+}
