@@ -11,6 +11,7 @@ add_library(SalixEditor SHARED
     states/EditorState.cpp
     panels/PanelManager.cpp
     panels/WorldTreePanel.cpp
+    panels/ScryingMirrorPanel.cpp
     # Add any other .cpp files specific to SalixEditor.dll here
 )
 
