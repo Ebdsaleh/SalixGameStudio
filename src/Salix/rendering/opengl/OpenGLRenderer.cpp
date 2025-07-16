@@ -8,16 +8,16 @@
 // This tells the preprocessor to include the function implementations from stb_image.h.
 #define STB_IMAGE_IMPLEMENTATION 
 #include <stb/stb_image.h> // Make sure this path is correct for your project setup
-
-#include <Salix/rendering/opengl/OpenGLRenderer.h> // Your own header
-#include <Salix/rendering/opengl/OpenGLTexture.h>  // Your OpenGLTexture definition
-#include <Salix/window/sdl/SDLWindow.h>     // We still use SDL for the window
+#include <Salix/ecs/Camera.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h> 
+#include <Salix/rendering/opengl/OpenGLTexture.h>
+#include <Salix/window/sdl/SDLWindow.h>
 #include <Salix/window/WindowConfig.h>
 #include <Salix/window/IWindow.h>
-#include <Salix/rendering/ITexture.h>       // For ITexture interface
-#include <Salix/math/Rect.h>                // For Rect
-#include <Salix/math/Color.h>               // For Color
-#include <Salix/math/Point.h>               // For Point
+#include <Salix/rendering/ITexture.h>       
+#include <Salix/math/Rect.h>
+#include <Salix/math/Color.h>
+#include <Salix/math/Point.h>
 
 // Include the header for your OpenGLShaderProgram class
 #include <Salix/rendering/opengl/OpenGLShaderProgram.h> 
@@ -42,25 +42,46 @@ namespace Salix {
         std::unique_ptr<IWindow> window;
         SDL_GLContext gl_context = nullptr;
 
-        int window_width = 0;  // Store current window dimensions
+        int window_width = 0;  // Store current window dimensions.
         int window_height = 0;
+
+        // --- Shader Programs ---
+        // 2D Shaders
         const std::string texture_vertex_file = "Assets/Shaders/OpenGL/2D/textured.vert";
         const std::string texture_fragment_file = "Assets/Shaders/OpenGL/2D/textured.frag";
         const std::string color_vertex_file = "Assets/Shaders/OpenGL/2D/color.vert";
         const std::string color_fragment_file = "Assets/Shaders/OpenGL/2D/color.frag";
-        // OpenGL resources for 2D rendering
-        GLuint quad_vao = 0; // Vertex Array Object for the quad
-        GLuint quad_vbo = 0; // Vertex Buffer Object for the quad vertices (positions and texture coordinates)
+        std::unique_ptr<OpenGLShaderProgram> texture_shader; // For drawing textures/sprites.
+        std::unique_ptr<OpenGLShaderProgram> color_shader;   // For drawing colored rectangles.
 
-        std::unique_ptr<OpenGLShaderProgram> texture_shader; // For drawing textures/sprites
-        std::unique_ptr<OpenGLShaderProgram> color_shader;   // For drawing colored rectangles
+        // 3D Shader
+        const std::string simple_3d_vertex_file = "Assets/Shaders/OpenGL/3D/simple.vert";
+        const std::string simple_3d_fragment_file = "Assets/Shaders/OpenGL/3D/simple.frag";
+        std::unique_ptr<OpenGLShaderProgram> simple_3d_shader;
 
-        glm::mat4 projection_matrix; // Orthographic projection matrix
+
+        // --- Geometry ---
+
+        // 2D Quad
+        GLuint quad_vao = 0; // Vertex Array Object for the quad.
+        GLuint quad_vbo = 0; // Vertex Buffer Object for the quad vertices (positions and texture coordinates).
+
+        // 3D Cube
+        GLuint cube_vao = 0;
+        GLuint cube_vbo = 0;
+
+
+        // --- Matrices & Camera ---
+        glm::mat4 projection_matrix_2d;        // Orthographic projection matrix.
+        Camera* active_camera = nullptr;    // Pointer to the active camera.
+
 
         // Private helper methods for Pimpl's internal setup
         void setup_quad_geometry();
+        void setup_cube_geometry();
         void setup_shaders();
-        void create_projection_matrix(int width, int height); // Takes window dimensions
+        void create_2D_projection_matrix(int width, int height); // Takes window dimensions.
+        
         void set_opengl_initial_state(); // Sets up blending, viewport, etc.
     };
 
@@ -114,15 +135,87 @@ namespace Salix {
     }
 
 
+    void OpenGLRenderer::Pimpl::setup_cube_geometry() {
+        // A simple cube with positions and colors
+        float vertices[] = {
+            // positions            // colors
+            -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+             0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+             0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+             0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            -0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+            -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f,
+
+            -0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+             0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+             0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+             0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+            -0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f,
+
+            -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f,
+
+            0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 0.0f,
+            0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f,
+            0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 0.0f,
+            0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 0.0f,
+
+            -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 1.0f,
+             0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 1.0f,
+             0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 1.0f,
+             0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 1.0f,
+            -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 1.0f,
+
+            -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+             0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 1.0f,
+             0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
+             0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
+            -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 1.0f,
+            -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 1.0f
+
+        };
+
+        glCreateVertexArrays(1, &cube_vao);
+        glCreateBuffers(1, &cube_vbo);
+        glNamedBufferData(cube_vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        // Position attritbutes (location = 0).
+        glEnableVertexArrayAttrib(cube_vao, 0);
+        glVertexArrayAttribBinding(cube_vao, 0, 0);
+        glVertexArrayAttribFormat(cube_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+
+        // Color attribute (location = 1)
+        glEnableVertexArrayAttrib(cube_vao, 1);
+        glVertexArrayAttribBinding(cube_vao, 1, 0);
+        glVertexArrayAttribFormat(cube_vao, 1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float));
+
+        glVertexArrayVertexBuffer(cube_vao, 0, cube_vbo, 0, 6 * sizeof(float));
+        std::cout << "DEBUG: Cube geometry setup complete." << std::endl;
+    }
+
 
 
     void OpenGLRenderer::Pimpl::setup_shaders() {
-        texture_shader = std::make_unique<OpenGLShaderProgram>(texture_vertex_file, texture_fragment_file);
-        
-        color_shader = std::make_unique<OpenGLShaderProgram>(color_vertex_file, color_fragment_file); 
 
+        texture_shader = std::make_unique<OpenGLShaderProgram>(texture_vertex_file, texture_fragment_file);
+        color_shader = std::make_unique<OpenGLShaderProgram>(color_vertex_file, color_fragment_file); 
         // Set the texture sampler uniform once (it refers to texture unit 0)
         texture_shader->use();
+        texture_shader->setInt("texture_sampler", 0); // Ensure the sampler is set to texture unit 0
+        glUseProgram(0); // Unuse shader
+
+        // load the 3D shader
+        simple_3d_shader = std::make_unique<OpenGLShaderProgram>(simple_3d_vertex_file, simple_3d_fragment_file);
+
+
 
         GLint modelLoc = glGetUniformLocation(texture_shader->ID, "model");
         GLint projLoc = glGetUniformLocation(texture_shader->ID, "projection");
@@ -139,31 +232,35 @@ namespace Salix {
         // --- END DEBUG LINES ---
 
 
-        texture_shader->setInt("texture_sampler", 0); // Ensure the sampler is set to texture unit 0
-        glUseProgram(0); // Unuse shader
+        
 
         std::cout << "DEBUG: Shaders setup complete." << std::endl;
     }
 
 
 
-    void OpenGLRenderer::Pimpl::create_projection_matrix(int width, int height) {
-        window_width = width;
-        window_height = height;
+    void OpenGLRenderer::Pimpl::create_2D_projection_matrix(int width, int height) {
         // Create an orthographic projection matrix for 2D rendering.
         // This maps pixel coordinates (0,0 at top-left) to OpenGL's clip space (-1 to 1).
         // glm::ortho(left, right, bottom, top, near, far)
         // For top-left origin: left=0, right=width, bottom=height, top=0 (inverted Y)
-        projection_matrix = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
+        window_width = width;
+        window_height = height;
+        projection_matrix_2d = glm::ortho(0.0f, (float)width, (float)height, 0.0f, -1.0f, 1.0f);
         std::cout << "DEBUG: Projection matrix created for " << width << "x" << height << std::endl;
     }
+
 
     void OpenGLRenderer::Pimpl::set_opengl_initial_state() {
         // Enable blending for transparency
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         // Disable depth testing for 2D rendering unless explicitly needed
-        glDisable(GL_DEPTH_TEST); 
+        // glDisable(GL_DEPTH_TEST); 
+
+        // Enable depth testing for 3D
+        glEnable(GL_DEPTH_TEST);
+
         // Set initial clear color
         // glClearColor(0.1f, 0.1f, 0.2f, 1.0f); // Removed as it's set in clear() or set_clear_color()
         // Set viewport to cover the entire window
@@ -176,9 +273,9 @@ namespace Salix {
 
     OpenGLRenderer::OpenGLRenderer() : pimpl(std::make_unique<Pimpl>()) {}
 
-    OpenGLRenderer::~OpenGLRenderer() {
-        shutdown(); // Ensure cleanup
-    }
+    OpenGLRenderer::~OpenGLRenderer() { shutdown(); } // Ensure cleanup 
+
+
 
     bool OpenGLRenderer::initialize(const WindowConfig& config) {
         // Open the log file for writing. This will create it or overwrite it.
@@ -251,21 +348,29 @@ namespace Salix {
         pimpl->setup_quad_geometry();
         log_file << "[DEBUG] Quad geometry setup... OK" << std::endl;
 
+        log_file << "[DEBUG] Setting up cube geometry..." << std::endl;
+        pimpl->setup_cube_geometry();
+        log_file << "[DEBUG Cube geometry setup... OK]" << std::endl;
+
         log_file << "[DEBUG] Setting up shaders..." << std::endl;
         pimpl->setup_shaders();
         log_file << "[DEBUG] Shaders setup... OK" << std::endl;
 
         log_file << "[DEBUG] Creating projection matrix..." << std::endl;
-        pimpl->create_projection_matrix(drawable_width, drawable_height);
+        pimpl->create_2D_projection_matrix(drawable_width, drawable_height);
         log_file << "[DEBUG] Projection matrix created... OK" << std::endl;
 
         log_file << "[DEBUG] OpenGLRenderer::initialize FINISHED" << std::endl;
+
+
         return true;
     }
 
     void OpenGLRenderer::shutdown() {
         // Clean up OpenGL resources (VAO, VBO, Shaders)
         // These are handled by Pimpl's destructor or explicit calls
+
+        
 
         if (pimpl->quad_vao != 0) {
             glDeleteVertexArrays(1, &pimpl->quad_vao);
@@ -277,8 +382,18 @@ namespace Salix {
             pimpl->quad_vbo = 0;
         }
 
-        pimpl->texture_shader.reset(); // Calls destructor, glDeleteProgram
-        pimpl->color_shader.reset();   // Calls destructor, glDeleteProgram
+        if (pimpl->cube_vao != 0) {
+            glDeleteVertexArrays(1, &pimpl->cube_vao);
+            pimpl->cube_vao = 0;
+        }
+        if (pimpl->cube_vbo != 0) {
+            glDeleteBuffers(1, &pimpl->cube_vbo);
+            pimpl->cube_vbo = 0;
+        }
+
+        pimpl->simple_3d_shader.reset();    // Calls destructor, glDeleteProgram
+        pimpl->texture_shader.reset();      // Calls destructor, glDeleteProgram
+        pimpl->color_shader.reset();        // Calls destructor, glDeleteProgram
 
         // Destroy OpenGL context
         if (pimpl->gl_context) {
@@ -293,23 +408,62 @@ namespace Salix {
         std::cout << "OpenGLRenderer shut down." << std::endl;
     }
 
+
+
+
     void OpenGLRenderer::begin_frame() {
         pimpl->set_opengl_initial_state();   // Re-set state in case ImGui or other things changed it.
         // FIX: Removed glClearColor here, as it's set via set_clear_color or in set_opengl_initial_state
         clear(); // Clear the buffer.
     }
 
+
+
     void OpenGLRenderer::end_frame() {
         // Swaps the front and back buffers to display what's rendered
         SDL_GL_SwapWindow(static_cast<SDL_Window*>(pimpl->window->get_native_handle()));
     }
 
+
+
     void OpenGLRenderer::clear() {
         // glClearColor is set in set_opengl_initial_state or via set_clear_color
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+        // Clear both color and depth buffers, which is crucial for 3D
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear both color and depth buffers
     }
     
+
+    // --- 3D Method Implementations ---
+
+    void OpenGLRenderer::set_active_camera(Camera* camera) {
+        pimpl->active_camera = camera;
+    }
+
+
+    void OpenGLRenderer::draw_cube(const glm::mat4& model_matrix, const Color& color) {
+        if (!pimpl->active_camera) {
+            std::cerr << "WARNING: Attempted to draw_cube with no active camera set." << std::endl;
+            return;
+        }
+
+        pimpl->simple_3d_shader->use();
+
+        // Pass the matrices to the shader.
+        pimpl->simple_3d_shader->setMat4("model", model_matrix);
+        pimpl->simple_3d_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
+        pimpl->simple_3d_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
+
+        // Note: The simple shader uses vertex colors, so the 'color' parameter is currently unused.
+        // A more advanced shader would take a uniform color.
+
+        glBindVertexArray(pimpl->cube_vao);
+        glDrawArrays(GL_TRIANGLES, 0, 36);      // 36 vertices for a cube made of triangles.
+        glBindVertexArray(0);
+        glUseProgram(0);
+    }
+
+
     // IRenderer Interface methods (getters)
     IWindow* OpenGLRenderer::get_window() { return pimpl->window.get(); }
 
@@ -440,7 +594,7 @@ namespace Salix {
         // --- END DEBUG LINE ---
         
         pimpl->texture_shader->use();
-        pimpl->texture_shader->setMat4("projection", pimpl->projection_matrix);
+        pimpl->texture_shader->setMat4("projection", pimpl->projection_matrix_2d);
         
         
         // Pass tint color to shader
@@ -525,7 +679,7 @@ namespace Salix {
         // and apply a color-only shader.
         pimpl->color_shader->use();
 
-        pimpl->color_shader->setMat4("projection", pimpl->projection_matrix);
+        pimpl->color_shader->setMat4("projection", pimpl->projection_matrix_2d);
 
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(rect.x, rect.y, 0.0f));
