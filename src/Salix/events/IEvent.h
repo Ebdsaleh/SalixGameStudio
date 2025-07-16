@@ -21,7 +21,8 @@ namespace Salix {
         Keyboard    = 1 << 2,
         Mouse       = 1 << 3,
         MouseButton = 1 << 4,
-        MouseAxis   = 1 << 5
+        MouseAxis   = 1 << 5,
+        Editor      = 1 << 6
     };
 
     // --- CHANGE 2: Operator Overload for combining categories. ---
@@ -41,7 +42,7 @@ namespace Salix {
         None, WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
         AppTick, AppUpdate, AppRender, KeyPressed, KeyReleased, KeyTyped,
         MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
-        ImGuiInput // NEW: Event type for ImGui input capture
+        ImGuiInput, EditorEntitySelected
     };
 
     class SALIX_API IEvent {
