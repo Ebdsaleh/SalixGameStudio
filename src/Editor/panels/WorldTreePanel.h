@@ -26,7 +26,7 @@ namespace Salix {
         void on_gui_render() override;
         void set_visibility(bool visibility) override;
         bool get_visibility() const override;
-
+        void on_event(IEvent& event) override;
     private:
         // In the future, this panel will need a pointer to the active scene
         // to get the list of entities to display. We can add that later.

@@ -77,4 +77,11 @@ namespace Salix {
         pimpl->is_visible = visibility;
     }
 
+
+    void WorldTreePanel::on_event(IEvent& event) {
+        // This panel dispatches events, but doesn't need to handle any for now.
+        // We can leave this empty.
+        (void)event; // This prevents the "unreferenced formal parameter" warning.
+    }
+
 } // namespace Salix
