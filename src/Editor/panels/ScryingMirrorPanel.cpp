@@ -33,6 +33,10 @@ namespace Salix {
 
 
     void ScryingMirrorPanel::on_gui_render() {
+        if (!pimpl->is_visible) {
+            return; // If the panel isn't visible, do nothing.
+        }
+
         if(ImGui::Begin("Scrying Mirror", &pimpl->is_visible)){
             ImGui::Text("Properties:");
             ImGui::Separator();
