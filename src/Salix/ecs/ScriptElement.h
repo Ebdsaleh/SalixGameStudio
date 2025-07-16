@@ -18,7 +18,7 @@ namespace Salix {
         void initialize() override {}
         void update(float /*delta_time*/) override {}
         void shutdown() override {}
-
+        const char* get_class_name() const override { return "ScriptElement"; }
         template <class Archive>
         void serialize(Archive& archive) {
             // This is the crucial part. It tells Cereal to first serialize
