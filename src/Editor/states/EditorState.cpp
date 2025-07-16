@@ -9,6 +9,7 @@
 #include <Editor/EditorContext.h>
 #include <Editor/panels/PanelManager.h>
 #include <Editor/panels/WorldTreePanel.h>
+#include <Editor/panels/ScryingMirrorPanel.h>
 
 // For ImGui Docking
 #include <Salix/gui/IGui.h>
@@ -30,7 +31,6 @@ namespace Salix {
     // The Pimpl struct holds all the state's data
     struct EditorState::Pimpl {
         bool is_first_frame = true;
-        ImGuiContext* call_imgui = nullptr;
         std::unique_ptr<EditorContext> editor_context;
         std::unique_ptr<PanelManager> panel_manager;
 
@@ -97,13 +97,17 @@ namespace Salix {
         pimpl->panel_manager->register_panel(std::move(world_tree_panel));
         log_file << "[DEBUG] WorldTreePanel registered." << std::endl;
 
+        log_file << "[DEBUG] Creating ScryingMirrorPanel..." << std::endl;
+        auto scrying_mirror_panel = std::make_unique<ScryingMirrorPanel>();
+        log_file << "[DEBUG] Initializing ScryingMirrorPanel..." << std::endl;
+        scrying_mirror_panel->initialize(pimpl->editor_context.get());
+        log_file << "[DEBUG] Registering ScryingMirrorPanel..." << std::endl;
+        pimpl->panel_manager->register_panel(std::move(scrying_mirror_panel));
+        log_file << "[DEBUG] ScryingMirrorPanel registered." << std::endl;
+
         log_file << "[DEBUG] EditorState::on_enter FINISHED successfully." << std::endl;
 
 
-        
-
-       
-        pimpl->call_imgui = pimpl->editor_context->gui->get_context();
     }
 
 
@@ -229,7 +233,7 @@ namespace Salix {
 
 
     void EditorState::Pimpl::render_menu_bar_and_panels() {
-        ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+        ImGuiID dockspace_id = ImGui::GetID("EditorDockSpace");
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
 
         // --- Main Menu Bar ---
@@ -245,9 +249,9 @@ namespace Salix {
         }
 
         // --- All Editor Panels ---
-        // if (pimpl->panel_manager) {
-        //     pimpl->panel_manager->render_all_panels();
-        // }
+        if (panel_manager) {
+            panel_manager->render_all_panels();
+         }
     }
 
 
