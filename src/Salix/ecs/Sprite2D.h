@@ -21,7 +21,7 @@ namespace Salix {
         public:
             Sprite2D();
             virtual ~Sprite2D();
-            
+            const char* get_class_name() const override { return "Sprite2D"; } 
             void on_load(const InitContext& new_context) override;
             // A method to load a texture for this sprite using the AssetManager
             void load_texture(class AssetManager* asset_manager, const std::string& file_path);
