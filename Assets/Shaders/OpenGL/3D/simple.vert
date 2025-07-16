@@ -2,8 +2,8 @@
 #version 450 core
 
 // Input vertex attributes from the VBO
-layout(location = 0) in vec3 aPos   // The position of the vertex in model space.
-layout(location = 1) in vec3 aColor // The color of the vertex.
+layout(location = 0) in vec3 aPos ;  // The position of the vertex in model space.
+layout(location = 1) in vec3 aColor; // The color of the vertex.
 
 // Uniforms (data sent from the CPU)
 uniform mat4 model;         // Transforms the vertex from model space to world space
@@ -21,3 +21,4 @@ void main() {
     // Pass the vertex's color directly to the fragment shader.
     // Convert the vec3 input color to a vec4 for the output.
     vertex_color = vec4(aColor, 1.0);
+}
