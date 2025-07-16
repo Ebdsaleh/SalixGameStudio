@@ -14,6 +14,10 @@ namespace Salix {
             Element() = default;
             // A virtual destructor is essential for any class with virtual methods
             virtual ~Element() = default;
+            // NEW: Add a pure virtual function to get the element's type name.
+            // Every concrete element (Transform, Camera, etc.) MUST implement this.
+            virtual const char* get_class_name() const = 0;
+
             // These are the lifecycle methods that the Entity will call.
             // They are virtual so that concrete elements can override them.
             virtual void on_load(const InitContext& context) {(void) context.asset_manager;}  // Useful for RenderableElement - types.
@@ -23,6 +27,7 @@ namespace Salix {
             void set_owner(Entity* owner_entity) {
                 owner = owner_entity;
             }
+
             template <class Archive>
             void serialize(Archive& /* archive*/) {
                 /// The base class of the hierarchy has no parent to serialize.
