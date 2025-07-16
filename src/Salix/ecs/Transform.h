@@ -6,6 +6,7 @@
 #include <Salix/math/Vector3.h>
 #include <vector>
 #include <memory>
+#include <glm/glm.hpp>
 #include <cereal/types/polymorphic.hpp>
 #include <cereal/access.hpp>
 
@@ -46,6 +47,9 @@ namespace Salix {
             Transform* get_parent() const;
             const std::vector<Transform*>& get_children() const;
             
+            glm::vec3 get_forward() const;
+            glm::vec3 get_up() const;
+            glm::vec3 get_right() const;
             
         private:
             

@@ -166,6 +166,29 @@ namespace Salix {
         return scale;
     }
 
+
+    glm::vec3 Transform::get_forward() const {
+        // Rotate the default "forward" vector (0, 0, -1 in OpenGL)
+        // by this transform's rotation quaternion.
+        glm::vec3 glm_rot = rotation.to_glm();
+        return  glm_rot * glm::vec3(0.0f, 0.0f, -1.0f);
+    }
+
+
+    glm::vec3 Transform::get_up() const {
+        // Rotate the default "up" vector (0, 1, 0)
+        glm::vec3 glm_rot = rotation.to_glm();
+        return glm_rot * glm::vec3(0.0f, 1.0f, 0.0f);
+    }
+
+
+    glm::vec3 Transform::get_right() const {
+        // Rotate the default "right" vector (1, 0, 0)
+         glm::vec3 glm_rot = rotation.to_glm();
+        return glm_rot * glm::vec3(1.0f, 0.0f, 0.0f);
+    }
+
+
     template<class Archive>
     void Transform::serialize(Archive& archive) {
         // This is the crucial part. It tells Cereal to first serialize
