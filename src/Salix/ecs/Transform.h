@@ -17,7 +17,7 @@ namespace Salix {
             Transform();
             virtual ~Transform();
 
-
+            const char* get_class_name() const override { return "Transform"; }
             // Calculate World Transform
             Vector3 get_world_position();
             Vector3 get_world_rotation();
