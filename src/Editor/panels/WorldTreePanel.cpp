@@ -4,7 +4,9 @@
 // Description: Implements the WorldTreePanel class.
 // =================================================================================
 #include <Editor/panels/WorldTreePanel.h>
-#include <imgui/imgui.h> // We need this to call ImGui functions
+#include <imgui/imgui.h>
+#include <Editor/events/EntitySelectedEvent.h>
+#include <Salix/events/EventManager.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/RenderableElement.h>
@@ -40,22 +42,34 @@ namespace Salix {
          if (!pimpl->is_visible) {
             return; // If the panel isn't visible, do nothing.
         }
-        if (ImGui::Begin("World Tree"))
+
+        if (ImGui::Begin("World Tree", &pimpl->is_visible))
         {
-            // For now, we'll just put some placeholder text here.
-            // In the future, we will loop through the scene's entities
-            // and display them in a tree view.
-            ImGui::Text("Scene_0");
-            ImGui::Indent();
-            ImGui::Text("MainCamera");
-            ImGui::Text("Player");
-            ImGui::Unindent();
+            if (pimpl->context->active_scene) {
+                for (const auto& entity_ptr : pimpl->context->active_scene->get_entities()) {
+                    if (!entity_ptr) continue;
+                    bool is_selected = (pimpl->context->selected_entity == entity_ptr);
+
+                    if (ImGui::Selectable(entity_ptr->get_name().c_str(), is_selected)) {
+                        // 1. Update the context directly, as before.
+                        pimpl->context->selected_entity = entity_ptr;
+
+                        // 2. Create and dispatch the event.
+                        EntitySelectedEvent event(entity_ptr);
+
+                        pimpl->context->event_manager->dispatch(event);
+                    }
+                }
+            } else {
+                ImGui::Text("No active scene.");
+            }
+            
         }
         // It's crucial to always call End(), even if the window is collapsed.
         ImGui::End();
     }
 
-    const bool WorldTreePanel::get_visibility() const {
+    bool WorldTreePanel::get_visibility() const {
         return pimpl->is_visible;
     }
 

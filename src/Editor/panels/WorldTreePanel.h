@@ -25,7 +25,7 @@ namespace Salix {
         // This is the implementation of the virtual function from IPanel.
         void on_gui_render() override;
         void set_visibility(bool visibility) override;
-        const bool get_visibility() const override;
+        bool get_visibility() const override;
 
     private:
         // In the future, this panel will need a pointer to the active scene
