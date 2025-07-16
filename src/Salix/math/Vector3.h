@@ -5,6 +5,8 @@
 #include <cmath>  // For the sqrtf function.
 #include <cereal/cereal.hpp>
 #include <vector>
+#include <glm/glm.hpp>
+
 namespace Salix {
 
     struct SALIX_API Vector3 {
@@ -39,6 +41,9 @@ namespace Salix {
             // When loading, it finds the key "x" and reads its value into the 'x' member.
             archive(cereal::make_nvp("x", x), cereal::make_nvp("y", y), cereal::make_nvp("z", z));
         }
+
+        glm::vec3 to_glm() const;
+
 
         Vector3& operator+=(const Vector3& other) {
         // Modify this object's members

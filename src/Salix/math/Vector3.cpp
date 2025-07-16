@@ -2,6 +2,7 @@
 #include <Salix/math/Vector3.h>
 #include <iostream>  // Needed for std::cerr
 #include <algorithm>
+#include <glm/glm.hpp>
 
 namespace Salix {
 
@@ -27,5 +28,8 @@ namespace Salix {
         return start + (end - start) * t;
     }
 
+    glm::vec3 Vector3::to_glm() const{
+        return glm::vec3(x, y, z);
+    }
     
 } // namespace Salix
