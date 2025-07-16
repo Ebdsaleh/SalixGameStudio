@@ -12,7 +12,7 @@ namespace Salix {
     public:
         // We need a virtual destructor for polymorphic types
         virtual ~CppScript() = default;
-
+        const char* get_class_name() const override { return "CppScript"; }
         // Public method to get the script's unique registered name
         const std::string& get_script_name() const;
 
