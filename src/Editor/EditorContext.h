@@ -19,6 +19,9 @@ namespace Salix {
     class IRenderer;
     class AssetManager;
     class EventManager;
+    class ITheme;
+    class IThemeManager;
+    class IFontManager;
 
     // Editor Systems
     class PanelManager;
@@ -36,6 +39,7 @@ namespace Salix {
         IRenderer* renderer = nullptr;
         AssetManager* asset_manager = nullptr;
         EventManager* event_manager = nullptr;
+        ITheme* active_theme = nullptr;
         IThemeManager* theme_manager = nullptr;
         IFontManager* font_manager = nullptr;
         // Pointers to editor-specific manager classes
