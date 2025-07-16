@@ -18,7 +18,7 @@ namespace Salix {
 
     // Forward declaration for our internal ShaderProgram helper class
     class OpenGLShaderProgram; 
-
+    class Camera;
     class SALIX_API OpenGLRenderer : public IRenderer {
     public:
         OpenGLRenderer();
@@ -41,6 +41,13 @@ namespace Salix {
         void set_clear_color(const Color& color);
         void draw_rectangle(const Rect& rect, const Color& color, bool filled);
 
+        // --- 3D-SPECIFIC METHODS ---
+
+        // Sets the active camera that the renderer will use to get view/projection matrices.
+        void set_active_camera(Camera* camera);
+
+        // A test function to draw a simple colored cube.
+        void draw_cube(const glm::mat4& model_matrix, const Color& color);
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
