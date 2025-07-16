@@ -18,7 +18,7 @@ public:
 
     Camera();
     ~Camera() override;
-
+    const char* get_class_name() const override { return "Camera"; }
     // --- Core Camera Methods ---
 
     // Sets the camera's projection mode.
