@@ -251,7 +251,21 @@ namespace Salix {
         return true;
     }
 
+    bool ImGuiInputManager::did_scroll(MouseScroll direction) {
+        float scroll_delta = ImGui::GetIO().MouseWheel;
+        if (direction == MouseScroll::Forward) {
+            return scroll_delta > 0.0f;
+        }
+        if (direction == MouseScroll::Back) {
+            return scroll_delta < 0.0f;
+        }
+    }
     // Additional queries
+    float ImGuiInputManager::get_mouse_scroll_delta() const {
+        const float mouse_scroll_delta = ImGui::GetIO().MouseWheel;
+        return mouse_scroll_delta ;
+    }
+
     void ImGuiInputManager::get_mouse_position(int* x, int* y) const {
         ImVec2 mouse_pos = ImGui::GetMousePos();
         if (x) *x = static_cast<int>(mouse_pos.x);
