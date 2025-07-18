@@ -82,15 +82,27 @@ namespace Salix {
             mouse_y = static_cast<int>(mouse_event.get_y());
         }
 
+        else if (event.get_event_type() == EventType::MouseScrolled){
+            auto& scroll_event = static_cast<MouseScrolledEvent&>(event);
+            // Store the vertical scroll amount for this frame
+            mouse_scroll_this_frame = scroll_event.get_y_offset();
+
+        }
+
+
         else if (event.get_event_type() == EventType::WindowClose) {
             quit_requested = true;
         }
+
+        
     }
 
     void SDLInputManager::update(float delta_time) {
         // --- LIFECYCLE METHOD 2: ADVANCE TIME ---
         // Called once per frame. Handles time-based transitions and updates duration timers.
         // This is the "was ON and still is ON" analogy.
+
+        mouse_scroll_this_frame = 0.0f;
 
         // 1. Transition single-frame states ('Down', 'Released') to multi-frame states ('Held', 'Up').
         for (auto& pair : key_states) {
@@ -349,6 +361,22 @@ namespace Salix {
         if (y) *y = mouse_y;
     }
 
+    bool SDLInputManager::did_scroll(MouseScroll direction) {
+        float scroll_delta = get_mouse_scroll_delta();
+        if (direction == MouseScroll::Forward) {
+            return scroll_delta > 0.0f;
+        }
+
+        if (direction == MouseScroll::Backward) {
+            return scroll_delta < 0.0f;
+        }
+    }
+
+    float SDLInputManager::get_mouse_scroll_delta() const {
+        float scroll_delta = mouse_scroll_this_frame;
+
+        return scroll_delta;
+    }
 
 
     // --- SDLInputManager additional methods ---
