@@ -60,8 +60,10 @@ namespace Salix {
             virtual bool multiple_were_released(const std::vector<MouseButton>& buttons) const = 0;
             virtual bool multiple_are_up(const std::vector<MouseButton>& buttons) const = 0;
 
+            virtual bool did_scroll(MouseScroll direction) = 0;
             // Additional queries
             virtual void get_mouse_position(int* x, int* y) const = 0;
+            virtual float get_mouse_scroll_delta() const = 0;
             virtual bool wants_to_quit() const = 0;
     };
 } // namespace Salix
