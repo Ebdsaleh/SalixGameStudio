@@ -6,6 +6,7 @@
 #include <Editor/panels/WorldTreePanel.h>
 #include <imgui/imgui.h>
 #include <Editor/events/EntitySelectedEvent.h>
+#include <Editor/events/ElementSelectedEvent.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
@@ -35,46 +36,69 @@ namespace Salix {
     }
 
     void WorldTreePanel::on_gui_render() {
-        // Create a new ImGui window for our panel.
-        // This will automatically be dockable because of the dockspace we will
-        // create in the EditorState.
-
-         if (!pimpl->is_visible) {
-            return; // If the panel isn't visible, do nothing.
+        // If the panel isn't visible, do nothing.
+        if (!pimpl->is_visible) {
+            return;
         }
 
-        if (ImGui::Begin("World Tree", &pimpl->is_visible))
-        {
-            if (pimpl->context->active_scene) {
-                for (const auto& entity_ptr : pimpl->context->active_scene->get_entities()) {
+        // Create a new ImGui window for our panel.
+        if (ImGui::Begin("World Tree", &pimpl->is_visible)) {
+            if (pimpl->context && pimpl->context->active_scene) {
+                // Loop through all entities in the active scene
+                for (Entity* entity_ptr : pimpl->context->active_scene->get_entities()) {
                     if (!entity_ptr) continue;
-                    bool is_selected = (pimpl->context->selected_entity == entity_ptr);
 
-                    if (ImGui::Selectable(entity_ptr->get_name().c_str(), is_selected)) {
-                        // 1. Update the context directly, as before.
+                    // --- Entity Node ---
+                    ImGuiTreeNodeFlags entity_flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+                    // Highlight the entity if it or one of its children is selected
+                    if (pimpl->context->selected_entity == entity_ptr) {
+                        entity_flags |= ImGuiTreeNodeFlags_Selected;
+                    }
+
+                    // Use the entity pointer as a unique ID for the TreeNode
+                    bool entity_node_open = ImGui::TreeNodeEx((void*)entity_ptr, entity_flags, "%s", entity_ptr->get_name().c_str());
+
+                    // Handle selection for the entity itself
+                    if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen()) {
                         pimpl->context->selected_entity = entity_ptr;
-
-                        // 2. Create and dispatch the event.
+                        pimpl->context->selected_element = nullptr; // Deselect any element when an entity is clicked
                         EntitySelectedEvent event(entity_ptr);
-
                         pimpl->context->event_manager->dispatch(event);
+                    }
+
+                    // If the entity node is open, draw its elements
+                    if (entity_node_open) {
+                        for (const auto& element_ptr : entity_ptr->get_all_elements()) {
+                            if (!element_ptr) continue;
+                            
+                            // --- Element Node (as a leaf) ---
+                            ImGuiTreeNodeFlags element_flags = ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen | ImGuiTreeNodeFlags_SpanAvailWidth;
+                            if (pimpl->context->selected_element == element_ptr) {
+                                element_flags |= ImGuiTreeNodeFlags_Selected;
+                            }
+
+                            // Display the element as a selectable leaf node
+                            ImGui::TreeNodeEx((void*)element_ptr, element_flags, "  - %s", element_ptr->get_class_name());
+
+                            // Handle selection for the element
+                            if (ImGui::IsItemClicked()) {
+                                // Update the context to select this element AND its parent entity
+                                pimpl->context->selected_element = element_ptr;
+                                pimpl->context->selected_entity = entity_ptr;
+
+                                // Dispatch the specific event for element selection
+                                ElementSelectedEvent event(element_ptr);
+                                pimpl->context->event_manager->dispatch(event);
+                            }
+                        }
+                        ImGui::TreePop(); // Must be called after TreeNodeEx if it returns true
                     }
                 }
             } else {
                 ImGui::Text("No active scene.");
             }
-            
         }
-        // It's crucial to always call End(), even if the window is collapsed.
         ImGui::End();
-    }
-
-    bool WorldTreePanel::get_visibility() const {
-        return pimpl->is_visible;
-    }
-
-    void WorldTreePanel::set_visibility(bool visibility) {
-        pimpl->is_visible = visibility;
     }
 
 
@@ -83,5 +107,12 @@ namespace Salix {
         // We can leave this empty.
         (void)event; // This prevents the "unreferenced formal parameter" warning.
     }
+
+    void WorldTreePanel::set_visibility(bool visibility) {
+        pimpl->is_visible = visibility;
+    }
+
+
+    bool WorldTreePanel::get_visibility() const  { return pimpl->is_visible; }
 
 } // namespace Salix
