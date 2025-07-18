@@ -5,8 +5,7 @@
 #include <Salix/events/IEvent.h>
 #include <Salix/ecs/Entity.h> // We need to know what an Entity is
 
-// Assuming your macros are in a shared header like "EventMacros.h" or similar.
-// If they are defined in SDLEvent.h, you might need to include that.
+
 #ifndef EVENT_CLASS_TYPE
 #define EVENT_CLASS_TYPE(type) static EventType get_static_type() { return EventType::type; }\
                                  virtual EventType get_event_type() const override { return get_static_type(); }\
@@ -19,7 +18,7 @@
 
 namespace Salix {
 
-class EntitySelectedEvent : public IEvent {
+class EntitySelectedEvent : public IEvent { 
 public:
     EntitySelectedEvent(Entity* selected_entity)
         : entity(selected_entity) {}
