@@ -18,7 +18,7 @@ namespace Salix {
 
     // Forward declaration for our internal ShaderProgram helper class
     class OpenGLShaderProgram; 
-    class Camera;
+    class ICamera;
     class SALIX_API OpenGLRenderer : public IRenderer {
     public:
         OpenGLRenderer();
@@ -29,6 +29,7 @@ namespace Salix {
         void shutdown() override;
         void begin_frame() override;
         void end_frame() override;
+        void clear_depth_buffer() override;
         void clear() override;
         IWindow* get_window() override;
         void* get_native_handle() override;
@@ -44,7 +45,7 @@ namespace Salix {
         // --- 3D-SPECIFIC METHODS ---
 
         // Sets the active camera that the renderer will use to get view/projection matrices.
-        void set_active_camera(Camera* camera);
+        void set_active_camera(ICamera* camera);
 
         // A test function to draw a simple colored cube.
         void draw_cube(const glm::mat4& model_matrix, const Color& color);
