@@ -2,13 +2,14 @@
 #pragma once
 
 #include <Salix/ecs/Element.h> 
+#include <Salix/rendering/ICamera.h>
 #include <Salix/core/Core.h>
 #include <glm/glm.hpp>
 
 
 namespace Salix {
 
-class SALIX_API Camera : public Element {
+class SALIX_API Camera : public Element, public ICamera {
 public:
     // Defines whether the camera renders with 3D perspective or flat 2D.
     enum class ProjectionMode {
@@ -23,13 +24,13 @@ public:
 
     // Sets the camera's projection mode.
     void set_projection_mode(ProjectionMode mode);
-    ProjectionMode get_projection_mode() const;
+    const ProjectionMode& get_projection_mode() const;
 
     // Calculates and returns the final view matrix based on the owner Entity's transform.
-    const glm::mat4& get_view_matrix();
+    const glm::mat4& get_view_matrix() override;
 
     // Calculates and returns the final projection matrix based on the current mode and properties.
-    const glm::mat4& get_projection_matrix();
+    const glm::mat4& get_projection_matrix() override;
 
     // Sets the viewport dimensions, needed to calculate the aspect ratio.
     void set_viewport_size(int width, int height);
@@ -37,16 +38,16 @@ public:
     // --- Property Getters/Setters ---
 
     void set_field_of_view(float fov);
-    float get_field_of_view() const;
+    float& get_field_of_view() const;
 
     void set_orthographic_size(float size);
-    float get_orthographic_size() const;
+    float& get_orthographic_size() const;
 
     void set_near_clip(float near_clip);
-    float get_near_clip() const;
+    float& get_near_clip() const;
 
     void set_far_clip(float far_clip);
-    float get_far_clip() const;
+    float& get_far_clip() const;
 
     // --- Element Lifecycle Methods (from your base class) ---
     // We can override these if the camera needs specific logic.
