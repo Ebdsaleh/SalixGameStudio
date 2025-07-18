@@ -1,8 +1,16 @@
 // Editor/panels/ScryingMirrorPanel.cpp
 #include <Editor/panels/ScryingMirrorPanel.h>
 #include <Editor/events/EntitySelectedEvent.h>
+#include <Editor/events/ElementSelectedEvent.h>
 #include <Salix/events/EventManager.h>
 #include <imgui/imgui.h>
+#include <Salix/reflection/ByteMirror.h>
+#include <Salix/reflection/ui/TypeDrawer.h>
+#include <Salix/ecs/Camera.h>
+#include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/Element.h>
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Transform.h>
 #include <map>
 #include <string>
 #include <iostream>
@@ -13,8 +21,10 @@ namespace Salix {
 
     struct ScryingMirrorPanel::Pimpl { 
         EditorContext* context = nullptr;
-        std::map<std::string, std::string> properties;
         bool is_visible = true;
+        Entity* selected_entity = nullptr;
+        Element* selected_element = nullptr;
+        void draw_property(const Property& prop, Element* element);
         
     };
 
@@ -32,87 +42,104 @@ namespace Salix {
     }
 
 
+   
     void ScryingMirrorPanel::on_gui_render() {
         if (!pimpl->is_visible) {
-            return; // If the panel isn't visible, do nothing.
+            return;
         }
 
         if(ImGui::Begin("Scrying Mirror", &pimpl->is_visible)){
             ImGui::Text("Properties:");
             ImGui::Separator();
-            // If not properties retrieved from selected object don't populate this space.
-            if (pimpl->properties.empty()) { 
-                ImGui::Text("No object selected.");
-            } 
-            else {
-                // Use a two-column table for a clean, aligned layout.
-                // The ImGuiTableFlags_Resizable flag lets the user drag the column divider.
-                if (ImGui::BeginTable("properties_table", 2, ImGuiTableFlags_Resizable)) {
-                    // Set up the columns. The second column will stretch to fill available space.
-                    ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-                    ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-                char text_buffer[256];
-                // iterate through the properties map
-                // Iterate through all properties in the map
-                    for (auto& pair : pimpl->properties) {
-                        // Start a new row in the table
-                        ImGui::TableNextRow();
-
-                        // --- Column 1: Property Name (the label) ---
-                        ImGui::TableSetColumnIndex(0);
-                        ImGui::Text("%s", pair.first.c_str());
-
-                        // --- Column 2: Property Value (the editable text box) ---
-                        ImGui::TableSetColumnIndex(1);
-
-                        // We need to give each InputText a unique ID so ImGui doesn't get confused.
-                        // Pushing the property name to the ID stack is a good way to do this.
-                        ImGui::PushID(pair.first.c_str());
-                        
-                        // Copy the map's value into our temporary buffer for editing.
-                        strncpy_s(text_buffer, sizeof(text_buffer), pair.second.c_str(), sizeof(text_buffer) - 1);
-
-                        // Make the InputText widget fill the entire width of the column.
-                        ImGui::PushItemWidth(-FLT_MIN);
-                        if (ImGui::InputText("##Value", text_buffer, sizeof(text_buffer))) {
-                            // If the user changed the text, update our map.
-                            pair.second = text_buffer;
-                        }
-                        ImGui::PopItemWidth();
-
-                        // Pop the unique ID to keep the stack clean.
-                        ImGui::PopID();
-                    }
-                    ImGui::EndTable();
+            if (pimpl->selected_element || (pimpl->context && pimpl->context->selected_entity)) {
+                if (pimpl->context->selected_entity) {
+                    ImGui::Text("Entity: %s", pimpl->context->selected_entity->get_name().c_str());
+                    ImGui::Separator();
                 }
+
+                std::vector<Salix::Element*> elements_to_display;
+
+                if (pimpl->selected_element) {
+                    elements_to_display.push_back(pimpl->selected_element);
+                }
+                else if (pimpl->context && pimpl->context->selected_entity) {
+                    elements_to_display = pimpl->context->selected_entity->get_all_elements();
+                }
+
+                for (auto* element : elements_to_display) {
+                    const std::type_index typeIndex = typeid(*element);
+                    const TypeInfo* typeInfo = ByteMirror::get_type_info(typeIndex);
+
+                    if (!typeInfo) {
+                        ImGui::Text("Unreflected Element: %s", typeIndex.name());
+                        continue;
+                    }
+                    
+                    if (ImGui::CollapsingHeader(typeInfo->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                        // This is where we add the table.
+                        if (ImGui::BeginTable(typeInfo->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
+                            ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+                            for (const auto& prop : typeInfo->properties) {
+                                pimpl->draw_property(prop, element);
+                            }
+                            ImGui::EndTable();
+                        }
+                    }
+                }
+            } else {
+                ImGui::Text("No object selected.");
             }
         }
         ImGui::End();
     }
 
+
+
+    void ScryingMirrorPanel::on_event(IEvent& event) {
+        if (event.get_event_type() == EventType::EditorEntitySelected) {
+            EntitySelectedEvent& entity_selection = static_cast<EntitySelectedEvent&>(event);
+            pimpl->selected_entity = entity_selection.entity;
+            pimpl->selected_element = nullptr; // Clear the element selection
+            std::cout << "Scrying Mirror received selection event for: "
+                << (entity_selection.entity ? entity_selection.entity->get_name() : "None") << std::endl;
+        }
+        else if (event.get_event_type() == EventType::EditorElementSelected) {
+            ElementSelectedEvent& element_selection = static_cast<ElementSelectedEvent&>(event);
+            pimpl->selected_element = element_selection.element;
+            pimpl->selected_entity = nullptr; // Clear the element selection
+            std::cout << "Scrying Mirror received selection event for: "
+                << (element_selection.element ? element_selection.element->get_class_name() : "None") << std::endl;
+        }
+    }
+
+
     bool ScryingMirrorPanel::get_visibility() const {
         return pimpl->is_visible;
     }
+
 
     void ScryingMirrorPanel::set_visibility(bool visibility) {
         pimpl->is_visible = visibility;
     }
 
-    void ScryingMirrorPanel::on_event(IEvent& event) {
-        if (event.get_event_type() == EventType::EditorEntitySelected) {
-            // Need to cast the event to the specific type
-            EntitySelectedEvent& e = static_cast<EntitySelectedEvent&>(event);
 
-            // Log that we received the event to confirm it's working
-            std::cout << "Scrying Mirror received selection event for: "
-                      << (e.entity ? e.entity->get_name() : "None") << std::endl;
-            // The panel's on_gui_render will automatically pick up the
-            // selected_entity from the context, so we don't need to do
-            // anything else here. This event is more for triggering
-            // one-time actions when a selection changes.
-        }
+
+    // --- Private methods ---
+
+     void ScryingMirrorPanel::Pimpl::draw_property(const Property& prop, Element* element) {
+        // We now draw the property across two columns.
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0); // Column 1 for the label
+        ImGui::Text("%s", prop.name.c_str());
+
+        ImGui::TableSetColumnIndex(1); // Column 2 for the widget
+        ImGui::PushItemWidth(-FLT_MIN);
+        
+        TypeDrawer::get_drawer(prop.type)(prop, element);
+
+        ImGui::PopItemWidth();
     }
-
 
 }  // namespace Salix
