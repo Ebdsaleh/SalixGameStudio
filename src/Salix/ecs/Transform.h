@@ -34,9 +34,11 @@ namespace Salix {
 
             void translate(const Vector3& delta_position);
             void translate(const float new_dp_x, float new_dp_y, float new_dp_z);
+            void translate(const glm::vec3& delta_position);
 
             void rotate(const Vector3& delta_rotation);
             void rotate(const float new_dr_x, float new_dr_y, float new_dr_z);
+            void rotate(const glm::vec3& delta_rotation);
 
             const Vector3& get_position() const;
             const Vector3& get_rotation() const;
