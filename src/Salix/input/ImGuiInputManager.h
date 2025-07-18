@@ -41,7 +41,9 @@ namespace Salix {
         bool multiple_were_released(const std::vector<MouseButton>& buttons) const override;
         bool multiple_are_up(const std::vector<MouseButton>& buttons) const override;
 
+        virtual bool did_scroll(MouseScroll direction) override;
         // Additional queries
+        float get_mouse_scroll_delta() const override;
         void get_mouse_position(int* x, int* y) const override;
         bool wants_to_quit() const override;
 
