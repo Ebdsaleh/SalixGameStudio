@@ -24,6 +24,7 @@ namespace Salix {
             virtual void initialize() {}
             virtual void update(float /*delta_time*/) {}
             virtual void shutdown() {}
+            Entity* get_owner() { return owner; }
             void set_owner(Entity* owner_entity) {
                 owner = owner_entity;
             }
