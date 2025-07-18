@@ -8,7 +8,7 @@
 // This tells the preprocessor to include the function implementations from stb_image.h.
 #define STB_IMAGE_IMPLEMENTATION 
 #include <stb/stb_image.h> // Make sure this path is correct for your project setup
-#include <Salix/ecs/Camera.h>
+#include <Salix/rendering/ICamera.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h> 
 #include <Salix/rendering/opengl/OpenGLTexture.h>
 #include <Salix/window/sdl/SDLWindow.h>
@@ -56,7 +56,7 @@ namespace Salix {
 
         // 3D Shader
         const std::string simple_3d_vertex_file = "Assets/Shaders/OpenGL/3D/simple.vert";
-        const std::string simple_3d_fragment_file = "Assets/Shaders/OpenGL/3D/simple.frag";
+        const std::string simple_3d_fragment_file = "Assets/Shaders/OpenGL/3D/color_only.frag";
         std::unique_ptr<OpenGLShaderProgram> simple_3d_shader;
 
 
@@ -73,7 +73,7 @@ namespace Salix {
 
         // --- Matrices & Camera ---
         glm::mat4 projection_matrix_2d;        // Orthographic projection matrix.
-        Camera* active_camera = nullptr;    // Pointer to the active camera.
+        ICamera* active_camera = nullptr;    // Pointer to the active camera.
 
 
         // Private helper methods for Pimpl's internal setup
@@ -429,6 +429,7 @@ namespace Salix {
     void OpenGLRenderer::clear() {
         // glClearColor is set in set_opengl_initial_state or via set_clear_color
         glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+        // glClearColor(0.0f, 0.0f, 0.0f, 0.0f);    // for testing
         // Clear both color and depth buffers, which is crucial for 3D
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear both color and depth buffers
     }
@@ -436,10 +437,13 @@ namespace Salix {
 
     // --- 3D Method Implementations ---
 
-    void OpenGLRenderer::set_active_camera(Camera* camera) {
+    void OpenGLRenderer::set_active_camera(ICamera* camera) {
         pimpl->active_camera = camera;
     }
 
+    void OpenGLRenderer::clear_depth_buffer() {
+        glClear(GL_DEPTH_BUFFER_BIT);
+    }
 
     void OpenGLRenderer::draw_cube(const glm::mat4& model_matrix, const Color& color) {
         if (!pimpl->active_camera) {
@@ -447,15 +451,20 @@ namespace Salix {
             return;
         }
 
+        // Explicitly enable depth testing right before drawing a 3D object.
+        glEnable(GL_DEPTH_TEST);
         pimpl->simple_3d_shader->use();
+
 
         // Pass the matrices to the shader.
         pimpl->simple_3d_shader->setMat4("model", model_matrix);
         pimpl->simple_3d_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
         pimpl->simple_3d_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
 
-        // Note: The simple shader uses vertex colors, so the 'color' parameter is currently unused.
-        // A more advanced shader would take a uniform color.
+        // Create the glm::vec4 directly from your Color's float members. No division needed.
+        glm::vec4 tint = { color.r, color.g, color.b, color.a };
+        pimpl->simple_3d_shader->setVec4("tint_color", tint);
+
 
         glBindVertexArray(pimpl->cube_vao);
         glDrawArrays(GL_TRIANGLES, 0, 36);      // 36 vertices for a cube made of triangles.
@@ -582,9 +591,9 @@ namespace Salix {
         glGetIntegerv(GL_BLEND_SRC_RGB, &blend_src_rgb); // GL_SRC_ALPHA is 0x0302
         glGetIntegerv(GL_BLEND_DST_RGB, &blend_dest_rgb); // GL_ONE_MINUS_SRC_ALPHA is 0x0303
 
-        std::cout << "DEBUG: draw_sprite - Blending State: BLEND_ENABLED=" << (is_blending_enabled ? "TRUE" : "FALSE")
-              << ", BLEND_SRC_RGB=" << blend_src_rgb << " (0x" << std::hex << blend_src_rgb << std::dec << ")"
-              << ", BLEND_DST_RGB=" << blend_dest_rgb << " (0x" << std::hex << blend_dest_rgb << std::dec << ")" << std::endl;
+        // std::cout << "DEBUG: draw_sprite - Blending State: BLEND_ENABLED=" << (is_blending_enabled ? "TRUE" : "FALSE")
+        //       << ", BLEND_SRC_RGB=" << blend_src_rgb << " (0x" << std::hex << blend_src_rgb << std::dec << ")"
+        //       << ", BLEND_DST_RGB=" << blend_dest_rgb << " (0x" << std::hex << blend_dest_rgb << std::dec << ")" << std::endl;
         // --- END ADDITION ---
 
         //std::cout << "DEBUG: Drawing sprite - Texture ID: " << opengl_texture->get_id()
@@ -593,6 +602,7 @@ namespace Salix {
         //      << " Angle: " << angle << " Color: " << color.r << "," << color.g << "," << color.b << "," << color.a << std::endl;
         // --- END DEBUG LINE ---
         
+        glDisable(GL_DEPTH_TEST);
         pimpl->texture_shader->use();
         pimpl->texture_shader->setMat4("projection", pimpl->projection_matrix_2d);
         
