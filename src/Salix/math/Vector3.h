@@ -91,7 +91,7 @@ namespace Salix {
     }
 
     inline Vector3 operator+(const Vector3& a, float increment) {
-        return Vector3 { a.x + increment, a.y + increment, a.x + increment };
+        return Vector3 { a.x + increment, a.y + increment, a.z + increment };
     }
 
     inline Vector3 operator+(float increment, const Vector3& a) {
