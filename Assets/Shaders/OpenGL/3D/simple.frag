@@ -4,10 +4,11 @@
 // Input from the vertex shader (will be interpolated across the triangle).
 in vec4 vertex_color;
 
+uniform vec4 tint_color;
 // The final output color of the pixel.
 out vec4 frag_color;
 
 void main() {
     // Set the output color to the color received from the vertex shader.
-    frag_color = vertex_color;
+    frag_color = vertex_color * tint_color;
 }
