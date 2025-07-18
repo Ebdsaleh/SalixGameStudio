@@ -15,6 +15,7 @@ namespace Salix {
     // circular dependencies.
 
     // Engine Systems (from InitContext)
+    struct InitContext;
     class IGui;
     class IRenderer;
     class AssetManager;
@@ -22,19 +23,25 @@ namespace Salix {
     class ITheme;
     class IThemeManager;
     class IFontManager;
+    class SceneManager;
 
     // Editor Systems
     class PanelManager;
     class ProjectManager;
 
     // Game World Data
+    class Project;
     class Scene;
     class Entity;
+    class Element;
+    class EditorCamera;
+    class Camera;
 
     // --- The Editor Context Struct ---
 
     struct EDITOR_API EditorContext {
         // Pointers to core engine services, borrowed from InitContext
+        const InitContext* init_context  = nullptr;
         IGui* gui = nullptr;
         IRenderer* renderer = nullptr;
         AssetManager* asset_manager = nullptr;
@@ -42,13 +49,19 @@ namespace Salix {
         ITheme* active_theme = nullptr;
         IThemeManager* theme_manager = nullptr;
         IFontManager* font_manager = nullptr;
+        SceneManager* scene_manager = nullptr;
         // Pointers to editor-specific manager classes
         PanelManager* panel_manager = nullptr;
         ProjectManager* project_manager = nullptr;
-
+        EditorCamera* editor_camera = nullptr;
         // Pointers to the active game world data
+        Project* active_project = nullptr;
         Scene* active_scene = nullptr;
-        Entity* selected_entity = nullptr; // The entity currently selected in the World Tree
+        Camera* main_camera = nullptr;
+        Element* selected_element = nullptr;
+        Entity* selected_entity = nullptr;
+        
+        
     };
 
 } // namespace Salix
