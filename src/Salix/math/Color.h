@@ -3,6 +3,7 @@
 #include <Salix/core/Core.h>
 #include <algorithm> // For std::min and std::max
 #include <cereal/access.hpp>
+#include <glad/glad.h>
 
 namespace Salix {
 
