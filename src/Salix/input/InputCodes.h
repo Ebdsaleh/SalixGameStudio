@@ -24,5 +24,10 @@ namespace Salix {
         Middle,
         Right
     };
+
+    enum class MouseScroll {
+        Forward,
+        Back
+    };
     // Add more later.
 } // namespace Salix
