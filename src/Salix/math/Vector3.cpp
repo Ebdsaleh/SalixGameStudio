@@ -3,6 +3,7 @@
 #include <iostream>  // Needed for std::cerr
 #include <algorithm>
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 namespace Salix {
 
