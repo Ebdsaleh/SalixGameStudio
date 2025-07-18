@@ -6,11 +6,10 @@
 #pragma once
 
 #include <Editor/EditorAPI.h>
-
+#include <Salix/events/IEvent.h>
 namespace Salix {
 
-// Forward declaration for the event system we'll build later
-class EditorEvent;
+
 
 class EDITOR_API EditorBehaviour {
 public:
@@ -20,10 +19,10 @@ public:
     virtual void on_start() {}
 
     // Called every frame, for logic that needs to run continuously.
-    virtual void on_update(float delta_time) {}
+    virtual void on_update(float delta_time ) { (void)delta_time; }
 
     // Called when a specific editor event is dispatched.
-    virtual void on_event(EditorEvent& event) {}
+    virtual void on_event(IEvent&  event ) { (void) event;}
 };
 
-} // namespace Salix
+} // namespace Salix 
