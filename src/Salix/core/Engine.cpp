@@ -14,6 +14,12 @@
 #include <Salix/core/SDLTimer.h>
 #include <Salix/core/ChronoTimer.h>
 
+// Reflection
+#include <Salix/reflection/ByteMirror.h>
+#include <Salix/reflection/EnumRegistry.h>
+#include <Salix/reflection/ui/TypeDrawer.h>
+
+
 // Rendering includes
 #include <Salix/rendering/sdl/SDLRenderer.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
@@ -45,6 +51,16 @@
 #include <Salix/states/IAppState.h>
 #include <Salix/states/LaunchState.h>
 #include <Salix/states/OptionsMenuState.h>
+
+// ecs includes
+#include <Salix/ecs/Camera.h>
+#include <Salix/ecs/CppScript.h>
+#include <Salix/ecs/ScriptElement.h>
+#include <Salix/ecs/Element.h>
+#include <Salix/ecs/RenderableElement.h>
+#include <Salix/ecs/Transform.h>
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Sprite2D.h>
 
 // 3rd-party includes
 #include <Windows.h>
@@ -399,6 +415,12 @@ namespace Salix {
 
 
         
+
+        // --- INITIALIZE BYTE MIRROR ---
+        ByteMirror::register_all_types();
+        
+        // --- INITIALIZE TYPE DRAWER ---
+        TypeDrawer::register_all_type_drawers();
 
         // --- SWITCH INTO THE INITIAL STATE PASSED INTO THIS METHOD ---
         switch_state(config.initial_state);
