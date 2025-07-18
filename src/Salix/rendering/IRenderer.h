@@ -31,6 +31,7 @@ namespace Salix {
         virtual void shutdown() = 0;
         virtual void begin_frame() = 0;
         virtual void end_frame() = 0;
+        virtual void clear_depth_buffer() = 0;
 
         // Provide access to the window it owns, without giving up ownership.
         virtual IWindow* get_window() = 0;
