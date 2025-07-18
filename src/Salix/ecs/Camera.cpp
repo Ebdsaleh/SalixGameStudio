@@ -56,7 +56,7 @@ namespace Salix {
         pimpl->projection_dirty = true;
     }
 
-    Camera::ProjectionMode Camera::get_projection_mode() const {
+    const Camera::ProjectionMode& Camera::get_projection_mode() const {
         return pimpl->projection_mode;
     }
 
@@ -122,12 +122,12 @@ namespace Salix {
 
     // --- Property Getters/Setters ---
     void Camera::set_field_of_view(float fov) { pimpl->field_of_view = fov; pimpl->projection_dirty = true; }
-    float Camera::get_field_of_view() const { return pimpl->field_of_view; }
+    float& Camera::get_field_of_view() const { return pimpl->field_of_view; }
     void Camera::set_orthographic_size(float size) { pimpl->orthographic_size = size; pimpl->projection_dirty = true; }
-    float Camera::get_orthographic_size() const { return pimpl->orthographic_size; }
+    float& Camera::get_orthographic_size() const { return pimpl->orthographic_size; }
     void Camera::set_near_clip(float near_clip) { pimpl->near_clip = near_clip; pimpl->projection_dirty = true; }
-    float Camera::get_near_clip() const { return pimpl->near_clip; }
+    float& Camera::get_near_clip() const { return pimpl->near_clip; }
     void Camera::set_far_clip(float far_clip) { pimpl->far_clip = far_clip; pimpl->projection_dirty = true; }
-    float Camera::get_far_clip() const { return pimpl->far_clip; }
+    float& Camera::get_far_clip() const { return pimpl->far_clip; }
 
 }
