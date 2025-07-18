@@ -27,7 +27,7 @@ namespace Salix {
             void load_texture(class AssetManager* asset_manager, const std::string& file_path);
 
             // A method to return the path of the assigned texture.
-            const std::string& get_texture_path() const;
+            
 
             // The implementation of the render method from RenderableElement Interface.
             void render(IRenderer* renderer) override;
@@ -43,6 +43,27 @@ namespace Salix {
             int sorting_layer = 0;      // For future use in the Scene.
             std::string texture_path;   // The path to the image used as the texture.
             
+            // Getters and Setters for use with our ByteMirror reflection system.
+            Color& get_color() { return color; }
+            void set_color(const Color& new_color) { color = new_color; }
+
+            Vector2& get_offset() { return offset; }
+            void set_offset(const Vector2& new_offset) { offset = new_offset; }
+
+            Vector2& get_pivot() { return pivot; }
+            void set_pivot(const Vector2& new_pivot) { pivot = new_pivot; }
+
+            bool& get_flip_h() { return flip_h; }
+            void set_flip_h(bool should_flip) { flip_h = should_flip; }
+
+            bool& get_flip_v() { return flip_v; }
+            void set_flip_v(bool should_flip) { flip_v = should_flip; }
+
+            int& get_sorting_layer() { return sorting_layer; }
+            void set_sorting_layer(const int& new_sorting_layer) { sorting_layer = new_sorting_layer; }
+
+            const std::string& get_texture_path() const;
+            void set_texture_path(const std::string& new_texture_path) { texture_path = new_texture_path; }
         private:
             struct Pimpl;
             std::unique_ptr<Pimpl>pimpl;
