@@ -42,7 +42,7 @@ namespace Salix {
         None, WindowClose, WindowResize, WindowFocus, WindowLostFocus, WindowMoved,
         AppTick, AppUpdate, AppRender, KeyPressed, KeyReleased, KeyTyped,
         MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
-        ImGuiInput, EditorEntitySelected
+        ImGuiInput, EditorEntitySelected, EditorElementSelected
     };
 
     class SALIX_API IEvent {
