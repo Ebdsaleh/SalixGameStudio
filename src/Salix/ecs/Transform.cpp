@@ -1,5 +1,7 @@
 // Salix/ecs/Transform.cpp
 #include <Salix/ecs/Transform.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
 #include <algorithm>
 #include <cereal/cereal.hpp>
 // If explicitly instantiating JSON archives here
@@ -29,6 +31,8 @@ namespace Salix {
 
     Transform::Transform() : pimpl(std::make_unique<Pimpl>()) {
         // Default scale is 1, so objects appear at thier normal size.
+        position = { 0.0f, 0.0f, 0.0f };
+        rotation = { 0.0f, 0.0f, 0.0f };
         scale = { 1.0f, 1.0f, 1.0f};
     }
 
@@ -146,12 +150,24 @@ namespace Salix {
         position += { new_dp_x, new_dp_y, new_dp_z };
     }
 
+    void Transform::translate(const glm::vec3& delta_position){
+        position.x += delta_position.x;
+        position.y += delta_position.y;
+        position.z += delta_position.z;
+    }
+
     void Transform::rotate(const Vector3& delta_rotation) {
      rotation += delta_rotation;
     }
 
     void Transform::rotate(const float new_dr_x, float new_dr_y, float new_dr_z) {
      rotation += { new_dr_x, new_dr_y, new_dr_z};
+    }
+
+    void Transform::rotate(const glm::vec3& delta_rotation) {
+    rotation.x += delta_rotation.x;
+    rotation.y += delta_rotation.y;
+    rotation.z += delta_rotation.z;
     }
 
     const Vector3& Transform::get_position() const {
@@ -170,22 +186,30 @@ namespace Salix {
     glm::vec3 Transform::get_forward() const {
         // Rotate the default "forward" vector (0, 0, -1 in OpenGL)
         // by this transform's rotation quaternion.
-        glm::vec3 glm_rot = rotation.to_glm();
-        return  glm_rot * glm::vec3(0.0f, 0.0f, -1.0f);
+        
+        // 1. Get the rotation angles as a glm::vec3
+        glm::vec3 euler_angles = rotation.to_glm(); // 'rotation' is your Vector3 member
+
+        // 2. Create a quaternion from the Euler angles
+        glm::quat orientation = glm::quat(euler_angles);
+
+        // 3. Use the quaternion to rotate the direction vector
+        return orientation * glm::vec3(0.0f, 0.0f, -1.0f);
     }
 
 
     glm::vec3 Transform::get_up() const {
         // Rotate the default "up" vector (0, 1, 0)
-        glm::vec3 glm_rot = rotation.to_glm();
-        return glm_rot * glm::vec3(0.0f, 1.0f, 0.0f);
+        glm::quat orientation = glm::quat(rotation.to_glm());
+       
+        return orientation * glm::vec3(0.0f, 1.0f, 0.0f);
     }
 
 
     glm::vec3 Transform::get_right() const {
         // Rotate the default "right" vector (1, 0, 0)
-         glm::vec3 glm_rot = rotation.to_glm();
-        return glm_rot * glm::vec3(1.0f, 0.0f, 0.0f);
+         glm::quat orientation = glm::quat(rotation.to_glm());
+        return orientation * glm::vec3(1.0f, 0.0f, 0.0f);
     }
 
 
