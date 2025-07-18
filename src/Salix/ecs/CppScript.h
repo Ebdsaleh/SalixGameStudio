@@ -15,6 +15,7 @@ namespace Salix {
         const char* get_class_name() const override { return "CppScript"; }
         // Public method to get the script's unique registered name
         const std::string& get_script_name() const;
+        void set_script_name(const std::string& new_script_name) { script_name = new_script_name; }
 
     protected:
         // The name this script was registered with in the ScriptFactory
