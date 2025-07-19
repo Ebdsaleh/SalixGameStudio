@@ -372,6 +372,7 @@ namespace Salix {
         }
     }
 
+
     float SDLInputManager::get_mouse_scroll_delta() const {
         float scroll_delta = mouse_scroll_this_frame;
 

@@ -256,7 +256,7 @@ namespace Salix {
         if (direction == MouseScroll::Forward) {
             return scroll_delta > 0.0f;
         }
-        if (direction == MouseScroll::Back) {
+        if (direction == MouseScroll::Backward) {
             return scroll_delta < 0.0f;
         }
     }
