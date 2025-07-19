@@ -37,6 +37,9 @@ add_library(SalixEngine SHARED
     math/Color.cpp
     math/Vector2.cpp
     math/Vector3.cpp
+    reflection/ByteMirror.cpp
+    reflection/EnumRegistry.cpp
+    reflection/ui/TypeDrawer.cpp
     rendering/sdl/SDLRenderer.cpp
     rendering/sdl/SDLTexture.cpp
     rendering/opengl/OpenGLRenderer.cpp
