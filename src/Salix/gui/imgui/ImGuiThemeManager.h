@@ -34,6 +34,7 @@ namespace Salix {
         bool load_themes_from_directory(const std::string& directory_path) override;
         bool set_active_theme(const std::string& theme_name) override;
         bool purge_theme(const std::string& theme_name) override;
+        void apply_ui_scale(float scale) override;
 
     private:
         struct Pimpl;

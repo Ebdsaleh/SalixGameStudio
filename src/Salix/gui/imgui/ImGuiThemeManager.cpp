@@ -19,6 +19,7 @@ namespace Salix {
         IGui* gui_system = nullptr;
         std::unordered_map<std::string, std::unique_ptr<ITheme>> theme_registry;
         std::string active_theme_name;
+        float current_scale = 1.0f;
     };
 
     ImGuiThemeManager::ImGuiThemeManager() : pimpl(std::make_unique<Pimpl>()) {}
@@ -46,10 +47,20 @@ namespace Salix {
     pimpl->theme_registry[name] = std::move(theme); // CORRECT: Just std::move(theme)
     std::cout << "ImGuiThemeManager: Theme '" << name << "' registered." << std::endl;
     return true;
-}
+    }
 
     bool ImGuiThemeManager::unregister_theme(const std::string& theme_name) {
         return pimpl->theme_registry.erase(theme_name) > 0;
+    }
+
+    void ImGuiThemeManager::apply_ui_scale(float scale) {
+        if (scale <= 0.0f) { return; }
+        // First, reset the current scaling to get back to a baseline of 1.0
+        ImGui::GetStyle().ScaleAllSizes(1.0f / pimpl->current_scale);
+         // Apply the new scaling
+        ImGui::GetStyle().ScaleAllSizes(scale);
+        pimpl->current_scale = scale;
+        
     }
 
     // --- UPDATED: apply_theme method now contains the logic to apply the theme data ---
