@@ -93,5 +93,7 @@ namespace Salix {
     const std::string& ImGuiFontData::get_file_path() const { return file_path; }
     float ImGuiFontData::get_font_size() const { return font_size; }
     const std::string& ImGuiFontData::get_gui_type() const { return gui_type; }
-
+    void ImGuiFontData::set_font_size(float new_font_size) {
+        font_size = new_font_size;
+    }
 } // namespace Salix

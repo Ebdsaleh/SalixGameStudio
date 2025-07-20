@@ -21,7 +21,7 @@ namespace Salix {
         const std::string& get_file_path() const override;
         float get_font_size() const override;
         const std::string& get_gui_type() const override;
-        void set_font_size(float font_size) override;
+        void set_font_size(float new_font_size) override;
         // --- ImGui-specific properties (mirroring ImFontConfig as closely as possible) ---
         // These are the core properties passed to io.Fonts->AddFontFromFileTTF
         std::string name; // This is the font's display name
