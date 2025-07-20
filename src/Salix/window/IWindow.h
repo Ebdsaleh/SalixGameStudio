@@ -32,6 +32,8 @@ namespace Salix {
         virtual void query_dimensions(int& out_width, int& out_height) const = 0;
         virtual int get_width() const = 0;
         virtual int get_height() const = 0;
+        virtual void set_size(int width, int height) = 0;
+        virtual float get_dpi_scale() const = 0;
     };
 
 } // namespace Salix
