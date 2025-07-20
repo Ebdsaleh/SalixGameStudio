@@ -64,6 +64,8 @@ namespace Salix {
         // This unregisters it, unloads it if it was active, and deletes the ITheme object from memory/registry.
         // Returns true if purged successfully, false if theme not found.
         virtual bool purge_theme(const std::string& theme_name) = 0;
+
+        virtual void apply_style_scale(float scale) = 0;
     };
 
 } // namespace Salix
