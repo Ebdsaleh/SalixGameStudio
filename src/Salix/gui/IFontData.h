@@ -23,6 +23,7 @@ namespace Salix {
         // Optional: A method to get the type of GUI library this font data is for.
         virtual const std::string& get_gui_type() const = 0;
 
+        virtual void set_font_size(float font_size) = 0;
         // Note: Serialization methods would be added here if you want polymorphic serialization.
         // For now, as per your instruction, no Cereal code.
     };
