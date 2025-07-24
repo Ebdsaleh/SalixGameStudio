@@ -1,6 +1,7 @@
 // Editor/camera/EditorCamera.cpp
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/input/ImGuiInputManager.h>
+#include <Salix/events/sdl/SDLEvent.h>
 #include <Salix/ecs/Transform.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -172,9 +173,9 @@ namespace Salix {
         if (input->did_scroll(MouseScroll::Forward)) {
             transform.translate(forward * scroll_speed);
         }
-
+        // Zoom out
         if (input->did_scroll(MouseScroll::Backward)){
-            transform.translate(-forward *scroll_speed);
+            transform.translate(-forward * scroll_speed);
         }
 
     }
@@ -220,4 +221,19 @@ namespace Salix {
             first_mouse_event = true;
         } 
     }
+
+    void EditorCamera::set_viewport_size(int width, int height) {
+        if (height == 0) return; // Prevent division by zero
+    
+        // In your Pimpl struct, or as a direct member:
+        pimpl->aspect_ratio = static_cast<float>(width) / static_cast<float>(height);
+        pimpl->projection_dirty = true;
+    }
+
+    void EditorCamera::on_event(IEvent& event) {
+        if (event.get_event_type() == EventType::WindowResize) {
+            auto& resize_event = static_cast<WindowResizeEvent&>(event);
+            set_viewport_size(resize_event.get_width(), resize_event.get_height());
+        }
+}
 }  // namespace Salix
