@@ -100,6 +100,14 @@ namespace Salix {
                 if (root["GUI"]["dialog_height_ratio"]) {
                     out_config.gui_settings.dialog_height_ratio = root["GUI"]["dialog_height_ratio"].as<float>();
                 }
+                if (root["GUI"]["font_scaling"])
+                {
+                    out_config.gui_settings.font_scaling = root["GUI"]["font_scaling"].as<float>();
+                }
+                if (root["GUI"]["global_dpi_scaling"])
+                {
+                    out_config.gui_settings.global_dpi_scaling = root["GUI"]["global_dpi_scaling"].as<float>();
+                }
             }
             if (root["Timer"]) {
                 parse_timer_type(root["Timer"]["type"], out_config.timer_type);
@@ -176,6 +184,8 @@ namespace Salix {
             }
             emitter << YAML::Key << "dialog_width_ratio" << YAML::Value << config.gui_settings.dialog_width_ratio;
             emitter << YAML::Key << "dialog_height_ratio" << YAML::Value << config.gui_settings.dialog_height_ratio;
+            emitter << YAML::Key << "font_scaling" << YAML::Value << config.gui_settings.font_scaling;
+            emitter << YAML::Key << "global_dpi_scaling" << YAML::Value << config.gui_settings.global_dpi_scaling;
             emitter << YAML::EndMap;
 
             // Timer Settings
