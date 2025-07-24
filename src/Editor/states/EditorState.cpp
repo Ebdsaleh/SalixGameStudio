@@ -7,7 +7,7 @@
 #include <Salix/core/InitContext.h>
 #include <Salix/core/EngineInterface.h>
 #include <Salix/input/ImGuiInputManager.h>
-
+#include <Salix/window/sdl/SDLWindow.h>
 // Scene related 
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/Scene.h>
@@ -25,6 +25,7 @@
 #include <Editor/panels/PanelManager.h>
 #include <Editor/panels/WorldTreePanel.h>
 #include <Editor/panels/ScryingMirrorPanel.h>
+#include <Editor/panels/ThemeEditorPanel.h>
 
 // For ImGui Docking
 #include <Salix/gui/IGui.h>
@@ -56,8 +57,8 @@ namespace Salix {
         std::unique_ptr<EditorContext> editor_context;
         std::unique_ptr<PanelManager> panel_manager;
         std::unique_ptr<Project> mock_project;
-        void setup_theme_manager();
-        void setup_font_manager();
+        bool show_theme_editor = false; 
+    
         void handle_first_frame_setup();
         void begin_dockspace();
         void render_menu_bar_and_panels();
@@ -121,19 +122,30 @@ namespace Salix {
         // 5. Create and initialize all the editor panels
         log_file << "[DEBUG] Creating WorldTreePanel..." << std::endl;
         auto world_tree_panel = std::make_unique<WorldTreePanel>();
+        std::string world_tree_name = "World Tree Panel";
         log_file << "[DEBUG] Initializing WorldTreePanel..." << std::endl;
         world_tree_panel->initialize(pimpl->editor_context.get());
         log_file << "[DEBUG] Registering WorldTreePanel..." << std::endl;
-        pimpl->panel_manager->register_panel(std::move(world_tree_panel));
+        pimpl->panel_manager->register_panel(std::move(world_tree_panel), world_tree_name);
         log_file << "[DEBUG] WorldTreePanel registered." << std::endl;
 
         log_file << "[DEBUG] Creating ScryingMirrorPanel..." << std::endl;
         auto scrying_mirror_panel = std::make_unique<ScryingMirrorPanel>();
+        std::string scrying_mirror_name = "Scrying Mirror Panel";
         log_file << "[DEBUG] Initializing ScryingMirrorPanel..." << std::endl;
         scrying_mirror_panel->initialize(pimpl->editor_context.get());
         log_file << "[DEBUG] Registering ScryingMirrorPanel..." << std::endl;
-        pimpl->panel_manager->register_panel(std::move(scrying_mirror_panel));
+        pimpl->panel_manager->register_panel(std::move(scrying_mirror_panel), scrying_mirror_name);
         log_file << "[DEBUG] ScryingMirrorPanel registered." << std::endl;
+
+        log_file << "[DEBUG] Creating ThemeEditorPanel..." << std::endl;
+        auto theme_editor_panel = std::make_unique<ThemeEditorPanel>();
+        std::string theme_editor_name = "Theme Editor Panel";
+        log_file << "[DEBUG] Initializing ThemeEditorPanel..." << std::endl;
+        theme_editor_panel->initialize(pimpl->editor_context.get());
+        log_file << "[DEBUG] Registering ThemeEditorPanel..." << std::endl;
+        pimpl->panel_manager->register_panel(std::move(theme_editor_panel), theme_editor_name);
+        log_file << "[DEBUG] ThemeEditorPanel registered." << std::endl;
 
         log_file << "[DEBUG] EditorState::on_enter FINISHED successfully." << std::endl;
 
@@ -142,6 +154,16 @@ namespace Salix {
         pimpl->editor_context->editor_camera = pimpl->camera.get();
         OpenGLRenderer* renderer = dynamic_cast<OpenGLRenderer*>(engine_context.renderer);
         renderer->set_active_camera(pimpl->camera.get());
+        
+        engine_context.window->set_size(
+            engine_context.app_config->window_config.width,
+            engine_context.app_config->window_config.height
+        );
+
+            engine_context.renderer->on_window_resize(
+            engine_context.app_config->window_config.width,
+            engine_context.app_config->window_config.height
+        );
         pimpl->create_mock_scene();
 
     }
@@ -165,10 +187,20 @@ namespace Salix {
         if (pimpl->camera) {
             pimpl->camera->on_update(delta_time);
         }
+        IFont* active_font = pimpl->editor_context->font_manager->get_active_font();
+        if (active_font && active_font->get_imgui_font_ptr()) {
+            ImGui::PushFont(active_font->get_imgui_font_ptr());
+        }
+
         pimpl->begin_dockspace();
         pimpl->draw_debug_window();
         pimpl->render_menu_bar_and_panels();
-        pimpl->end_dockspace();        
+        pimpl->end_dockspace();   
+        
+        // Pop the font immediately after to balance the stack.
+        if (active_font && active_font->get_imgui_font_ptr()) {
+            ImGui::PopFont();
+        }
         
     }
 
@@ -183,6 +215,7 @@ namespace Salix {
             // 2. Now, draw your 3D test cube into the empty scene.
             pimpl->draw_test_cube();
 
+
             // 3. Clear ONLY the depth buffer again before drawing the UI.
             // This is a common technique to make sure the UI always draws on top of the 3D scene.
             renderer_param->clear_depth_buffer(); 
@@ -190,74 +223,18 @@ namespace Salix {
                 pimpl->editor_context->gui->render();
                 pimpl->editor_context->gui->update_and_render_platform_windows();
             }
+
         }
     }
 
 
-
-
-    void EditorState::Pimpl::setup_theme_manager() {
-
-        // --- Existing Theme Application Logic ---
-        if (editor_context->theme_manager) {
-            std::cout << "EditorState: ✅ Theme Manager received in EditorContext." << std::endl;
-
-            const std::string default_theme_name = "Default ImGui Theme";
-            if (!editor_context->theme_manager->get_theme(default_theme_name)) {
-                editor_context->theme_manager->register_theme(std::make_unique<ImGuiTheme>(default_theme_name));
-            }
-
-            // Apply the default theme
-            if (!editor_context->theme_manager->apply_theme(default_theme_name)) {
-                std::cerr << "EditorState Error: Failed to apply default ImGui theme!" << std::endl;
-            } else {
-                std::cout << "EditorState: Default ImGui Theme applied." << std::endl;
-            }
-        } else {
-            std::cerr << "EditorState Warning: Theme Manager is null in EditorContext!" << std::endl;
-        }
-    }
-
-
-
-
-    void EditorState::Pimpl::setup_font_manager() {
-
-        // --- Register Default Font ---
-        if (editor_context->font_manager) {
-            const std::string default_font_name = "Roboto-Regular"; 
-            const std::string default_font_path = "Assets/Fonts/Roboto-Regular.ttf";
-            const float default_font_size = 16.0f; // Or 20.0f as per your ImGuiThemeData
-
-            // Only load and register if the font doesn't already exist
-            if (!editor_context->font_manager->get_font(default_font_name)) {
-                if (!editor_context->font_manager->load_font_from_file(
-                        default_font_path,
-                        default_font_name,
-                        default_font_size,
-                        false // Do NOT apply immediately, theme manager will apply
-                    )) {
-                    std::cerr << "EditorState Error: Failed to load and register default font!" << std::endl;
-                    // This might be a critical error if no font can be loaded.
-                    // You might want to return false here if font is mandatory.
-                } else {
-                    std::cout << "EditorState: Default font '" << default_font_name << "' registered." << std::endl;
-                }
-            }
-        } else {
-            std::cerr << "EditorState Warning: Font Manager is null, cannot register default font." << std::endl;
-        }
-
-
-    }
     void EditorState::Pimpl::handle_first_frame_setup() {
         if (!is_first_frame) {
             return; // Only run this once
         }
         
         std::cout << "EditorState - Performing first-frame UI setup." << std::endl;
-        setup_font_manager();
-        setup_theme_manager();
+    
         
         is_first_frame = false;
     }
@@ -304,7 +281,18 @@ namespace Salix {
                 if (ImGui::MenuItem("New Project...")) { /* TODO */ }
                 if (ImGui::MenuItem("Open Project...")) { /* TODO */ }
                 ImGui::Separator();
-                if (ImGui::MenuItem("Exit")) { /* TODO: Signal engine to quit */ }
+                if (ImGui::MenuItem("Exit")) { editor_context->init_context->engine->is_running(false);}
+                ImGui::EndMenu();
+            }
+            if (ImGui::BeginMenu("Edit"))
+            {
+            if (ImGui::MenuItem("Preferences")) { /* TODO: Open preferences window */ }
+            if (ImGui::MenuItem("Theme")) {
+                show_theme_editor = true;
+                if( IPanel* theme_panel = panel_manager->get_panel(std::string("Theme Editor Panel"))) {
+                    theme_panel->set_visibility(true);
+                }
+                }
                 ImGui::EndMenu();
             }
             ImGui::EndMenuBar();
