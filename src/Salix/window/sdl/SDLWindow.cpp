@@ -81,4 +81,28 @@ namespace Salix {
 
     }
 
+
+    void SDLWindow::set_size(int width, int height) {
+        SDL_SetWindowSize(window, width, height);
+        
+        // Also update our internal config state
+        window_config.width = width;
+        window_config.height = height;
+
+    }
+
+    float SDLWindow::get_dpi_scale() const {
+        float dpi_scale = 1.0f;
+        if (!window) {
+            return 1.0f;
+        }
+        int logical_width, drawable_width;
+        SDL_GetWindowSize(window, &logical_width, nullptr);
+        SDL_GL_GetDrawableSize(window, &drawable_width, nullptr);
+        if (logical_width > 0) {
+            dpi_scale = static_cast<float>(drawable_width) / logical_width;
+        }
+        return dpi_scale;
+    }
+
 } // namespace Salix

@@ -26,6 +26,8 @@ namespace Salix {
         int get_width() const override;
         int get_height() const override;
         void query_dimensions(int& out_width, int& out_height) const override;
+        void set_size(int width, int height) override;
+        float get_dpi_scale() const override;
 
     private:
         // The actual, underlying SDL_Window object.
