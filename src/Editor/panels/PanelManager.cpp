@@ -19,8 +19,9 @@ namespace Salix {
     PanelManager::PanelManager() : pimpl(std::make_unique<Pimpl>()) {}
     PanelManager::~PanelManager() = default;
 
-    void PanelManager::register_panel(std::unique_ptr<IPanel> panel) {
+    void PanelManager::register_panel(std::unique_ptr<IPanel> panel, const std::string& name) {
         if (panel) {
+            panel->set_name(name);
             pimpl->panels.push_back(std::move(panel));
         }
     }
@@ -33,5 +34,17 @@ namespace Salix {
             }
         }
     }
+
+    IPanel* PanelManager::get_panel(const std::string& panel_name) {
+        for (const auto& panel_ptr : pimpl->panels) {
+            if (panel_ptr->get_name() == panel_name) {
+                return panel_ptr.get();
+            }
+            
+        }
+        // if no panel exists with that name, return nullptr.
+        return nullptr;
+    }
+
 
 } // namespace Salix

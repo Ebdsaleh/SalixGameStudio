@@ -20,7 +20,8 @@
 
 namespace Salix {
 
-    struct WorldTreePanel::Pimpl { 
+    struct WorldTreePanel::Pimpl {
+        std::string name;
         EditorContext* context = nullptr;
         bool is_visible = true;
 
@@ -34,6 +35,15 @@ namespace Salix {
         if(!context) { return; } // Cannot accept a null EditorContext pointer.
         pimpl->context = context;
     }
+
+    void WorldTreePanel::set_name(const std::string& new_name) {
+        pimpl->name = new_name;
+    }
+
+    const std::string& WorldTreePanel::get_name() {
+        return pimpl->name;
+    }
+
 
     void WorldTreePanel::on_gui_render() {
         // If the panel isn't visible, do nothing.

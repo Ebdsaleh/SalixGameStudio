@@ -19,10 +19,12 @@ namespace Salix {
         ~PanelManager();
 
         // Adds a new panel to the manager. The manager takes ownership of the panel.
-        void register_panel(std::unique_ptr<IPanel> panel);
+        void register_panel(std::unique_ptr<IPanel> panel, const std::string& name);
 
         // Loops through all registered panels and calls their on_gui_render() method.
         void render_all_panels();
+
+        IPanel* get_panel(const std::string& panel_name);
 
     private:
         // Using the Pimpl idiom to hide implementation details.

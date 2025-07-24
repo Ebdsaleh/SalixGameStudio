@@ -19,7 +19,8 @@
 
 namespace Salix {
 
-    struct ScryingMirrorPanel::Pimpl { 
+    struct ScryingMirrorPanel::Pimpl {
+        std::string name;
         EditorContext* context = nullptr;
         bool is_visible = true;
         Entity* selected_entity = nullptr;
@@ -41,6 +42,14 @@ namespace Salix {
         std::cout << "ScryingMirrorPanel Initialized and subscribed to Editor events." << std::endl;
     }
 
+
+    void ScryingMirrorPanel::set_name(const std::string& new_name) {
+        pimpl->name = new_name;
+    }
+
+    const std::string& ScryingMirrorPanel::get_name() {
+        return pimpl->name;
+    }
 
    
     void ScryingMirrorPanel::on_gui_render() {

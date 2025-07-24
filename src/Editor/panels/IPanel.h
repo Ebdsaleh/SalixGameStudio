@@ -26,6 +26,8 @@ namespace Salix {
         virtual void on_gui_render() = 0;
         virtual void set_visibility(bool visibility) = 0;
         virtual bool get_visibility() const = 0;
+        virtual void set_name(const std::string& new_name) = 0;
+        virtual const std::string& get_name() = 0;
     };
 
 } // namespace Salix
