@@ -29,12 +29,14 @@ namespace Salix {
 
         std::vector<std::string> get_registered_themes() const override;
         ITheme* get_theme(const std::string& theme_name) const override;
-
-        bool load_theme_from_file(const std::string& file_path, bool apply_immediately = false) override;
+        ITheme* get_active_theme() override;
+        bool load_internal_theme_from_file(const std::string& file_path, bool apply_immediately = false);
+        bool load_theme_from_file(const std::string& theme_name, const std::string& file_path, bool apply_immediately = false) override;
         bool load_themes_from_directory(const std::string& directory_path) override;
+        bool save_theme_to_file(const std::string& theme_name, const std::string& file_path) override;
         bool set_active_theme(const std::string& theme_name) override;
         bool purge_theme(const std::string& theme_name) override;
-        void apply_ui_scale(float scale) override;
+        void apply_style_scale(float scale) override;
 
     private:
         struct Pimpl;

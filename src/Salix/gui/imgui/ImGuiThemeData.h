@@ -5,6 +5,7 @@
 #include <Salix/math/Color.h>     // For Salix::Color
 #include <Salix/math/Vector2.h>   // For Salix::Vector2
 #include <imgui/imgui.h>
+#include <Salix/gui/imgui/ImGuiFontData.h>
 #include <string>
 #include <vector> // For std::vector (declarations)
 #include <utility> // For std::pair
@@ -141,7 +142,10 @@ namespace Salix {
 
         // Fonts
         std::string default_font_path;
+        std::string default_font_name;
+        std::string font_family;
         float default_font_size;
+        float font_size;
         float font_scale_main;
         // Vector style vars for looping (declared here, initialized in .cpp)
         std::vector<std::pair<std::string, Salix::Color*>> theme_colors;

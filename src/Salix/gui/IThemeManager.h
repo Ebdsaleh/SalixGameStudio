@@ -46,16 +46,18 @@ namespace Salix {
         // Returns nullptr if theme not found.
         virtual ITheme* get_theme(const std::string& theme_name) const = 0;
 
+        virtual ITheme* get_active_theme() = 0;
         // --- Convenience / Workflow Methods ---
 
         // Loads a theme from a file, registers it, and optionally applies it.
         // The concrete implementation will determine the theme type from the file.
         // Returns true if loaded and registered successfully.
-        virtual bool load_theme_from_file(const std::string& file_path, bool apply_immediately = false) = 0;
+        virtual bool load_theme_from_file(const std::string& theme_name, const std::string& file_path, bool apply_immediately = false) = 0;
 
         // Loads all themes from a specified directory and registers them.
         virtual bool load_themes_from_directory(const std::string& directory_path) = 0;
 
+        virtual bool save_theme_to_file(const std::string& theme_name, const std::string& file_path) = 0;
         // Sets the active theme by its registered name.
         // This is a high-level "set current theme" operation for the user, assuming it's already loaded.
         virtual bool set_active_theme(const std::string& theme_name) = 0;

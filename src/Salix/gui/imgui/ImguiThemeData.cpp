@@ -146,8 +146,12 @@ namespace Salix {
         hover_flags_for_tooltip_nav    = ImGuiHoveredFlags_ForTooltip;   // Enum, needs special handling
 
         // Fonts
+        default_font_name = "Roboto-Regular";
         default_font_path = "Assets/Fonts/Roboto-Regular.ttf";
         default_font_size = 20.0f;
+        font_family = font_family;
+        font_size = font_size;
+
         font_scale_main = 1.0f;  // Name changed to match the new API was 'default_font_scale', now 'font_scale_main'.
 
 
