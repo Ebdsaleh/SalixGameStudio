@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
     }
 
     // 3. Create and initialize the engine with the loaded config.
-    auto engine = std::make_unique<Salix::Engine>();
+    auto engine = std::make_unique<Salix::Engine>(); 
     if (engine->initialize(config)) {
         engine->run();
     } else {
