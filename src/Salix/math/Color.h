@@ -4,6 +4,8 @@
 #include <algorithm> // For std::min and std::max
 #include <cereal/access.hpp>
 #include <glad/glad.h>
+#include <imgui/imgui.h>
+#include <yaml-cpp/yaml.h> 
 
 namespace Salix {
 
@@ -31,7 +33,11 @@ namespace Salix {
         // Linearly interpolates between two colors.
         // t=0.0 returns 'start', t=1.0 returns 'end'.
         static Color lerp(const Color& start, const Color& end, float t); 
+
+        ImVec4 to_imvec4();
         
+        
+
     private:
         friend class cereal::access;
 
@@ -59,4 +65,9 @@ namespace Salix {
     SALIX_API Color operator*(const Color& a, float scalar); 
 
     SALIX_API Color operator*(float scalar, const Color& a);  // required for lerp method.
+
+    SALIX_API YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Color& c);
+    
+    SALIX_API void operator>>(const YAML::Node& node, Salix::Color& c);
+     
 } // namespace Salix

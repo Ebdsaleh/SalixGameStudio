@@ -25,4 +25,21 @@ namespace Salix {
             return start + (end - start) * t;
         }
 
+    ImVec2 Vector2::to_im_vec2() {
+        return ImVec2(x, y);
+    }
+
+    YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Vector2& v) {
+        out << YAML::BeginMap;
+        out << YAML::Key << "x" << YAML::Value << v.x;
+        out << YAML::Key << "y" << YAML::Value << v.y;
+        out << YAML::EndMap;
+        return out;
+    }
+    
+    void operator>>(const YAML::Node& node, Salix::Vector2& v) {
+        v.x = node["x"] ? node["x"].as<float>() : 0.0f; 
+        v.y = node["y"] ? node["y"].as<float>() : 0.0f;
+    }
+
 } // namespace Salix

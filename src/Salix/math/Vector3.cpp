@@ -33,4 +33,19 @@ namespace Salix {
         return glm::vec3(x, y, z);
     }
     
+    YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Vector3& v) {
+        out << YAML::BeginMap;
+        out << YAML::Key << "x" << YAML::Value << v.x;
+        out << YAML::Key << "y" << YAML::Value << v.y;
+        out << YAML::Key << "z" << YAML::Value << v.z;
+        out << YAML::EndMap;
+        return out;
+    }
+    
+    void operator>>(const YAML::Node& node, Salix::Vector3& v) {
+        v.x = node["x"] ? node["x"].as<float>() : 0.0f; 
+        v.y = node["y"] ? node["y"].as<float>() : 0.0f;
+        v.z = node["z"] ? node["z"].as<float>() : 0.0f;
+    }
+    
 } // namespace Salix

@@ -7,6 +7,7 @@
 #include <cereal/cereal.hpp>
 #include <cereal/archives/binary.hpp>
 #include <cereal/archives/json.hpp>
+#include <imgui/imgui.h>
 
 namespace Salix {
 
@@ -59,6 +60,11 @@ namespace Salix {
         return start * (1.0f - t) + end * t;
     }
 
+    ImVec4 Color::to_imvec4() {
+      
+        return ImVec4(r, g, b, a);
+
+    }
     
 
     // --- OPERATOR OVERLOADS for color math ---
@@ -78,6 +84,28 @@ namespace Salix {
     Color operator*(float scalar, const Color& a) {
         return a * scalar; // Just reuse the other operator
     }
+
+
+    // --- YAML PARSING COMPLIANCE ---
+    YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Color& c) {
+        out << YAML::BeginMap;
+        out << YAML::Key << "r" << YAML::Value << c.r;
+        out << YAML::Key << "g" << YAML::Value << c.g;
+        out << YAML::Key << "b" << YAML::Value << c.b;
+        out << YAML::Key << "a" << YAML::Value << c.a;
+        out << YAML::EndMap;
+        return out;
+    }
+
+
+    void operator>>(const YAML::Node& node, Salix::Color& c) {
+        c.r = node["r"] ? node["r"].as<float>() : 0.0f; 
+        c.g = node["g"] ? node["g"].as<float>() : 0.0f;
+        c.b = node["b"] ? node["b"].as<float>() : 0.0f;
+        c.a = node["a"] ? node["a"].as<float>() : 0.0f;
+    }
+
+
 
     template<class Archive>
     void Color::serialize(Archive& archive) {

@@ -6,6 +6,7 @@
 #include <cereal/cereal.hpp>
 #include <vector>
 #include <glm/glm.hpp>
+#include <yaml-cpp/yaml.h> 
 
 namespace Salix {
 
@@ -199,4 +200,8 @@ namespace Salix {
             a.x * b.y - a.y * b.x
         );
     }     
+
+    SALIX_API YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Vector3& v);
+
+    SALIX_API void operator>>(const YAML::Node& node, Salix::Vector3& v);
 } // namespace Salix

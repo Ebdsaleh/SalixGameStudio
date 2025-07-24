@@ -3,6 +3,8 @@
 #include <Salix/core/Core.h>
 #include <cmath>  // For sqrtf function.
 #include <cereal/cereal.hpp>
+#include <imgui/imgui.h>
+#include <yaml-cpp/yaml.h> 
 
 namespace Salix {
     struct SALIX_API Vector2 {
@@ -19,6 +21,8 @@ namespace Salix {
 
         // Modifies this vector to make it a unit vector (length of 1).
         void normalize();
+
+        ImVec2 to_im_vec2();
 
         // A static "factory" method for linear interpolation.
         static Vector2 lerp(const Vector2& start, const Vector2& end, float t);
@@ -69,6 +73,9 @@ namespace Salix {
 
     };
 
+    SALIX_API YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Vector2& v);
+    
+    SALIX_API void operator>>(const YAML::Node& node, Salix::Vector2& v);
     // --- Overloading definitions ---
     // Addition
     inline Vector2 operator+(const Vector2& a, const Vector2& b) {
@@ -175,4 +182,6 @@ namespace Salix {
     inline Vector2 perp(const Vector2& v) {
         return Vector2(-v.y, v.x);
     }
+
+    
 } // namespace Salix
