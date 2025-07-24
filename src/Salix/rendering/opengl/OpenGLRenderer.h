@@ -7,6 +7,7 @@
 #include <Salix/core/Core.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/math/Rect.h>
+#include <Salix/events/IEventListener.h>
 #include <memory>
 #include <glad/glad.h>  // GLAD provides GLuint, etc.
 #include <glm/glm.hpp>  // For glm::mat4, etc.
@@ -19,10 +20,13 @@ namespace Salix {
     // Forward declaration for our internal ShaderProgram helper class
     class OpenGLShaderProgram; 
     class ICamera;
-    class SALIX_API OpenGLRenderer : public IRenderer {
+    class SALIX_API OpenGLRenderer : public IRenderer, public IEventListener {
     public:
         OpenGLRenderer();
         virtual ~OpenGLRenderer() override;
+
+        // --- IEventListener implementation ---
+        void on_event(IEvent& event) override;
 
         // --- IRenderer Interface Implementation ---
         bool initialize(const WindowConfig& config) override;
@@ -41,7 +45,7 @@ namespace Salix {
 
         void set_clear_color(const Color& color);
         void draw_rectangle(const Rect& rect, const Color& color, bool filled);
-
+        void on_window_resize(int width, int height) override;
         // --- 3D-SPECIFIC METHODS ---
 
         // Sets the active camera that the renderer will use to get view/projection matrices.

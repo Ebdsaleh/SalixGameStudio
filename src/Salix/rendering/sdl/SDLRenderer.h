@@ -25,6 +25,9 @@ namespace Salix{
         void end_frame() override;
         void clear() override;
         void clear_depth_buffer() override { return; }
+
+        void on_window_resize(int width, int height) override;
+
         // Delcare Texture loading.
         ITexture* load_texture(const char* file_path) override;
         // Declare Texture Drawing

@@ -161,4 +161,19 @@ namespace Salix {
             SDL_RenderCopyEx(sdl_renderer, raw_texture, NULL, &sdl_dest_rect, angle, (pivot ? &sdl_pivot_point : NULL), flip_flag);
         }
     }
+
+    void SDLRenderer::on_window_resize(int width, int height) {
+    
+        if (sdl_renderer && width > 0 && height > 0) {
+            // This function tells SDL to maintain a logical rendering resolution
+            // and scale it to the window. It's a great way to handle
+            // different resolutions in a 2D renderer.
+            SDL_RenderSetLogicalSize(sdl_renderer, width, height);
+
+            // You should also update any internal width/height members you have
+            // this->window_width = width;
+            // this->window_height = height;
+        }
+    }
+
 } // namespace Salix

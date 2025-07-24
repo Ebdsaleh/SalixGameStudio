@@ -48,5 +48,6 @@ namespace Salix {
         // A contract for drawing a Sprite2D
         virtual void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) = 0;
 
+        virtual void on_window_resize(int width, int height) = 0;
     };
 } // namespace Salix

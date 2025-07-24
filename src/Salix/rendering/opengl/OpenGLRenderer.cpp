@@ -18,7 +18,7 @@
 #include <Salix/math/Rect.h>
 #include <Salix/math/Color.h>
 #include <Salix/math/Point.h>
-
+#include <Salix/events/sdl/SDLEvent.h>
 // Include the header for your OpenGLShaderProgram class
 #include <Salix/rendering/opengl/OpenGLShaderProgram.h> 
 
@@ -433,7 +433,26 @@ namespace Salix {
         // Clear both color and depth buffers, which is crucial for 3D
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear both color and depth buffers
     }
+   
     
+    void OpenGLRenderer::on_event(IEvent& event) {
+        if (event.get_event_type() == EventType::WindowResize) {
+            auto& resize_event = static_cast<WindowResizeEvent&>(event);
+            on_window_resize(resize_event.get_width(), resize_event.get_height());
+        }
+    }
+
+
+
+    void OpenGLRenderer::on_window_resize(int width, int height) {
+        if (width > 0 && height > 0) {
+            // 1. Update the OpenGL viewport to match the new window size
+            glViewport(0, 0, width, height);
+            
+            // 2. Update the stored dimensions and recreate the 2D projection matrix
+            pimpl->create_2D_projection_matrix(width, height);
+        }
+    }
 
     // --- 3D Method Implementations ---
 
