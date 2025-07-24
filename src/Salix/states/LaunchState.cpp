@@ -5,6 +5,7 @@
 #include <Salix/input/IInputManager.h>
 #include <Salix/gui/IGui.h>
 #include <Salix/rendering/IRenderer.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/window/IWindow.h>
 #include <Salix/gui/ITheme.h>
 #include <Salix/gui/IThemeManager.h>
@@ -15,6 +16,8 @@
 #include <ImGuiFileDialog.h>
 #include <memory>
 #include <iostream>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 
 namespace Salix {
@@ -26,7 +29,9 @@ namespace Salix {
         bool should_switch_to_game = false;
         bool should_quit_engine = false;
         bool should_close_dialog = false;
-        
+        bool is_first_frame = true;
+
+
         // dialog box references
         std::string new_project_key = "ChooseNewProjectLocation";
         std::string new_project_title = "Create New Project";
@@ -36,7 +41,9 @@ namespace Salix {
 
         std::string run_project_key = "ChooseExistingProjectToRun";
         std::string run_project_title ="Run An Existing Project";
-
+        
+        
+        void setup_ui();
         void reset_transition_flags();
         void present_launcher();
         void handle_transitions();
@@ -57,56 +64,7 @@ namespace Salix {
         } else {
             std::cout << "LaunchState: ✅ GUI system received." << std::endl;
             
-        }
-
-        // --- NEW: Register Default Font ---
-        if (pimpl->context.font_manager) {
-            const std::string default_font_name = "Roboto-Regular"; 
-            const std::string default_font_path = "Assets/Fonts/Roboto-Regular.ttf";
-            const float default_font_size = 16.0f; // Or 20.0f as per your ImGuiThemeData
-
-            // Only load and register if the font doesn't already exist
-            if (!pimpl->context.font_manager->get_font(default_font_name)) {
-                if (!pimpl->context.font_manager->load_font_from_file(
-                        default_font_path,
-                        default_font_name,
-                        default_font_size,
-                        false // Do NOT apply immediately, theme manager will apply
-                    )) {
-                    std::cerr << "LaunchState Error: Failed to load and register default font!" << std::endl;
-                    // This might be a critical error if no font can be loaded.
-                    // You might want to return false here if font is mandatory.
-                } else {
-                    std::cout << "LaunchState: Default font '" << default_font_name << "' registered." << std::endl;
-                }
-            }
-        } else {
-            std::cerr << "LaunchState Warning: Font Manager is null, cannot register default font." << std::endl;
-        }
-        // --- END NEW ---
-
-
-        // --- Existing Theme Application Logic ---
-        if (pimpl->context.theme_manager) {
-            std::cout << "LaunchState: ✅ Theme Manager received in InitContext." << std::endl;
-
-            const std::string default_theme_name = "Default ImGui Theme";
-            if (!pimpl->context.theme_manager->get_theme(default_theme_name)) {
-                pimpl->context.theme_manager->register_theme(std::make_unique<ImGuiTheme>(default_theme_name));
-            }
-
-            // Apply the default theme
-            if (!pimpl->context.theme_manager->apply_theme(default_theme_name)) {
-                std::cerr << "LaunchState Error: Failed to apply default ImGui theme!" << std::endl;
-            } else {
-                std::cout << "LaunchState: Default ImGui Theme applied." << std::endl;
-            }
-        } else {
-            std::cerr << "LaunchState Warning: Theme Manager is null in InitContext!" << std::endl;
-        }
-        
-        // Create File Dialogs
-        pimpl->create_dialog_boxes();      
+        }   
         
     }
 
@@ -122,6 +80,10 @@ namespace Salix {
     }
 
     void LaunchState::update(float /*delta_time*/) {
+        if (pimpl->is_first_frame) {
+        pimpl->setup_ui();
+        pimpl->is_first_frame = false;
+        }
 
         pimpl->reset_transition_flags(); 
 
@@ -138,10 +100,18 @@ namespace Salix {
     
 
     void LaunchState::render(IRenderer*  renderer) {
+
+
         // This state's visual content is primarily handled by the GUI system (ImGui).
         // The renderer's begin_frame() and end_frame() are called by the Engine's main render loop.
         // So, this method can be empty if the state itself doesn't draw any game world elements.
         if (renderer) {
+            OpenGLRenderer* opengl_renderer = dynamic_cast<OpenGLRenderer*>(renderer);
+            if (opengl_renderer) {
+                glm::mat4 dummy_model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -100.0f));
+                opengl_renderer->draw_cube(dummy_model, {0, 0, 0, 0}); // Invisible color
+            }
+
             // NEW: Call the GUI system's render method here
             if (pimpl->context.gui) {
                 pimpl->context.gui->render();
@@ -159,60 +129,43 @@ namespace Salix {
     }
 
     void LaunchState::Pimpl::present_launcher() {
-        int window_width = 0;
-        int window_height = 0;
-        if (context.window) { 
-            context.window->query_dimensions(window_width, window_height);
-        }
+        int window_width, window_height;
+        context.window->query_dimensions(window_width, window_height);
 
-        // Set the next ImGui window's position and size to fill the SDL window
+        // --- Create a full-screen host window, just like in EditorState ---
         ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(ImVec2(static_cast<float>(window_width), static_cast<float>(window_height)));
+        ImGui::SetNextWindowSize(ImVec2((float)window_width, (float)window_height));
+        ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBackground;
+        ImGui::Begin("LauncherHostWindow", nullptr, host_flags);
 
-        // Set ImGui window flags to remove decorations and make it a "viewport"
-        ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDecoration | // No title bar, borders, resize grip
-                                        ImGuiWindowFlags_NoMove |       // Cannot be moved
-                                        ImGuiWindowFlags_NoResize |     // Cannot be resized
-                                        ImGuiWindowFlags_NoBringToFrontOnFocus | // Stays behind other windows
-                                        ImGuiWindowFlags_NoNavFocus |   // Not selectable by navigation
-                                        ImGuiWindowFlags_NoBackground;  // No background color (optional, depending on desired look)
-                                        // ImGuiWindowFlags_MenuBar; // If you plan to add a menu bar to this window
+        // --- Create a dockspace inside it ---
+        ImGuiID dockspace_id = ImGui::GetID("LauncherDockspace");
+        ImGuiDockNodeFlags dock_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dock_flags);
 
-        // Begin the ImGui window with these flags and an appropriate name
-        // Use a unique name like "LauncherMainViewport"
-        ImGui::Begin("LauncherMainViewport", nullptr, window_flags); // nullptr for p_open as it's always open
-        ImGui::Text("Welcome to Salix Game Studio!");
-        ImGui::Separator();
+        ImGui::End(); // End LauncherHostWindow
+
+        // --- Now, create your actual launcher window as a separate window ---
+        // It will appear centered and floating on top of the main view.
+        ImGui::Begin("Welcome to Salix Game Studio!");
 
         if (ImGui::Button("New Project")) {
-            std::cout << "New Project button clicked!" << std::endl;
-            // Future: Trigger new project workflow.
             context.gui->show_dialog_by_key(new_project_key);
         }
-
         if (ImGui::Button("Open Project")) {
-            std::cout << "Open Project button clicked!" << std::endl;
-            // Future: Trigger open project dialog
             context.gui->show_dialog_by_key(open_project_key);
         }
-
         if (ImGui::Button("Run Project")) {
-            std::cout << "Run Project button clicked!" << std::endl;
             context.gui->show_dialog_by_key(run_project_key);
         }
-
         if (ImGui::Button("Options")) {
-            std::cout << "Options button clicked!" << std::endl;
-            should_switch_to_options = true; // Set flag
+            should_switch_to_options = true;
         }
-
         if (ImGui::Button("Quit")) {
-            std::cout << "Quit button clicked!" << std::endl;
-            should_quit_engine = true; // Set flag
+            should_quit_engine = true;
         }
-        ImGui::End(); // <-- IMPORTANT: Always call ImGui::End() after ImGui::Begin()
 
-        
+        ImGui::End(); // End "Welcome to Salix Game Studio!"
     }
 
     
@@ -307,6 +260,11 @@ namespace Salix {
 
     }
     
-
+   
+    void LaunchState::Pimpl::setup_ui() {
+        
+        create_dialog_boxes();
+        is_first_frame = false;
+    }
     
 } // namespace Salix
