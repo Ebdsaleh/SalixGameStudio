@@ -1,11 +1,7 @@
-// Editor/events/EntitySelectedEvent.h
-
+// Editor/events/ThemeReloadEvent.h
 #pragma once
 
 #include <Salix/events/IEvent.h>
-#include <Salix/ecs/Entity.h> // We need to know what an Entity is
-
-
 #ifndef EVENT_CLASS_TYPE
 #define EVENT_CLASS_TYPE(type) static EventType get_static_type() { return EventType::type; }\
                                  virtual EventType get_event_type() const override { return get_static_type(); }\
@@ -14,19 +10,14 @@
 #ifndef EVENT_CLASS_CATEGORY
 #define EVENT_CLASS_CATEGORY(category) virtual int get_category_flags() const override { return static_cast<int>(category); }
 #endif
-
-
 namespace Salix {
-
-class EntitySelectedEvent : public IEvent { 
+    class ThemeReloadEvent : public IEvent { 
     public:
-        EntitySelectedEvent(Entity* selected_entity)
-            : entity(selected_entity) {}
-
-        EVENT_CLASS_TYPE(EditorEntitySelected)
+        ThemeReloadEvent() {}
+           
+        EVENT_CLASS_TYPE(EditorThemeReloadEvent)
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
 
-        Entity* entity;
+       
     };
-
-} // namespace Salix
+}
