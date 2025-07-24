@@ -134,7 +134,7 @@ namespace Salix {
                     item_names.push_back(name.c_str());
                 }
 
-                if (ImGui::Combo(prop.name.c_str(), &value, item_names.data(), item_names.size())) {
+                if (ImGui::Combo(prop.name.c_str(), &value, item_names.data(), static_cast<int>(item_names.size()))) {
                     prop.set_data(element, &value);
                 }
             }
@@ -150,7 +150,7 @@ namespace Salix {
                     item_names.push_back(name.c_str());
                 }
 
-                if (ImGui::Combo(prop.name.c_str(), &value, item_names.data(), item_names.size())) {
+                if (ImGui::Combo(prop.name.c_str(), &value, item_names.data(), static_cast<int>(item_names.size()))) {
                 prop.set_data(element, &value);
                 }
             }
