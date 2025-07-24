@@ -63,6 +63,9 @@ namespace Salix {
         // Specific method to set up event system dependencies.
         void setup_event_polling(IEventPoller* event_poller, EventManager* event_manager);
         ImGuiContext* get_context() override;
+        void request_theme_reload();
+        bool is_theme_reload_requested();
+        void clear_theme_reload_request();
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;

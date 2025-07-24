@@ -36,7 +36,7 @@ namespace Salix {
         std::unordered_map<std::string, std::unique_ptr<DialogBox>> dialog_registry; // store all the registered dialogs
         // Store dialog results for the current frame
         mutable std::unordered_map<std::string, FileDialogResult> dialog_results_this_frame;
-
+        bool theme_reload_requested = false;
         // Helper to unregister the callback on shutdown
         void unregister_raw_event_callback_if_registered();
     };
@@ -528,5 +528,16 @@ namespace Salix {
     }
 
     ImGuiContext* SDLImGui::get_context() { return pimpl->context; }
+
+    void SDLImGui::request_theme_reload() {
+        pimpl->theme_reload_requested = true;
+    }
+    bool SDLImGui::is_theme_reload_requested() {
+        return pimpl->theme_reload_requested;
+    }
+    void SDLImGui::clear_theme_reload_request() {
+        pimpl->theme_reload_requested = false;
+
+    }
 
 } // namespace Salix

@@ -12,6 +12,7 @@ namespace Salix {
         float dialog_width_ratio = 0.7f;  // Default to 70% of window width
         float dialog_height_ratio = 0.75f; // Default to 75% of window height
         float font_scaling = 1.0f;
+        float global_dpi_scaling = 1.0f;
     };
 
     struct ApplicationConfig { 

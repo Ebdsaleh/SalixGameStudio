@@ -68,6 +68,9 @@ namespace Salix {
         void set_app_config(ApplicationConfig* config) override;
         ApplicationConfig* get_app_config() override;
         ImGuiContext* get_context() override;
+        void request_theme_reload();
+        bool is_theme_reload_requested();
+        void clear_theme_reload_request();
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;

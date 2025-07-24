@@ -107,5 +107,9 @@ namespace Salix {
         virtual ApplicationConfig* get_app_config() = 0;
 
         virtual ImGuiContext* get_context() = 0;
+
+        virtual void request_theme_reload() = 0;
+        virtual bool is_theme_reload_requested() = 0;
+        virtual void clear_theme_reload_request() = 0;
     };
 }

@@ -23,7 +23,7 @@ namespace Salix {
     class EventManager;
     struct InitContext;
     struct ApplicationConfig;
-    
+    class ThemeReloadEvent;
     class SALIX_API Engine : public EngineInterface {
         public:
             Engine();
