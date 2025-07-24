@@ -50,7 +50,7 @@ namespace Salix {
         font_no                     { 0 },              // 0 
         oversample_h                { 2 },              // 0 (2)
         oversample_v                { 1 },              // 0 (1)
-        size_pixels                 { NULL },           //          // Size in pixels for rasterizer (more or less maps to the resulting font height).
+        size_pixels                 { 0.0f },           //          // Size in pixels for rasterizer (more or less maps to the resulting font height).
         glyph_ranges                { NULL },           // NULL  
         glyph_exclude_ranges        { NULL },           // NULL
         glyph_offset                { 0, 0 },           // 0, 0
@@ -64,6 +64,29 @@ namespace Salix {
     {
         // Constructor body (empty if all initialized in initializer list)
     }
+    ImFontConfig ImGuiFontData::Config::to_imgui_font_config() const {
+                ImFontConfig imgui_config;
+                imgui_config.MergeMode = merge_mode;
+                imgui_config.PixelSnapH = pixel_snap_h;
+                imgui_config.PixelSnapV = pixel_snap_v;
+                imgui_config.FontNo = font_no;
+                imgui_config.OversampleH = oversample_h;
+                imgui_config.OversampleV = oversample_v;
+                imgui_config.SizePixels = size_pixels; // Use this struct's size_pixels
+                imgui_config.GlyphRanges = glyph_ranges;
+                imgui_config.GlyphExcludeRanges = glyph_exclude_ranges;
+                imgui_config.GlyphOffset = glyph_offset;
+                imgui_config.GlyphMinAdvanceX = glyph_min_advance_x;
+                imgui_config.GlyphMaxAdvanceX = glyph_max_advance_x;
+                imgui_config.GlyphExtraAdvanceX = glyph_extra_advance_x;
+                imgui_config.FontLoaderFlags = font_loader_flags;
+                imgui_config.RasterizerMultiply = rasterizer_multiply;
+                imgui_config.RasterizerDensity = rasterizer_density;
+                imgui_config.EllipsisChar = ellipsis_char;
+                // Important: imgui_config.Name is a char[40], needs strncpy_s
+                // Let's add the name copying where ImFontConfig is used (in reload_font)
+                return imgui_config;
+            }
 
     // Default constructor for ImGuiFontData
     ImGuiFontData::ImGuiFontData() :
@@ -73,6 +96,7 @@ namespace Salix {
         gui_type("ImGui"),
         config(Config())
     {
+        config.size_pixels = font_size;
         // Constructor body (if any)
     }
 
@@ -85,6 +109,7 @@ namespace Salix {
         // Initialize ImFontConfig-related members with defaults
         config(Config())
     {
+        config.size_pixels = font_size;
         // Constructor body (if any)
     }
 

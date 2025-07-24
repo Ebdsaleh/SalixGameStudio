@@ -4,7 +4,8 @@
 #include <string>             // For std::string
 #include <vector>             // For std::vector
 #include <memory>             // For std::unique_ptr (for internal management in concrete class)
-
+#include <unordered_map>
+#include <map>
 // Forward declarations for interfaces managed by this manager
 namespace Salix {
     class IGui; // The GUI system this manager interacts with
@@ -53,13 +54,20 @@ namespace Salix {
 
 
         // Gets a list of all registered font names.
-        virtual std::vector<std::string> get_registered_fonts() const = 0;
+        virtual std::vector<std::string> get_registered_font_names() const = 0;
 
+        virtual const std::unordered_map<std::string, std::unique_ptr<IFont>>& get_font_registry() = 0;
+
+        virtual std::vector<float> get_font_sizes_for_font_family(const std::string& font_family) const = 0;
+
+        virtual std::vector<std::string> get_unique_font_families() const = 0;
 
         // Optional: Get the data for a specific registered font.
         virtual const IFont* get_font(const std::string& font_name) const = 0;
+        
+        virtual void create_font_batch(const std::string& font_path, const std::string& font_family, float min_size, float max_size) = 0;
 
-
+        virtual void setup_default_fonts() = 0;
         // --- Convenience / Workflow Methods ---
 
         // Loads a font from a file, registers it, and optionally applies it.
@@ -78,8 +86,11 @@ namespace Salix {
         // Purges a font by its name, unregisters it, and unloads it if it was active.
         virtual bool purge_font(const std::string& font_name) = 0;
 
-
+        
+        virtual IFont* get_active_font() = 0;
+        
         // NOTE: The concrete implementation of this class will require an std::map<const std::const&, std::unique_ptr>
+        
     };
 
 } // namespace Salix

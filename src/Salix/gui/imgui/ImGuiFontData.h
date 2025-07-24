@@ -90,6 +90,7 @@ namespace Salix {
 
             // Constructor for nested Config struct (defined below)
             Config();
+            ImFontConfig to_imgui_font_config() const;
         };
         // Optional: If you want to store custom glyph ranges defined by the user
         // std::vector<ImWchar> custom_glyph_ranges_data; // Store actual data if not using static ranges

@@ -18,10 +18,12 @@ namespace Salix {
         ~ImGuiFont() override;
 
         // --- IFont overrides ---
-        const std::string& get_name() const override; // RE-IMPLEMENTED
-        IFontData* get_data() override;
-        ImFont* get_imgui_font_ptr() const override; // RE-IMPLEMENTED
-
+        const std::string& get_name() const override; 
+        IFontData* get_data() const override;
+        ImFont* get_imgui_font_ptr() const override; 
+        void set_family(const std::string& font_family) override;
+        const std::string& get_family()  const override;
+        void set_data(IFontData* new_data) override;
         // Setter for imgui_font_ptr (called by ImGuiFontManager after loading)
         void set_imgui_font_ptr(ImFont* ptr);
 
