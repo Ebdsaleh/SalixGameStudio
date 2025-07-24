@@ -1,0 +1,377 @@
+name: Default Dark Theme
+gui_type: ImGui
+Font:
+  default_font_name: Roboto-Regular_18_px
+  default_font_path: Assets/Fonts/Roboto-Regular.ttf
+  default_font_size: 18
+  font_family: Roboto-Regular
+  font_size: 18
+  font_scale_main: 1
+Colors:
+  text_color:
+    r: 1.0
+    g: 1.0
+    b: 1.0
+    a: 1
+  text_disabled_color:
+    r: 0.5
+    g: 0.5
+    b: 0.5
+    a: 1
+  window_bg_color:
+    r: 0.1
+    g: 0.1
+    b: 0.1
+    a: 1
+  child_bg_color:
+    r: 0.1
+    g: 0.1
+    b: 0.1
+    a: 1
+  popup_bg_color:
+    r: 0.15
+    g: 0.15
+    b: 0.15
+    a: 1
+  border_color:
+    r: 0.10046465
+    g: 0.39719567
+    b: 0.88185656
+    a: 1
+  border_shadow_color:
+    r: 0
+    g: 0
+    b: 0
+    a: 0
+  frame_bg_color:
+    r: 0.2
+    g: 0.2
+    b: 0.2
+    a: 1
+  frame_bg_hovered_color:
+    r: 0.10966905
+    g: 0.42416933
+    b: 0.64978904
+    a: 1
+  frame_bg_active_color:
+    r: 0.02846765
+    g: 0.23957731
+    b: 0.5189873
+    a: 1
+  title_bg_color:
+    r: 0.058858078
+    g: 0.18710767
+    b: 0.48101264
+    a: 1
+  title_bg_active_color:
+    r: 0.09809686
+    g: 0.31919044
+    b: 0.6118144
+    a: 1
+  title_bg_collapsed_color:
+    r: 0.07058445
+    g: 0.07172996
+    b: 0.0677954
+    a: 1
+  menu_bar_bg_color:
+    r: 0.19014049
+    g: 0.26054057
+    b: 0.37552744
+    a: 1
+  scrollbar_bg_color:
+    r: 0.05
+    g: 0.05
+    b: 0.05
+    a: 1
+  scrollbar_grab_color:
+    r: 0.12394739
+    g: 0.1902158
+    b: 0.4978903
+    a: 1
+  scrollbar_grab_hovered_color:
+    r: 0.1512222
+    g: 0.3241181
+    b: 0.5780591
+    a: 1
+  scrollbar_grab_active_color:
+    r: 0.16649754
+    g: 0.3857415
+    b: 0.70464134
+    a: 1
+  checkmark_color:
+    r: 0.8
+    g: 0.8
+    b: 0.8
+    a: 1
+  slider_grab_color:
+    r: 0.7
+    g: 0.7
+    b: 0.7
+    a: 1
+  slider_grab_active_color:
+    r: 0.8
+    g: 0.8
+    b: 0.8
+    a: 1
+  button_color:
+    r: 0.30625436
+    g: 0.386647
+    b: 0.5949367
+    a: 1
+  button_hovered_color:
+    r: 0.13160282
+    g: 0.4531136
+    b: 0.70886075
+    a: 1
+  button_active_color:
+    r: 0.027613085
+    g: 0.38667873
+    b: 0.5949367
+    a: 1
+  header_color:
+    r: 0.1882353
+    g: 0.50980395
+    b: 0.7921569
+    a: 1
+  header_hovered_color:
+    r: 0.18743436
+    g: 0.50951326
+    b: 0.79324895
+    a: 1
+  header_active_color:
+    r: 0.109277345
+    g: 0.34826878
+    b: 0.835443
+    a: 1
+  separator_color:
+    r: 0.056454636
+    g: 0.30636582
+    b: 0.6371308
+    a: 1
+  separator_hovered_color:
+    r: 0.12942849
+    g: 0.11963896
+    b: 0.5063291
+    a: 1
+  separator_active_color:
+    r: 0.2243609
+    g: 0.23628694
+    b: 0.22133207
+    a: 1
+  resize_grip_color:
+    r: 0.05864445
+    g: 0.7721519
+    b: 0.05864445
+    a: 0.2
+  resize_grip_hovered_color:
+    r: 0.18070473
+    g: 0.73839664
+    b: 0.30777374
+    a: 0.2
+  resize_grip_active_color:
+    r: 0.19842644
+    g: 0.70886075
+    b: 0.06879241
+    a: 0.9
+  tab_color:
+    r: 0.14901961
+    g: 0.14901961
+    b: 0.14901961
+    a: 1
+  tab_hovered_color:
+    r: 0.038384154
+    g: 0.28604177
+    b: 0.64978904
+    a: 1
+  tab_active_color:
+    r: 0.1595186
+    g: 0.36773655
+    b: 0.67510545
+    a: 1
+  tab_unfocused_color:
+    r: 0.101960786
+    g: 0.101960786
+    b: 0.101960786
+    a: 1
+  tab_unfocused_active_color:
+    r: 0.092435345
+    g: 0.21951655
+    b: 0.37130803
+    a: 1
+  docking_preview_color:
+    r: 0.8
+    g: 0.8
+    b: 0.8
+    a: 0.7
+  docking_empty_bg_color:
+    r: 0.05
+    g: 0.05
+    b: 0.05
+    a: 1
+  plot_lines_color:
+    r: 0.6
+    g: 0.6
+    b: 0.6
+    a: 1
+  plot_lines_hovered_color:
+    r: 0.9
+    g: 0.9
+    b: 0.9
+    a: 1
+  plot_histogram_color:
+    r: 0.6
+    g: 0.6
+    b: 0.6
+    a: 1
+  plot_histogram_hovered_color:
+    r: 0.9
+    g: 0.9
+    b: 0.9
+    a: 1
+  table_header_bg_color:
+    r: 0.25
+    g: 0.25
+    b: 0.25
+    a: 1
+  table_border_strong_color:
+    r: 0.4
+    g: 0.4
+    b: 0.4
+    a: 1
+  table_border_light_color:
+    r: 0.2
+    g: 0.2
+    b: 0.2
+    a: 1
+  table_row_bg_color:
+    r: 0.15
+    g: 0.15
+    b: 0.15
+    a: 1
+  table_row_bg_alt_color:
+    r: 0.2
+    g: 0.2
+    b: 0.2
+    a: 1
+  text_selected_bg_color:
+    r: 0.7
+    g: 0.7
+    b: 0.7
+    a: 0.35
+  drag_drop_target_color:
+    r: 0.7019608
+    g: 0.7019608
+    b: 0.7019608
+    a: 0.5019608
+  nav_highlight_color:
+    r: 0.7019608
+    g: 0.7019608
+    b: 0.7019608
+    a: 0.5019608
+  nav_windowing_highlight_color:
+    r: 1
+    g: 1
+    b: 1
+    a: 0.7
+  nav_windowing_dim_color:
+    r: 0.8
+    g: 0.8
+    b: 0.8
+    a: 0.2
+  modal_window_dim_color:
+    r: 0.2
+    g: 0.2
+    b: 0.2
+    a: 0.35
+StyleFloats:
+  alpha: 1
+  window_rounding: 0
+  window_border_size: 0
+  window_border_hover_padding: 0
+  child_rounding: 0
+  child_border_size: 0
+  popup_rounding: 0
+  popup_border_size: 0
+  frame_rounding: 3
+  frame_border_size: 0
+  indent_spacing: 0
+  columns_min_spacing: 0
+  scrollbar_size: 10
+  scrollbar_rounding: 0
+  grab_min_size: 10
+  grab_rounding: 0
+  log_slider_deadzone: 0
+  image_border_size: 0
+  tab_rounding: 0
+  tab_border_size: 0
+  tab_close_button_min_width_selected: 0
+  tab_close_button_min_width_unselected: 0
+  tab_bar_border_size: 0
+  tab_bar_overline_size: 0
+  table_angled_headers_angle: 0
+  tree_lines_size: 0
+  tree_lines_rounding: 0
+  separator_text_border_size: 0
+  docking_separator_size: 2
+  mouse_cursor_scale: 1
+  curve_tessellation_tol: 1.25
+  circle_tessellation_max_error: 1
+  hover_stationary_delay: 0
+  hover_delay_short: 0.1
+  hover_delay_normal: 0.4
+StyleBools:
+  anti_aliased_lines: true
+  anti_aliased_lines_use_tex: true
+  anti_aliased_fill: true
+StyleVectors:
+  window_padding:
+    x: 8
+    y: 8
+  window_min_size:
+    x: 32
+    y: 32
+  window_title_align:
+    x: 0.5
+    y: 0.5
+  frame_padding:
+    x: 4
+    y: 3
+  item_spacing:
+    x: 8
+    y: 4
+  item_inner_spacing:
+    x: 4
+    y: 4
+  cell_padding:
+    x: 4
+    y: 2
+  touch_extra_padding:
+    x: 0
+    y: 0
+  table_angled_headers_text_align:
+    x: 0
+    y: 0
+  button_text_align:
+    x: 0.5
+    y: 0.5
+  selectable_text_align:
+    x: 0
+    y: 0
+  separator_text_align:
+    x: 0
+    y: 0
+  separator_text_padding:
+    x: 0
+    y: 0
+  display_window_padding:
+    x: 19
+    y: 19
+  display_safe_area_padding:
+    x: 3
+    y: 3
+Enums:
+  window_menu_button_position: ImGuiDir_Left
+  color_button_position: ImGuiDir_Right
+  tree_lines_flags: ImGuiTreeNodeFlags_None
+  hover_flags_for_tooltip_mouse: ImGuiHoveredFlags_ForTooltip
+  hover_flags_for_tooltip_nav: ImGuiHoveredFlags_ForTooltip
