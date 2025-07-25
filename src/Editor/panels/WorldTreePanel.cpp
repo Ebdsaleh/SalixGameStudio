@@ -15,6 +15,8 @@
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/management/SceneManager.h>
 #include <Editor/EditorContext.h>
+#include <Salix/rendering/ITexture.h>
+#include <Salix/assets/AssetManager.h>
 #include <memory>
 #include <iostream>
 
@@ -24,6 +26,7 @@ namespace Salix {
         std::string name;
         EditorContext* context = nullptr;
         bool is_visible = true;
+        ImTextureID camera_icon_id;
 
     };
 
@@ -34,6 +37,22 @@ namespace Salix {
     void WorldTreePanel::initialize(EditorContext* context) {
         if(!context) { return; } // Cannot accept a null EditorContext pointer.
         pimpl->context = context;
+        if (context->asset_manager) {
+            // NOTE: Replace with the actual path to your camera icon
+            const char* icon_path = "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_042.png";
+            ITexture* texture = pimpl->context->init_context->asset_manager->get_texture(icon_path);
+            if (texture) {
+                // Use the new, clean interface method to get the ImGui texture ID.
+                // This works for both OpenGL and SDL renderers.
+                pimpl->camera_icon_id = texture->get_imgui_texture_id();
+
+                if (pimpl->camera_icon_id == 0) {
+                    std::cerr << "WorldTreePanel Error: Texture loaded, but get_imgui_texture_id() returned null." << std::endl;
+                }
+            } else {
+                std::cerr << "WorldTreePanel Error: Could not load camera icon at path: " << icon_path << std::endl;
+            }
+        }
     }
 
     void WorldTreePanel::set_name(const std::string& new_name) {
@@ -64,6 +83,18 @@ namespace Salix {
                     if (pimpl->context->selected_entity == entity_ptr) {
                         entity_flags |= ImGuiTreeNodeFlags_Selected;
                     }
+
+                     // --- ICON RENDERING LOGIC ---
+                    ImGui::AlignTextToFramePadding(); // Helps vertically align the icon and text
+
+                    // For this proof-of-concept, we'll just check the entity's name.
+                    if (entity_ptr->get_name() == "Main Camera" && pimpl->camera_icon_id != 0) {
+                        ImGui::Image(pimpl->camera_icon_id, ImVec2(16, 16)); // Render the icon
+                        ImGui::SameLine(); // Tell ImGui to draw the next widget on the same line
+                    }
+                    // --- END ICON LOGIC ---
+
+
 
                     // Use the entity pointer as a unique ID for the TreeNode
                     bool entity_node_open = ImGui::TreeNodeEx((void*)entity_ptr, entity_flags, "%s", entity_ptr->get_name().c_str());
