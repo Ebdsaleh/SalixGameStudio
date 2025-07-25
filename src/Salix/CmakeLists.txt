@@ -25,6 +25,7 @@ add_library(SalixEngine SHARED
     gui/imgui/ImguiFont.cpp
     gui/imgui/ImguiFontData.cpp
     gui/imgui/ImGuiFontManager.cpp
+    gui/imgui/ImGuiIconManager.cpp
     gui/imgui/sdl/SDLImGui.cpp
     gui/imgui/opengl/OpenGLImGui.cpp
     input/sdl/SDLInputManager.cpp
