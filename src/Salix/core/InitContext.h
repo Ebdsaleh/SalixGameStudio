@@ -20,6 +20,7 @@ namespace Salix {
     class IThemeManager;
     class IFontManager;
     struct ApplicationConfig;
+    class IIconManager;
 
     struct SALIX_API InitContext {
         const ApplicationConfig* app_config;
@@ -37,6 +38,7 @@ namespace Salix {
         EventManager* event_manager;
         IThemeManager* theme_manager;
         IFontManager* font_manager;
+        IIconManager* icon_manager;
         EngineMode engine_mode = EngineMode::None;
         std::string project_file_path;
         std::string  project_dll_path;
