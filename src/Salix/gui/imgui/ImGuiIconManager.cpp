@@ -54,13 +54,13 @@ namespace Salix {
             std::cerr << "ImGuiIconManager Error: Cannot register default icons, AssetManager is not initialized." << std::endl;
             return;
         }
-        pimpl->register_icon("Entity", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_096");
-        pimpl->register_icon("Camera", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_039");
-        pimpl->register_icon("Transform", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_092");
-        pimpl->register_icon("Sprite2D", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_031");
+        pimpl->register_icon("Entity", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_096.png");
+        pimpl->register_icon("Camera", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_039.png");
+        pimpl->register_icon("Transform", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_092.png");
+        pimpl->register_icon("Sprite2D", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_031.png");
         
         // Also register the default icon itself
-        pimpl->register_icon("Default", "Assets/Icons/generics/generics_color_00_m_color_00.png");
+        pimpl->register_icon("Default", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_153.png");
         pimpl->default_icon = pimpl->icon_registry["Default"];
     }
 
