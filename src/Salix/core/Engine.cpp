@@ -527,7 +527,10 @@ namespace Salix {
             pimpl->font_manager.reset();
         }
 
+        pimpl->icon_manager.reset();
+
         pimpl->app_event_listener.reset();
+
         pimpl->event_poller.reset();
 
         pimpl->event_manager.reset();
