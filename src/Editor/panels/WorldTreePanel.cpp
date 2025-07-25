@@ -14,9 +14,12 @@
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/management/SceneManager.h>
+#include <Salix/core/InitContext.h>
 #include <Editor/EditorContext.h>
 #include <Salix/rendering/ITexture.h>
 #include <Salix/assets/AssetManager.h>
+#include <Salix/gui/imgui/ImGuiIconManager.h>
+#include <Salix/gui/IconInfo.h>
 #include <memory>
 #include <iostream>
 
@@ -27,6 +30,7 @@ namespace Salix {
         EditorContext* context = nullptr;
         bool is_visible = true;
         ImTextureID camera_icon_id;
+        IIconManager* icon_manager = nullptr;
 
     };
 
@@ -37,22 +41,8 @@ namespace Salix {
     void WorldTreePanel::initialize(EditorContext* context) {
         if(!context) { return; } // Cannot accept a null EditorContext pointer.
         pimpl->context = context;
-        if (context->asset_manager) {
-            // NOTE: Replace with the actual path to your camera icon
-            const char* icon_path = "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_042.png";
-            ITexture* texture = pimpl->context->init_context->asset_manager->get_texture(icon_path);
-            if (texture) {
-                // Use the new, clean interface method to get the ImGui texture ID.
-                // This works for both OpenGL and SDL renderers.
-                pimpl->camera_icon_id = texture->get_imgui_texture_id();
-
-                if (pimpl->camera_icon_id == 0) {
-                    std::cerr << "WorldTreePanel Error: Texture loaded, but get_imgui_texture_id() returned null." << std::endl;
-                }
-            } else {
-                std::cerr << "WorldTreePanel Error: Could not load camera icon at path: " << icon_path << std::endl;
-            }
-        }
+        pimpl->icon_manager = context->init_context->icon_manager; 
+        
     }
 
     void WorldTreePanel::set_name(const std::string& new_name) {
@@ -87,10 +77,10 @@ namespace Salix {
                      // --- ICON RENDERING LOGIC ---
                     ImGui::AlignTextToFramePadding(); // Helps vertically align the icon and text
 
-                    // For this proof-of-concept, we'll just check the entity's name.
-                    if (entity_ptr->get_name() == "Main Camera" && pimpl->camera_icon_id != 0) {
-                        ImGui::Image(pimpl->camera_icon_id, ImVec2(16, 16)); // Render the icon
-                        ImGui::SameLine(); // Tell ImGui to draw the next widget on the same line
+                    const IconInfo& entity_icon = pimpl->icon_manager->get_icon_for_entity(entity_ptr);
+                    if (entity_icon.texture_id != 0) {
+                        ImGui::Image(entity_icon.texture_id, ImVec2(16, 16));
+                        ImGui::SameLine();
                     }
                     // --- END ICON LOGIC ---
 
@@ -117,6 +107,17 @@ namespace Salix {
                             if (pimpl->context->selected_element == element_ptr) {
                                 element_flags |= ImGuiTreeNodeFlags_Selected;
                             }
+
+                            // --- ICON RENDERING LOGIC (Element) ---
+                            const IconInfo& element_icon = pimpl->icon_manager->get_icon_for_element(element_ptr);
+                            if (element_icon.texture_id != 0) {
+                                ImGui::Indent(16.0f); 
+                                ImGui::Image(element_icon.texture_id, ImVec2(16, 16));
+                                ImGui::SameLine();
+                                ImGui::Unindent(16.0f);
+                            }
+                            // --- END ICON LOGIC ---
+
 
                             // Display the element as a selectable leaf node
                             ImGui::TreeNodeEx((void*)element_ptr, element_flags, "  - %s", element_ptr->get_class_name());
