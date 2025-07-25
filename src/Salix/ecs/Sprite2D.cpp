@@ -47,6 +47,10 @@ namespace Salix {
         load_texture(pimpl->context.asset_manager, texture_path);
     }
 
+    ITexture* Sprite2D::get_texture() const {
+        return pimpl->texture;
+    }
+
     void Sprite2D::load_texture(AssetManager* asset_manager, const std::string& relative_file_path) {
         if (relative_file_path.empty()) {
             std::cerr << "Warning: Sprite2D::load_texture called with an empty path.\n";

@@ -64,6 +64,9 @@ namespace Salix {
 
             const std::string& get_texture_path() const;
             void set_texture_path(const std::string& new_texture_path) { texture_path = new_texture_path; }
+
+            ITexture* get_texture() const;
+
         private:
             struct Pimpl;
             std::unique_ptr<Pimpl>pimpl;
