@@ -1,0 +1,24 @@
+#pragma once
+
+#include <Salix/gui/IIconManager.h>
+#include <memory> // For std::unique_ptr
+
+namespace Salix {
+
+    class SALIX_API ImGuiIconManager : public IIconManager {
+    public:
+        ImGuiIconManager();
+        ~ImGuiIconManager() override;
+
+        // --- IIconManager Interface ---
+        void initialize(AssetManager* asset_manager) override;
+        void register_default_icons() override;
+        const IconInfo& get_icon_for_entity(Entity* entity) override;
+        const IconInfo& get_icon_for_element(Element* element) override;
+
+    private:
+        struct Pimpl;
+        std::unique_ptr<Pimpl> pimpl;
+    };
+
+} // namespace Salix
