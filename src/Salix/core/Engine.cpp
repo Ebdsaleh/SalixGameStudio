@@ -34,6 +34,7 @@
 #include <Salix/gui/IThemeManager.h>
 #include <Salix/gui/IFontManager.h>
 #include <Salix/gui/imgui/ImGuiFont.h>
+#include <Salix/gui/imgui/ImGuiIconManager.h>
 
 // Gui/Imgui includes
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
@@ -93,6 +94,7 @@ namespace Salix {
         std::unique_ptr<IAppState> current_state;
         std::unique_ptr<ApplicationConfig>  app_config;
         std::unique_ptr<DummyCamera> dummy_camera;
+        std::unique_ptr<IIconManager> icon_manager;
         TimerType timer_type;
         EngineMode engine_mode = EngineMode::None;
         HMODULE game_dll_handle = nullptr;
@@ -108,6 +110,7 @@ namespace Salix {
 
         void setup_theme();
         void setup_fonts();
+        void setup_icons();
     };
 
     Engine::Engine() : pimpl(std::make_unique<Pimpl>()) {
@@ -309,6 +312,8 @@ namespace Salix {
 
                 pimpl->font_manager = std::make_unique<ImGuiFontManager>();
                 
+                pimpl->icon_manager = std::make_unique<ImGuiIconManager>();
+                
                 pimpl->gui_system->set_app_config(pimpl->app_config.get());
                 
                 if (!pimpl->gui_system->initialize(
@@ -350,7 +355,10 @@ namespace Salix {
                 // 4. Now, set up all the fonts. This will pre-load the batches.
                 pimpl->setup_fonts();
 
-                // 5. Finally, apply the active theme. This will now correctly find and
+                // 5. Set up all icons for preparation of entering the EditorState.
+                pimpl->setup_icons();
+
+                // 6. Finally, apply the active theme. This will now correctly find and
                 //    apply the font specified in the theme because all fonts have been pre-loaded.
                 pimpl->theme_manager->apply_theme(default_theme_name);
 
@@ -709,6 +717,7 @@ namespace Salix {
             // Only assign the pimpl->theme_manager if we're in a GUI context.
             ctx.theme_manager = pimpl->theme_manager.get();
             ctx.font_manager = pimpl->font_manager.get();
+            ctx.icon_manager = pimpl->icon_manager.get();
         }
 
        
@@ -740,6 +749,17 @@ namespace Salix {
         font_manager->rebuild_font_atlas_texture();
         font_manager->set_active_font("Roboto-Regular_20px");
         std::cout << "[ENGINE] Font Manager initialized." << std::endl;
+    }
+
+    void Engine::Pimpl::setup_icons() {
+        if (!icon_manager) {
+        std::cerr << "Engine Error: Icon Manager is null, cannot set up icons." << std::endl;
+        return;
+        }
+        icon_manager->initialize(asset_manager.get());
+        icon_manager->register_default_icons();
+
+        std::cout << "[ENGINE] Icon Manager initialized and default icons registered." << std::endl;
     }
 
     
