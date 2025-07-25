@@ -18,7 +18,8 @@ namespace Salix {
             // A public helper method for the SDLRenderer to get the underlying raw pointer,
             // that it requires for SDL API calls.
             SDL_Texture*  get_raw_texture() const;
-        
+            ImTextureID get_imgui_texture_id() const override;
+
         private:
             SDL_Texture* sdl_texture;
             int width;

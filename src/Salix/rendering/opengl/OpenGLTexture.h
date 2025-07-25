@@ -16,6 +16,7 @@ namespace Salix {
         // Get the raw OpenGL texture ID
         GLuint get_id() const; 
 
+        ImTextureID get_imgui_texture_id() const override;
         // ITexture interface methods
         int get_width() const override;
         int get_height() const override;

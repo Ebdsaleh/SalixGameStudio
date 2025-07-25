@@ -36,4 +36,9 @@ namespace Salix {
     SDL_Texture* SDLTexture::get_raw_texture() const {
         return sdl_texture;
     }
+
+    ImTextureID SDLTexture::get_imgui_texture_id() const {
+        return (ImTextureID)sdl_texture;
+
+    }
 } // namespace Salix

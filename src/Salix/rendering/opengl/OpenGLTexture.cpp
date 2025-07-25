@@ -48,4 +48,8 @@ namespace Salix {
         return pimpl->height;
     }
 
+    ImTextureID OpenGLTexture::get_imgui_texture_id() const {
+        return (ImTextureID)(intptr_t)pimpl->texture_id;
+    }
+
 }  // namespace Salix
