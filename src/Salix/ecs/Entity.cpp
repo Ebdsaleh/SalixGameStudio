@@ -143,6 +143,15 @@ namespace Salix {
     }
 
 
+    const Element* Entity::get_element_internal(const std::type_info& type_info) const {
+        for (const auto& element : pimpl->all_elements) {
+            if (typeid(*element) == type_info) {
+                return element.get();
+            }
+        }
+        return nullptr;
+    }
+
     void Entity::set_name(const std::string& new_name) {
         pimpl->name = new_name;
     }

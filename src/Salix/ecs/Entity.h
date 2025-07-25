@@ -26,87 +26,96 @@ namespace Salix {
     struct InitContext;
 
     class SALIX_API Entity{
-    public:
-        Entity();
-        ~Entity(); // Destructor MUST be in the header
+        public:
+            Entity();
+            ~Entity(); // Destructor MUST be in the header
 
-        void on_load(const InitContext& new_context);
-        void update(float delta_time);
-        void render(IRenderer* renderer);
-        Transform* get_transform() const;
+            void on_load(const InitContext& new_context);
+            void update(float delta_time);
+            void render(IRenderer* renderer);
+            Transform* get_transform() const;
 
-        void purge();
-        bool is_purged() const;
-        void set_name(const std::string& new_name);
-        const std::string& get_name() const;
-        const SimpleGuid&  get_id() const;
+            void purge();
+            bool is_purged() const;
+            void set_name(const std::string& new_name);
+            const std::string& get_name() const;
+            const SimpleGuid&  get_id() const;
 
-        // --- PUBLIC TEMPLATE METHODS (defined in the header) ---
-        // New public template overload for add_element.
-        template<typename T>
-        void add_element(std::unique_ptr<T> element) {
-            // This check ensures you can only add things that inherit from Element.
-            static_assert(std::is_base_of<Element, T>::value, "Type T must be derived from Salix::Element");
+            // --- PUBLIC TEMPLATE METHODS (defined in the header) ---
+            // New public template overload for add_element.
+            template<typename T>
+            void add_element(std::unique_ptr<T> element) {
+                // This check ensures you can only add things that inherit from Element.
+                static_assert(std::is_base_of<Element, T>::value, "Type T must be derived from Salix::Element");
 
-            if (!element) {
-                return;
+                if (!element) {
+                    return;
+                }
+
+                // Get the raw pointer before we move ownership.
+                Element* raw_ptr = element.get();
+                raw_ptr->set_owner(this);
+
+                // Call the private helper to do the real work.
+                // The compiler can now safely convert std::unique_ptr<T> to std::unique_ptr<Element>.
+                add_element_internal(std::move(element));
+
+                // Call initialize to complete the setup.
+                raw_ptr->initialize();
             }
 
-            // Get the raw pointer before we move ownership.
-            Element* raw_ptr = element.get();
-            raw_ptr->set_owner(this);
+            template<typename T>
+            T* add_element() {
+                // Create the new element safely.
+                auto new_element_owner = std::make_unique<T>();
+                T* raw_ptr = new_element_owner.get();
+                raw_ptr->owner = this;
 
-            // Call the private helper to do the real work.
-            // The compiler can now safely convert std::unique_ptr<T> to std::unique_ptr<Element>.
-            add_element_internal(std::move(element));
+                // Call the private, non-templated helper to do the real work.
+                add_element_internal(std::move(new_element_owner));
 
-            // Call initialize to complete the setup.
-            raw_ptr->initialize();
-    }
-
-        template<typename T>
-        T* add_element() {
-            // Create the new element safely.
-            auto new_element_owner = std::make_unique<T>();
-            T* raw_ptr = new_element_owner.get();
-            raw_ptr->owner = this;
-
-            // Call the private, non-templated helper to do the real work.
-            add_element_internal(std::move(new_element_owner));
-
-            raw_ptr->initialize();
-            return raw_ptr;
-        }
-       
-        std::vector<Element *> get_all_elements();
-
-        template<typename T>
-        T* get_element() {
-            // Call the private, non-templated helper to do the real work.
-            // We pass the typeid so the helper knows what to look for.
-            return static_cast<T*>(get_element_internal(typeid(T)));
-        }
+                raw_ptr->initialize();
+                return raw_ptr;
+            }
         
-        
-    private:
+            std::vector<Element *> get_all_elements();
 
-        // --- PIMPL POINTER ---
-        struct Pimpl;
-        std::unique_ptr<Pimpl> pimpl;
-        
-        // --- The Cereal Friendship ---
-        // This gives the Cereal library permission to access our private serialize method.
-        friend class cereal::access;
+            template<typename T>
+            T* get_element() {
+                // Call the private, non-templated helper to do the real work.
+                // We pass the typeid so the helper knows what to look for.
+                return static_cast<T*>(get_element_internal(typeid(T)));
+            }
 
-        template<class Archive>
-        void serialize(Archive& archive);
+            template<typename T>
+            const T* get_element() const {
+                // Call the private, non-templated helper to do the real work.
+                // We pass the typeid so the helper knows what to look for.
+                return static_cast<const T*>(get_element_internal(typeid(T)));
+            }
+            
+            template<typename T>
+            bool has_element() const {
+                // This is now incredibly simple: just call get_element and check the result.
+                return get_element<T>() != nullptr;
+            }
 
-        // --- PRIVATE HELPER FUNCTIONS (implemented in .cpp) ---
-        void add_element_internal(std::unique_ptr<Element> element);
-        Element* get_element_internal(const std::type_info& type_info);
+        private:
 
-        void post_load_setup();
+            // --- PIMPL POINTER ---
+            struct Pimpl;
+            std::unique_ptr<Pimpl> pimpl;
+            
+            // --- The Cereal Friendship ---
+            // This gives the Cereal library permission to access our private serialize method.
+            friend class cereal::access;
 
-        
-    };
+            template<class Archive>
+            void serialize(Archive& archive);
+
+            // --- PRIVATE HELPER FUNCTIONS (implemented in .cpp) ---
+            void add_element_internal(std::unique_ptr<Element> element);
+            Element* get_element_internal(const std::type_info& type_info);
+            const Element* get_element_internal(const std::type_info& type_info) const;          
+        };
 } // namespace Salix
