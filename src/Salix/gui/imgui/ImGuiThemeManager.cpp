@@ -5,6 +5,7 @@
 #include <Salix/gui/imgui/ImGuiThemeData.h>
 #include <Salix/gui/IFontManager.h>
 #include <Salix/core/ApplicationConfig.h>
+#include <Salix/gui/IIconManager.h>
 #include <imgui/imgui.h>
 #include <fstream>
 #include <filesystem>
@@ -21,6 +22,7 @@ namespace Salix {
         std::string active_theme_name;
         float current_scale = 1.0f;
         ITheme* active_theme = nullptr;
+        IIconManager* icon_manager = nullptr;
     };
 
     ImGuiThemeManager::ImGuiThemeManager() : pimpl(std::make_unique<Pimpl>()) {}
@@ -31,6 +33,7 @@ namespace Salix {
 
     bool ImGuiThemeManager::initialize(IGui* gui_system) {
         pimpl->gui_system = gui_system;
+        pimpl->icon_manager = gui_system->get_icon_manager();
         return true;
     }
 
@@ -87,11 +90,22 @@ namespace Salix {
         // 3. Delegate the work to the theme object
         theme_to_apply->apply(pimpl->gui_system);
 
-        // 4. Update the manager's internal state
+        // 4. Apply the icon theme
+        ImGuiTheme* imgui_theme = dynamic_cast<ImGuiTheme*>(theme_to_apply);
+        if (imgui_theme && pimpl->icon_manager) {
+            ImGuiThemeData* data = imgui_theme->get_data();
+            if (data) {
+                for (const auto& [type_name, path] : data->icon_paths) {
+                    pimpl->icon_manager->update_icon(type_name, path);
+                }
+            }
+        }
+
+        // 5. Update the manager's internal state
         pimpl->active_theme = theme_to_apply;
         pimpl->active_theme_name = theme_name;
         
-        // 5. Re-apply the current UI scale on top of the new theme's base styles
+        // 6. Re-apply the current UI scale on top of the new theme's base styles
         apply_style_scale(pimpl->current_scale);
 
         std::cout << "ImGuiThemeManager: Theme '" << theme_name << "' applied." << std::endl;
