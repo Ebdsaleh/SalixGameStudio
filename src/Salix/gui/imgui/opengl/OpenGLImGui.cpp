@@ -357,7 +357,7 @@ namespace Salix {
                 
                 set_common_dialog_properties(); // 
 
-                dialog_instance->Open(); // This calls ImGuiFileDialog::Instance()->OpenDialog() 
+                dialog_instance->open(); // This calls ImGuiFileDialog::Instance()->OpenDialog() 
                 std::cout << "DEBUG: Dialog '" << key << "' just called Open() for the first time." << std::endl;
             }
 
@@ -452,6 +452,13 @@ namespace Salix {
     }
 
 
+    DialogBox* OpenGLImGui::get_dialog(const std::string& key) {
+    if (pimpl->dialog_registry.count(key)) { // Assuming your map is called m_dialogs
+        return pimpl->dialog_registry.at(key).get();
+    }
+
+    return nullptr;
+}
 
     bool OpenGLImGui::register_dialog(std::unique_ptr<DialogBox> dialog) {
         if (!dialog) {

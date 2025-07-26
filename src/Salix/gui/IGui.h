@@ -93,6 +93,8 @@ namespace Salix {
         
         virtual DialogBox* create_dialog(std::string& key, std::string& title, DialogType type, bool overwrite) = 0;
 
+        virtual DialogBox* get_dialog(const std::string& key) = 0;
+
         virtual bool register_dialog(std::unique_ptr<DialogBox> dialog) = 0;
 
         virtual void show_dialog_by_key(std::string& key) = 0;

@@ -53,6 +53,7 @@ namespace Salix {
         FileDialogResult populate_dialog_result(const std::string& key) override;
 
         DialogBox* create_dialog(std::string& key, std::string& title, DialogType type, bool overwrite) override;
+        DialogBox* get_dialog(const std::string& key) override;
         bool register_dialog(std::unique_ptr<DialogBox> dialog) override;
  
         void show_dialog_by_key(std::string& key) override;

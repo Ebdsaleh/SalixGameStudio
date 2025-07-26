@@ -361,7 +361,7 @@ namespace Salix {
                 // This ensures the size and position are set for the FIRST frame the dialog appears.
                 set_common_dialog_properties(); // 
 
-                dialog_instance->Open(); // This calls ImGuiFileDialog::Instance()->OpenDialog() 
+                dialog_instance->open(); // This calls ImGuiFileDialog::Instance()->OpenDialog() 
                 std::cout << "DEBUG: Dialog '" << key << "' just called Open() for the first time." << std::endl; // Debug
             }
 
@@ -486,6 +486,13 @@ namespace Salix {
         return raw_dialog_ptr;
     }
 
+    DialogBox* SDLImGui::get_dialog(const std::string& key) {
+        if (pimpl->dialog_registry.count(key)) { // Assuming your map is called m_dialogs
+            return pimpl->dialog_registry.at(key).get();
+        }
+
+        return nullptr;
+    }
     
     bool SDLImGui::register_dialog(std::unique_ptr<DialogBox> dialog) {
         if (!dialog) {
