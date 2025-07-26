@@ -14,7 +14,7 @@
 // Forward declare SDL types to avoid including SDL headers here
 struct SDL_Window;
 typedef void* SDL_GLContext;
-
+typedef uint64_t ImTextureID;
 namespace Salix {
 
     // Forward declaration for our internal ShaderProgram helper class
@@ -38,6 +38,13 @@ namespace Salix {
         IWindow* get_window() override;
         void* get_native_handle() override;
 
+        // --- Frame Buffering ---
+        uint32_t create_framebuffer(int width, int height) override;
+        ImTextureID get_framebuffer_texture_id(uint32_t framebuffer_id) override;
+        void bind_framebuffer(uint32_t framebuffer_id) override;
+        void unbind_framebuffer() override;
+
+
         void purge_texture(ITexture* texture);
         ITexture* load_texture(const char* file_path) override;
         void draw_texture(ITexture* texture, const Rect& dest_rect) override;
@@ -53,9 +60,16 @@ namespace Salix {
 
         // A test function to draw a simple colored cube.
         void draw_cube(const glm::mat4& model_matrix, const Color& color);
+
+        
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
+        struct Framebuffer {
+            GLuint fbo_id = 0; // Framebuffer Object ID
+            GLuint texture_id = 0; // The color texture we render to
+            GLuint rbo_id = 0; // Renderbuffer Object for depth/stencil
+        };
         
     };
 

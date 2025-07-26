@@ -4,7 +4,7 @@
 #include <SDL.h>
 #include <memory>
 // SDLRenderer is concrete implementation of the IRenderer interface.
-
+typedef uint64_t ImTextureID;
 namespace Salix{
 
     class SDLRenderer : public IRenderer {
@@ -25,8 +25,14 @@ namespace Salix{
         void end_frame() override;
         void clear() override;
         void clear_depth_buffer() override { return; }
-
         void on_window_resize(int width, int height) override;
+
+        // Frame buffering (not needed for this type of renderer).
+        uint32_t create_framebuffer(int width, int height) override;
+        ImTextureID get_framebuffer_texture_id(uint32_t framebuffer_id) override;
+        void bind_framebuffer(uint32_t framebuffer_id) override;
+        void unbind_framebuffer() override;
+        
 
         // Delcare Texture loading.
         ITexture* load_texture(const char* file_path) override;

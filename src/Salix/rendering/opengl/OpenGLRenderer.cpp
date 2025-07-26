@@ -21,7 +21,7 @@
 #include <Salix/events/sdl/SDLEvent.h>
 // Include the header for your OpenGLShaderProgram class
 #include <Salix/rendering/opengl/OpenGLShaderProgram.h> 
-
+#include <imgui/imgui.h> // required for ImGui framebuffers in the Editor.
 #include <glad/glad.h> // GLAD must be included before SDL_opengl.h (if used)
 #include <SDL.h>       // For SDL_GL_SwapWindow, SDL_GL_CreateContext, etc.
 #include <iostream>    // For debugging output
@@ -75,6 +75,10 @@ namespace Salix {
         glm::mat4 projection_matrix_2d;        // Orthographic projection matrix.
         ICamera* active_camera = nullptr;    // Pointer to the active camera.
 
+        
+
+        std::map<uint32_t, Framebuffer> framebuffers;
+        uint32_t next_framebuffer_id = 1; // A simple counter for our own IDs
 
         // Private helper methods for Pimpl's internal setup
         void setup_quad_geometry();
@@ -733,4 +737,84 @@ namespace Salix {
         glUseProgram(0);
     }
 
+
+
+
+    uint32_t OpenGLRenderer::create_framebuffer(int width, int height) {
+        Framebuffer fb;
+
+        // 1. Generate a Framebuffer Object (FBO)
+        glGenFramebuffers(1, &fb.fbo_id);
+        glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo_id);
+
+        // 2. Create a color texture attachment
+        glGenTextures(1, &fb.texture_id);
+        glBindTexture(GL_TEXTURE_2D, fb.texture_id);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        // Attach the texture to the FBO
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.texture_id, 0);
+
+        // 3. Create a Renderbuffer Object (RBO) for depth and stencil testing
+        glGenRenderbuffers(1, &fb.rbo_id);
+        glBindRenderbuffer(GL_RENDERBUFFER, fb.rbo_id);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+        // Attach the renderbuffer
+        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fb.rbo_id);
+
+        // 4. Check if the framebuffer is complete
+        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+            // Clean up on failure
+            glDeleteFramebuffers(1, &fb.fbo_id);
+            glDeleteTextures(1, &fb.texture_id);
+            glDeleteRenderbuffers(1, &fb.rbo_id);
+            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            return 0; // Return 0 to indicate failure
+        }
+
+        // 5. Unbind the framebuffer to avoid accidentally rendering to it
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // 6. Store it and return our own ID
+        uint32_t our_id = pimpl->next_framebuffer_id++;
+        pimpl->framebuffers[our_id] = fb;
+        
+        std::cout << "Framebuffer created with ID: " << our_id << std::endl;
+        return our_id;
+    }
+        
+    
+    
+    ImTextureID OpenGLRenderer::get_framebuffer_texture_id(uint32_t framebuffer_id) {
+
+        if (pimpl->framebuffers.count(framebuffer_id)) {
+            // Get the OpenGL texture handle (GLuint)
+            GLuint texture_id = pimpl->framebuffers.at(framebuffer_id).texture_id;
+            
+            // Cast it to the void* that ImGui expects
+            return (ImTextureID)texture_id;
+        }
+
+        // Return null if the ID was not found
+        return 0;
+    }
+
+
+
+    void OpenGLRenderer::bind_framebuffer(uint32_t framebuffer_id) {
+        if (pimpl->framebuffers.count(framebuffer_id)) {
+            // Get the actual OpenGL FBO handle
+            GLuint fbo_handle = pimpl->framebuffers.at(framebuffer_id).fbo_id;
+            // Bind it, so all subsequent drawing goes here
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo_handle);
+        }
+    }
+    
+    
+    void OpenGLRenderer::unbind_framebuffer() {
+        // Binding to 0 tells OpenGL to go back to drawing to the main window
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
 } // namespace Salix

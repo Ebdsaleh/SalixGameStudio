@@ -3,6 +3,7 @@
 #include <Salix/rendering/sdl/SDLTexture.h>
 #include <SDL_image.h>
 #include <Salix/window/sdl/SDLWindow.h>
+#include <imgui/imgui.h>
 #include <iostream>
 
 
@@ -175,5 +176,17 @@ namespace Salix {
             // this->window_height = height;
         }
     }
+
+
+    uint32_t SDLRenderer::create_framebuffer(int width, int height) {
+        return 0;
+    }
+    
+    ImTextureID SDLRenderer::get_framebuffer_texture_id(uint32_t framebuffer_id) {
+        return 0;
+    }
+
+    void SDLRenderer::bind_framebuffer(uint32_t framebuffer_id) {}
+    void SDLRenderer::unbind_framebuffer() {}
 
 } // namespace Salix
