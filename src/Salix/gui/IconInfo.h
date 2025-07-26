@@ -1,13 +1,15 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <imgui/imgui.h> // For ImTextureID and ImVec2
+#include <string>
+
 
 namespace Salix {
 
     struct SALIX_API IconInfo {
         // The raw GPU texture handle that ImGui::Image() needs.
         ImTextureID texture_id = 0;
-
+        std::string path;
         // The size to render the icon (e.g., 16x16).
         ImVec2 size = ImVec2(16, 16);
 
