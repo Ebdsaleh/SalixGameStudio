@@ -152,6 +152,9 @@ namespace Salix {
         std::vector<std::pair<std::string, float*>> float_style_vars;
         std::vector<std::pair<std::string, Salix::Vector2*>> vector2_style_vars;
 
+        // Icons
+        std::map<std::string, std::string> icon_paths;
+
         // --- Constructors ---
         ImGuiThemeData();
         ImGuiThemeData(const std::string theme_name);

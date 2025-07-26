@@ -154,6 +154,8 @@ namespace Salix {
 
         font_scale_main = 1.0f;  // Name changed to match the new API was 'default_font_scale', now 'font_scale_main'.
 
+        // Icons
+        std::map<std::string, std::string> icon_paths = icon_paths;
 
         // Vector style vars for looping
         // Initialize these vectors with pointers to the members of 'data'
