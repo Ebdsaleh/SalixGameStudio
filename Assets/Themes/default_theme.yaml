@@ -7,11 +7,13 @@ Font:
   font_family: Roboto-Regular
   font_size: 18
   font_scale_main: 1
+Icons:
+  {}
 Colors:
   text_color:
-    r: 1.0
-    g: 1.0
-    b: 1.0
+    r: 1
+    g: 1
+    b: 1
     a: 1
   text_disabled_color:
     r: 0.5

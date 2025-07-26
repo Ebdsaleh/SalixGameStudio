@@ -1,12 +1,14 @@
 name: New Default Dark Theme
 gui_type: ImGui
 Font:
-  font_family: Roboto-Regular
   default_font_name: Roboto-Regular_16px
   default_font_path: Assets/Fonts/Roboto-Regular.ttf
   default_font_size: 16
+  font_family: Roboto-Regular
   font_size: 16
   font_scale_main: 1
+Icons:
+  Camera: C:\Users\nadir\repos\CPP\SalixGameStudio\Assets\Icons\Editor\Kenney\Generic\PNG\Colored\genericItem_color_001.png
 Colors:
   text_color:
     r: 0.18476431
