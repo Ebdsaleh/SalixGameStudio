@@ -13,6 +13,7 @@ add_library(SalixEditor SHARED
     panels/WorldTreePanel.cpp
     panels/ScryingMirrorPanel.cpp
     panels/ThemeEditorPanel.cpp
+    panels/RealmDesignerPanel.cpp
     camera/EditorCamera.cpp
     # Add any other .cpp files specific to SalixEditor.dll here
 )
