@@ -49,16 +49,16 @@ namespace Salix {
             virtual DialogConfig& get_config() = 0;
             // --- Fluent Setters for Configuration ---
             // These return a reference to *this (IDialog&) to allow chaining.
-            virtual IDialog& SetFilters(const std::string& filters) = 0;
-            virtual IDialog& SetDefaultPath(const std::string& path) = 0;
-            virtual IDialog& SetDefaultFileName(const std::string& filename) = 0;
-            virtual IDialog& SetCallback(FileDialogCallback callback) = 0;
+            virtual IDialog& set_filters(const std::string& filters) = 0;
+            virtual IDialog& set_default_path(const std::string& path) = 0;
+            virtual IDialog& set_default_file_name(const std::string& filename) = 0;
+            virtual IDialog& set_callback(FileDialogCallback callback) = 0;
             // Optional: Add setters for other flags if needed (e.g., SetOverwrite(bool))
-            virtual IDialog& SetOverwrite(bool overwrite) = 0; // For SaveFile dialogs
+            virtual IDialog& set_overwrite(bool overwrite) = 0; // For SaveFile dialogs
 
             // --- Action Method ---
             // This method is called by IGui::show_dialog_by_key() to make the dialog appear.
-            virtual void Open() = 0;
+            virtual void open() = 0;
     };
 
 } // namespace Salix
