@@ -6,7 +6,7 @@
 #include <string>
 
 namespace Salix {
-    class EditorContext;
+    struct EditorContext;
 
 
 
