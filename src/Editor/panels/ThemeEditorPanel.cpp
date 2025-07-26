@@ -1,10 +1,15 @@
 #include <Editor/panels/ThemeEditorPanel.h>
 #include <Editor/EditorContext.h>
+#include <Salix/core/InitContext.h>
+#include <Salix/gui/IGui.h>
+#include <Salix/gui/IconInfo.h>
 #include <Salix/gui/IThemeManager.h>
 #include <Salix/gui/IFontManager.h>
 #include <Salix/gui/imgui/ImGuiFontManager.h>
+#include <Salix/gui/imgui/ImguiIconManager.h>
 #include <Salix/gui/imgui/ImGuiTheme.h> 
 #include <Salix/gui/imgui/ImGuiThemeData.h>
+#include <Salix/gui/DialogBox.h>
 #include <imgui/imgui.h>
 #include <iostream>
 #include <string>
@@ -20,14 +25,17 @@ namespace Salix {
         bool is_visible = false;        
         char theme_name_buffer[256] = {0};
         char theme_path_buffer[512] = {0};
-
+        std::string icon_type_being_edited;
+        std::string last_icon_directory = ".";
         // Helper functions for rendering UI sections
+        void create_dialog_boxes();
         void render_layout();
         void save_current_theme(ImGuiThemeData* current_theme_data); 
-        void load_selected_theme();
+        void load_selected_theme(ImGuiThemeData* data);
         void render_edit_colors(ImGuiThemeData* data);
         void render_edit_sizing_and_spacing(ImGuiThemeData* data);
         void render_edit_fonts(ImGuiThemeData* data);
+        void render_edit_icons(ImGuiThemeData* data);
     };
 
     ThemeEditorPanel::ThemeEditorPanel() : pimpl(std::make_unique<Pimpl>()) {}
@@ -39,6 +47,7 @@ namespace Salix {
             return;
         }
         pimpl->context = context;
+        pimpl->create_dialog_boxes();
     }
     
     void ThemeEditorPanel::on_gui_render() {
@@ -51,6 +60,24 @@ namespace Salix {
     void ThemeEditorPanel::set_name(const std::string& new_name) { pimpl->name = new_name; }
     const std::string& ThemeEditorPanel::get_name() { return pimpl->name; }
     void ThemeEditorPanel::on_event(IEvent& event) { (void) event; }
+
+
+    void ThemeEditorPanel::Pimpl::create_dialog_boxes() {
+        // Select Icon Image
+        std::string select_icon_key = "SelectIconImage";
+        std::string select_icon_title = "Select An Icon Image";
+
+        DialogBox* select_icon_image_dialog = context->gui->create_dialog(
+            select_icon_key,
+            select_icon_title,
+            DialogType::File,
+            false);
+
+        select_icon_image_dialog->set_filters(std::string("Image File (*.png){.png},All files (*.*){.*}"));
+
+        
+
+    }
 
     void ThemeEditorPanel::Pimpl::render_layout() {
         if (ImGui::Begin(name.c_str(), &is_visible)) {
@@ -90,19 +117,20 @@ namespace Salix {
             ImGui::SameLine();
 
             if (ImGui::Button("Load Theme")) {
-                load_selected_theme();
+                load_selected_theme(data);
             }
             ImGui::Separator();
 
             render_edit_colors(data);
             render_edit_sizing_and_spacing(data);
             render_edit_fonts(data); 
+            render_edit_icons(data);
             
             ImGui::End();
         }
     }
 
-    void ThemeEditorPanel::Pimpl::load_selected_theme() {
+    void ThemeEditorPanel::Pimpl::load_selected_theme(ImGuiThemeData* data) {
         if (!context || !context->theme_manager) return;
 
         std::string theme_name = std::string(theme_name_buffer);
@@ -111,6 +139,14 @@ namespace Salix {
         if (context->theme_manager->load_theme_from_file(theme_name, file_path, false)) {
             context->theme_manager->set_active_theme(theme_name);
             context->gui->request_theme_reload(); 
+            // After loading, get the newly active theme to refresh the UI text fields
+            ImGuiTheme* new_active_theme = dynamic_cast<ImGuiTheme*>(context->theme_manager->get_active_theme());
+            if (new_active_theme) {
+                data = new_active_theme->get_data();
+                // Safely copy the new theme's actual name and path into the buffers
+                strncpy_s(theme_name_buffer, sizeof(theme_name_buffer), new_active_theme->get_data()->name.c_str(), _TRUNCATE);
+                strncpy_s(theme_path_buffer, sizeof(theme_path_buffer), new_active_theme->get_file_path().c_str(), _TRUNCATE);
+            }
         } else {
             std::cerr << "ThemeEditorPanel: Failed to load theme '" << theme_name << "'." << std::endl;
         }
@@ -243,6 +279,74 @@ namespace Salix {
             ImGui::TextDisabled("Changes apply on next frame after applying.");
             
             ImGui::TreePop();
+        }
+    }
+
+
+    void ThemeEditorPanel::Pimpl::render_edit_icons(ImGuiThemeData* data) {
+        
+        if (ImGui::CollapsingHeader("Icon Theme")) {
+            if (ImGui::BeginTable("icon_table", 3)) {
+                ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+                ImGui::TableSetupColumn("Preview", ImGuiTableColumnFlags_WidthFixed, 60.0f);
+                ImGui::TableSetupColumn("Path", ImGuiTableColumnFlags_WidthStretch);
+                ImGui::TableHeadersRow();
+
+                for (const auto& [type_name, icon_info] : context->init_context->icon_manager->get_icon_registry()) {
+                    ImGui::TableNextRow();
+
+                    // Column 1: Type Name
+                    ImGui::TableSetColumnIndex(0);
+                    ImGui::Text("%s", type_name.c_str());
+
+
+                    // Column 2: Icon Preview
+                    ImGui::TableSetColumnIndex(1);
+                    ImGui::Image(icon_info.texture_id, ImVec2(16, 16));
+                  
+
+                    // Column 3: Path and Browse Button
+                    ImGui::TableSetColumnIndex(2);
+                    ImGui::PushItemWidth(-70.0f); // Leave space for the button
+                    // Create a temporary, larger buffer for ImGui
+                    char path_buffer[512];
+                    // Safely copy the string into the buffer
+                    strncpy_s(path_buffer, sizeof(path_buffer), icon_info.path.c_str(), _TRUNCATE);
+                    ImGui::InputText(("##Path" + type_name).c_str(), path_buffer, sizeof(path_buffer), ImGuiInputTextFlags_ReadOnly);
+                    ImGui::PopItemWidth();
+                    ImGui::SameLine();
+
+                    if (ImGui::Button(("Browse##" + type_name).c_str())) {
+                        // 1. Set the context for which icon we are editing.
+                        icon_type_being_edited = type_name;
+
+                        DialogBox* dialog = context->gui->get_dialog("SelectIconImage");
+                        if (dialog) {
+                            // 1. Set the context for which icon is being edited
+                            icon_type_being_edited = type_name;
+
+                            // 2. Set the callback HERE, capturing the current 'data' pointer
+                            dialog->set_callback([this, data](const FileDialogResult& result) {
+                                if (!icon_type_being_edited.empty()) {
+                                    if (result.is_ok) {
+                                        // Now we directly modify the captured 'data' object
+                                        data->icon_paths[icon_type_being_edited] = result.file_path_name;
+                                        last_icon_directory = result.folder_path;
+                                    }
+                                    icon_type_being_edited.clear();
+                                }
+                            });
+                            
+                            // 3. Set the dialog's starting path
+                            dialog->set_default_path(last_icon_directory);
+
+                            // 4. Show the dialog
+                            context->gui->show_dialog_by_key(std::string("SelectIconImage"));
+                        }
+                    }
+                }
+                ImGui::EndTable();
+            }
         }
     }
 }
