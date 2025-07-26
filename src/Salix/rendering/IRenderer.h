@@ -45,6 +45,7 @@ namespace Salix {
         virtual ImTextureID get_framebuffer_texture_id(uint32_t framebuffer_id) = 0;
         virtual void bind_framebuffer(uint32_t framebuffer_id) = 0;
         virtual void unbind_framebuffer() = 0;
+        virtual void delete_framebuffer(uint32_t framebuffer_id) = 0;
         
         // Provide access to the window it owns, without giving up ownership.
         virtual IWindow* get_window() = 0;
