@@ -33,14 +33,14 @@ namespace Salix {
         const FileDialogCallback& get_callback() const override;
         DialogConfig& get_config() override;
         // --- IDialog overrides (Fluent Setters) ---
-        IDialog& SetFilters(const std::string& filters) override;
-        IDialog& SetDefaultPath(const std::string& path) override;
-        IDialog& SetDefaultFileName(const std::string& filename) override;
-        IDialog& SetCallback(FileDialogCallback callback) override;
-        IDialog& SetOverwrite(bool overwrite) override;
+        IDialog& set_filters(const std::string& filters) override;
+        IDialog& set_default_path(const std::string& path) override;
+        IDialog& set_default_file_name(const std::string& filename) override;
+        IDialog& set_callback(FileDialogCallback callback) override;
+        IDialog& set_overwrite(bool overwrite) override;
 
         // --- IDialog override (Action Method) ---
-        void Open() override;
+        void open() override;
 
         // Get the underlying ImGuiFileDialog config (for SDLImGui to use)
         

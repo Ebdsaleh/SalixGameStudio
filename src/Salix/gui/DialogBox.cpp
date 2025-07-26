@@ -66,7 +66,7 @@ namespace Salix {
     const FileDialogCallback& DialogBox::get_callback() const { return pimpl->callback; }
 
     // --- IDialog overrides (Fluent Setters) ---
-    IDialog& DialogBox::SetFilters(const std::string& filters) {
+    IDialog& DialogBox::set_filters(const std::string& filters) {
         pimpl->filters = filters;
         
         // Update m_config if filters are directly used by IGFD::FileDialogConfig
@@ -74,24 +74,24 @@ namespace Salix {
         return *this;
     }
 
-    IDialog& DialogBox::SetDefaultPath(const std::string& path) {
+    IDialog& DialogBox::set_default_path(const std::string& path) {
         pimpl->default_path = path;
         pimpl->config.path = pimpl->default_path; // Update config
         return *this;
     }
 
-    IDialog& DialogBox::SetDefaultFileName(const std::string& filename) {
+    IDialog& DialogBox::set_default_file_name(const std::string& filename) {
         pimpl->default_filename = filename;
         pimpl->config.fileName = pimpl->default_filename; // Update config
         return *this;
     }
 
-    IDialog& DialogBox::SetCallback(FileDialogCallback callback) {
+    IDialog& DialogBox::set_callback(FileDialogCallback callback) {
         pimpl->callback = callback;
         return *this;
     }
 
-    IDialog& DialogBox::SetOverwrite(bool overwrite) {
+    IDialog& DialogBox::set_overwrite(bool overwrite) {
         pimpl->overwrite = overwrite;
         if (pimpl->overwrite) {
             pimpl->config.flags |= ImGuiFileDialogFlags_ConfirmOverwrite;
@@ -102,7 +102,7 @@ namespace Salix {
     }
 
     // --- IDialog override (Action Method) ---
-    void DialogBox::Open() {
+    void DialogBox::open() {
         // This method is called by IGui::show_dialog_by_key()
         // It prepares the ImGuiFileDialog instance to be displayed.
 
