@@ -44,6 +44,7 @@ namespace Salix {
         if (texture) {
             IconInfo info;
             info.texture_id = texture->get_imgui_texture_id();
+            info.path = path;
             icon_registry[type_name] = info;
         } else {
             std::cerr << "ImGuiIconManager Warning: Could not load icon for type '" << type_name << "' at path: " << path << std::endl;
@@ -123,5 +124,26 @@ namespace Salix {
         return pimpl->default_icon;
     }
 
+    void ImGuiIconManager::update_icon(const std::string& type_name, const std::string& new_path) {
+        if (pimpl->icon_registry.count(type_name)) {
+            ITexture* texture = pimpl->asset_manager->get_texture(new_path);
+            if (texture) {
+                pimpl->icon_registry[type_name].texture_id = texture->get_imgui_texture_id();
+                pimpl->icon_registry[type_name].path = new_path;
+            } else {
+                std::cerr << "ImGuiIconManager::update_icon - Failed to update icon, texture is nullptr!" <<
+                std::endl;
+                return;
+            }
+        } else {
+            std::cerr << "ImGuiIconManager::update_icon - Failed to update icon, type_name: '" << type_name << 
+            "' does not exist in icon_registry! " << std::endl;
+        }
+    }
+
+
+    const std::map<std::string, IconInfo>& ImGuiIconManager::get_icon_registry()  {
+        return pimpl->icon_registry;
+    }
 
 } // namespace Salix
