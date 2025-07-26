@@ -24,6 +24,9 @@ namespace Salix {
             void set_name(const std::string& new_name) override;
             const std::string& get_name() override;
 
+            uint32_t get_framebuffer_id() const;
+            ImVec2 get_viewport_size() const;
+
         private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;

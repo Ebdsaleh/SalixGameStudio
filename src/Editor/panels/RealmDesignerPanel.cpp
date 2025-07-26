@@ -27,11 +27,30 @@ namespace Salix {
 
 
     void RealmDesignerPanel::initialize(EditorContext* context) {
-        if (!context) {
-            std::cerr << "RealmDesignerPanel::initialize - Failed to initialize, EditorContext is nullptr!" << std::endl;
-        }
+
         pimpl->context = context;
-        // Create frame buffer here...
+
+        if (!pimpl->context || !pimpl->context->init_context || !pimpl->context->init_context->renderer) {
+            std::cerr << "RealmDesignerPanel Error: Renderer is not available, cannot create framebuffer!" << std::endl;
+            return;
+        }
+        
+        // Get the renderer from the context
+        IRenderer* renderer = pimpl->context->init_context->renderer;
+
+        // Create the framebuffer with the panel's default size
+        pimpl->framebuffer_id = renderer->create_framebuffer(
+            static_cast<int>(pimpl->viewport_size.x),
+            static_cast<int>(pimpl->viewport_size.y)
+        );
+
+        if (pimpl->framebuffer_id == 0) {
+            std::cerr << "RealmDesignerPanel Error: Failed to create framebuffer!" << std::endl;
+        } else {
+            std::cout << "RealmDesignerPanel Initialized and created framebuffer with ID: " << 
+                pimpl->framebuffer_id << std::endl;
+        }
+        
     }
 
     void RealmDesignerPanel::on_gui_render() {
@@ -63,5 +82,15 @@ namespace Salix {
     void RealmDesignerPanel::set_name(const std::string& new_name) { pimpl->name = new_name; }
 
     const std::string& RealmDesignerPanel::get_name() { return pimpl->name; }
+
+    uint32_t RealmDesignerPanel::get_framebuffer_id() const {
+        
+        return pimpl->framebuffer_id;
+    }
+
+    ImVec2 RealmDesignerPanel::get_viewport_size() const {
+        return pimpl->viewport_size;
+    }
+
 
 }  // namespace Salix
