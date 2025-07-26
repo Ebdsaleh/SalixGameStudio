@@ -195,6 +195,9 @@ namespace Salix {
         pimpl->begin_dockspace();
         pimpl->draw_debug_window();
         pimpl->render_menu_bar_and_panels();
+        if (pimpl->editor_context && pimpl->editor_context->gui) {
+            pimpl->editor_context->gui->display_dialogs();
+        }
         pimpl->end_dockspace();   
         
         // Pop the font immediately after to balance the stack.
