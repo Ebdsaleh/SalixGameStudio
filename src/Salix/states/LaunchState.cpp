@@ -202,9 +202,9 @@ namespace Salix {
             DialogType::File,
             true);
         
-        new_project_dialog->SetFilters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
+        new_project_dialog->set_filters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
 
-        new_project_dialog->SetCallback([this](const FileDialogResult& result) {
+        new_project_dialog->set_callback([this](const FileDialogResult& result) {
             
             if (result.is_ok) {
                 // will add new project creation method later
@@ -224,9 +224,9 @@ namespace Salix {
             DialogType::File,
             false);
 
-        open_project_dialog->SetFilters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
+        open_project_dialog->set_filters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
 
-        open_project_dialog->SetCallback([this](const FileDialogResult& result) {
+        open_project_dialog->set_callback([this](const FileDialogResult& result) {
             
             if (result.is_ok) {
                 // will add new project creation method later
@@ -245,9 +245,9 @@ namespace Salix {
            DialogType::File,
            false);
 
-        run_project_dialog->SetFilters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
+        run_project_dialog->set_filters(std::string("Salix Project (*.salixproj){.salixproj},All files (*.*){.*}"));
 
-        run_project_dialog->SetCallback([this](const FileDialogResult& result) {
+        run_project_dialog->set_callback([this](const FileDialogResult& result) {
             
             if (result.is_ok) {
                 // will add new project creation method later
