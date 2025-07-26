@@ -7,6 +7,13 @@
 #include <Salix/math/Rect.h>
 #include <Salix/rendering/ITexture.h>  // Need this to use our own renderer agnostic Texture.
 #include <Salix/window/IWindow.h>
+#include <cstdint>
+
+// Forward declare ImTextureID instead of including all of imgui.h
+// This is safe because we know it's just an alias for a pointer type.
+typedef uint64_t ImTextureID;
+
+
 namespace Salix {
 
     // A renderer agnostic enum for flipping a sprite.
@@ -33,6 +40,12 @@ namespace Salix {
         virtual void end_frame() = 0;
         virtual void clear_depth_buffer() = 0;
 
+        // Returns a unique ID for the new framebuffer
+        virtual uint32_t create_framebuffer(int width, int height) = 0;
+        virtual ImTextureID get_framebuffer_texture_id(uint32_t framebuffer_id) = 0;
+        virtual void bind_framebuffer(uint32_t framebuffer_id) = 0;
+        virtual void unbind_framebuffer() = 0;
+        
         // Provide access to the window it owns, without giving up ownership.
         virtual IWindow* get_window() = 0;
         virtual void* get_native_handle() = 0;
