@@ -13,6 +13,7 @@
 // Forward declarations for specific SDL types if your Pimpl needs them directly
 class IThemeManager;
 class IFontManager;
+class IIconManager;
 class DialogBox;
 enum class DialogType;
 
@@ -30,7 +31,7 @@ namespace Salix {
         SDLImGui();
         ~SDLImGui() override; // Ensure override is present for virtual destructor
         bool initialize(IWindow* window, IRenderer* renderer,
-             IThemeManager* theme_manager, IFontManager* font_manager) override;
+             IThemeManager* theme_manager, IFontManager* font_manager, IIconManager* icon_manager) override;
         void shutdown() override;
         void new_frame() override;
         void render() override;
@@ -38,6 +39,7 @@ namespace Salix {
         IRenderer* get_renderer() override;
         IThemeManager* get_theme_manager() override;
         IFontManager* get_font_manager() override;
+        IIconManager* get_icon_manager() override;
         void update_and_render_platform_windows() override;
         void set_mouse_cursor_visible(bool visible) override;
         void save_layout(const std::string& file_path) override;
