@@ -25,6 +25,7 @@
 #include <Editor/panels/PanelManager.h>
 #include <Editor/panels/WorldTreePanel.h>
 #include <Editor/panels/ScryingMirrorPanel.h>
+#include <Editor/panels/RealmDesignerPanel.h>
 #include <Editor/panels/ThemeEditorPanel.h>
 
 // For ImGui Docking
@@ -137,6 +138,14 @@ namespace Salix {
         log_file << "[DEBUG] Registering ScryingMirrorPanel..." << std::endl;
         pimpl->panel_manager->register_panel(std::move(scrying_mirror_panel), scrying_mirror_name);
         log_file << "[DEBUG] ScryingMirrorPanel registered." << std::endl;
+
+        log_file << "[DEBUG] Creating RealmDesignerPanel..." << std::endl;
+        auto realm_designer_panel = std::make_unique<RealmDesignerPanel>();
+        std::string realm_designer_name = "Realm Designer Panel";
+        log_file << "[DEBUG] Initializing RealmDesignerPanel..." << std::endl;
+        realm_designer_panel->initialize(pimpl->editor_context.get());
+        pimpl->panel_manager->register_panel(std::move(realm_designer_panel), realm_designer_name);
+        log_file << "[DEBUG] RealmDesignerPanel registered..." << std::endl;
 
         log_file << "[DEBUG] Creating ThemeEditorPanel..." << std::endl;
         auto theme_editor_panel = std::make_unique<ThemeEditorPanel>();
