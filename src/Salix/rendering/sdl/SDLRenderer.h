@@ -32,7 +32,7 @@ namespace Salix{
         ImTextureID get_framebuffer_texture_id(uint32_t framebuffer_id) override;
         void bind_framebuffer(uint32_t framebuffer_id) override;
         void unbind_framebuffer() override;
-        
+        void delete_framebuffer(uint32_t framebuffer_id) override; 
 
         // Delcare Texture loading.
         ITexture* load_texture(const char* file_path) override;

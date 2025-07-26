@@ -817,4 +817,16 @@ namespace Salix {
         // Binding to 0 tells OpenGL to go back to drawing to the main window
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
+
+    void OpenGLRenderer::delete_framebuffer(uint32_t framebuffer_id) {
+        if (pimpl->framebuffers.count(framebuffer_id)) {
+            const Framebuffer& fb = pimpl->framebuffers.at(framebuffer_id);
+            glDeleteRenderbuffers(1, &fb.rbo_id);
+            glDeleteTextures(1, &fb.texture_id);
+            glDeleteFramebuffers(1, &fb.fbo_id);
+            
+            pimpl->framebuffers.erase(framebuffer_id);
+        }
+    }
+
 } // namespace Salix

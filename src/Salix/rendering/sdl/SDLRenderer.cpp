@@ -188,5 +188,8 @@ namespace Salix {
 
     void SDLRenderer::bind_framebuffer(uint32_t framebuffer_id) {}
     void SDLRenderer::unbind_framebuffer() {}
+    void SDLRenderer::delete_framebuffer(uint32_t framebuffer_id) {
+        // Not implemented for this Renderer.
+    }
 
 } // namespace Salix
