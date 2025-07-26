@@ -41,7 +41,7 @@ namespace Salix {
     struct OpenGLRenderer::Pimpl {
         std::unique_ptr<IWindow> window;
         SDL_GLContext gl_context = nullptr;
-
+        SDL_Window* sdl_window = nullptr;
         int window_width = 0;  // Store current window dimensions.
         int window_height = 0;
 
@@ -313,6 +313,8 @@ namespace Salix {
             log_file << "OpenGLRenderer Error: Failed to initialize window." << std::endl;
             return false;
         }
+        pimpl->sdl_window = static_cast<SDL_Window*>(pimpl->window->get_native_handle());
+
         log_file << "[DEBUG] SDLWindow created... OK" << std::endl;
 
         // --- Step 2: Create the OpenGL Context ---
@@ -399,6 +401,17 @@ namespace Salix {
         pimpl->texture_shader.reset();      // Calls destructor, glDeleteProgram
         pimpl->color_shader.reset();        // Calls destructor, glDeleteProgram
 
+        // --- Clean up any created framebuffers ---
+        for (const auto& pair : pimpl->framebuffers) {
+            const Framebuffer& fb = pair.second;
+            glDeleteRenderbuffers(1, &fb.rbo_id);
+            glDeleteTextures(1, &fb.texture_id);
+            glDeleteFramebuffers(1, &fb.fbo_id);
+        }
+        
+        pimpl->framebuffers.clear();
+
+
         // Destroy OpenGL context
         if (pimpl->gl_context) {
             SDL_GL_DeleteContext(pimpl->gl_context);
@@ -409,6 +422,8 @@ namespace Salix {
             pimpl->window->shutdown();
             pimpl->window.reset();
         }
+        // nullify the local sdl_window member (SDL_Window*)
+        pimpl->sdl_window = nullptr;
         std::cout << "OpenGLRenderer shut down." << std::endl;
     }
 
@@ -416,6 +431,7 @@ namespace Salix {
 
 
     void OpenGLRenderer::begin_frame() {
+        SDL_GL_MakeCurrent(pimpl->sdl_window, pimpl->gl_context);
         pimpl->set_opengl_initial_state();   // Re-set state in case ImGui or other things changed it.
         // FIX: Removed glClearColor here, as it's set via set_clear_color or in set_opengl_initial_state
         clear(); // Clear the buffer.
@@ -425,7 +441,7 @@ namespace Salix {
 
     void OpenGLRenderer::end_frame() {
         // Swaps the front and back buffers to display what's rendered
-        SDL_GL_SwapWindow(static_cast<SDL_Window*>(pimpl->window->get_native_handle()));
+        SDL_GL_SwapWindow(pimpl->sdl_window);
     }
 
 
