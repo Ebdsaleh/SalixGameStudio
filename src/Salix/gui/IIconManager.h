@@ -1,7 +1,9 @@
+// Salix/gui/IIconManager.h
 #pragma once
 
 #include <Salix/core/Core.h>
 #include <string>
+#include <map>
 
 // Forward-declare the types we need
 namespace Salix {
@@ -26,6 +28,8 @@ namespace Salix {
         // The main workhorse methods for the UI panels.
         virtual const IconInfo& get_icon_for_entity(Entity* entity) = 0;
         virtual const IconInfo& get_icon_for_element(Element* element) = 0;
+        virtual void update_icon(const std::string& type_name, const std::string& new_path) = 0;
+        virtual const std::map<std::string, IconInfo>& get_icon_registry()  = 0;
     };
 
 } // namespace Salix
