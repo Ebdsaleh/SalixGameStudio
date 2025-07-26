@@ -647,7 +647,6 @@ namespace Salix {
         if (!pimpl->renderer) return;
 
         pimpl->renderer->begin_frame();
-
         
 
         if (pimpl->current_state) {
