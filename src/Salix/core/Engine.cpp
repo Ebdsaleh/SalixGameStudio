@@ -320,7 +320,9 @@ namespace Salix {
                         pimpl->renderer->get_window(),
                         pimpl->renderer.get(),
                         pimpl->theme_manager.get(),
-                        pimpl->font_manager.get())
+                        pimpl->font_manager.get(),
+                        pimpl->icon_manager.get()
+                    )
                     ) {
                     std::cerr << "Engine Error: GUI system initialization failed!" << std::endl;
                     // IMPORTANT: If GUI init fails, the whole engine initialization fails.
