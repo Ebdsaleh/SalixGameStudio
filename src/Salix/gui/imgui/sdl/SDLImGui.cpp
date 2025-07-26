@@ -9,6 +9,7 @@
 #include <iostream>
 #include <SDL.h>
 #include <Salix/gui/imgui/ImGuiFontManager.h>
+#include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/imgui/ImGuiThemeManager.h>
 #include <Salix/events/IEventPoller.h>
 #include <Salix/events/EventManager.h>
@@ -28,6 +29,7 @@ namespace Salix {
         SDL_Renderer* sdl_renderer = nullptr; // Actual native SDL_Renderer pointer
         IThemeManager* i_theme_manager = nullptr;
         IFontManager* i_font_manager = nullptr;
+        IIconManager* icon_manager = nullptr;
         IEventPoller* event_poller = nullptr;   // <-- Store IEventPoller
         EventManager* event_manager = nullptr;   // <-- Store EventManager
         RawEventCallbackHandle raw_event_callback_handle = 0; // <-- Store the handle
@@ -51,7 +53,8 @@ namespace Salix {
     }
 
     bool SDLImGui::initialize(IWindow* window_interface, IRenderer* renderer_interface,
-         IThemeManager* theme_manager_interface, IFontManager* font_manager_interface) {
+         IThemeManager* theme_manager_interface, IFontManager* font_manager_interface, 
+         IIconManager* icon_manager_interface) {
         if (!window_interface || !renderer_interface) { 
             std::cerr << "SDLImGui::initialize(IWindow*, IRenderer*) incorrect arguments types or null detected." << std::endl;
             return false;
@@ -62,6 +65,7 @@ namespace Salix {
         pimpl->i_renderer = renderer_interface;
         pimpl->i_theme_manager = theme_manager_interface;
         pimpl->i_font_manager = font_manager_interface;
+        pimpl->icon_manager = icon_manager_interface;
 
 
         // Cast IWindow* and IRenderer* to concrete SDL types to get raw pointers
@@ -392,6 +396,9 @@ namespace Salix {
         return FileDialogResult(); // Return empty/default result if key not found
     }
 
+    IIconManager* SDLImGui::get_icon_manager() {
+        return pimpl->icon_manager;
+    }
 
    bool SDLImGui::process_raw_input_event(void* native_event) {
         if (!native_event) {

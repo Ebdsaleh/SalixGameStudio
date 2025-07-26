@@ -6,6 +6,7 @@
 #include <Salix/events/ImGuiInputEvent.h>
 #include <Salix/gui/imgui/ImGuiFontManager.h>
 #include <Salix/gui/imgui/ImGuiThemeManager.h>
+#include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/IDialog.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
@@ -27,6 +28,7 @@ namespace Salix {
         SDL_GLContext gl_context = nullptr; // Actual native SDL_Renderer pointer
         IThemeManager* i_theme_manager = nullptr;
         IFontManager* i_font_manager = nullptr;
+        IIconManager* icon_manager = nullptr;
         IEventPoller* event_poller = nullptr;   // <-- Store IEventPoller
         EventManager* event_manager = nullptr;   // <-- Store EventManager
         RawEventCallbackHandle raw_event_callback_handle = 0; // <-- Store the handle
@@ -52,7 +54,8 @@ namespace Salix {
 
 
     bool OpenGLImGui::initialize(IWindow* window_interface, IRenderer* renderer_interface,
-        IThemeManager* theme_manager_interface, IFontManager* font_manager_interface) {
+        IThemeManager* theme_manager_interface, IFontManager* font_manager_interface, 
+            IIconManager* icon_manager_interface) {
         // Method start
         if (!window_interface || !renderer_interface) { 
             std::cerr << "OpgenGLImGui::initialize(IWindow*, IRenderer*) incorrect arguments types or null detected." << std::endl;
@@ -62,6 +65,7 @@ namespace Salix {
         pimpl->i_font_manager = font_manager_interface;
         pimpl->i_window = window_interface;
         pimpl->i_renderer = renderer_interface;
+        pimpl->icon_manager = icon_manager_interface;
 
         pimpl->sdl_window = static_cast<SDL_Window*>(window_interface->get_native_handle());
         pimpl->gl_context = static_cast<SDL_GLContext>(renderer_interface->get_native_handle());
@@ -524,6 +528,10 @@ namespace Salix {
     } 
     
     ImGuiContext* OpenGLImGui::get_context() { return pimpl->context; }
+
+    IIconManager* OpenGLImGui::get_icon_manager() {
+        return pimpl->icon_manager;
+    }
 
     void OpenGLImGui::request_theme_reload() {
         pimpl->theme_reload_requested = true;

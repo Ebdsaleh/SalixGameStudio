@@ -5,6 +5,7 @@
 #include <imgui/imgui.h> // Only include ImGui's core header if SALIX_GUI_IMGUI is defined
 #include <Salix/gui/IDialog.h>
 #include <Salix/core/ApplicationConfig.h>
+#include <Salix/gui/IIconManager.h>
 
 namespace Salix {
     // Forward declarations for engine interfaces that a GUI might need to interact with
@@ -31,7 +32,7 @@ namespace Salix {
         // to their specific types (e.g., SDLWindow*, SDLRenderer*) internally.
         virtual bool initialize(
             IWindow* window, IRenderer* renderer,
-            IThemeManager* theme_manager, IFontManager* font_manager) = 0;
+            IThemeManager* theme_manager, IFontManager* font_manager, IIconManager* icon_manager) = 0;
 
         // Shuts down the GUI system and cleans up resources.
         virtual void shutdown() = 0;
@@ -57,6 +58,8 @@ namespace Salix {
         virtual IThemeManager* get_theme_manager() = 0;
 
         virtual IFontManager* get_font_manager() = 0;
+
+        virtual IIconManager* get_icon_manager() = 0;
         // --- Basic GUI Configuration / Persistence ---
 
         // Controls the visibility of the GUI's mouse cursor.
