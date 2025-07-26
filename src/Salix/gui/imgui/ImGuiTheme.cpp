@@ -282,6 +282,16 @@ namespace Salix {
                 if (root["Font"]["font_scale_main"]) pimpl->theme_data->font_scale_main = root["Font"]["font_scale_main"].as<float>();
             }
 
+            // --- Load Icon Properties ---
+                if (root["Icons"]) {
+                    const YAML::Node& icons_node = root["Icons"];
+                    // Clear any previous icon paths before loading new ones
+                    pimpl->theme_data->icon_paths.clear();
+                    for (const auto& it : icons_node) {
+                        pimpl->theme_data->icon_paths[it.first.as<std::string>()] = it.second.as<std::string>();
+                    }
+                }
+
             // --- Load Color Properties ---
             if (root["Colors"]) {
                 #define LOAD_COLOR_IF_EXISTS(key, member) if (root["Colors"][key]) root["Colors"][key] >> pimpl->theme_data->member;
@@ -464,6 +474,16 @@ namespace Salix {
             emitter << YAML::Key << "font_size" << YAML::Value << pimpl->theme_data->font_size;
             emitter << YAML::Key << "font_scale_main" << YAML::Value << pimpl->theme_data->font_scale_main;
             emitter << YAML::EndMap; // End Font map
+
+            
+            // --- Icon Properties ---
+            emitter << YAML::Key << "Icons";
+            emitter << YAML::BeginMap;
+            for (const auto& [type_name, path] : pimpl->theme_data->icon_paths) {
+                emitter << YAML::Key << type_name << YAML::Value << path;
+            }
+            emitter << YAML::EndMap; // End Icon map.
+
 
             // --- Color Properties ---
             // Corresponds to the 'Colors' section in YAML
