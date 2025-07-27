@@ -17,7 +17,9 @@ namespace Salix {
 
             // --- IPanel Interface ---
             void initialize(EditorContext* context) override;
+            void on_gui_update() override;
             void on_gui_render() override;
+            void on_render() override;
             void on_event(IEvent& event) override;
             void set_visibility(bool visibility) override;
             bool get_visibility() const override;
