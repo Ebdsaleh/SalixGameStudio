@@ -54,7 +54,7 @@ namespace Salix {
     }
 
 
-    void WorldTreePanel::on_gui_render() {
+    void WorldTreePanel::on_gui_update() {
         // If the panel isn't visible, do nothing.
         if (!pimpl->is_visible) {
             return;
@@ -144,6 +144,11 @@ namespace Salix {
     }
 
 
+    void WorldTreePanel::on_gui_render() {
+
+    }
+
+    void WorldTreePanel::on_render() {}
     void WorldTreePanel::on_event(IEvent& event) {
         // This panel dispatches events, but doesn't need to handle any for now.
         // We can leave this empty.
