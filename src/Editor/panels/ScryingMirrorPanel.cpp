@@ -52,7 +52,7 @@ namespace Salix {
     }
 
    
-    void ScryingMirrorPanel::on_gui_render() {
+    void ScryingMirrorPanel::on_gui_update() {
         if (!pimpl->is_visible) {
             return;
         }
@@ -105,6 +105,9 @@ namespace Salix {
     }
 
 
+    void ScryingMirrorPanel::on_gui_render() {}
+
+    void ScryingMirrorPanel::on_render() {}
 
     void ScryingMirrorPanel::on_event(IEvent& event) {
         if (event.get_event_type() == EventType::EditorEntitySelected) {
