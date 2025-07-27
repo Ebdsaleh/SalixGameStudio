@@ -7,6 +7,7 @@
 #include <Editor/panels/IPanel.h> // We need the full definition of IPanel here.
 #include <memory>
 #include <vector>
+#include <functional>
 #include <map>  // For later when implementing plugins
 namespace Salix {
 
@@ -26,11 +27,29 @@ namespace Salix {
         }
     }
 
+    void PanelManager::update_all_panels() {
+        // Simple loop to render every panel in the list.
+        for (const auto& panel : pimpl->panels) {
+            if (panel) {
+                panel->on_gui_update();
+            }
+        }
+    }
+
     void PanelManager::render_all_panels() {
         // Simple loop to render every panel in the list.
         for (const auto& panel : pimpl->panels) {
             if (panel) {
                 panel->on_gui_render();
+            }
+        }
+    }
+
+
+    void PanelManager::for_each_visible(std::function<void(IPanel&)> callback) {
+        for (const auto& panel : pimpl->panels) {
+            if (panel && panel->get_visibility()) {
+                callback(*panel);
             }
         }
     }
