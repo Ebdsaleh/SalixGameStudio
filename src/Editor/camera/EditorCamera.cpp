@@ -17,7 +17,7 @@ namespace Salix {
         // It owns all the state and matrices itself.
         glm::mat4 view_matrix{1.0f};
         bool view_dirty = true;
-
+        ProjectionMode projection_mode = ProjectionMode::Perspective;
 
         glm::mat4 projection_matrix{1.0f};
         bool projection_dirty = true;
@@ -64,6 +64,7 @@ namespace Salix {
         glm::vec3 front = transform.get_forward();
         glm::vec3 up = transform.get_up();
         view_matrix = glm::lookAt(position, position + front, up);
+        
     }
 
      void EditorCamera::Pimpl::recalculate_projection_matrix() {
@@ -123,6 +124,15 @@ namespace Salix {
 
     }
 
+
+    void EditorCamera::set_projection_mode(ProjectionMode mode) {
+        pimpl->projection_mode = mode;
+        pimpl->projection_dirty = true;
+    }
+
+    const ProjectionMode& EditorCamera::get_projection_mode() const {
+        return pimpl->projection_mode;
+    }
 
 
 
