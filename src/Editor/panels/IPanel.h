@@ -23,7 +23,9 @@ namespace Salix {
         // The editor will call this every frame, and the panel is responsible
         // for all of its ImGui rendering code inside this function.
 
+        virtual void on_gui_update() = 0;
         virtual void on_gui_render() = 0;
+        virtual void on_render() = 0;
         virtual void set_visibility(bool visibility) = 0;
         virtual bool get_visibility() const = 0;
         virtual void set_name(const std::string& new_name) = 0;
