@@ -44,7 +44,7 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(Element));
         type_info.properties = {
             { 
-                "position", PropertyType::Vector3, nullptr,
+                "Position", PropertyType::Vector3, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<Vector3*>(
                     &static_cast<Transform*>(instance)->get_position()));
@@ -57,7 +57,7 @@ namespace Salix {
             },
 
             { 
-                "rotation", PropertyType::Vector3, nullptr,
+                "Rotation", PropertyType::Vector3, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<Vector3*>(
                     &static_cast<Transform*>(instance)->get_rotation()));
@@ -71,7 +71,7 @@ namespace Salix {
             },
             
             { 
-                "scale", PropertyType::Vector3, nullptr,
+                "Scale", PropertyType::Vector3, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<Vector3*>(
                     &static_cast<Transform*>(instance)->get_scale())); 
@@ -126,7 +126,7 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(ScriptElement));
         type_info.properties = {
             { 
-                "script_name", PropertyType::String, nullptr,
+                "Script Name", PropertyType::String, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<std::string*>(
                     &static_cast<CppScript*>(instance)->get_script_name()));
@@ -153,7 +153,7 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(RenderableElement));
         type_info.properties = {
             { 
-                "color", PropertyType::Color, nullptr,
+                "Color", PropertyType::Color, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_color());
@@ -166,7 +166,7 @@ namespace Salix {
             },
 
             {
-                "offset", PropertyType::Vector2, nullptr,
+                "Offset", PropertyType::Vector2, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_offset()); 
@@ -179,7 +179,7 @@ namespace Salix {
             },
 
             {
-                "pivot", PropertyType::Vector2, nullptr,
+                "Pivot", PropertyType::Vector2, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_pivot()); 
@@ -192,7 +192,7 @@ namespace Salix {
             },
 
             {
-                "flip_h", PropertyType::Bool, nullptr,
+                "Flip H", PropertyType::Bool, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_flip_h()); 
@@ -205,7 +205,7 @@ namespace Salix {
             },
 
             {
-                "flip_v", PropertyType::Bool, nullptr,
+                "Flip V", PropertyType::Bool, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_flip_v()); 
@@ -218,7 +218,7 @@ namespace Salix {
             },
 
             {
-                "sorting_layer", PropertyType::Int, nullptr,
+                "Sorting Layer", PropertyType::Int, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_sorting_layer()); 
@@ -231,7 +231,7 @@ namespace Salix {
             },
 
             {
-                "texture_path", PropertyType::String, nullptr, 
+                "Texture Path", PropertyType::String, nullptr, 
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<std::string*>(
                     &static_cast<Sprite2D*>(instance)->get_texture_path()));
