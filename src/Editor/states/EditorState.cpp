@@ -8,6 +8,7 @@
 #include <Salix/core/EngineInterface.h>
 #include <Salix/input/ImGuiInputManager.h>
 #include <Salix/window/sdl/SDLWindow.h>
+#include <Salix/core/SDLTimer.h>
 // Scene related 
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/Scene.h>
@@ -30,6 +31,7 @@
 
 // For ImGui Docking
 #include <Salix/gui/IGui.h>
+#include <Salix/gui/imgui/opengl/OpenGLImGui.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/window/IWindow.h>
@@ -58,10 +60,12 @@ namespace Salix {
         std::unique_ptr<EditorContext> editor_context;
         std::unique_ptr<PanelManager> panel_manager;
         std::unique_ptr<Project> mock_project;
+        RealmDesignerPanel* realm_designer = nullptr;
         bool show_theme_editor = false; 
     
         void handle_first_frame_setup();
         void begin_dockspace();
+        void update_menu_bar_and_panels();
         void render_menu_bar_and_panels();
         void end_dockspace();
         // for testing
@@ -145,6 +149,7 @@ namespace Salix {
         log_file << "[DEBUG] Initializing RealmDesignerPanel..." << std::endl;
         realm_designer_panel->initialize(pimpl->editor_context.get());
         pimpl->panel_manager->register_panel(std::move(realm_designer_panel), realm_designer_name);
+        pimpl->realm_designer = dynamic_cast<RealmDesignerPanel*>(pimpl->panel_manager->get_panel("Realm Designer Panel"));
         log_file << "[DEBUG] RealmDesignerPanel registered..." << std::endl;
 
         log_file << "[DEBUG] Creating ThemeEditorPanel..." << std::endl;
@@ -203,7 +208,8 @@ namespace Salix {
 
         pimpl->begin_dockspace();
         pimpl->draw_debug_window();
-        pimpl->render_menu_bar_and_panels();
+        // moved pimpl->render_menu_bar_and_panels() to EditorState::render()
+        pimpl->update_menu_bar_and_panels(); 
         if (pimpl->editor_context && pimpl->editor_context->gui) {
             pimpl->editor_context->gui->display_dialogs();
         }
@@ -224,18 +230,20 @@ namespace Salix {
             // 1. CRITICAL: Clear BOTH the color and depth buffers for the new frame.
             renderer_param->clear(); 
 
-            // 2. Now, draw your 3D test cube into the empty scene.
-            pimpl->draw_test_cube();
-
-
+            if (pimpl->realm_designer) {
+                pimpl->realm_designer->on_render();
+            }
+            
             // 3. Clear ONLY the depth buffer again before drawing the UI.
             // This is a common technique to make sure the UI always draws on top of the 3D scene.
+            
             renderer_param->clear_depth_buffer(); 
             if (pimpl->editor_context->gui) {
                 pimpl->editor_context->gui->render();
+                pimpl->render_menu_bar_and_panels();
                 pimpl->editor_context->gui->update_and_render_platform_windows();
+                
             }
-
         }
     }
 
@@ -277,7 +285,7 @@ namespace Salix {
     }
 
 
-    void EditorState::Pimpl::render_menu_bar_and_panels() {
+    void EditorState::Pimpl::update_menu_bar_and_panels() {
         ImGuiID dockspace_id = ImGui::GetID("EditorDockSpace");
         // This flag tells ImGui that if the central node is empty,
         // it should be transparent, allowing our 3D scene to show through.
@@ -312,10 +320,16 @@ namespace Salix {
 
         // --- All Editor Panels ---
         if (panel_manager) {
-            panel_manager->render_all_panels();
+            panel_manager->update_all_panels();
          }
     }
 
+    void EditorState::Pimpl::render_menu_bar_and_panels() {
+        // --- All Editor Panels ---
+        if (panel_manager) {
+            panel_manager->render_all_panels();
+        }
+    }
 
     void EditorState::Pimpl::end_dockspace() {
         ImGui::End();
