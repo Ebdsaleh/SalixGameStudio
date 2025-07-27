@@ -50,9 +50,13 @@ namespace Salix {
         pimpl->create_dialog_boxes();
     }
     
-    void ThemeEditorPanel::on_gui_render() {
+    void ThemeEditorPanel::on_gui_update() {
         if (!pimpl->is_visible) return;
         pimpl->render_layout();
+    }
+
+    void ThemeEditorPanel::on_gui_render() {
+
     }
 
     void ThemeEditorPanel::set_visibility(bool visibility) { pimpl->is_visible = visibility; }
@@ -60,7 +64,7 @@ namespace Salix {
     void ThemeEditorPanel::set_name(const std::string& new_name) { pimpl->name = new_name; }
     const std::string& ThemeEditorPanel::get_name() { return pimpl->name; }
     void ThemeEditorPanel::on_event(IEvent& event) { (void) event; }
-
+    void ThemeEditorPanel::on_render() {}
 
     void ThemeEditorPanel::Pimpl::create_dialog_boxes() {
         // Select Icon Image
@@ -349,4 +353,5 @@ namespace Salix {
             }
         }
     }
+
 }
