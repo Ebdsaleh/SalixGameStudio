@@ -9,7 +9,7 @@ Renderer:
   type: OpenGL
 
 Engine:
-  initial_state: Editor
+  initial_state: Launch
   target_fps: 60
 
 GUI:
