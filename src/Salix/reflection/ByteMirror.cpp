@@ -259,12 +259,12 @@ namespace Salix {
                 "Projection Mode", PropertyType::EnumClass, nullptr,
                 [](void* instance) { 
                     return static_cast<void*>(
-                        const_cast<Camera::ProjectionMode*>(
+                        const_cast<Salix::ProjectionMode*>(
                             &static_cast<Camera*>(instance)->get_projection_mode()));
                     },
 
                 [](void* instance, void* data) {
-                    static_cast<Camera*>(instance)->set_projection_mode(*static_cast<Camera::ProjectionMode*>(data));
+                    static_cast<Camera*>(instance)->set_projection_mode(*static_cast<Salix::ProjectionMode*>(data));
                 }
             },
 
