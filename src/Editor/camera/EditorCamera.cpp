@@ -18,6 +18,7 @@ namespace Salix {
         glm::mat4 view_matrix{1.0f};
         bool view_dirty = true;
 
+
         glm::mat4 projection_matrix{1.0f};
         bool projection_dirty = true;
 
@@ -111,9 +112,11 @@ namespace Salix {
 
     void EditorCamera::on_update(float delta_time) {
         if (!pimpl->is_initialzed) {return; }
-        pimpl->handle_movement();
-        pimpl->handle_rotation();
-        pimpl->handle_zoom();
+        if (pimpl->mouse_is_inside_scene) {
+            pimpl->handle_movement();
+            pimpl->handle_rotation();
+            pimpl->handle_zoom();
+        }
         (void) delta_time;
         pimpl->view_dirty = true; 
        
@@ -134,7 +137,11 @@ namespace Salix {
 
             // 1. Get the camera's current direction vectors
             glm::vec3 forward = transform.get_forward();
+            glm::vec3 backward = -forward;
             glm::vec3 right = transform.get_right();
+            glm::vec3 left = -right;
+            glm::vec3 up = transform.get_up();
+            glm::vec3 down = -up;
 
 
             // Move Forwards
@@ -145,7 +152,7 @@ namespace Salix {
 
             // Move Backwards
             if (input->is_held_down(Salix::KeyCode::S)) {
-                transform.translate(-forward * current_speed);
+                transform.translate(backward * current_speed);
                 
             }
 
@@ -156,8 +163,18 @@ namespace Salix {
 
             // Move Left
             if (input->is_held_down(Salix::KeyCode::A)) {
-                transform.translate(-right * current_speed);
+                transform.translate(left * current_speed);
                 
+            }
+
+            // Move Up
+            if (input->is_held_down(Salix::KeyCode::Space)){
+                transform.translate(up * current_speed);
+            }
+
+            // Move Down
+            if (input->is_held_down(Salix::KeyCode::C)) {
+                transform.translate(down * current_speed);
             }
         }
         
@@ -235,5 +252,10 @@ namespace Salix {
             auto& resize_event = static_cast<WindowResizeEvent&>(event);
             set_viewport_size(resize_event.get_width(), resize_event.get_height());
         }
-}
+    }
+
+    void EditorCamera::set_mouse_inside_scene(bool is_inside) { 
+        pimpl->mouse_is_inside_scene = is_inside; 
+    }
+
 }  // namespace Salix
