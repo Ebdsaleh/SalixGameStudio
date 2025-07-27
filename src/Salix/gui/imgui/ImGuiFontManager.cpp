@@ -151,8 +151,8 @@ namespace Salix {
                 OpenGLImGui* opengl_imgui = dynamic_cast<OpenGLImGui*>(pimpl->gui_system);
                 if (opengl_imgui) {
                     opengl_imgui->reinitialize_backend();
-                std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
-                return true;
+                    std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
+                    return true;
             } else {
 
                 std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Could not cast IGui* to OpenGLImGui*. Font texture not rebuilt." << std::endl;
