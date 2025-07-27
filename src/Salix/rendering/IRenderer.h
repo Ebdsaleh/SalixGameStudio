@@ -7,6 +7,7 @@
 #include <Salix/math/Rect.h>
 #include <Salix/rendering/ITexture.h>  // Need this to use our own renderer agnostic Texture.
 #include <Salix/window/IWindow.h>
+#include <SDL.h>
 #include <cstdint>
 
 // Forward declare ImTextureID instead of including all of imgui.h
@@ -24,7 +25,8 @@ namespace Salix {
         Both
     };
 
-  
+    class OpenGLRenderer; // Forward declaration
+    class SDLRenderer;
 
     // This is an abstract base class that defines the "contract" for any renderer.
 
@@ -40,13 +42,22 @@ namespace Salix {
         virtual void end_frame() = 0;
         virtual void clear_depth_buffer() = 0;
 
+        // New: Get the underlying SDL_Window handle
+        virtual SDL_Window* get_sdl_window() const = 0;
+        virtual SDL_GLContext get_sdl_gl_context() const = 0;
+
+        virtual OpenGLRenderer* as_opengl_renderer() { return nullptr;}
         // Returns a unique ID for the new framebuffer
         virtual uint32_t create_framebuffer(int width, int height) = 0;
         virtual ImTextureID get_framebuffer_texture_id(uint32_t framebuffer_id) = 0;
         virtual void bind_framebuffer(uint32_t framebuffer_id) = 0;
         virtual void unbind_framebuffer() = 0;
         virtual void delete_framebuffer(uint32_t framebuffer_id) = 0;
-        
+        // A method to restore a framebuffer binding (useful for saving/restoring state)
+        virtual void restore_framebuffer_binding(GLint fbo_id) = 0;
+
+        virtual GLint get_current_framebuffer_binding() const = 0;
+        virtual void set_viewport(int x, int y, int width, int height) = 0;
         // Provide access to the window it owns, without giving up ownership.
         virtual IWindow* get_window() = 0;
         virtual void* get_native_handle() = 0;
