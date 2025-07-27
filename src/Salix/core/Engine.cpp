@@ -597,6 +597,7 @@ namespace Salix {
             case AppStateType::Editor:
                 set_mode(EngineMode::Editor);
                 pimpl->context = make_context();
+                
                 if (pimpl->editor_state_factory) {
                     new_state.reset(pimpl->editor_state_factory(new_state_type));
                 } else {
@@ -646,6 +647,8 @@ namespace Salix {
     void Engine::render() {
         if (!pimpl->renderer) return;
 
+
+        
         pimpl->renderer->begin_frame();
         
 
