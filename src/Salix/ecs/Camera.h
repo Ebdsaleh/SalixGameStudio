@@ -12,10 +12,7 @@ namespace Salix {
 class SALIX_API Camera : public Element, public ICamera {
 public:
     // Defines whether the camera renders with 3D perspective or flat 2D.
-    enum class ProjectionMode {
-        Perspective,
-        Orthographic
-    };
+    
 
     Camera();
     ~Camera() override;
@@ -23,8 +20,8 @@ public:
     // --- Core Camera Methods ---
 
     // Sets the camera's projection mode.
-    void set_projection_mode(ProjectionMode mode);
-    const ProjectionMode& get_projection_mode() const;
+    void set_projection_mode(ProjectionMode mode) override;
+    const ProjectionMode& get_projection_mode() const override;
 
     // Calculates and returns the final view matrix based on the owner Entity's transform.
     const glm::mat4& get_view_matrix() override;

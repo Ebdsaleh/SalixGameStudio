@@ -56,7 +56,7 @@ namespace Salix {
         pimpl->projection_dirty = true;
     }
 
-    const Camera::ProjectionMode& Camera::get_projection_mode() const {
+    const ProjectionMode& Camera::get_projection_mode() const {
         return pimpl->projection_mode;
     }
 
