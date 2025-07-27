@@ -218,7 +218,9 @@ namespace Salix {
 
         // load the 3D shader
         simple_3d_shader = std::make_unique<OpenGLShaderProgram>(simple_3d_vertex_file, simple_3d_fragment_file);
-
+        if (!simple_3d_shader || simple_3d_shader->ID == 0) {
+            std::cerr << "[FATAL] Failed to compile simple_3d_shader\n";
+        }
 
 
         GLint modelLoc = glGetUniformLocation(texture_shader->ID, "model");
@@ -485,11 +487,20 @@ namespace Salix {
     }
 
     void OpenGLRenderer::draw_cube(const glm::mat4& model_matrix, const Color& color) {
+        // --- ADD THESE DEBUG PRINTS ---
+        GLint test_binding = -1; // Initialize to an invalid value
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &test_binding); // <-- Test the problematic call here
+        // std::cout << "DEBUG: OpenGLRenderer::draw_cube() - GL_FRAMEBUFFER_BINDING: " << test_binding << std::endl;
+        // --- END DEBUG 
         if (!pimpl->active_camera) {
             std::cerr << "WARNING: Attempted to draw_cube with no active camera set." << std::endl;
             return;
         }
 
+        if (!pimpl->simple_3d_shader) {
+            std::cerr << "[FATAL] simple_3d_shader is null in draw_cube()\n";
+            return;
+        }
         // Explicitly enable depth testing right before drawing a 3D object.
         glEnable(GL_DEPTH_TEST);
         pimpl->simple_3d_shader->use();
@@ -504,12 +515,89 @@ namespace Salix {
         glm::vec4 tint = { color.r, color.g, color.b, color.a };
         pimpl->simple_3d_shader->setVec4("tint_color", tint);
 
-
+        if (pimpl->cube_vao == 0) {
+            std::cerr << "[ERROR] cube_vao is zero (not initialized).\n";
+            return;
+        }
         glBindVertexArray(pimpl->cube_vao);
         glDrawArrays(GL_TRIANGLES, 0, 36);      // 36 vertices for a cube made of triangles.
         glBindVertexArray(0);
         glUseProgram(0);
     }
+
+
+    void OpenGLRenderer::draw_cube(uint32_t framebuffer_id_magenta, uint32_t framebuffer_id_blue, float current_time) {
+
+        // 0. Initial checks
+        if (!pimpl->active_camera) {
+            std::cerr << "WARNING: draw_cube(fbo_ids) - No active camera set." << std::endl;
+            return;
+        }
+        if (!pimpl->simple_3d_shader) {
+            std::cerr << "[FATAL] draw_cube(fbo_ids) - simple_3d_shader is null.\n";
+            return;
+        }
+
+        // 1. Save the currently bound framebuffer
+        GLint last_bound_fbo = 0;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_bound_fbo); // This should NOT crash here
+
+        // 2. Define colors for the two cubes
+        Color magenta_color = {1.0f, 0.0f, 1.0f, 1.0f};
+        Color blue_color = {0.0f, 0.0f, 1.0f, 1.0f};
+
+        // 3. Define dimensions for framebuffers (assuming they were created with consistent sizes)
+        // You'll need to know the dimensions of your FBOs. For simplicity, let's use a fixed size for this test.
+        // In a real scenario, you'd retrieve them from your 'framebuffers' map.
+        // For now, let's assume a standard size or get it from your Framebuffer struct (if you expand it).
+        // For this test, let's just hardcode a common size like 800x600 for rendering to them.
+        // You should use the actual dimensions of the created FBOs if you have them.
+        int fbo_width = 800; // Replace with actual FBO width
+        int fbo_height = 600; // Replace with actual FBO height
+        // Better: Retrieve from your pimpl->framebuffers map:
+        // auto it_magenta = pimpl->framebuffers.find(framebuffer_id_magenta);
+        // if (it_magenta != pimpl->framebuffers.end()) { fbo_width = it_magenta->second.width; ... }
+        // (You'd need to add width/height to your Framebuffer struct if not already there)
+
+        // 4. Alternate rendering between framebuffers based on time
+        uint32_t target_fbo_id = (static_cast<int>(current_time * 2.0f) % 2 == 0) ? framebuffer_id_magenta : framebuffer_id_blue;
+        Color target_color = (target_fbo_id == framebuffer_id_magenta) ? magenta_color : blue_color;
+
+        // 5. Bind target framebuffer
+        bind_framebuffer(target_fbo_id); // This will bind the FBO and update glViewport internally.
+                                        // Ensure bind_framebuffer also sets the correct viewport for the FBO.
+                                        // (Your current bind_framebuffer doesn't take dimensions,
+                                        // so it might rely on global state or the FBO's internal dimensions).
+                                        // If your FBOs have fixed internal sizes, your current glViewport in RealmDesignerPanel's crashing method is correct:
+                                        // glViewport(0, 0, fbo_width, fbo_height); // Make sure to use actual FBO size here.
+        
+        // For this test, let's directly set viewport based on assumed sizes if bind_framebuffer doesn't.
+        glViewport(0, 0, fbo_width, fbo_height); // Set viewport for the FBO content.
+
+        // 6. Clear the target framebuffer
+        clear(); // This will clear the currently bound FBO (target_fbo_id)
+
+        // 7. Render the cube to the target framebuffer
+        glEnable(GL_DEPTH_TEST);
+        pimpl->simple_3d_shader->use();
+        pimpl->simple_3d_shader->setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f)));
+        pimpl->simple_3d_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
+        pimpl->simple_3d_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
+        pimpl->simple_3d_shader->setVec4("tint_color", glm::vec4(target_color.r, target_color.g, target_color.b, target_color.a));
+        glBindVertexArray(pimpl->cube_vao);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(0);
+        glUseProgram(0);
+
+        // 8. Restore the previous framebuffer binding
+        glBindFramebuffer(GL_FRAMEBUFFER, last_bound_fbo); // Restore original FBO (usually 0)
+
+    }
+
+
+
+
+
 
 
     // IRenderer Interface methods (getters)
@@ -519,6 +607,24 @@ namespace Salix {
         // The "native handle" for this renderer is its GL context
         return pimpl->gl_context;
     }
+
+    SDL_GLContext OpenGLRenderer::get_sdl_gl_context() const {
+        return pimpl->gl_context;
+    }
+    SDL_Window* OpenGLRenderer::get_sdl_window() const {
+        return pimpl->sdl_window;
+    }
+
+    GLint OpenGLRenderer::get_gl_framebuffer_binding_internal() const {
+        GLint binding = 0;
+        glad_glGetIntegerv(GL_FRAMEBUFFER_BINDING, &binding); // Direct GLAD call
+        return binding;
+    }
+
+    void OpenGLRenderer::set_gl_viewport_internal(int x, int y, int width, int height) {
+        glad_glViewport(x, y, static_cast<GLsizei>(width), static_cast<GLsizei>(height)); // Direct GLAD call
+    }
+
 
     // --- Texture Management ---
 
@@ -760,38 +866,38 @@ namespace Salix {
         Framebuffer fb;
 
         // 1. Generate a Framebuffer Object (FBO)
-        glGenFramebuffers(1, &fb.fbo_id);
-        glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo_id);
+        glad_glGenFramebuffers(1, &fb.fbo_id);
+        glad_glBindFramebuffer(GL_FRAMEBUFFER, fb.fbo_id);
 
         // 2. Create a color texture attachment
-        glGenTextures(1, &fb.texture_id);
-        glBindTexture(GL_TEXTURE_2D, fb.texture_id);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glad_glGenTextures(1, &fb.texture_id);
+        glad_glBindTexture(GL_TEXTURE_2D, fb.texture_id);
+        glad_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+        glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         // Attach the texture to the FBO
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.texture_id, 0);
+        glad_glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb.texture_id, 0);
 
         // 3. Create a Renderbuffer Object (RBO) for depth and stencil testing
-        glGenRenderbuffers(1, &fb.rbo_id);
-        glBindRenderbuffer(GL_RENDERBUFFER, fb.rbo_id);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+        glad_glGenRenderbuffers(1, &fb.rbo_id);
+        glad_glBindRenderbuffer(GL_RENDERBUFFER, fb.rbo_id);
+        glad_glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
         // Attach the renderbuffer
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fb.rbo_id);
+        glad_glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, fb.rbo_id);
 
         // 4. Check if the framebuffer is complete
-        if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        if (glad_glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
             std::cerr << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
             // Clean up on failure
-            glDeleteFramebuffers(1, &fb.fbo_id);
-            glDeleteTextures(1, &fb.texture_id);
-            glDeleteRenderbuffers(1, &fb.rbo_id);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            glad_glDeleteFramebuffers(1, &fb.fbo_id);
+            glad_glDeleteTextures(1, &fb.texture_id);
+            glad_glDeleteRenderbuffers(1, &fb.rbo_id);
+            glad_glBindFramebuffer(GL_FRAMEBUFFER, 0);
             return 0; // Return 0 to indicate failure
         }
 
         // 5. Unbind the framebuffer to avoid accidentally rendering to it
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glad_glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // 6. Store it and return our own ID
         uint32_t our_id = pimpl->next_framebuffer_id++;
@@ -821,28 +927,43 @@ namespace Salix {
 
     void OpenGLRenderer::bind_framebuffer(uint32_t framebuffer_id) {
         if (pimpl->framebuffers.count(framebuffer_id)) {
-            // Get the actual OpenGL FBO handle
             GLuint fbo_handle = pimpl->framebuffers.at(framebuffer_id).fbo_id;
-            // Bind it, so all subsequent drawing goes here
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo_handle);
+            // FIX: Use the glad_ prefix here!
+            glad_glBindFramebuffer(GL_FRAMEBUFFER, fbo_handle);
+            // OR if you made a private helper (which is even better encapsulation):
+            // pimpl->bind_gl_framebuffer_internal(GL_FRAMEBUFFER, fbo_handle);
         }
     }
     
     
     void OpenGLRenderer::unbind_framebuffer() {
-        // Binding to 0 tells OpenGL to go back to drawing to the main window
-        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        // Use the glad_ prefix here!
+        glad_glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
 
     void OpenGLRenderer::delete_framebuffer(uint32_t framebuffer_id) {
         if (pimpl->framebuffers.count(framebuffer_id)) {
             const Framebuffer& fb = pimpl->framebuffers.at(framebuffer_id);
-            glDeleteRenderbuffers(1, &fb.rbo_id);
-            glDeleteTextures(1, &fb.texture_id);
-            glDeleteFramebuffers(1, &fb.fbo_id);
+            glad_glDeleteRenderbuffers(1, &fb.rbo_id);
+            glad_glDeleteTextures(1, &fb.texture_id);
+            glad_glDeleteFramebuffers(1, &fb.fbo_id);
             
             pimpl->framebuffers.erase(framebuffer_id);
         }
+    }
+
+    GLint OpenGLRenderer::get_current_framebuffer_binding() const {
+        GLint binding = 0;
+        glad_glGetIntegerv(GL_FRAMEBUFFER_BINDING, &binding);
+        return binding;
+    }
+
+    void OpenGLRenderer::set_viewport(int x, int y, int width, int height) {
+        glad_glViewport(x, y, static_cast<GLsizei>(width), static_cast<GLsizei>(height)); 
+    }
+
+    void OpenGLRenderer::restore_framebuffer_binding(GLint fbo_id) {
+        glad_glBindFramebuffer(GL_FRAMEBUFFER, fbo_id); 
     }
 
 } // namespace Salix

@@ -8,12 +8,12 @@
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/math/Rect.h>
 #include <Salix/events/IEventListener.h>
+#include <SDL.h>
 #include <memory>
 #include <glad/glad.h>  // GLAD provides GLuint, etc.
 #include <glm/glm.hpp>  // For glm::mat4, etc.
 // Forward declare SDL types to avoid including SDL headers here
-struct SDL_Window;
-typedef void* SDL_GLContext;
+
 typedef uint64_t ImTextureID;
 namespace Salix {
 
@@ -44,6 +44,14 @@ namespace Salix {
         void bind_framebuffer(uint32_t framebuffer_id) override;
         void unbind_framebuffer() override;
         void delete_framebuffer(uint32_t framebuffer_id) override;
+        GLint get_current_framebuffer_binding() const override;
+        void set_viewport(int x, int y, int width, int height) override;
+        void restore_framebuffer_binding(GLint fbo_id) override;
+        // --- Native Renderer Specific handles ---
+        SDL_GLContext get_sdl_gl_context() const override;
+        SDL_Window* get_sdl_window() const override;
+
+        virtual OpenGLRenderer* as_opengl_renderer() override { return this; }
 
         void purge_texture(ITexture* texture);
         ITexture* load_texture(const char* file_path) override;
@@ -61,6 +69,9 @@ namespace Salix {
         // A test function to draw a simple colored cube.
         void draw_cube(const glm::mat4& model_matrix, const Color& color);
 
+        // This will take specific framebuffer IDs and render to them.
+        void draw_cube(uint32_t framebuffer_id_magenta, uint32_t framebuffer_id_blue, float current_time);
+
         
     private:
         struct Pimpl;
@@ -70,6 +81,8 @@ namespace Salix {
             GLuint texture_id = 0; // The color texture we render to
             GLuint rbo_id = 0; // Renderbuffer Object for depth/stencil
         };
+        GLint get_gl_framebuffer_binding_internal() const;
+        void set_gl_viewport_internal(int x, int y, int width, int height);
         
     };
 
