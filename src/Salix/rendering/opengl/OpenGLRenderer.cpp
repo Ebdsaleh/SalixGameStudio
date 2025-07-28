@@ -14,7 +14,8 @@
 #include <Salix/window/sdl/SDLWindow.h>
 #include <Salix/window/WindowConfig.h>
 #include <Salix/window/IWindow.h>
-#include <Salix/rendering/ITexture.h>       
+#include <Salix/rendering/ITexture.h>
+#include <Salix/ecs/Transform.h>       
 #include <Salix/math/Rect.h>
 #include <Salix/math/Color.h>
 #include <Salix/math/Point.h>
@@ -28,6 +29,7 @@
 #include <memory>      // For std::unique_ptr
 #include <filesystem>
 #include <fstream>
+#include <stack>
 
 // GLM includes for matrix transformations
 #include <glm/glm.hpp>
@@ -59,6 +61,8 @@ namespace Salix {
         const std::string simple_3d_fragment_file = "Assets/Shaders/OpenGL/3D/color_only.frag";
         std::unique_ptr<OpenGLShaderProgram> simple_3d_shader;
 
+        // Framebuffer stack
+        std::stack<GLint> framebuffer_stack;
 
         // --- Geometry ---
 
@@ -293,7 +297,7 @@ namespace Salix {
         }
 
         log_file << "[DEBUG] OpenGLRenderer::initialize START" << std::endl;
-        stbi_set_flip_vertically_on_load(true);
+        stbi_set_flip_vertically_on_load(false);
 
         // --- Step 1: Set OpenGL Attributes ---
         log_file << "[DEBUG] Setting SDL_GL_SetAttribute..." << std::endl;
@@ -704,117 +708,69 @@ namespace Salix {
     }
 
     void OpenGLRenderer::draw_texture(ITexture* texture, const Rect& dest_rect) {
-        // draw_sprite handles draw_texture as a special case where angle=0, pivot=nullptr, color=white, no flip
-        draw_sprite(texture, dest_rect, 0.0, nullptr, Color(255, 255, 255, 255), SpriteFlip::None);
+        // Create a temporary Transform on the fly from the Rect
+        Transform temp_transform;
+        temp_transform.set_position({(float)dest_rect.x, (float)dest_rect.y, 0.0f});
+        temp_transform.set_scale({(float)dest_rect.w, (float)dest_rect.h, 1.0f});
+        
+        // Define a default white color
+        Color white = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+        // Call the new draw_sprite function with the temporary transform
+        draw_sprite(texture, &temp_transform, white, SpriteFlip::None);
     }
     
    
 
 
     
-    void OpenGLRenderer::draw_sprite(ITexture* texture, const Rect& dest_rect, double angle,
-        const Point* pivot, const Color& color, SpriteFlip flip) {
-        if (!texture) {
-            std::cerr << "WARNING: Attempted to draw null sprite texture." << std::endl;
-            return;
-        }
-
+    void OpenGLRenderer::draw_sprite(ITexture* texture, const Transform* transform,
+                                 const Color& color, SpriteFlip flip) {
+        if (!texture || !transform) return;
         OpenGLTexture* opengl_texture = dynamic_cast<OpenGLTexture*>(texture);
-        if (!opengl_texture) {
-            std::cerr << "ERROR: Invalid texture type passed to OpenGLRenderer::draw_sprite." << std::endl;
+        if (!opengl_texture) return;
+
+        // --- State setup for transparency ---
+        glad_glDepthMask(GL_FALSE);
+        pimpl->texture_shader->use();
+
+        // 1. Get the 3D camera matrices
+        if (!pimpl->active_camera) {
+            std::cerr << "WARNING: draw_sprite called with no active 3D camera." << std::endl;
             return;
         }
-        if (opengl_texture->get_id() == 0) {
-            std::cerr << "ERROR: Attempting to draw with a deleted/invalid OpenGLTexture ID (ID is 0)!" << std::endl;
-            return; // Don't try to draw with a bad ID
-        }
-        
-        // --- ADD THESE DEBUG CHECKS IMMEDIATELY HERE ---
-        GLboolean is_blending_enabled;
-        glad_glGetBooleanv(GL_BLEND, &is_blending_enabled);
-        GLint blend_src_rgb, blend_dest_rgb;
-        glad_glGetIntegerv(GL_BLEND_SRC_RGB, &blend_src_rgb); // GL_SRC_ALPHA is 0x0302
-        glad_glGetIntegerv(GL_BLEND_DST_RGB, &blend_dest_rgb); // GL_ONE_MINUS_SRC_ALPHA is 0x0303
+        pimpl->texture_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
+        pimpl->texture_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
 
-        // std::cout << "DEBUG: draw_sprite - Blending State: BLEND_ENABLED=" << (is_blending_enabled ? "TRUE" : "FALSE")
-        //       << ", BLEND_SRC_RGB=" << blend_src_rgb << " (0x" << std::hex << blend_src_rgb << std::dec << ")"
-        //       << ", BLEND_DST_RGB=" << blend_dest_rgb << " (0x" << std::hex << blend_dest_rgb << std::dec << ")" << std::endl;
-        // --- END ADDITION ---
-
-        //std::cout << "DEBUG: Drawing sprite - Texture ID: " << opengl_texture->get_id()
-        //      << " DestRect: x=" << dest_rect.x << " y=" << dest_rect.y
-        //      << " w=" << dest_rect.w << " h=" << dest_rect.h 
-        //      << " Angle: " << angle << " Color: " << color.r << "," << color.g << "," << color.b << "," << color.a << std::endl;
-        // --- END DEBUG LINE ---
-        
-        glad_glDisable(GL_DEPTH_TEST);
-        pimpl->texture_shader->use();
-        pimpl->texture_shader->setMat4("projection", pimpl->projection_matrix_2d);
-        
-        
-        // Pass tint color to shader
-        pimpl->texture_shader->setVec4(
-            "tint_color", glm::vec4(
-            color.r, color.g , color.b , color.a )
-        ); 
-
-        // --- Calculate Model Matrix for Sprite ---
+        // 2. Build the Model Matrix directly from the Transform component
         glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, transform->get_position().to_glm());
         
-        // 1. Translate to the destination position (top-left of rect)
-        model = glm::translate(model, glm::vec3(dest_rect.x, dest_rect.y, 0.0f));
-
+        // Rotation (around Z for now, can be expanded to full 3D rotation)
+        model = glm::rotate(model, glm::radians(transform->get_rotation().z), glm::vec3(0.0f, 0.0f, 1.0f));
         
-        // 2. Handle pivot point (translate origin to pivot, rotate, translate back)
-        // If pivot is provided, translate to pivot, rotate, then translate back from pivot.
-        // Pivot point is relative to the top-left of the destination rectangle.
-        if (pivot) {
-            // Translate to pivot before rotation
-            model = glm::translate(model, glm::vec3(pivot->x, pivot->y, 0.0f));
-            // Rotate around the Z-axis (for 2D)
-            model = glm::rotate(model, glm::radians((float)angle), glm::vec3(0.0f, 0.0f, 1.0f));
-            // Translate back from pivot after rotation
-            model = glm::translate(model, glm::vec3(-pivot->x, -pivot->y, 0.0f));
-        } else {
-            // No pivot, rotate around the top-left corner of the rect
-            model = glm::rotate(model, glm::radians((float)angle), glm::vec3(0.0f, 0.0f, 1.0f));
-        }
-        
-        // 3. Handle flipping (apply scale factors for flip)
-        float scale_x = (float)dest_rect.w;
-        float scale_y = (float)dest_rect.h;
-
-        if (flip == SpriteFlip::Horizontal) {
-            scale_x *= -1.0f; // Flip horizontally
-        } else if (flip == SpriteFlip::Vertical) {
-            scale_y *= -1.0f; // Flip vertically
-        } else if (flip == SpriteFlip::Both) {
+        // Handle Flipping via negative scale 
+        float scale_x = transform->get_scale().x;
+        float scale_y = transform->get_scale().y;
+        if (flip == SpriteFlip::Horizontal || flip == SpriteFlip::Both) {
             scale_x *= -1.0f;
+        }
+        if (flip == SpriteFlip::Vertical || flip == SpriteFlip::Both) {
             scale_y *= -1.0f;
         }
-
-        // Note: For flipping with a pivot, the translation after scaling might need adjustment
-        // based on where the pivot is. A simple scale like this flips around the quad's origin (0,0).
-        // For accurate flipping around the rectangle's center, you'd translate to center, scale, then translate back.
-        // For simplicity here, it flips the quad in its local space before being moved to dest_rect.
-
-        // 4. Scale to the width and height of the destination rectangle
-        model = glm::scale(model, glm::vec3(scale_x, scale_y, 1.0f));
-
+        
+        model = glm::scale(model, glm::vec3(scale_x, scale_y, transform->get_scale().z));
+        
         pimpl->texture_shader->setMat4("model", model);
-        // --- Texture Binding ---
-        glad_glActiveTexture(GL_TEXTURE0); // Activate texture unit 0
+
+        // 3. Set color, bind texture, and draw (same as before)
+        pimpl->texture_shader->setVec4("tint_color", glm::vec4(color.r, color.g, color.b, color.a));
+        glad_glActiveTexture(GL_TEXTURE0);
         glad_glBindTexture(GL_TEXTURE_2D, opengl_texture->get_id());
-        // 'texture_sampler' uniform was already set to 0 in ShaderProgram setup.
-
-        // --- Draw Call ---
         glad_glBindVertexArray(pimpl->quad_vao);
-        glad_glDrawArrays(GL_TRIANGLES, 0, 6); // Draw 2 triangles (a quad)
-
-        // --- Cleanup (Optional but good practice) ---
-        glad_glBindTexture(GL_TEXTURE_2D, 0);        // Unbind texture
-        glad_glBindVertexArray(0);                   // Unbind VAO
-        glad_glUseProgram(0);                        // Unuse shader program
+        glad_glDrawArrays(GL_TRIANGLES, 0, 6);
+        glad_glBindVertexArray(0);
+        glad_glDepthMask(GL_TRUE);
     }
      
        
@@ -974,6 +930,32 @@ namespace Salix {
 
     void OpenGLRenderer::restore_framebuffer_binding(GLint fbo_id) {
         glad_glBindFramebuffer(GL_FRAMEBUFFER, fbo_id); 
+    }
+
+    void OpenGLRenderer::begin_render_pass(uint32_t framebuffer_id) {
+
+        // 1. Get and save the current FBO binding by pushing it onto the stack.
+        GLint last_bound_fbo = 0;
+        glad_glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_bound_fbo);
+        pimpl->framebuffer_stack.push(last_bound_fbo);
+
+        // 2. Bind the new framebuffer that the caller requested.
+        //    (This calls your existing bind_framebuffer method).
+        bind_framebuffer(framebuffer_id);
+
+    }
+        
+    void OpenGLRenderer::end_render_pass() {
+        // 1. Check if the stack is empty to avoid errors.
+    if (!pimpl->framebuffer_stack.empty()) {
+        // 2. Get the last FBO binding from the top of the stack.
+        GLint last_fbo = pimpl->framebuffer_stack.top();
+        pimpl->framebuffer_stack.pop();
+
+        // 3. Restore the previous framebuffer binding.
+        glad_glBindFramebuffer(GL_FRAMEBUFFER, last_fbo);
+    }
+
     }
 
 } // namespace Salix

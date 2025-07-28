@@ -48,6 +48,9 @@ namespace Salix {
         GLint get_current_framebuffer_binding() const override;
         void set_viewport(int x, int y, int width, int height) override;
         void restore_framebuffer_binding(GLint fbo_id) override;
+        void begin_render_pass(uint32_t framebuffer_id) override;
+        void end_render_pass() override;
+
         // --- Native Renderer Specific handles ---
         SDL_GLContext get_sdl_gl_context() const override;
         SDL_Window* get_sdl_window() const override;
@@ -57,8 +60,7 @@ namespace Salix {
         void purge_texture(ITexture* texture);
         ITexture* load_texture(const char* file_path) override;
         void draw_texture(ITexture* texture, const Rect& dest_rect) override;
-        void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
-
+        void draw_sprite(ITexture* texture, const Transform* transform, const Color& color, SpriteFlip flip) override;
         void set_clear_color(const Color& color);
         Color get_clear_color() const override;
         void draw_rectangle(const Rect& rect, const Color& color, bool filled);
@@ -66,7 +68,7 @@ namespace Salix {
         // --- 3D-SPECIFIC METHODS ---
 
         // Sets the active camera that the renderer will use to get view/projection matrices.
-        void set_active_camera(ICamera* camera);
+        void set_active_camera(ICamera* camera) override;
 
         // A test function to draw a simple colored cube.
         void draw_cube(const glm::mat4& model_matrix, const Color& color);
