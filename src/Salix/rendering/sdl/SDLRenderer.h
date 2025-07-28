@@ -2,6 +2,7 @@
 #pragma once
 #include <Salix/rendering/IRenderer.h> // We need to include the interface we are implementing.
 #include <SDL.h>
+#include <Salix/math/Color.h>
 #include <memory>
 // SDLRenderer is concrete implementation of the IRenderer interface.
 typedef uint64_t ImTextureID;
@@ -26,6 +27,7 @@ namespace Salix{
             void end_frame() override;
             void clear() override;
             void clear_depth_buffer() override { return; }
+            Color get_clear_color() const override;
             void on_window_resize(int width, int height) override;
 
 

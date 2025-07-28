@@ -16,6 +16,7 @@ namespace Salix {
         std::unique_ptr<IWindow> window = nullptr;  // The renderer now has full, exclusive ownership of an IWindow object.
         SDL_Window* sdl_window = nullptr;
         SDL_GLContext sdl_gl_context = nullptr;
+        Color clear_color = Color::from_rgba_int(15, 20, 40, 255);
     };
 
     SDLRenderer::SDLRenderer() : pimpl(std::make_unique<Pimpl>()) {}
@@ -103,6 +104,9 @@ namespace Salix {
         return new SDLTexture(texture);
     }
 
+    Color SDLRenderer::get_clear_color() const {
+        return pimpl->clear_color;
+    }
     void SDLRenderer::draw_texture(ITexture* texture, const Rect& dest_rect) {
         if (texture) {
             // --- Translation Layer ---
