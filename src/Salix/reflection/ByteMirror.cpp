@@ -256,7 +256,8 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(Element));
         type_info.properties = {
             {
-                "Projection Mode", PropertyType::EnumClass, nullptr,
+                "Projection Mode", PropertyType::EnumClass,
+                ByteMirror::get_type_info(typeid(Salix::ProjectionMode)),
                 [](void* instance) { 
                     return static_cast<void*>(
                         const_cast<Salix::ProjectionMode*>(
@@ -342,14 +343,28 @@ namespace Salix {
         type_registry[typeid(Camera)] = type_info;
     }
 
+    // ProjectionMode
+    template<>
+    void ByteMirror::register_type<Salix::ProjectionMode>() {
+        TypeInfo type_info;
+        type_info.name = "Salix::ProjectionMode"; // A descriptive name for reflection, not directly displayed
+        type_info.type_index = typeid(Salix::ProjectionMode);
+        type_info.properties = {}; // Enums don't have properties
+        type_info.ancestor = nullptr;
+        ByteMirror::type_registry[typeid(Salix::ProjectionMode)] = type_info;
+    }
+
     void ByteMirror::register_all_types() {
 
         ByteMirror::register_type<Element>();
         ByteMirror::register_type<RenderableElement>();
         ByteMirror::register_type<ScriptElement>();
         ByteMirror::register_type<Transform>();
+        ByteMirror::register_type<ProjectionMode>();
         ByteMirror::register_type<Camera>();
         ByteMirror::register_type<Sprite2D>();
     } 
+
+    
 
 } // namespace Salix
