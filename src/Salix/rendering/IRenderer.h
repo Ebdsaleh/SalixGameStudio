@@ -5,8 +5,10 @@
 #include <Salix/math/Color.h>  // Need the Color definition to allow tinting while rendering sprites.
 #include <Salix/math/Point.h>
 #include <Salix/math/Rect.h>
+#include <Salix/ecs/Transform.h>
 #include <Salix/rendering/ITexture.h>  // Need this to use our own renderer agnostic Texture.
 #include <Salix/window/IWindow.h>
+#include <Salix/rendering/ICamera.h>
 #include <SDL.h>
 #include <cstdint>
 
@@ -52,12 +54,21 @@ namespace Salix {
         virtual ImTextureID get_framebuffer_texture_id(uint32_t framebuffer_id) = 0;
         virtual void bind_framebuffer(uint32_t framebuffer_id) = 0;
         virtual void unbind_framebuffer() = 0;
+        virtual GLint get_current_framebuffer_binding() const = 0;
         virtual void delete_framebuffer(uint32_t framebuffer_id) = 0;
         // A method to restore a framebuffer binding (useful for saving/restoring state)
         virtual void restore_framebuffer_binding(GLint fbo_id) = 0;
+        // High-level, stateful render pass management
 
-        virtual GLint get_current_framebuffer_binding() const = 0;
+        virtual void begin_render_pass(uint32_t framebuffer_id) = 0;
+        virtual void end_render_pass() = 0;
+        
+
         virtual void set_viewport(int x, int y, int width, int height) = 0;
+
+        virtual void on_window_resize(int width, int height) = 0;
+         virtual void set_active_camera(ICamera* camera) = 0;
+
         // Provide access to the window it owns, without giving up ownership.
         virtual IWindow* get_window() = 0;
         virtual void* get_native_handle() = 0;
@@ -70,9 +81,8 @@ namespace Salix {
         // A contract for drawing a texture at a specific location.
         virtual void draw_texture(ITexture* texture, const Rect& dest_rect) = 0;
 
-        // A contract for drawing a Sprite2D
-        virtual void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) = 0;
+        virtual void draw_sprite(ITexture* texture, const Transform* transform, const Color& color, SpriteFlip flip) = 0;
 
-        virtual void on_window_resize(int width, int height) = 0;
+        
     };
 } // namespace Salix
