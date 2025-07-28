@@ -126,7 +126,9 @@ namespace Salix {
 
     void RealmDesignerPanel::on_render() {
         if (pimpl->is_visible) {
-            pimpl->draw_test_cube();      
+            if (pimpl->context->editor_camera->get_projection_mode() == ProjectionMode::Perspective) { 
+                pimpl->draw_test_cube();    
+            } 
         }
     }
 
