@@ -23,6 +23,7 @@ namespace Salix {
         std::string name = "Theme Editor";
         EditorContext* context = nullptr;
         bool is_visible = false;        
+        bool is_locked = false;
         char theme_name_buffer[256] = {0};
         char theme_path_buffer[512] = {0};
         std::string icon_type_being_edited;
@@ -354,4 +355,17 @@ namespace Salix {
         }
     }
 
+    bool ThemeEditorPanel::is_locked() {
+        return pimpl->is_locked;
+    }
+
+
+    void ThemeEditorPanel::unlock() {
+        pimpl->is_locked = false;
+    }
+
+
+    void ThemeEditorPanel::lock() {
+        pimpl->is_locked = true;
+    }   
 }

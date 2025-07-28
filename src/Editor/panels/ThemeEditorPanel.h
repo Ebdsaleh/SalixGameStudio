@@ -20,6 +20,9 @@ namespace Salix {
             void on_event(IEvent& event) override;
             void set_name(const std::string& new_name) override;
             const std::string& get_name() override;
+            bool is_locked()override;
+            void unlock() override;
+            void lock() override;
         private:
             struct Pimpl;
             std::unique_ptr<Pimpl> pimpl;
