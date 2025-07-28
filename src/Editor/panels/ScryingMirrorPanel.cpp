@@ -23,6 +23,7 @@ namespace Salix {
         std::string name;
         EditorContext* context = nullptr;
         bool is_visible = true;
+        bool is_locked = false;
         Entity* selected_entity = nullptr;
         Element* selected_element = nullptr;
         void draw_property(const Property& prop, Element* element);
@@ -153,5 +154,19 @@ namespace Salix {
 
         ImGui::PopItemWidth();
     }
+
+    bool ScryingMirrorPanel::is_locked() {
+        return pimpl->is_locked;
+    }
+
+
+    void ScryingMirrorPanel::unlock() {
+        pimpl->is_locked = false;
+    }
+
+
+    void ScryingMirrorPanel::lock() {
+        pimpl->is_locked = true;
+    }   
 
 }  // namespace Salix

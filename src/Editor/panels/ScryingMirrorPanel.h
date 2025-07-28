@@ -25,6 +25,9 @@ namespace Salix {
         bool get_visibility() const override;
         void on_event(IEvent& event) override;
         void set_name(const std::string& new_name) override;
+        bool is_locked()override;
+        void unlock() override;
+        void lock() override;
         const std::string& get_name() override;
     private:
         struct Pimpl;
