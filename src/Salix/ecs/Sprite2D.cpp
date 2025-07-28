@@ -76,40 +76,13 @@ namespace Salix {
     }
 
     void Sprite2D::render(IRenderer* renderer) {
-        if (pimpl->texture && owner) {
-            // Get the owner's Transform to know where to draw
+        // Check that we have everything we need to draw
+        if (pimpl->texture && owner && renderer) {
+            // Get the owner's Transform, which contains all positional data
             Transform* transform = owner->get_transform();
 
             if (transform) {
-                // Get the final calculated world-space transform values.
-                Vector3 world_pos = transform->get_world_position();
-                Vector3 world_rot = transform->get_world_rotation();
-                Vector3 world_scale = transform->get_world_scale();
-                
-                Rect dest_rect;
-                dest_rect.x = static_cast<int>(world_pos.x + offset.x);
-                dest_rect.y = static_cast<int>(world_pos.y + offset.y);
-                
-                // Apply the transform's scaling to the texture.
-                dest_rect.w = static_cast<int>(pimpl->texture->get_width() * world_scale.x);
-                dest_rect.h = static_cast<int>(pimpl->texture->get_height() * world_scale.y);
-                
-                // Apply the transform's rotation to the texture.
-                double angle = static_cast<double>(world_rot.z);
-                
-                // Calculate the rotation and pivot in pixels
-                Point pivot_point;
-                
-                // --- For SDL2Renderer ---
-                // pivot point now takes in the world position.
-                // pivot_point.x = static_cast<int>(world_pos.x -(dest_rect.w * pivot.x));
-                // pivot_point.y = static_cast<int>(world_pos.y -(dest_rect.h * pivot.y));
-                
-                // --- For OpenGLRenderer ---
-                pivot_point.x = static_cast<int>(dest_rect.w * pivot.x);
-                pivot_point.y = static_cast<int>(dest_rect.h * pivot.y);
-
-                // Determine the final flip state.
+                // Determine the flip state from this component's public properties
                 SpriteFlip flip_state = SpriteFlip::None;
                 if (flip_h && flip_v) {
                     flip_state = SpriteFlip::Both;
@@ -118,13 +91,10 @@ namespace Salix {
                 } else if (flip_v) {
                     flip_state = SpriteFlip::Vertical;
                 }
-
-
-                // render the texture ignoring rotation (might be useful for GUI Elements).
-                // renderer->draw_texture(texture, dest_rect);
-
-                // render the texture using rotation.
-                renderer->draw_sprite(pimpl->texture, dest_rect, angle, &pivot_point, color, flip_state);
+                
+                // One simple call to the renderer. The renderer will read the
+                // transform and do all the complex work.
+                renderer->draw_sprite(pimpl->texture, transform, color, flip_state);
             }
         }
     }
