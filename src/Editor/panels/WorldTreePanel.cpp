@@ -63,6 +63,41 @@ namespace Salix {
         // Create a new ImGui window for our panel.
         if (ImGui::Begin("World Tree", &pimpl->is_visible)) {
             if (pimpl->context && pimpl->context->active_scene) {
+                // handle icon adjustment for OpenGL rendering
+                ImVec2 icon_size = ImVec2(16, 16);
+                ImVec2 top_left = ImVec2(0, 0);
+                ImVec2 bottom_right = ImVec2(1, 1);
+                if (pimpl->context->init_context->renderer_type == RendererType::OpenGL) {
+                    top_left = ImVec2(0, 1);
+                    bottom_right = ImVec2 (1, 0);
+                }
+
+                ImGui::Separator();
+                // --- PANEL LOCK/UNLOCK BUTTON ---
+                ImGui::AlignTextToFramePadding();
+                // ImGui::SameLine(
+
+                const IconInfo& lock_icon = pimpl->is_locked ? 
+                    pimpl->icon_manager->get_icon_by_name("Panel Locked") :
+                    pimpl->icon_manager->get_icon_by_name("Panel Unlocked");
+
+                ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
+                if (pimpl->is_locked) {
+                    tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
+                }
+
+                // Only attempt to draw if the icon texture ID is valid
+                if (lock_icon.texture_id != 0) {
+                    if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
+                        // Button was clicked, toggle the lock state
+                        pimpl->is_locked = !pimpl->is_locked; 
+                        std::cout << "World Tree Panel lock toggled to: " << (pimpl->is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
+                    }
+                } 
+                
+                if (pimpl->is_locked) {
+                    ImGui::BeginDisabled(); // Disable all interactive widgets below this point
+                }
                 // Loop through all entities in the active scene
                 for (Entity* entity_ptr : pimpl->context->active_scene->get_entities()) {
                     if (!entity_ptr) continue;
@@ -79,7 +114,7 @@ namespace Salix {
 
                     const IconInfo& entity_icon = pimpl->icon_manager->get_icon_for_entity(entity_ptr);
                     if (entity_icon.texture_id != 0) {
-                        ImGui::Image(entity_icon.texture_id, ImVec2(16, 16));
+                        ImGui::Image(entity_icon.texture_id, icon_size, top_left, bottom_right);
                         ImGui::SameLine();
                     }
                     // --- END ICON LOGIC ---
@@ -112,7 +147,7 @@ namespace Salix {
                             const IconInfo& element_icon = pimpl->icon_manager->get_icon_for_element(element_ptr);
                             if (element_icon.texture_id != 0) {
                                 ImGui::Indent(16.0f); 
-                                ImGui::Image(element_icon.texture_id, ImVec2(16, 16));
+                                ImGui::Image(element_icon.texture_id, icon_size, top_left, bottom_right);
                                 ImGui::SameLine();
                                 ImGui::Unindent(16.0f);
                             }
@@ -139,6 +174,9 @@ namespace Salix {
             } else {
                 ImGui::Text("No active scene.");
             }
+            if (pimpl->is_locked) {
+            ImGui::EndDisabled(); // End the disabled block
+        }
         }
         ImGui::End();
     }
