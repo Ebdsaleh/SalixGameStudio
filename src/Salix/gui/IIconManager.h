@@ -28,6 +28,7 @@ namespace Salix {
         // The main workhorse methods for the UI panels.
         virtual const IconInfo& get_icon_for_entity(Entity* entity) = 0;
         virtual const IconInfo& get_icon_for_element(Element* element) = 0;
+        virtual const IconInfo& get_icon_by_name(const std::string& name) const = 0;
         virtual void update_icon(const std::string& type_name, const std::string& new_path) = 0;
         virtual const std::map<std::string, IconInfo>& get_icon_registry()  = 0;
     };
