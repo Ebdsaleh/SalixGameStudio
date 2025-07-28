@@ -29,9 +29,9 @@ namespace Salix {
         std::string name;
         EditorContext* context = nullptr;
         bool is_visible = true;
+        bool is_locked = false;
         ImTextureID camera_icon_id;
         IIconManager* icon_manager = nullptr;
-
     };
 
 
@@ -161,5 +161,19 @@ namespace Salix {
 
 
     bool WorldTreePanel::get_visibility() const  { return pimpl->is_visible; }
+
+    bool WorldTreePanel::is_locked() {
+        return pimpl->is_locked;
+    }
+
+
+    void WorldTreePanel::unlock() {
+        pimpl->is_locked = false;
+    }
+
+
+    void WorldTreePanel::lock() {
+        pimpl->is_locked = true;
+    }   
 
 } // namespace Salix

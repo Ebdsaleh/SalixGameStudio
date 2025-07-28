@@ -31,6 +31,9 @@ namespace Salix {
         void on_event(IEvent& event) override;
         void set_name(const std::string& new_name) override;
         const std::string& get_name() override;
+        bool is_locked() override;
+        void unlock() override;
+        void lock() override;
     private:
         // In the future, this panel will need a pointer to the active scene
         // to get the list of entities to display. We can add that later.
