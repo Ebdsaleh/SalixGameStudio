@@ -5,6 +5,7 @@
 // =================================================================================
 #include <Editor/panels/WorldTreePanel.h>
 #include <imgui/imgui.h>
+#include <Salix/math/Color.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>
 #include <Salix/events/EventManager.h>
@@ -20,6 +21,7 @@
 #include <Salix/assets/AssetManager.h>
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/IconInfo.h>
+#include <Salix/gui/IGui.h>
 #include <memory>
 #include <iostream>
 
@@ -81,6 +83,8 @@ namespace Salix {
                     pimpl->icon_manager->get_icon_by_name("Panel Locked") :
                     pimpl->icon_manager->get_icon_by_name("Panel Unlocked");
 
+                
+                
                 ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
                 if (pimpl->is_locked) {
                     tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
@@ -88,7 +92,7 @@ namespace Salix {
 
                 // Only attempt to draw if the icon texture ID is valid
                 if (lock_icon.texture_id != 0) {
-                    if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
+                    if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0.0f, 0.0f, 0.0f, 0.0f), tint_color)) {
                         // Button was clicked, toggle the lock state
                         pimpl->is_locked = !pimpl->is_locked; 
                         std::cout << "World Tree Panel lock toggled to: " << (pimpl->is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
