@@ -22,6 +22,7 @@ namespace Salix {
     struct ThemeEditorPanel::Pimpl {
         std::string name = "Theme Editor";
         EditorContext* context = nullptr;
+        ImGuiIconManager* icon_manager = nullptr;
         bool is_visible = false;        
         bool is_locked = false;
         char theme_name_buffer[256] = {0};
@@ -48,6 +49,8 @@ namespace Salix {
             return;
         }
         pimpl->context = context;
+        pimpl->icon_manager = dynamic_cast<ImGuiIconManager*>(pimpl->context->gui->get_icon_manager());
+        if (!pimpl->icon_manager) { return; }
         pimpl->create_dialog_boxes();
     }
     
@@ -86,6 +89,43 @@ namespace Salix {
 
     void ThemeEditorPanel::Pimpl::render_layout() {
         if (ImGui::Begin(name.c_str(), &is_visible)) {
+            // handle icon adjustment for OpenGL rendering
+                ImVec2 icon_size = ImVec2(16, 16);
+                ImVec2 top_left = ImVec2(0, 0);
+                ImVec2 bottom_right = ImVec2(1, 1);
+                if (context->init_context->renderer_type == RendererType::OpenGL) {
+                    top_left = ImVec2(0, 1);
+                    bottom_right = ImVec2 (1, 0);
+                }
+
+                ImGui::Separator();
+
+                // --- PANEL LOCK/UNLOCK BUTTON ---
+                ImGui::AlignTextToFramePadding();
+                // ImGui::SameLine(
+
+                const IconInfo& lock_icon = is_locked ? 
+                    icon_manager->get_icon_by_name("Panel Locked") :
+                    icon_manager->get_icon_by_name("Panel Unlocked");
+
+                ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
+                if (is_locked) {
+                    tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
+                }
+
+                // Only attempt to draw if the icon texture ID is valid
+                if (lock_icon.texture_id != 0) {
+                    if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
+                        // Button was clicked, toggle the lock state
+                        is_locked = !is_locked; 
+                        std::cout << "Theme Editor Panel lock toggled to: " << (is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
+                    }
+                } 
+                
+                if (is_locked) {
+                    ImGui::BeginDisabled(); // Disable all interactive widgets below this point
+                }
+
             ITheme* active_theme_base = context->theme_manager->get_active_theme();
             ImGuiTheme* active_imgui_theme = dynamic_cast<ImGuiTheme*>(active_theme_base);
 
@@ -131,6 +171,9 @@ namespace Salix {
             render_edit_fonts(data); 
             render_edit_icons(data);
             
+            if (is_locked) {
+                ImGui::EndDisabled();
+            }
             ImGui::End();
         }
     }
@@ -306,8 +349,16 @@ namespace Salix {
 
 
                     // Column 2: Icon Preview
+                    ImVec2 icon_size = ImVec2(16, 16);
+                    ImTextureID icon_tex_id = icon_info.texture_id;
+                    ImVec2 top_left = ImVec2(0, 0);
+                    ImVec2 bottom_right = ImVec2(1, 1);
+                    if (context->init_context->renderer_type == RendererType::OpenGL) {
+                        top_left = ImVec2(0, 1);
+                        bottom_right = ImVec2 (1, 0);
+                    }
                     ImGui::TableSetColumnIndex(1);
-                    ImGui::Image(icon_info.texture_id, ImVec2(16, 16));
+                    ImGui::Image(icon_tex_id, icon_size, top_left, bottom_right);
                   
 
                     // Column 3: Path and Browse Button
@@ -346,7 +397,8 @@ namespace Salix {
                             dialog->set_default_path(last_icon_directory);
 
                             // 4. Show the dialog
-                            context->gui->show_dialog_by_key(std::string("SelectIconImage"));
+                            std::string dialog_key = "SelectIconImage";
+                            context->gui->show_dialog_by_key(dialog_key);
                         }
                     }
                 }
