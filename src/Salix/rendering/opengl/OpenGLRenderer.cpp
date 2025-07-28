@@ -105,35 +105,35 @@ namespace Salix {
         };
 
         // 1. Create VAO and VBO directly using DSA functions
-        glCreateVertexArrays(1, &quad_vao); // Creates a VAO and stores its ID in quad_vao
-        glCreateBuffers(1, &quad_vbo);      // Creates a VBO and stores its ID in quad_vbo
+        glad_glCreateVertexArrays(1, &quad_vao); // Creates a VAO and stores its ID in quad_vao
+        glad_glCreateBuffers(1, &quad_vbo);      // Creates a VBO and stores its ID in quad_vbo
 
         // 2. Upload data to the VBO directly using DSA (glNamedBufferData)
         // No need to bind GL_ARRAY_BUFFER globally.
-        glNamedBufferData(quad_vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glad_glNamedBufferData(quad_vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
         // 3. Configure VAO attributes and link to VBO directly using DSA functions
         // These functions operate directly on 'quad_vao' by its ID.
 
         // --- Configure Vertex Attribute 0 (Position: layout (location = 0) in shader) ---
         // Specify which vertex buffer binding point this attribute uses (e.g., binding point 0)
-        glVertexArrayAttribBinding(quad_vao, 0, 0); 
+        glad_glVertexArrayAttribBinding(quad_vao, 0, 0); 
         // Specify the format of vertex attribute 0: 2 floats, not normalized, offset 0 from start of vertex data
-        glVertexArrayAttribFormat(quad_vao, 0, 2, GL_FLOAT, GL_FALSE, 0); 
+        glad_glVertexArrayAttribFormat(quad_vao, 0, 2, GL_FLOAT, GL_FALSE, 0); 
         // Enable vertex attribute 0 for the VAO
-        glEnableVertexArrayAttrib(quad_vao, 0);
+        glad_glEnableVertexArrayAttrib(quad_vao, 0);
 
         // --- Configure Vertex Attribute 1 (Texture Coordinates: layout (location = 1) in shader) ---
         // Specify which vertex buffer binding point this attribute uses (e.g., binding point 0, as it's from the same VBO)
-        glVertexArrayAttribBinding(quad_vao, 1, 0); 
+        glad_glVertexArrayAttribBinding(quad_vao, 1, 0); 
         // Specify the format of vertex attribute 1: 2 floats, not normalized, offset 2*sizeof(float)
-        glVertexArrayAttribFormat(quad_vao, 1, 2, GL_FLOAT, GL_FALSE, (2 * sizeof(float))); 
+        glad_glVertexArrayAttribFormat(quad_vao, 1, 2, GL_FLOAT, GL_FALSE, (2 * sizeof(float))); 
         // Enable vertex attribute 1 for the VAO
-        glEnableVertexArrayAttrib(quad_vao, 1);
+        glad_glEnableVertexArrayAttrib(quad_vao, 1);
 
         // 4. Link the VBO (quad_vbo) to the VAO's specified binding point (binding point 0)
         // Parameters: VAO ID, binding index, VBO ID, offset into VBO, stride
-        glVertexArrayVertexBuffer(quad_vao, 0, quad_vbo, 0, 4 * sizeof(float)); 
+        glad_glVertexArrayVertexBuffer(quad_vao, 0, quad_vbo, 0, 4 * sizeof(float)); 
         
         std::cout << "DEBUG: Quad geometry setup complete using DSA." << std::endl;
     }
@@ -187,21 +187,21 @@ namespace Salix {
 
         };
 
-        glCreateVertexArrays(1, &cube_vao);
-        glCreateBuffers(1, &cube_vbo);
-        glNamedBufferData(cube_vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
+        glad_glCreateVertexArrays(1, &cube_vao);
+        glad_glCreateBuffers(1, &cube_vbo);
+        glad_glNamedBufferData(cube_vbo, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
         // Position attritbutes (location = 0).
-        glEnableVertexArrayAttrib(cube_vao, 0);
-        glVertexArrayAttribBinding(cube_vao, 0, 0);
-        glVertexArrayAttribFormat(cube_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+        glad_glEnableVertexArrayAttrib(cube_vao, 0);
+        glad_glVertexArrayAttribBinding(cube_vao, 0, 0);
+        glad_glVertexArrayAttribFormat(cube_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
 
         // Color attribute (location = 1)
-        glEnableVertexArrayAttrib(cube_vao, 1);
-        glVertexArrayAttribBinding(cube_vao, 1, 0);
-        glVertexArrayAttribFormat(cube_vao, 1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float));
+        glad_glEnableVertexArrayAttrib(cube_vao, 1);
+        glad_glVertexArrayAttribBinding(cube_vao, 1, 0);
+        glad_glVertexArrayAttribFormat(cube_vao, 1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float));
 
-        glVertexArrayVertexBuffer(cube_vao, 0, cube_vbo, 0, 6 * sizeof(float));
+        glad_glVertexArrayVertexBuffer(cube_vao, 0, cube_vbo, 0, 6 * sizeof(float));
         std::cout << "DEBUG: Cube geometry setup complete." << std::endl;
     }
 
@@ -214,7 +214,7 @@ namespace Salix {
         // Set the texture sampler uniform once (it refers to texture unit 0)
         texture_shader->use();
         texture_shader->setInt("texture_sampler", 0); // Ensure the sampler is set to texture unit 0
-        glUseProgram(0); // Unuse shader
+        glad_glUseProgram(0); // Unuse shader
 
         // load the 3D shader
         simple_3d_shader = std::make_unique<OpenGLShaderProgram>(simple_3d_vertex_file, simple_3d_fragment_file);
@@ -223,10 +223,10 @@ namespace Salix {
         }
 
 
-        GLint modelLoc = glGetUniformLocation(texture_shader->ID, "model");
-        GLint projLoc = glGetUniformLocation(texture_shader->ID, "projection");
-        GLint texSamplerLoc = glGetUniformLocation(texture_shader->ID, "texture_sampler");
-        GLint tintColorLoc = glGetUniformLocation(texture_shader->ID, "tint_color");
+        GLint modelLoc = glad_glGetUniformLocation(texture_shader->ID, "model");
+        GLint projLoc = glad_glGetUniformLocation(texture_shader->ID, "projection");
+        GLint texSamplerLoc = glad_glGetUniformLocation(texture_shader->ID, "texture_sampler");
+        GLint tintColorLoc = glad_glGetUniformLocation(texture_shader->ID, "tint_color");
         
         
         // --- DEBUG LINES ---
@@ -259,18 +259,18 @@ namespace Salix {
 
     void OpenGLRenderer::Pimpl::set_opengl_initial_state() {
         // Enable blending for transparency
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glad_glEnable(GL_BLEND);
+        glad_glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         // Disable depth testing for 2D rendering unless explicitly needed
         // glDisable(GL_DEPTH_TEST); 
 
         // Enable depth testing for 3D
-        glEnable(GL_DEPTH_TEST);
+        glad_glEnable(GL_DEPTH_TEST);
 
         // Set initial clear color
         // glClearColor(0.1f, 0.1f, 0.2f, 1.0f); // Removed as it's set in clear() or set_clear_color()
         // Set viewport to cover the entire window
-        glViewport(0, 0, window_width, window_height);
+        glad_glViewport(0, 0, window_width, window_height);
 
     }
 
@@ -335,7 +335,7 @@ namespace Salix {
             return false;
         }
         log_file << "[DEBUG] GLAD initialized... OK" << std::endl;
-        log_file << "[DEBUG] OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
+        log_file << "[DEBUG] OpenGL Version: " << glad_glGetString(GL_VERSION) << std::endl;
 
         // --- NEW: Get the actual drawable size for High-DPI support ---
         log_file << "[DEBUG] Getting drawable size..." << std::endl;
@@ -381,21 +381,21 @@ namespace Salix {
         
 
         if (pimpl->quad_vao != 0) {
-            glDeleteVertexArrays(1, &pimpl->quad_vao);
+            glad_glDeleteVertexArrays(1, &pimpl->quad_vao);
             pimpl->quad_vao = 0;
         }
 
         if (pimpl->quad_vbo != 0) {
-            glDeleteBuffers(1, &pimpl->quad_vbo); 
+            glad_glDeleteBuffers(1, &pimpl->quad_vbo); 
             pimpl->quad_vbo = 0;
         }
 
         if (pimpl->cube_vao != 0) {
-            glDeleteVertexArrays(1, &pimpl->cube_vao);
+            glad_glDeleteVertexArrays(1, &pimpl->cube_vao);
             pimpl->cube_vao = 0;
         }
         if (pimpl->cube_vbo != 0) {
-            glDeleteBuffers(1, &pimpl->cube_vbo);
+            glad_glDeleteBuffers(1, &pimpl->cube_vbo);
             pimpl->cube_vbo = 0;
         }
 
@@ -406,9 +406,9 @@ namespace Salix {
         // --- Clean up any created framebuffers ---
         for (const auto& pair : pimpl->framebuffers) {
             const Framebuffer& fb = pair.second;
-            glDeleteRenderbuffers(1, &fb.rbo_id);
-            glDeleteTextures(1, &fb.texture_id);
-            glDeleteFramebuffers(1, &fb.fbo_id);
+            glad_glDeleteRenderbuffers(1, &fb.rbo_id);
+            glad_glDeleteTextures(1, &fb.texture_id);
+            glad_glDeleteFramebuffers(1, &fb.fbo_id);
         }
         
         pimpl->framebuffers.clear();
@@ -450,10 +450,10 @@ namespace Salix {
 
     void OpenGLRenderer::clear() {
         // glClearColor is set in set_opengl_initial_state or via set_clear_color
-        glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
+        glad_glClearColor(0.1f, 0.1f, 0.2f, 1.0f);
         // glClearColor(0.0f, 0.0f, 0.0f, 0.0f);    // for testing
         // Clear both color and depth buffers, which is crucial for 3D
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear both color and depth buffers
+        glad_glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear both color and depth buffers
     }
    
     
@@ -469,7 +469,7 @@ namespace Salix {
     void OpenGLRenderer::on_window_resize(int width, int height) {
         if (width > 0 && height > 0) {
             // 1. Update the OpenGL viewport to match the new window size
-            glViewport(0, 0, width, height);
+            glad_glViewport(0, 0, width, height);
             
             // 2. Update the stored dimensions and recreate the 2D projection matrix
             pimpl->create_2D_projection_matrix(width, height);
@@ -483,13 +483,13 @@ namespace Salix {
     }
 
     void OpenGLRenderer::clear_depth_buffer() {
-        glClear(GL_DEPTH_BUFFER_BIT);
+        glad_glClear(GL_DEPTH_BUFFER_BIT);
     }
 
     void OpenGLRenderer::draw_cube(const glm::mat4& model_matrix, const Color& color) {
         // --- ADD THESE DEBUG PRINTS ---
         GLint test_binding = -1; // Initialize to an invalid value
-        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &test_binding); // <-- Test the problematic call here
+        glad_glGetIntegerv(GL_FRAMEBUFFER_BINDING, &test_binding); // <-- Test the problematic call here
         // std::cout << "DEBUG: OpenGLRenderer::draw_cube() - GL_FRAMEBUFFER_BINDING: " << test_binding << std::endl;
         // --- END DEBUG 
         if (!pimpl->active_camera) {
@@ -502,7 +502,7 @@ namespace Salix {
             return;
         }
         // Explicitly enable depth testing right before drawing a 3D object.
-        glEnable(GL_DEPTH_TEST);
+        glad_glEnable(GL_DEPTH_TEST);
         pimpl->simple_3d_shader->use();
 
 
@@ -519,10 +519,10 @@ namespace Salix {
             std::cerr << "[ERROR] cube_vao is zero (not initialized).\n";
             return;
         }
-        glBindVertexArray(pimpl->cube_vao);
-        glDrawArrays(GL_TRIANGLES, 0, 36);      // 36 vertices for a cube made of triangles.
-        glBindVertexArray(0);
-        glUseProgram(0);
+        glad_glBindVertexArray(pimpl->cube_vao);
+        glad_glDrawArrays(GL_TRIANGLES, 0, 36);      // 36 vertices for a cube made of triangles.
+        glad_glBindVertexArray(0);
+        glad_glUseProgram(0);
     }
 
 
@@ -540,7 +540,7 @@ namespace Salix {
 
         // 1. Save the currently bound framebuffer
         GLint last_bound_fbo = 0;
-        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_bound_fbo); // This should NOT crash here
+        glad_glGetIntegerv(GL_FRAMEBUFFER_BINDING, &last_bound_fbo); // This should NOT crash here
 
         // 2. Define colors for the two cubes
         Color magenta_color = {1.0f, 0.0f, 1.0f, 1.0f};
@@ -572,25 +572,25 @@ namespace Salix {
                                         // glViewport(0, 0, fbo_width, fbo_height); // Make sure to use actual FBO size here.
         
         // For this test, let's directly set viewport based on assumed sizes if bind_framebuffer doesn't.
-        glViewport(0, 0, fbo_width, fbo_height); // Set viewport for the FBO content.
+        glad_glViewport(0, 0, fbo_width, fbo_height); // Set viewport for the FBO content.
 
         // 6. Clear the target framebuffer
         clear(); // This will clear the currently bound FBO (target_fbo_id)
 
         // 7. Render the cube to the target framebuffer
-        glEnable(GL_DEPTH_TEST);
+        glad_glEnable(GL_DEPTH_TEST);
         pimpl->simple_3d_shader->use();
         pimpl->simple_3d_shader->setMat4("model", glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f)));
         pimpl->simple_3d_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
         pimpl->simple_3d_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
         pimpl->simple_3d_shader->setVec4("tint_color", glm::vec4(target_color.r, target_color.g, target_color.b, target_color.a));
-        glBindVertexArray(pimpl->cube_vao);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
-        glBindVertexArray(0);
-        glUseProgram(0);
+        glad_glBindVertexArray(pimpl->cube_vao);
+        glad_glDrawArrays(GL_TRIANGLES, 0, 36);
+        glad_glBindVertexArray(0);
+        glad_glUseProgram(0);
 
         // 8. Restore the previous framebuffer binding
-        glBindFramebuffer(GL_FRAMEBUFFER, last_bound_fbo); // Restore original FBO (usually 0)
+        glad_glBindFramebuffer(GL_FRAMEBUFFER, last_bound_fbo); // Restore original FBO (usually 0)
 
     }
 
@@ -641,19 +641,19 @@ namespace Salix {
         }
 
         GLuint texture_id;
-        glGenTextures(1, &texture_id);
+        glad_glGenTextures(1, &texture_id);
         // While glGenTextures creates the ID, using glBindTexture here is still necessary
         // for glTextureStorage2D and glTextureSubImage2D in some older GL versions (pre-4.5)
         // or if not using the full DSA path for setup. However, for 4.5, direct access is preferred.
         // The glTextureStorage2D and glTextureSubImage2D functions below are DSA.
-        glBindTexture(GL_TEXTURE_2D, texture_id); 
+        glad_glBindTexture(GL_TEXTURE_2D, texture_id); 
         
         // These are not DSA texture parameter setting, but valid.
         // For DSA equivalents: glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
+        glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE); 
+        glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE); 
+        glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glad_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR); 
 
         GLenum format = GL_RGB;
         GLenum internal_format = GL_RGB8;   // Specify internal format for GPU storage
@@ -669,23 +669,23 @@ namespace Salix {
             file_path << std::endl;
 
             stbi_image_free(data);
-            glDeleteTextures(1, &texture_id);
+            glad_glDeleteTextures(1, &texture_id);
             return nullptr;
         }
 
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   // <--- TEST CODE
+        glad_glPixelStorei(GL_UNPACK_ALIGNMENT, 1);   // <--- TEST CODE
         // Use glTextureStorage2D for immutable storage (OpenGL 4.5 feature)
         // This allocates the memory once, making it more efficient.
-        glTextureStorage2D(texture_id, 1, internal_format, width, height);   // Mip levels = 1 for now.
+        glad_glTextureStorage2D(texture_id, 1, internal_format, width, height);   // Mip levels = 1 for now.
 
         // Then, upload data to the base mip level.
-        glTextureSubImage2D(texture_id, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
+        glad_glTextureSubImage2D(texture_id, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
 
         // Generate mipmaps for the immutable texture.
-        glGenerateTextureMipmap(texture_id);
+        glad_glGenerateTextureMipmap(texture_id);
 
         stbi_image_free(data);
-        glBindTexture(GL_TEXTURE_2D, 0);    // Unbind texture.
+        glad_glBindTexture(GL_TEXTURE_2D, 0);    // Unbind texture.
         
         std::cout << "DEBUG: Loaded texture " << file_path << " (ID: " << texture_id <<
         ", " << width << "x" << height << ")" << std::endl;
@@ -731,10 +731,10 @@ namespace Salix {
         
         // --- ADD THESE DEBUG CHECKS IMMEDIATELY HERE ---
         GLboolean is_blending_enabled;
-        glGetBooleanv(GL_BLEND, &is_blending_enabled);
+        glad_glGetBooleanv(GL_BLEND, &is_blending_enabled);
         GLint blend_src_rgb, blend_dest_rgb;
-        glGetIntegerv(GL_BLEND_SRC_RGB, &blend_src_rgb); // GL_SRC_ALPHA is 0x0302
-        glGetIntegerv(GL_BLEND_DST_RGB, &blend_dest_rgb); // GL_ONE_MINUS_SRC_ALPHA is 0x0303
+        glad_glGetIntegerv(GL_BLEND_SRC_RGB, &blend_src_rgb); // GL_SRC_ALPHA is 0x0302
+        glad_glGetIntegerv(GL_BLEND_DST_RGB, &blend_dest_rgb); // GL_ONE_MINUS_SRC_ALPHA is 0x0303
 
         // std::cout << "DEBUG: draw_sprite - Blending State: BLEND_ENABLED=" << (is_blending_enabled ? "TRUE" : "FALSE")
         //       << ", BLEND_SRC_RGB=" << blend_src_rgb << " (0x" << std::hex << blend_src_rgb << std::dec << ")"
@@ -747,7 +747,7 @@ namespace Salix {
         //      << " Angle: " << angle << " Color: " << color.r << "," << color.g << "," << color.b << "," << color.a << std::endl;
         // --- END DEBUG LINE ---
         
-        glDisable(GL_DEPTH_TEST);
+        glad_glDisable(GL_DEPTH_TEST);
         pimpl->texture_shader->use();
         pimpl->texture_shader->setMat4("projection", pimpl->projection_matrix_2d);
         
@@ -803,18 +803,18 @@ namespace Salix {
 
         pimpl->texture_shader->setMat4("model", model);
         // --- Texture Binding ---
-        glActiveTexture(GL_TEXTURE0); // Activate texture unit 0
-        glBindTexture(GL_TEXTURE_2D, opengl_texture->get_id());
+        glad_glActiveTexture(GL_TEXTURE0); // Activate texture unit 0
+        glad_glBindTexture(GL_TEXTURE_2D, opengl_texture->get_id());
         // 'texture_sampler' uniform was already set to 0 in ShaderProgram setup.
 
         // --- Draw Call ---
-        glBindVertexArray(pimpl->quad_vao);
-        glDrawArrays(GL_TRIANGLES, 0, 6); // Draw 2 triangles (a quad)
+        glad_glBindVertexArray(pimpl->quad_vao);
+        glad_glDrawArrays(GL_TRIANGLES, 0, 6); // Draw 2 triangles (a quad)
 
         // --- Cleanup (Optional but good practice) ---
-        glBindTexture(GL_TEXTURE_2D, 0);        // Unbind texture
-        glBindVertexArray(0);                   // Unbind VAO
-        glUseProgram(0);                        // Unuse shader program
+        glad_glBindTexture(GL_TEXTURE_2D, 0);        // Unbind texture
+        glad_glBindVertexArray(0);                   // Unbind VAO
+        glad_glUseProgram(0);                        // Unuse shader program
     }
      
        
@@ -823,7 +823,17 @@ namespace Salix {
 
     void OpenGLRenderer::set_clear_color(const Color& color) {
 
-     glClearColor(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+     glad_glClearColor(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f);
+
+    }
+
+    Color OpenGLRenderer::get_clear_color() const {
+        float rgba[4];
+        // Use glad_glGetFloatv to query the GL_COLOR_CLEAR_VALUE state
+        glad_glGetFloatv(GL_COLOR_CLEAR_VALUE, rgba);
+        // Convert the float values (0.0-1.0) back to your Color struct's format (0-255 or 0.0-1.0 floats)
+    
+        return Color(rgba[0], rgba[1], rgba[2], rgba[3]);
 
     }
 
@@ -843,7 +853,7 @@ namespace Salix {
             
         pimpl->color_shader->setVec4("object_color", glm::vec4(color.r / 255.0f, color.g / 255.0f, color.b / 255.0f, color.a / 255.0f));
 
-        glBindVertexArray(pimpl->quad_vao);
+        glad_glBindVertexArray(pimpl->quad_vao);
         if (filled) {
             glDrawArrays(GL_TRIANGLES, 0, 6); // Draw 2 triangles for a filled quad
         } else {
@@ -855,8 +865,8 @@ namespace Salix {
         std::cerr << "WARNING: OpenGLRenderer::draw_rectangle - unfilled mode not fully implemented." << std::endl;
         }
 
-        glBindVertexArray(0);
-        glUseProgram(0);
+        glad_glBindVertexArray(0);
+        glad_glUseProgram(0);
     }
 
 
