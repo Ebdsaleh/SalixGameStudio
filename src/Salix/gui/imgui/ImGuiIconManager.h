@@ -15,6 +15,7 @@ namespace Salix {
         // --- IIconManager Interface ---
         void initialize(AssetManager* asset_manager) override;
         void register_default_icons() override;
+        const IconInfo& get_icon_by_name(const std::string& name) const override;
         const IconInfo& get_icon_for_entity(Entity* entity) override;
         const IconInfo& get_icon_for_element(Element* element) override;
         void update_icon(const std::string& type_name, const std::string& new_path) override;

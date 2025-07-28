@@ -59,7 +59,8 @@ namespace Salix {
         pimpl->register_icon("Camera", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_039.png");
         pimpl->register_icon("Transform", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_092.png");
         pimpl->register_icon("Sprite2D", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_031.png");
-        
+        pimpl->register_icon("Panel Locked","Assets/Icons/Editor/Lucid V1.2/PNG/Shadow/16/Lock-Closed.png");
+        pimpl->register_icon("Panel Unlocked","Assets/Icons/Editor/Lucid V1.2/PNG/Shadow/16/Lock-Open.png");
         // Also register the default icon itself
         pimpl->register_icon("Default", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_153.png");
         pimpl->default_icon = pimpl->icon_registry["Default"];
@@ -146,4 +147,13 @@ namespace Salix {
         return pimpl->icon_registry;
     }
 
+    const IconInfo& ImGuiIconManager::get_icon_by_name(const std::string& name) const {
+        auto it = pimpl->icon_registry.find(name);
+        if (it != pimpl->icon_registry.end()) {
+            return it->second;
+        }
+        // If the icon is not found, return the default icon to avoid crashes
+        std::cerr << "ImGuiIconManager Error: Icon '" << name << "' not found in registry. Returning default icon.\n";
+        return pimpl->default_icon;
+    }
 } // namespace Salix
