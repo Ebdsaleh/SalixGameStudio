@@ -66,7 +66,7 @@ namespace Salix {
 
         // This is essential to prevent drawing artifacts from previous frames.
         virtual void clear() = 0; 
-
+        virtual Color get_clear_color() const = 0;
         // A contract for drawing a texture at a specific location.
         virtual void draw_texture(ITexture* texture, const Rect& dest_rect) = 0;
 
