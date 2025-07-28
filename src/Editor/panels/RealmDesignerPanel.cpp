@@ -21,6 +21,7 @@ namespace Salix {
     struct RealmDesignerPanel::Pimpl { 
         EditorContext* context = nullptr;
         bool is_visible = true;
+        bool is_locked = false;
         std::string name = "Realm Designer";
         uint32_t framebuffer_id = 0;
         ImVec2 viewport_size = { 1280, 720 };
@@ -206,5 +207,18 @@ namespace Salix {
         cube_renderer->set_clear_color({0.1f, 0.1f, 0.2f, 1.0f}); 
     }
 
+    bool RealmDesignerPanel::is_locked() {
+        return pimpl->is_locked;
+    }
+
+
+    void RealmDesignerPanel::unlock() {
+        pimpl->is_locked = false;
+    }
+
+
+    void RealmDesignerPanel::lock() {
+        pimpl->is_locked = true;
+    }   
 
 }  // namespace Salix

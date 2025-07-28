@@ -25,6 +25,9 @@ namespace Salix {
             bool get_visibility() const override;
             void set_name(const std::string& new_name) override;
             const std::string& get_name() override;
+            bool is_locked()override;
+            void unlock() override;
+            void lock() override;
 
             uint32_t get_framebuffer_id() const;
             ImVec2 get_viewport_size() const;
