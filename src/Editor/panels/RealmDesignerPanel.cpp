@@ -9,6 +9,11 @@
 #include <Salix/core/InitContext.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Element.h>
+#include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/Transform.h>
 #include <imgui.h>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
@@ -29,8 +34,13 @@ namespace Salix {
         std::string name = "Realm Designer";
         uint32_t framebuffer_id = 0;
         ImVec2 viewport_size = { 1280, 720 };
-        void draw_test_cube();
+        
         bool is_panel_focused_this_frame = false;
+        GLint render_pass_begin();
+        void render_pass_end(GLint last_fbo);
+        void draw_scene();
+        void draw_test_cube();
+        void draw_test_cube_only();
     };
 
     RealmDesignerPanel::RealmDesignerPanel() : pimpl(std::make_unique<Pimpl>()) {
@@ -100,10 +110,7 @@ namespace Salix {
             ImVec2 icon_size = ImVec2(16, 16);
             ImVec2 top_left = ImVec2(0, 0);
             ImVec2 bottom_right = ImVec2(1, 1);
-            if (pimpl->context->init_context->renderer_type == RendererType::OpenGL) {
-                top_left = ImVec2(0, 1);
-                bottom_right = ImVec2 (1, 0);
-            }
+            
 
             ImGui::Separator();
             // --- PANEL LOCK/UNLOCK BUTTON ---
@@ -173,13 +180,78 @@ namespace Salix {
 
 
     void RealmDesignerPanel::on_render() {
-        if (pimpl->is_visible) {
-            if (pimpl->context->editor_camera->get_projection_mode() == ProjectionMode::Perspective) { 
-                pimpl->draw_test_cube();    
-            } 
+        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->active_scene) {
+            return;
         }
+       // OpenGLRenderer* renderer = pimpl->context->renderer->as_opengl_renderer();
+        //if (!renderer) return;
+
+
+        // 1. Prepare the render pass (state management)
+        pimpl->context->renderer->begin_render_pass(pimpl->framebuffer_id);
+        pimpl->context->renderer->set_viewport(0, 0, (int)pimpl->viewport_size.x, (int)pimpl->viewport_size.y);
+        pimpl->context->renderer->set_active_camera(pimpl->context->editor_camera);       
+        pimpl->context->renderer->clear();
+
+         
+        pimpl->draw_test_cube(); // draw 3D first.
+        pimpl->draw_scene(); // draw 2D (in game gui/HUD elements).
+        
+
+        pimpl->context->renderer->end_render_pass();
     }
 
+    GLint RealmDesignerPanel::Pimpl::render_pass_begin() {
+        OpenGLRenderer* renderer = context->renderer->as_opengl_renderer();
+        if (!renderer) return 0;
+
+        // --- 1. Prepare the Render Pass (The Boilerplate) ---
+        GLint last_bound_fbo = renderer->get_current_framebuffer_binding();
+        renderer->bind_framebuffer(framebuffer_id);
+        renderer->set_viewport(0, 0, (int)viewport_size.x, (int)viewport_size.y);
+        renderer->set_active_camera(context->editor_camera);
+
+        // --- 2. Clear the canvas ONCE ---
+        renderer->clear();
+
+        return last_bound_fbo;
+    }
+
+    void RealmDesignerPanel::Pimpl::render_pass_end(GLint last_fbo) {
+        OpenGLRenderer* renderer = context->renderer->as_opengl_renderer();
+        if (!renderer) return;
+
+        // --- 4. Restore the Previous State (The Boilerplate) ---
+        renderer->restore_framebuffer_binding(last_fbo);
+    }
+
+
+    void RealmDesignerPanel::Pimpl::draw_scene() {
+    Scene* active_scene = context->active_scene;
+    OpenGLRenderer* renderer = context->renderer->as_opengl_renderer();
+    if (!renderer || !active_scene) return;
+
+    // Loop through all entities in the scene and draw them
+    for (Entity* entity : active_scene->get_entities()) {
+        if (!entity) continue;
+
+        Transform* transform = entity->get_element<Transform>();
+        Sprite2D* sprite = entity->get_element<Sprite2D>();
+
+        if (transform && sprite && sprite->get_texture()) {
+            Rect dest_rect(
+                transform->get_position().x,
+                transform->get_position().y,
+                sprite->get_texture()->get_width(),
+                sprite->get_texture()->get_height()
+            );
+            renderer->draw_sprite(
+                sprite->get_texture(), transform, sprite->get_color(),
+                SpriteFlip::None
+            );
+        }
+    }
+}
 
     void RealmDesignerPanel::on_event(IEvent& event) { (void)event; }
 
@@ -210,8 +282,18 @@ namespace Salix {
         return pimpl->viewport_size;
     }
 
-
     void RealmDesignerPanel::Pimpl::draw_test_cube() {
+        OpenGLRenderer* cube_renderer = context->renderer->as_opengl_renderer();
+        if (!cube_renderer) return;
+
+        glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
+        Color cube_color = {1.0f, 0.0f, 1.0f, 1.0f}; // Magenta
+        cube_renderer->draw_cube(model_matrix, cube_color);
+    }
+
+    void RealmDesignerPanel::Pimpl::draw_test_cube_only() {
+        // Designed to be used inside an 'on_render' method with no explict framebuffering setup.
+        // This will not work, if framebuffering and render calls are inside the 'on_render' method.
         if (!context) {
             std::cerr << "[RealmDesignerPanel] context is nullptr!\n";
         return;

@@ -69,10 +69,6 @@ namespace Salix {
                 ImVec2 icon_size = ImVec2(16, 16);
                 ImVec2 top_left = ImVec2(0, 0);
                 ImVec2 bottom_right = ImVec2(1, 1);
-                if (pimpl->context->init_context->renderer_type == RendererType::OpenGL) {
-                    top_left = ImVec2(0, 1);
-                    bottom_right = ImVec2 (1, 0);
-                }
 
                 ImGui::Separator();
                 // --- PANEL LOCK/UNLOCK BUTTON ---
