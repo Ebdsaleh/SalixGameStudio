@@ -24,6 +24,8 @@ namespace Salix {
             return enum_data_registry.at(type_index);
         }
 
+        static void register_all_enums();
+
     private:
         static std::unordered_map<std::type_index, EnumData> enum_data_registry;
     };
