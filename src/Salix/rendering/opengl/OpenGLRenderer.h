@@ -6,6 +6,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <Salix/rendering/IRenderer.h>
+#include <Salix/math/Color.h>
 #include <Salix/math/Rect.h>
 #include <Salix/events/IEventListener.h>
 #include <SDL.h>
@@ -59,6 +60,7 @@ namespace Salix {
         void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
 
         void set_clear_color(const Color& color);
+        Color get_clear_color() const override;
         void draw_rectangle(const Rect& rect, const Color& color, bool filled);
         void on_window_resize(int width, int height) override;
         // --- 3D-SPECIFIC METHODS ---
