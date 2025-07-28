@@ -354,7 +354,7 @@ namespace Salix {
         main_camera->initialize();
         main_camera->set_viewport_size(800, 600); // Example size
         main_camera->set_field_of_view(60.0f);
-        main_camera->set_projection_mode(Salix::Camera::ProjectionMode::Perspective);
+        main_camera->set_projection_mode(ProjectionMode::Perspective);
         // Set the active camera on the renderer immediately after creating it.
         // if (auto* opengl_renderer = dynamic_cast<OpenGLRenderer*>(editor_context->renderer)) {
         //    opengl_renderer->set_active_camera(main_camera);
