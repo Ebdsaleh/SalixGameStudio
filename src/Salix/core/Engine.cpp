@@ -457,6 +457,9 @@ namespace Salix {
 
         
 
+        // --- INITIALIZE ENUMS ---
+        EnumRegistry::register_all_enums();
+        
         // --- INITIALIZE BYTE MIRROR ---
         ByteMirror::register_all_types();
         
