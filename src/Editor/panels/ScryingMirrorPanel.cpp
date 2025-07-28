@@ -4,6 +4,9 @@
 #include <Editor/events/ElementSelectedEvent.h>
 #include <Salix/events/EventManager.h>
 #include <imgui/imgui.h>
+#include <Salix/gui/IGui.h>
+#include <Salix/gui/imgui/ImGuiIconManager.h>
+#include <Salix/gui/IconInfo.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/ui/TypeDrawer.h>
 #include <Salix/ecs/Camera.h>
@@ -24,6 +27,7 @@ namespace Salix {
         EditorContext* context = nullptr;
         bool is_visible = true;
         bool is_locked = false;
+        ImGuiIconManager* icon_manager = nullptr;
         Entity* selected_entity = nullptr;
         Element* selected_element = nullptr;
         void draw_property(const Property& prop, Element* element);
@@ -37,7 +41,8 @@ namespace Salix {
     void ScryingMirrorPanel::initialize(EditorContext* context) {
         if(!context) { return; } // Cannot accept a null EditorContext pointer.
         pimpl->context = context;
-        
+        pimpl->icon_manager = dynamic_cast<ImGuiIconManager*>(pimpl->context->gui->get_icon_manager());
+        if (!pimpl->icon_manager) { return ;} // ImGuiIconManager failed casting.
         // Subscribe this panel to the Editor event category
         pimpl->context->event_manager->subscribe(EventCategory::Editor, this);
         std::cout << "ScryingMirrorPanel Initialized and subscribed to Editor events." << std::endl;
@@ -59,9 +64,42 @@ namespace Salix {
         }
 
         if(ImGui::Begin("Scrying Mirror", &pimpl->is_visible)){
+            ImGui::Separator();
+            // handle icon adjustment for OpenGL rendering
+                ImVec2 icon_size = ImVec2(16, 16);
+                ImVec2 top_left = ImVec2(0, 0);
+                ImVec2 bottom_right = ImVec2(1, 1);
+                if (pimpl->context->init_context->renderer_type == RendererType::OpenGL) {
+                    top_left = ImVec2(0, 1);
+                    bottom_right = ImVec2 (1, 0);
+                }
+                // --- PANEL LOCK/UNLOCK BUTTON ---
+                ImGui::AlignTextToFramePadding();
+                // ImGui::SameLine(
+
+                const IconInfo& lock_icon = pimpl->is_locked ? 
+                    pimpl->icon_manager->get_icon_by_name("Panel Locked") :
+                    pimpl->icon_manager->get_icon_by_name("Panel Unlocked");
+
+                ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
+                if (pimpl->is_locked) {
+                    tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
+                }
+
+                // Only attempt to draw if the icon texture ID is valid
+                if (lock_icon.texture_id != 0) {
+                    if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
+                        // Button was clicked, toggle the lock state
+                        pimpl->is_locked = !pimpl->is_locked; 
+                        std::cout << "Scrying Mirror Panel lock toggled to: " << (pimpl->is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
+                    }
+                } 
             ImGui::Text("Properties:");
             ImGui::Separator();
 
+            if (pimpl->is_locked) {
+                ImGui::BeginDisabled(); // Disable all interactive widgets below this point
+            }
             if (pimpl->selected_element || (pimpl->context && pimpl->context->selected_entity)) {
                 if (pimpl->context->selected_entity) {
                     ImGui::Text("Entity: %s", pimpl->context->selected_entity->get_name().c_str());
@@ -101,6 +139,9 @@ namespace Salix {
             } else {
                 ImGui::Text("No object selected.");
             }
+        }
+        if (pimpl->is_locked) {
+            ImGui::EndDisabled(); // End the disabled block
         }
         ImGui::End();
     }
