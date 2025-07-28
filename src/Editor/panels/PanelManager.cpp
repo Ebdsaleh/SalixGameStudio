@@ -8,6 +8,8 @@
 #include <memory>
 #include <vector>
 #include <functional>
+#include <string>
+#include <iostream>
 #include <map>  // For later when implementing plugins
 namespace Salix {
 
@@ -65,5 +67,23 @@ namespace Salix {
         return nullptr;
     }
 
+    void PanelManager::lock_panel(std::string& panel_name) {
+        IPanel* panel_ptr = get_panel(panel_name);
+        if (panel_ptr == nullptr) {
+            std::cerr << "PanelManager::lock_panel - Panel '" << panel_name
+                << "' doesn't exist." << std::endl;
+        }
+        panel_ptr->lock();
+
+    }
+
+    void PanelManager::unlock_panel(std::string& panel_name) {
+        IPanel* panel_ptr = get_panel(panel_name);
+        if (panel_ptr == nullptr) {
+            std::cerr << "PanelManager::unlock_panel - Panel '" << panel_name
+                << "' doesn't exist." << std::endl;
+        }
+        panel_ptr->unlock();
+    }
 
 } // namespace Salix

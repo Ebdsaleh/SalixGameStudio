@@ -31,6 +31,10 @@ namespace Salix {
         IPanel* get_panel(const std::string& panel_name);
 
         void for_each_visible(std::function<void(IPanel&)> callback);
+
+        void lock_panel(std::string& panel_name);
+
+        void unlock_panel(std::string& panel_name);
     private:
         // Using the Pimpl idiom to hide implementation details.
         struct Pimpl;
