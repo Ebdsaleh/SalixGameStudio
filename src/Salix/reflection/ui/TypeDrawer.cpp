@@ -8,6 +8,7 @@
 #include <Salix/math/Vector3.h>
 #include <Salix/math/Point.h>
 #include <Salix/ecs/Camera.h>
+#include <Salix/rendering/ICamera.h>
 #include <glm/glm.hpp>
 #include <string>
 
