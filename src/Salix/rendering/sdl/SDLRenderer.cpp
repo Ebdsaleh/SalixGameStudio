@@ -123,58 +123,15 @@ namespace Salix {
             SDL_RenderCopy(pimpl->sdl_renderer, raw_texture, NULL, &sdl_dest_rect);
         }
     }
-
-    void SDLRenderer::draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) {
-        if (texture) {
-
-            // --- Translation Layer --- 
-
-            // Convert our Engine's Rect to an SDL_Rect.
-            SDL_Rect sdl_dest_rect = { dest_rect.x, dest_rect.y, dest_rect.w, dest_rect.h };
-
-            // Convert our Engine's Point to an SDL_Point.
-            SDL_Point sdl_pivot_point;
-            if (pivot) {
-                sdl_pivot_point = { pivot->x, pivot->y };
-            }
-            
-            // Convert our 0.0-1.0 float values to 0-255 integer values.
-            Uint8 r = static_cast<Uint8>(color.r * 255.0f);
-            Uint8 g = static_cast<Uint8>(color.g * 255.0f);
-            Uint8 b = static_cast<Uint8>(color.b * 255.0f);
-            Uint8 a = static_cast<Uint8>(color.a * 255.0f);
-
-            // Safely cast the interface pointer back to our concrete SDLTexture type.
-            SDLTexture* sdl_texture_wrapper = dynamic_cast<SDLTexture*>(texture);
-
-            // Get the raw SDL_Texture pointer needed for the API call.
-            SDL_Texture* raw_texture = sdl_texture_wrapper->get_raw_texture();
-
-            // Set the texture's color and alpha modulation.
-            SDL_SetTextureColorMod(raw_texture, r, g, b);
-            SDL_SetTextureAlphaMod(raw_texture, a);
-
-            // Translation from our SpriteFlip enum to SDL's flag
-            SDL_RendererFlip flip_flag = SDL_FLIP_NONE;
-            switch (flip) {
-                case SpriteFlip::Horizontal:
-                    flip_flag = SDL_FLIP_HORIZONTAL;
-                    break;
-                case SpriteFlip::Vertical:
-                    flip_flag = SDL_FLIP_VERTICAL;
-                    break;
-                case SpriteFlip::Both:
-                    flip_flag = (SDL_RendererFlip)(SDL_FLIP_HORIZONTAL | SDL_FLIP_VERTICAL);
-                    break;
-                default:
-                    flip_flag = SDL_FLIP_NONE;
-                    break;
-            }
-
-            // Draw the textured, tinted, and rotated sprite.
-            SDL_RenderCopyEx(pimpl->sdl_renderer, raw_texture, NULL, &sdl_dest_rect, angle, (pivot ? &sdl_pivot_point : NULL), flip_flag);
-        }
+    // NULLIFIED NOW USING OpenGL and others.
+    void SDLRenderer::draw_sprite(ITexture* texture, const Transform* transform, const Color& color, SpriteFlip flip) {
+        (void)texture;
+        (void)transform;
+        (void)color; 
+        (void)(flip);
+        return;
     }
+          
 
     void SDLRenderer::on_window_resize(int width, int height) {
     

@@ -8,7 +8,7 @@
 typedef uint64_t ImTextureID;
 typedef int GLint;
 namespace Salix{
-
+    class Transform;
     class SDLRenderer : public IRenderer {
         public:
             SDLRenderer();
@@ -30,6 +30,7 @@ namespace Salix{
             Color get_clear_color() const override;
             void on_window_resize(int width, int height) override;
 
+            void set_active_camera(ICamera* camera) override { (void)camera; }
 
             // --- Native Renderer Specific handles ---
             SDL_GLContext get_sdl_gl_context() const override;  // This will just return nullptr.
@@ -47,14 +48,17 @@ namespace Salix{
             // No-op for SDLRenderer as it doesn't use OpenGL framebuffers
             void SDLRenderer::restore_framebuffer_binding(GLint fbo_id) { (void) fbo_id;   }
 
+            // Not compatible with this renderer implementation.
+            void begin_render_pass(uint32_t framebuffer_id) override { (void)framebuffer_id; }
+            void end_render_pass() override {}
+
             // Delcare Texture loading.
             ITexture* load_texture(const char* file_path) override;
 
             // Declare Texture Drawing
             void draw_texture(ITexture* texture, const Rect& dest_rect) override;
 
-            // Declare Sprite2D drawing
-            void draw_sprite(ITexture* texture, const Rect& dest_rect, double angle, const Point* pivot, const Color& color, SpriteFlip flip) override;
+            void draw_sprite(ITexture* texture, const Transform* transform, const Color& color, SpriteFlip flip) override; 
             
             // A method to access the IWindow-inherited object.
             IWindow* get_window() override;
