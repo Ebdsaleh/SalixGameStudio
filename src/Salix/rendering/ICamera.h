@@ -20,6 +20,8 @@ namespace Salix {
         virtual const glm::mat4& get_projection_matrix() = 0;
         virtual const ProjectionMode& get_projection_mode() const = 0;
         virtual void set_projection_mode(ProjectionMode mode) = 0;
+        virtual void set_orthographic_size(float size) = 0;
+        virtual void set_2D_mode(bool is_2d) { (void) is_2d;}
     };
 
 }
