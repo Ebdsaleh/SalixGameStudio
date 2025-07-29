@@ -64,7 +64,7 @@ namespace Salix {
         RealmDesignerPanel* realm_designer = nullptr;
         RealmPortalPanel* realm_portal = nullptr;
         bool show_theme_editor = false; 
-    
+        bool show_camera_debug_window = true;
         void handle_first_frame_setup();
         void begin_dockspace();
         void update_menu_bar_and_panels();
@@ -335,11 +335,37 @@ namespace Salix {
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("View")) {
-                if (ImGui::MenuItem("Perspective")) {
-                    editor_context->editor_camera->set_projection_mode(ProjectionMode::Perspective);
+                if (ImGui::BeginMenu("Editor Camera")) {
+                                
+                    ImGui::SeparatorText("Projection Mode");
+                    if (ImGui::MenuItem("Perspective")) {
+                        editor_context->editor_camera->set_projection_mode(ProjectionMode::Perspective);
+                    }
+                    if (ImGui::MenuItem("Orthographic")) {
+                        editor_context->editor_camera->set_projection_mode(ProjectionMode::Orthographic);
+                    }
+                    ImGui::SeparatorText("Debug");
+                    if (ImGui::MenuItem("Debug Window")) {
+                        show_camera_debug_window = true;
+                        draw_debug_window();
+                    }
+                    ImGui::EndMenu();
                 }
-                if (ImGui::MenuItem("Orthographic")) {
-                    editor_context->editor_camera->set_projection_mode(ProjectionMode::Orthographic);
+                if (ImGui::BeginMenu("Panels")) {
+                    ImGui::SeparatorText("Workflow");
+                    if (ImGui::MenuItem("World Tree")) {
+                        panel_manager->get_panel("World Tree Panel")->set_visibility(true);
+                    }
+                    if (ImGui::MenuItem("Scrying Mirror")) {
+                        panel_manager->get_panel("Scrying Mirror Panel")->set_visibility(true);
+                    }
+                    if (ImGui::MenuItem("Realm Designer")) {
+                        realm_designer->set_visibility(true);
+                    }
+                    if (ImGui::MenuItem("Realm Portal")) {
+                        realm_portal->set_visibility(true);
+                    }
+                    ImGui::EndMenu();
                 }
                 ImGui::EndMenu();
             }
@@ -431,7 +457,8 @@ namespace Salix {
     void EditorState::Pimpl::draw_debug_window() {
         if (!camera) return;
 
-        ImGui::Begin("Camera Debug Info");
+        if (!show_camera_debug_window) return;
+        ImGui::Begin("Camera Debug Info", &show_camera_debug_window);
 
         const glm::mat4& view = camera->get_view_matrix();
         const glm::mat4& projection = camera->get_projection_matrix();
