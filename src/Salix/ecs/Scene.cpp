@@ -7,6 +7,8 @@
 #include <Salix/assets/AssetManager.h>
 #include <Salix/management/FileManager.h> // For file operations
 #include <Salix/core/SerializationRegistrations.h>
+#include <Salix/rendering/ICamera.h>
+
 #include <filesystem> // For std::filesystem::path
 #include <fstream>    // For std::ifstream
 #include <algorithm>  // For std::remove_if
@@ -30,6 +32,7 @@ namespace Salix {
     struct Scene::Pimpl {
         std::vector<std::unique_ptr<Entity>> entities;
         InitContext context;
+        ICamera* active_camera = nullptr;
         Pimpl() = default; // Default constructor
 
         template <class Archive>
@@ -56,6 +59,14 @@ namespace Salix {
         on_unload(); // Clears entities
     }
 
+    void Scene::set_active_camera(ICamera* camera) {
+        if (!camera) return;
+        pimpl->active_camera = camera;
+    }
+
+    ICamera* Scene::get_active_camera() {
+        return pimpl->active_camera;
+    }
     // --- NEW: Method to load the scene's content (entities/elements) from its file into Pimpl ---
     // This is the core "load on demand" logic, called by on_load().
     bool Scene::load_content_from_file(const std::string& project_root_path) {

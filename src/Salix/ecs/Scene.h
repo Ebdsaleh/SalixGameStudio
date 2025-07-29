@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <cereal/access.hpp>
+#include <Salix/rendering/ICamera.h>
 
 namespace Salix {
 
@@ -44,6 +45,8 @@ struct InitContext;
         const std::string& get_name() const;
         const std::string& get_file_path() const; 
         
+        void set_active_camera(ICamera* camera);
+        ICamera* get_active_camera();
 
     private:
         struct Pimpl;
