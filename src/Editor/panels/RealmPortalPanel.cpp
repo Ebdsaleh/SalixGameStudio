@@ -90,7 +90,7 @@ namespace Salix {
         if (!pimpl->is_visible) return;
         
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-        if (ImGui::Begin(pimpl->name.c_str(), &pimpl->is_visible)) {
+        if (ImGui::Begin("Realm Portal", &pimpl->is_visible)) {
             IRenderer* renderer = pimpl->context->init_context->renderer;
             if (!renderer) {
                 std::cerr << "[ERROR] Renderer is null in on_gui_update.\n";
