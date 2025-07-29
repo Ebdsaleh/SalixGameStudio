@@ -315,6 +315,15 @@ namespace Salix {
                 }
                 ImGui::EndMenu();
             }
+            if (ImGui::BeginMenu("View")) {
+                if (ImGui::MenuItem("Perspective")) {
+                    editor_context->editor_camera->set_projection_mode(ProjectionMode::Perspective);
+                }
+                if (ImGui::MenuItem("Orthographic")) {
+                    editor_context->editor_camera->set_projection_mode(ProjectionMode::Orthographic);
+                }
+                ImGui::EndMenu();
+            }
             ImGui::EndMenuBar();
         }
 
