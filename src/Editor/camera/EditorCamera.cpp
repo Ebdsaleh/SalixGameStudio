@@ -26,7 +26,7 @@ namespace Salix {
         float aspect_ratio = 16.0f / 9.0f; // This should be updated when the viewport resizes
         float near_clip = 0.1f;
         float far_clip = 1000.0f;
-        
+        float orthographic_size = 10.0f; // Controls the "zoom" in ortho mode
         
         // --- Private Methods ---
         void recalculate_view_matrix();
@@ -41,9 +41,11 @@ namespace Salix {
 
         float mouse_sensitivity = 0.1f;
         bool first_mouse_event = true;
+        bool is_2D_project = false;
         ImVec2 last_mouse_pos = {0, 0};
         
         void handle_movement();
+        void handle_panning();
         void handle_rotation();
         void handle_zoom();
 
@@ -68,8 +70,18 @@ namespace Salix {
     }
 
      void EditorCamera::Pimpl::recalculate_projection_matrix() {
-        projection_matrix = glm::perspective(glm::radians(fov), aspect_ratio, near_clip, far_clip);
-     }
+        if (projection_mode == ProjectionMode::Perspective) {
+            projection_matrix = glm::perspective(glm::radians(fov), aspect_ratio, near_clip, far_clip);
+        } else { // Orthographic
+            float ortho_height = orthographic_size;
+            float ortho_width = ortho_height * aspect_ratio;
+
+            projection_matrix = glm::ortho(-ortho_width * 0.5f, ortho_width * 0.5f, 
+                                        -ortho_height * 0.5f, ortho_height * 0.5f, 
+                                        near_clip, far_clip);
+        }
+        projection_dirty = false; // Clear the flag here after recalculating.
+    }
 
     const glm::mat4& EditorCamera::get_view_matrix() {
        if (pimpl->view_dirty) {
@@ -115,7 +127,10 @@ namespace Salix {
         if (!pimpl->is_initialzed) {return; }
         if (pimpl->mouse_is_inside_scene) {
             pimpl->handle_movement();
-            pimpl->handle_rotation();
+            if (!pimpl->is_2D_project) {
+                pimpl->handle_rotation();
+            }
+            pimpl->handle_panning();
             pimpl->handle_zoom();
         }
         (void) delta_time;
@@ -153,17 +168,30 @@ namespace Salix {
             glm::vec3 up = transform.get_up();
             glm::vec3 down = -up;
 
+            if (!is_2D_project) {
+                // Move Forwards
+                if (input->is_held_down(Salix::KeyCode::W)) {
+                    transform.translate(forward * current_speed);
+                    
+                }
 
-            // Move Forwards
-            if (input->is_held_down(Salix::KeyCode::W)) {
-                transform.translate(forward * current_speed);
-                
-            }
+                // Move Backwards
+                if (input->is_held_down(Salix::KeyCode::S)) {
+                    transform.translate(backward * current_speed);
+                    
+                }
+            } else {
+                 // Move Up
+                if (input->is_held_down(Salix::KeyCode::W)) {
+                    transform.translate(up * current_speed);
+                    
+                }
 
-            // Move Backwards
-            if (input->is_held_down(Salix::KeyCode::S)) {
-                transform.translate(backward * current_speed);
-                
+                // Move Down
+                if (input->is_held_down(Salix::KeyCode::S)) {
+                    transform.translate(down * current_speed);
+                    
+                }
             }
 
             // Move Right
@@ -193,18 +221,79 @@ namespace Salix {
 
     
     void EditorCamera::Pimpl::handle_zoom() {
-        if (!input) { return; }
+    if (!input) { return; }
+
+    if (projection_mode == ProjectionMode::Perspective) {
+        // Start with a base speed for zooming
+        float current_zoom_speed = scroll_speed;
+
+        // Increase speed if Shift is held down
+        if (input->is_held_down(Salix::KeyCode::LeftShift)) {
+            current_zoom_speed *= 5.0f; // 5x faster zoom
+        }
+
         glm::vec3 forward = transform.get_forward();
-        scroll_speed *= acceleration;
+
         // Zoom in
         if (input->did_scroll(MouseScroll::Forward)) {
-            transform.translate(forward * scroll_speed);
+            transform.translate(forward * current_zoom_speed);
+            view_dirty = true;
         }
         // Zoom out
         if (input->did_scroll(MouseScroll::Backward)){
-            transform.translate(-forward * scroll_speed);
+            transform.translate(-forward * current_zoom_speed);
+            view_dirty = true;
         }
+        } else {// ORTHOGRAPHIC
+            // --- ORTHOGRAPHIC ZOOM (change size) ---
+            if (input->did_scroll(MouseScroll::Forward)) {
+                orthographic_size *= 0.9f; // Zoom in by 10%
+            }
+            if (input->did_scroll(MouseScroll::Backward)) {
+                orthographic_size *= 1.1f; // Zoom out by 10%
+            }
+            
+            // Clamp the size to prevent it from becoming too small
+            if (orthographic_size < 0.1f) {
+                orthographic_size = 0.1f;
+            }
+            
+            projection_dirty = true; // Mark matrix for recalculation
+        }
+    }
 
+
+    void EditorCamera::Pimpl::handle_panning() {
+        // Panning is typically done by holding the middle mouse button
+        float pan_speed = velocity;
+
+        if (input->is_held_down(Salix::MouseButton::Middle)) {
+            if (input->is_held_down(Salix::KeyCode::LeftShift)) {
+                pan_speed *= 3.0f; // Sprint
+            }
+            ImVec2 mouse_pos = ImGui::GetMousePos();
+        
+            // Use the same 'first_mouse_event' flag to prevent a jump on the first click
+            if (first_mouse_event) {
+                last_mouse_pos = mouse_pos;
+                first_mouse_event = false;
+            }
+
+            float x_offset = mouse_pos.x - last_mouse_pos.x;
+            float y_offset = mouse_pos.y - last_mouse_pos.y;
+            last_mouse_pos = mouse_pos;
+
+            // Translate the camera along its local right and up vectors
+            // Note the signs to make the world feel like it's being dragged under the cursor
+            transform.translate(-transform.get_right() * x_offset * pan_speed);
+            transform.translate( transform.get_up()   * y_offset * pan_speed);
+            view_dirty = true;
+        }
+        else {
+            // If the middle mouse isn't held, we should also reset the flag
+            // (This assumes you won't be panning and rotating at the same time)
+            first_mouse_event = true;
+        }
     }
 
 
@@ -268,4 +357,13 @@ namespace Salix {
         pimpl->mouse_is_inside_scene = is_inside; 
     }
 
+    void EditorCamera::set_orthographic_size(float size) {
+        pimpl->orthographic_size = size;
+        pimpl->projection_dirty = true; // Mark matrix for recalculation
+    }
+
+    void EditorCamera::set_2D_mode(bool is_2d) {
+        pimpl->is_2D_project = is_2d;
+    }
+    
 }  // namespace Salix

@@ -21,8 +21,10 @@ namespace Salix {
         void set_projection_mode(ProjectionMode mode) override;
         const ProjectionMode& get_projection_mode() const override;
         void on_event(IEvent& event) override;
+        void set_orthographic_size(float size) override;
         void set_viewport_size(int width, int height);
         void set_mouse_inside_scene(bool is_inside);
+        void set_2D_mode(bool is_2d) override;
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
