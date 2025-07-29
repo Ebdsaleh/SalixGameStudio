@@ -145,9 +145,10 @@ namespace Salix {
                     (int)new_size.x, (int)new_size.y);
                 pimpl->viewport_size = new_size;
 
-                if (pimpl->context && pimpl->context->editor_camera) {
-                    pimpl->context->editor_camera->set_viewport_size(
-                        (int)new_size.x, (int)new_size.y);
+                if (pimpl->context && pimpl->context->main_camera) {
+                    pimpl->context->main_camera->set_viewport_size(
+                    (int)new_size.x, (int)new_size.y
+                    );
                 }
             }
 
