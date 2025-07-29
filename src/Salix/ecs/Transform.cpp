@@ -1,6 +1,7 @@
 // Salix/ecs/Transform.cpp
 #include <Salix/ecs/Transform.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <algorithm>
 #include <cereal/cereal.hpp>
@@ -212,6 +213,25 @@ namespace Salix {
         return orientation * glm::vec3(1.0f, 0.0f, 0.0f);
     }
 
+
+    glm::mat4 Transform::get_model_matrix() const {
+        const glm::mat4 transform_x = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x),
+            glm::vec3(1.0f, 0.0f, 0.0f));
+
+        const glm::mat4 transform_y = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y),
+            glm::vec3(0.0f, 1.0f, 0.0f));
+
+        const glm::mat4 transform_z = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z),
+            glm::vec3(0.0f, 0.0f, 1.0f));
+
+        const glm::mat4 rotation_matrix = transform_z * transform_y * transform_x;
+
+        return glm::translate(glm::mat4(1.0f), position.to_glm()) *
+            rotation_matrix *
+            glm::scale(glm::mat4(1.0f), scale.to_glm());
+    }
+
+    
 
     template<class Archive>
     void Transform::serialize(Archive& archive) {
