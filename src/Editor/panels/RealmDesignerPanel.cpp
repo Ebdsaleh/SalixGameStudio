@@ -18,6 +18,9 @@
 #include <glm/glm.hpp>
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
+#include <Salix/math/RayCasting.h>
+#include <Salix/events/EventManager.h>
+#include <Editor/events/EntitySelectedEvent.h>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -41,6 +44,7 @@ namespace Salix {
         void draw_scene();
         void draw_test_cube();
         void draw_test_cube_only();
+        void handle_mouse_picking();
     };
 
     RealmDesignerPanel::RealmDesignerPanel() : pimpl(std::make_unique<Pimpl>()) {
@@ -138,7 +142,7 @@ namespace Salix {
             if (pimpl->is_locked) {
                 ImGui::BeginDisabled(); // Disable all interactive widgets below this point
             }
-
+            
             ImVec2 new_size = ImGui::GetContentRegionAvail();
             if (new_size.x > 0 && new_size.y > 0 &&
                 ((int)new_size.x != (int)pimpl->viewport_size.x ||
@@ -164,12 +168,74 @@ namespace Salix {
                 }
             }
         }
+
+        pimpl->handle_mouse_picking();
+
         if (pimpl->is_locked) {
                     ImGui::EndDisabled(); // Disable all interactive widgets below this point
                 }
         ImGui::End();
         ImGui::PopStyleVar();
     }
+
+
+
+
+    void RealmDesignerPanel::Pimpl::handle_mouse_picking() {
+        if (is_locked || !ImGui::IsWindowHovered() || !ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            return;
+        }
+
+        // --- Step 1: Get Mouse and Viewport Info ---
+        // We need to do the ImVec2 math component-wise
+        ImVec2 content_min = ImGui::GetWindowContentRegionMin();
+        ImVec2 panel_pos   = ImGui::GetWindowPos();
+        ImVec2 viewport_pos = { panel_pos.x + content_min.x, panel_pos.y + content_min.y };
+        
+        ImVec2 panel_size = ImGui::GetContentRegionAvail();
+        ImVec2 mouse_pos  = ImGui::GetMousePos();
+
+        // --- Step 2 & 3: Create the 3D Ray ---
+        // Use your new static Raycast class
+        Ray ray = Raycast::CreateRayFromScreen(
+            context->editor_camera,
+            mouse_pos,
+            viewport_pos,
+            panel_size
+        );
+
+        // --- Step 4: Perform Ray-Intersection Test ---
+        Entity* selected_entity = nullptr;
+        float closest_hit_distance = FLT_MAX;
+
+        for (Entity* entity : context->active_scene->get_entities()) {
+            Transform* transform = entity->get_transform();
+            if (!transform) continue;
+
+            glm::vec3 scale = transform->get_scale().to_glm();
+            glm::vec3 box_min = transform->get_position().to_glm() - (glm::vec3(0.5f) * scale);
+            glm::vec3 box_max = transform->get_position().to_glm() + (glm::vec3(0.5f) * scale);
+
+            float distance;
+            // Use your new static Raycast class
+            if (Raycast::IntersectsAABB(ray, box_min, box_max, distance)) {
+                if (distance < closest_hit_distance) {
+                    closest_hit_distance = distance;
+                    selected_entity = entity;
+                }
+            }
+        }
+
+        // --- Step 5: Fire the Selection Event ---
+        if (context->event_manager) {
+            // Create a named event object on the stack
+            EntitySelectedEvent event(selected_entity);
+            // Now, pass the named object to the dispatch function
+            context->event_manager->dispatch(event);
+        }
+    }
+
+
 
 
 
