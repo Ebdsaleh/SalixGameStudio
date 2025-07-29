@@ -27,6 +27,7 @@
 #include <Editor/panels/WorldTreePanel.h>
 #include <Editor/panels/ScryingMirrorPanel.h>
 #include <Editor/panels/RealmDesignerPanel.h>
+#include <Editor/panels/RealmPortalPanel.h>
 #include <Editor/panels/ThemeEditorPanel.h>
 
 // For ImGui Docking
@@ -61,6 +62,7 @@ namespace Salix {
         std::unique_ptr<PanelManager> panel_manager;
         std::unique_ptr<Project> mock_project;
         RealmDesignerPanel* realm_designer = nullptr;
+        RealmPortalPanel* realm_portal = nullptr;
         bool show_theme_editor = false; 
     
         void handle_first_frame_setup();
@@ -152,6 +154,16 @@ namespace Salix {
         pimpl->realm_designer = dynamic_cast<RealmDesignerPanel*>(pimpl->panel_manager->get_panel("Realm Designer Panel"));
         log_file << "[DEBUG] RealmDesignerPanel registered..." << std::endl;
 
+        log_file << "[DEBUG] Creating RealmPortalPanel..." << std::endl;
+        auto realm_portal_panel = std::make_unique<RealmPortalPanel>();
+        std::string realm_portal_name = "Realm Portal Panel";
+        log_file << "[DEBUG] Initializing RealmPortalPanel..." << std::endl;
+        realm_portal_panel->initialize(pimpl->editor_context.get());
+        pimpl->panel_manager->register_panel(std::move(realm_portal_panel), realm_portal_name);
+        pimpl->realm_portal = dynamic_cast<RealmPortalPanel*>(pimpl->panel_manager->get_panel("Realm Portal Panel"));
+        log_file << "[DEBUG] RealmPotalPanel registered..." << std::endl;
+
+
         log_file << "[DEBUG] Creating ThemeEditorPanel..." << std::endl;
         auto theme_editor_panel = std::make_unique<ThemeEditorPanel>();
         std::string theme_editor_name = "Theme Editor Panel";
@@ -187,6 +199,8 @@ namespace Salix {
 
     void EditorState::on_exit() {
         std::cout << "Exiting EditorState..." << std::endl;
+        pimpl->realm_designer = nullptr;
+        pimpl->realm_portal = nullptr;
     }
 
 
@@ -233,6 +247,11 @@ namespace Salix {
             if (pimpl->realm_designer) {
                 pimpl->realm_designer->on_render();
             }
+
+            if (pimpl->realm_portal) {
+                pimpl->realm_portal->on_render();
+            }
+
             
             // 3. Clear ONLY the depth buffer again before drawing the UI.
             // This is a common technique to make sure the UI always draws on top of the 3D scene.
@@ -361,14 +380,15 @@ namespace Salix {
         
         Camera* main_camera= camera_entity->add_element<Camera>();
         main_camera->initialize();
-        main_camera->set_viewport_size(800, 600); // Example size
+        main_camera->set_viewport_size(1280, 720); // Example size
         main_camera->set_field_of_view(60.0f);
         main_camera->set_projection_mode(ProjectionMode::Perspective);
         // Set the active camera on the renderer immediately after creating it.
         // if (auto* opengl_renderer = dynamic_cast<OpenGLRenderer*>(editor_context->renderer)) {
         //    opengl_renderer->set_active_camera(main_camera);
         // }
-
+        editor_context->main_camera = main_camera;
+        editor_context->active_scene->set_active_camera(main_camera);
         Entity* player = editor_context->active_scene->create_entity("Player");
         Sprite2D* player_sprite = player->add_element<Sprite2D>();
         const std::string sprite_file_path = "src/Sandbox/TestProject/Assets/Images/test.png";
