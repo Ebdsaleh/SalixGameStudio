@@ -52,6 +52,8 @@ namespace Salix{
             void begin_render_pass(uint32_t framebuffer_id) override { (void)framebuffer_id; }
             void end_render_pass() override {}
 
+            void set_pixels_per_unit(float ppu) override {(void) ppu;}
+            float get_pixels_per_unit() const override { return 1.0f;}
             // Delcare Texture loading.
             ITexture* load_texture(const char* file_path) override;
 
