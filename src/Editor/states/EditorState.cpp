@@ -393,7 +393,7 @@ namespace Salix {
         Sprite2D* player_sprite = player->add_element<Sprite2D>();
         const std::string sprite_file_path = "src/Sandbox/TestProject/Assets/Images/test.png";
         player_sprite->load_texture(editor_context->asset_manager, sprite_file_path);
-
+        
 
         editor_context->active_project = mock_project.get();     
     }
