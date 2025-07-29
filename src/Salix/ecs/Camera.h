@@ -28,16 +28,18 @@ public:
 
     // Calculates and returns the final projection matrix based on the current mode and properties.
     const glm::mat4& get_projection_matrix() override;
+    
 
     // Sets the viewport dimensions, needed to calculate the aspect ratio.
     void set_viewport_size(int width, int height);
 
+    void set_2D_mode(bool is_2d) override;
     // --- Property Getters/Setters ---
 
     void set_field_of_view(float fov);
     float& get_field_of_view() const;
 
-    void set_orthographic_size(float size);
+    void set_orthographic_size(float size) override;
     float& get_orthographic_size() const;
 
     void set_near_clip(float near_clip);

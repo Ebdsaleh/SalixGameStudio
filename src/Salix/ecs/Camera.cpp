@@ -30,6 +30,7 @@ namespace Salix {
         // Dirty flags to avoid recalculating matrices every frame
         bool view_dirty = true;
         bool projection_dirty = true;
+        bool is_2D_project = false;
      };
 
 
@@ -119,6 +120,11 @@ namespace Salix {
             );
         }
     }
+
+    void Camera::set_2D_mode(bool is_2d) {
+        pimpl->is_2D_project = is_2d;
+    }
+
 
     // --- Property Getters/Setters ---
     void Camera::set_field_of_view(float fov) { pimpl->field_of_view = fov; pimpl->projection_dirty = true; }
