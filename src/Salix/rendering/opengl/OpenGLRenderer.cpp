@@ -55,7 +55,7 @@ namespace Salix {
         const std::string color_fragment_file = "Assets/Shaders/OpenGL/2D/color.frag";
         std::unique_ptr<OpenGLShaderProgram> texture_shader; // For drawing textures/sprites.
         std::unique_ptr<OpenGLShaderProgram> color_shader;   // For drawing colored rectangles.
-
+        float pixels_per_unit = 100.0f;
         // 3D Shader
         const std::string simple_3d_vertex_file = "Assets/Shaders/OpenGL/3D/simple.vert";
         const std::string simple_3d_fragment_file = "Assets/Shaders/OpenGL/3D/color_only.frag";
@@ -720,7 +720,14 @@ namespace Salix {
         draw_sprite(texture, &temp_transform, white, SpriteFlip::None);
     }
     
-   
+    void OpenGLRenderer::set_pixels_per_unit(float ppu) {
+        pimpl->pixels_per_unit = ppu;
+    }
+    
+    
+    float OpenGLRenderer::get_pixels_per_unit() const {
+        return pimpl->pixels_per_unit ;
+    }
 
 
     
@@ -749,9 +756,16 @@ namespace Salix {
         // Rotation (around Z for now, can be expanded to full 3D rotation)
         model = glm::rotate(model, glm::radians(transform->get_rotation().z), glm::vec3(0.0f, 0.0f, 1.0f));
         
+        const float PIXELS_PER_UNIT = pimpl->pixels_per_unit;
+        // Calculate the sprite's size in world units
+        float world_width = (float)texture->get_width() / PIXELS_PER_UNIT;
+        float world_height = (float)texture->get_height() / PIXELS_PER_UNIT;
+
+
         // Handle Flipping via negative scale 
-        float scale_x = transform->get_scale().x;
-        float scale_y = transform->get_scale().y;
+        float scale_x = world_width * transform->get_scale().x;
+        float scale_y = world_height * transform->get_scale().y;
+        
         if (flip == SpriteFlip::Horizontal || flip == SpriteFlip::Both) {
             scale_x *= -1.0f;
         }
@@ -759,7 +773,7 @@ namespace Salix {
             scale_y *= -1.0f;
         }
         
-        model = glm::scale(model, glm::vec3(scale_x, scale_y, transform->get_scale().z));
+        model = glm::scale(model, glm::vec3(scale_x, scale_y, 1.0f));
         
         pimpl->texture_shader->setMat4("model", model);
 

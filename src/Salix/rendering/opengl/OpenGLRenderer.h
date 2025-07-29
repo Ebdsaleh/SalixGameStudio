@@ -65,6 +65,8 @@ namespace Salix {
         Color get_clear_color() const override;
         void draw_rectangle(const Rect& rect, const Color& color, bool filled);
         void on_window_resize(int width, int height) override;
+        void set_pixels_per_unit(float ppu) override;
+        float get_pixels_per_unit() const override;
         // --- 3D-SPECIFIC METHODS ---
 
         // Sets the active camera that the renderer will use to get view/projection matrices.
