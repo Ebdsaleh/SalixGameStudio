@@ -5,6 +5,7 @@
 #include <Salix/rendering/ICamera.h>
 #include <Salix/core/Core.h>
 #include <glm/glm.hpp>
+#include <Salix/ecs/Transform.h>
 
 
 namespace Salix {
@@ -29,6 +30,7 @@ public:
     // Calculates and returns the final projection matrix based on the current mode and properties.
     const glm::mat4& get_projection_matrix() override;
     
+    Transform* get_transform() override;
 
     // Sets the viewport dimensions, needed to calculate the aspect ratio.
     void set_viewport_size(int width, int height);
