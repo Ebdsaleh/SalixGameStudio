@@ -40,7 +40,8 @@ namespace Salix {
         float pitch = 0.0f;
 
         float mouse_sensitivity = 0.1f;
-        bool first_mouse_event = true;
+        bool first_rotation_event = true; 
+        bool first_panning_event = true;  
         bool is_2D_project = false;
         ImVec2 last_mouse_pos = {0, 0};
         
@@ -127,10 +128,11 @@ namespace Salix {
         if (!pimpl->is_initialzed) {return; }
         if (pimpl->mouse_is_inside_scene) {
             pimpl->handle_movement();
-            if (!pimpl->is_2D_project) {
+            pimpl->handle_panning();
+            if(!pimpl->is_2D_project) {
                 pimpl->handle_rotation();
             }
-            pimpl->handle_panning();
+           
             pimpl->handle_zoom();
         }
         (void) delta_time;
@@ -274,9 +276,9 @@ namespace Salix {
             ImVec2 mouse_pos = ImGui::GetMousePos();
         
             // Use the same 'first_mouse_event' flag to prevent a jump on the first click
-            if (first_mouse_event) {
+            if (first_panning_event) {
                 last_mouse_pos = mouse_pos;
-                first_mouse_event = false;
+                first_panning_event = false;
             }
 
             float x_offset = mouse_pos.x - last_mouse_pos.x;
@@ -292,14 +294,15 @@ namespace Salix {
         else {
             // If the middle mouse isn't held, we should also reset the flag
             // (This assumes you won't be panning and rotating at the same time)
-            first_mouse_event = true;
+            first_panning_event = true;
         }
     }
 
 
     void EditorCamera::Pimpl::handle_rotation() {
 
-        if (!is_initialzed) { return; }
+        if (!is_initialzed) return; 
+        
 
         // The logic should only run when this condition is true
         if (input->is_held_down(Salix::MouseButton::Right)) {
@@ -307,13 +310,13 @@ namespace Salix {
             // ImGui::SetMouseCursor(ImGuiMouseCursor_None);
             ImVec2 mouse_pos = ImGui::GetMousePos();
 
-            if (first_mouse_event) {
+            if (first_rotation_event) {
                 // Before we start, sync our yaw/pitch with the camera's actual current rotation.
                 const Salix::Vector3& current_rot_rad = transform.get_rotation();
                 pitch = glm::degrees(current_rot_rad.x);
                 yaw = glm::degrees(current_rot_rad.y);
                 last_mouse_pos = mouse_pos;
-                first_mouse_event = false;
+                first_rotation_event = false;
             }
 
             float x_offset = mouse_pos.x - last_mouse_pos.x;
@@ -334,7 +337,7 @@ namespace Salix {
         }
         else {
             // When the button is NOT held, we reset this flag
-            first_mouse_event = true;
+            first_rotation_event = true;
         } 
     }
 
