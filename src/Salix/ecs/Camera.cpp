@@ -68,9 +68,17 @@ namespace Salix {
     }
 
     const glm::mat4& Camera::get_view_matrix() {
-        if (pimpl->view_dirty) {
-            recalculate_view_matrix();
-            pimpl->view_dirty = false;
+        // Get the owner entity's transform component.
+        if (owner) {
+            Transform* transform = owner->get_transform();
+            if (transform) {
+                // Recalculate the view matrix based on the transform's current state.
+                glm::vec3 position = transform->get_position().to_glm();
+                glm::vec3 front    = transform->get_forward();
+                glm::vec3 up       = transform->get_up();
+
+                pimpl->view_matrix = glm::lookAt(position, position + front, up);
+            }
         }
         return pimpl->view_matrix;
     }
