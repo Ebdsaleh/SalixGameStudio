@@ -53,6 +53,7 @@ namespace Salix {
             glm::vec3 get_up() const;
             glm::vec3 get_right() const;
             
+            glm::mat4 get_model_matrix() const;
         private:
             
             // All implementation details are hidden behind this single pointer
