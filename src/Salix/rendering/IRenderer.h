@@ -43,7 +43,8 @@ namespace Salix {
         virtual void begin_frame() = 0;
         virtual void end_frame() = 0;
         virtual void clear_depth_buffer() = 0;
-
+        virtual void set_pixels_per_unit(float ppu) = 0;
+        virtual float get_pixels_per_unit() const = 0;
         // New: Get the underlying SDL_Window handle
         virtual SDL_Window* get_sdl_window() const = 0;
         virtual SDL_GLContext get_sdl_gl_context() const = 0;
