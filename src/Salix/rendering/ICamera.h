@@ -5,10 +5,13 @@
 
 namespace Salix {
    
-   enum class ProjectionMode {
+    class Transform;
+
+    enum class ProjectionMode {
         Perspective,
         Orthographic
-        };  
+    };  
+
     // An abstract interface that defines what the renderer needs from any camera.
     class SALIX_API ICamera {
     public:
@@ -22,6 +25,7 @@ namespace Salix {
         virtual void set_projection_mode(ProjectionMode mode) = 0;
         virtual void set_orthographic_size(float size) = 0;
         virtual void set_2D_mode(bool is_2d) { (void) is_2d;}
+        virtual Transform* get_transform() { return nullptr; }
     };
 
 }
