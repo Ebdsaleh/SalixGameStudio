@@ -27,7 +27,7 @@ namespace Salix {
         void set_viewport_size(int width, int height);
         void set_mouse_inside_scene(bool is_inside);
         void set_2D_mode(bool is_2d) override;
-        Transform* get_transform();
+        Transform* get_transform() override;
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
