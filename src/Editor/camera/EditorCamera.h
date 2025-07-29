@@ -8,6 +8,8 @@
 
 namespace Salix {
     struct EditorContext;
+    class Transform;
+
     class EDITOR_API EditorCamera : public ICamera, public IEventListener {
     public:
         EditorCamera();
@@ -25,6 +27,7 @@ namespace Salix {
         void set_viewport_size(int width, int height);
         void set_mouse_inside_scene(bool is_inside);
         void set_2D_mode(bool is_2d) override;
+        Transform* get_transform();
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;

@@ -369,4 +369,8 @@ namespace Salix {
         pimpl->is_2D_project = is_2d;
     }
     
+    Transform* EditorCamera::get_transform() {
+        return &pimpl->transform;
+    }
+    
 }  // namespace Salix
