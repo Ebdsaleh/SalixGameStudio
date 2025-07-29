@@ -99,13 +99,13 @@ namespace Salix {
         // This quad will be scaled and translated by the model matrix to match dest_rect
         float vertices[] = {
             // Positions (x, y) // Texture Coords (u, v)
-            0.0f, 1.0f,         0.0f, 1.0f, // Top-left
-            1.0f, 0.0f,         1.0f, 0.0f, // Bottom-right
-            0.0f, 0.0f,         0.0f, 0.0f, // Bottom-left
+            -0.5f,  0.5f,         0.0f, 1.0f, // Top-left
+             0.5f, -0.5f,         1.0f, 0.0f, // Bottom-right
+            -0.5f, -0.5f,         0.0f, 0.0f, // Bottom-left
             
-            0.0f, 1.0f,         0.0f, 1.0f, // Top-left
-            1.0f, 1.0f,         1.0f, 1.0f, // Top-right
-            1.0f, 0.0f,         1.0f, 0.0f  // Bottom-right
+            -0.5f,  0.5f,         0.0f, 1.0f, // Top-left
+             0.5f,  0.5f,         1.0f, 1.0f, // Top-right
+             0.5f, -0.5f,         1.0f, 0.0f  // Bottom-right
         };
 
         // 1. Create VAO and VBO directly using DSA functions
