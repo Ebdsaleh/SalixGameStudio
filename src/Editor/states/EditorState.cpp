@@ -332,6 +332,9 @@ namespace Salix {
                     theme_panel->set_visibility(true);
                 }
                 }
+            if (ImGui::MenuItem("Project Settings")) {
+                /* TODO: Will implement later...*/
+            }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("View")) {
