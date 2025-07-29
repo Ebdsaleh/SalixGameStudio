@@ -3,6 +3,7 @@
 #include <Salix/rendering/ICamera.h>
 #include <Salix/math/Vector2.h>
 #include <Salix/math/Vector3.h>
+#include <Salix/ecs/Transform.h>
 #include <glm/glm.hpp>
 #include <imgui.h> 
 
@@ -39,11 +40,14 @@ namespace Salix {
         glm::vec4 ray_world_4d = inv_view * ray_eye;
         glm::vec3 ray_dir = glm::normalize(glm::vec3(ray_world_4d));
 
-        // The ray's origin is the camera's position
-        // NOTE: You'll need to add a get_transform() method to your ICamera interface
-        // or pass the camera's position in as a parameter.
-        // For now, we assume the camera is at the origin of its view matrix.
-        glm::vec3 ray_origin = glm::vec3(inv_view[3]);
+        
+        // --- 3. Get Ray Origin directly from the Camera's Transform ---
+        // This is the corrected logic that will work with rotation.
+        glm::vec3 ray_origin = {0,0,0};
+        Transform* camera_transform = camera->get_transform();
+        if (camera_transform) {
+            ray_origin = camera_transform->get_position().to_glm();
+        }
 
         return { ray_origin, ray_dir };
     }
