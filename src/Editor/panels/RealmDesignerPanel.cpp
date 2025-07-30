@@ -204,7 +204,7 @@ namespace Salix {
 
                     // --- MOUSE PICKING LOGIC ---
                     // We only do picking if the window is hovered AND we are not currently dragging the gizmo.
-                    if (ImGui::IsWindowHovered() && !ImGuizmo::IsUsing()) {
+                    if (ImGui::IsWindowHovered() && !ImGuizmo::IsUsing() && !pimpl->is_locked) {
                         ImVec2 viewport_min = ImGui::GetItemRectMin();
                         ImVec2 viewport_max = ImGui::GetItemRectMax();
                         pimpl->handle_mouse_picking(viewport_min, viewport_max);
