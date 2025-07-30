@@ -1,3 +1,4 @@
+// Assets/Shaders/OpenGL/2D/color.vert
 #version 450 core
 layout (location = 0) in vec2 aPos;
 

@@ -1,3 +1,4 @@
+// Assets/Shaders/OpenGL/2D/textured.frag
 #version 450 core
 out vec4 fragment_color;
 

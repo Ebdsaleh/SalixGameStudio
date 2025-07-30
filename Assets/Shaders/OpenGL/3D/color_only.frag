@@ -1,3 +1,4 @@
+// Assets/Shaders/3D/color_only.frag
 #version 450
 out vec4 FragColor;
 
