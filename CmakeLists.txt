@@ -67,11 +67,13 @@ add_library(ImGui STATIC
     "${CMAKE_SOURCE_DIR}/vendor/imgui/backends/imgui_impl_sdlrenderer2.cpp"
     "${CMAKE_SOURCE_DIR}/vendor/imgui/backends/imgui_impl_opengl3.cpp"
     "${CMAKE_SOURCE_DIR}/vendor/ImGuiFileDialog/ImGuiFileDialog.cpp"
+    "${CMAKE_SOURCE_DIR}/vendor/ImGuizmo/ImGuizmo.cpp"
 )
 target_include_directories(ImGui PUBLIC
     "${CMAKE_SOURCE_DIR}/vendor/imgui"
     "${CMAKE_SOURCE_DIR}/vendor/imgui/backends"
     "${CMAKE_SOURCE_DIR}/vendor/ImGuiFileDialog"
+    "${CMAKE_SOURCE_DIR}/vendor/ImGuizmo"
 )
 target_link_libraries(ImGui PRIVATE SDL2_LIB glad)
 
