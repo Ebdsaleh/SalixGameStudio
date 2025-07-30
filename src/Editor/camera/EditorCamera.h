@@ -4,6 +4,8 @@
 #include <Editor/EditorContext.h>
 #include <Salix/rendering/ICamera.h>
 #include <Salix/events/IEventListener.h>
+#include <Salix/math/Vector3.h>
+#include <glm/glm.hpp>
 #include <memory>
 
 namespace Salix {
@@ -28,6 +30,9 @@ namespace Salix {
         void set_mouse_inside_scene(bool is_inside);
         void set_2D_mode(bool is_2d) override;
         Transform* get_transform() override;
+        void focus_on(glm::vec3 focus_position);
+        void focus_on(Transform* target_transform, float distance);
+        void simple_focus_on(Transform* target_transform, float distance);
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;

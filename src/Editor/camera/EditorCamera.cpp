@@ -1,11 +1,16 @@
 // Editor/camera/EditorCamera.cpp
+#define GLM_ENABLE_EXPERIMENTAL
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/input/ImGuiInputManager.h>
 #include <Salix/events/sdl/SDLEvent.h>
 #include <Salix/ecs/Transform.h>
+#include <Salix/math/Vector3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
+#include <glm/gtx/norm.hpp>
 #include <iostream>
+#include <string>
 
 namespace Salix {
 
@@ -372,5 +377,123 @@ namespace Salix {
     Transform* EditorCamera::get_transform() {
         return &pimpl->transform;
     }
+
+
+
+   
+
     
-}  // namespace Salix
+    void EditorCamera::focus_on(glm::vec3 target_position) {
+        // Get the camera's current position
+        glm::vec3 current_camera_pos = pimpl->transform.get_position().to_glm();
+
+        // Safety check to prevent NaN
+        if (glm::distance2(current_camera_pos, target_position) < 0.0001f) {
+            return; // Already at the target
+        }
+
+        // Calculate direction to target (normalized)
+        glm::vec3 direction = glm::normalize(target_position - current_camera_pos);
+
+        // Calculate new yaw and pitch from direction vector
+        pimpl->yaw = glm::degrees(atan2(direction.z, direction.x));
+        pimpl->pitch = glm::degrees(asin(direction.y));
+
+        // Clamp pitch to avoid gimbal lock
+        pimpl->pitch = glm::clamp(pimpl->pitch, -89.0f, 89.0f);
+
+        // Update transform rotation (convert back to radians)
+        pimpl->transform.set_rotation(
+            glm::radians(pimpl->pitch),
+            glm::radians(pimpl->yaw),
+            0.0f
+        );
+
+        // Calculate desired distance from target (3 units away)
+        const float desired_distance = 1.0f;
+        
+        // Calculate new camera position
+        glm::vec3 new_position = target_position - (direction * desired_distance);
+
+        // Set the new position
+        pimpl->transform.set_position(Vector3(new_position.x, new_position.y, new_position.z));
+
+        // Mark view matrix as dirty
+        pimpl->view_dirty = true;
+    }
+
+
+
+    void EditorCamera::focus_on(Transform* target_transform, float distance = 3.0f) {
+        if (!target_transform) return;
+
+        // Get target's world position and orientation vectors
+        glm::vec3 target_position = target_transform->get_world_position().to_glm();
+        glm::vec3 target_forward = target_transform->get_forward();
+        glm::vec3 target_up = target_transform->get_up();
+
+        // Calculate desired camera position (in front of the target)
+        glm::vec3 desired_position = target_position - (target_forward * distance);
+
+        // Calculate the view matrix directly using glm::lookAt
+        glm::mat4 view_matrix = glm::lookAt(
+            desired_position,            // Camera position
+            target_position,              // Target position
+            target_up                     // Use target's up vector
+        );
+
+        // Extract rotation from view matrix
+        glm::quat rotation = glm::quat_cast(glm::inverse(view_matrix));
+        glm::vec3 euler_angles = glm::eulerAngles(rotation);
+
+        // Update camera's internal state
+        pimpl->yaw = glm::degrees(euler_angles.y);
+        pimpl->pitch = glm::degrees(euler_angles.x);
+
+        // Update transform
+        pimpl->transform.set_position(Vector3(desired_position.x, desired_position.y, desired_position.z));
+        pimpl->transform.set_rotation(euler_angles.x, euler_angles.y, euler_angles.z);
+
+        // Mark view matrix as dirty
+        pimpl->view_dirty = true;
+    }
+
+
+
+    void EditorCamera::simple_focus_on(Transform* target_transform, float distance = 3.0f) {
+        if (!target_transform) return;
+
+        // 1. Get target's world space information
+        glm::vec3 target_pos = target_transform->get_world_position().to_glm();
+        glm::vec3 target_fwd = target_transform->get_forward();
+        glm::vec3 target_up = target_transform->get_up();
+
+        // 2. Calculate ideal camera position
+        glm::vec3 camera_pos = target_pos - (target_fwd * distance);
+
+        // 3. Create view matrix looking at target
+        glm::mat4 view_matrix = glm::lookAt(camera_pos, target_pos, target_up);
+
+        // 4. Extract rotation from view matrix (convert from view to world rotation)
+        glm::quat rotation = glm::quat_cast(glm::inverse(view_matrix));
+
+        // 5. Convert quaternion to Euler angles (in radians)
+        glm::vec3 euler_radians = glm::eulerAngles(rotation);
+        
+        // 6. Update camera transform - using your existing set_rotation method
+        pimpl->transform.set_position(Vector3(camera_pos.x, camera_pos.y, camera_pos.z));
+        pimpl->transform.set_rotation(
+            euler_radians.x,  // pitch (radians)
+            euler_radians.y,  // yaw (radians)
+            euler_radians.z   // roll (radians)
+        );
+
+        // 7. Update internal camera state (in degrees)
+        pimpl->yaw = glm::degrees(euler_radians.y);
+        pimpl->pitch = glm::degrees(euler_radians.x);
+
+        // 8. Force view matrix refresh
+        pimpl->view_dirty = true;
+    }
+
+} // namespace Salix
