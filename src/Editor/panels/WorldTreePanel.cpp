@@ -14,9 +14,11 @@
 #include <Salix/ecs/RenderableElement.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/ScriptElement.h>
+#include <Salix/ecs/Transform.h>
 #include <Salix/management/SceneManager.h>
 #include <Salix/core/InitContext.h>
 #include <Editor/EditorContext.h>
+#include <Editor/camera/EditorCamera.h>
 #include <Salix/rendering/ITexture.h>
 #include <Salix/assets/AssetManager.h>
 #include <Salix/gui/imgui/ImGuiIconManager.h>
@@ -130,8 +132,23 @@ namespace Salix {
                         pimpl->context->selected_element = nullptr; // Deselect any element when an entity is clicked
                         EntitySelectedEvent event(entity_ptr);
                         pimpl->context->event_manager->dispatch(event);
-                    }
+                    
 
+                        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                            std::cout << "Double-clicked on entity: " << entity_ptr->get_name() << std::endl;
+                            
+                            // --- CAMERA FOCUS LOGIC GOES HERE ---
+                            // 1. Get the entity's world position
+                            Transform* target_transform = entity_ptr->get_transform();
+
+                            
+                            // 2. Tell the camera to focus on that position.
+                            //    You'll need to implement a 'focus' or 'look_at' method in your EditorCamera class.
+                            //    This method would typically move the camera to a position offset from the target,
+                            //    for example: target_pos - (current_camera_forward_vector * focus_distance)
+                            pimpl->context->editor_camera->focus_on(target_transform, 3.0f); 
+                        }
+                    }
                     // If the entity node is open, draw its elements
                     if (entity_node_open) {
                         for (const auto& element_ptr : entity_ptr->get_all_elements()) {
