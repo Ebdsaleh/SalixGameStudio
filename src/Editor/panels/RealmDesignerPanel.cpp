@@ -17,6 +17,8 @@
 #include <Salix/ecs/Transform.h>
 #include <Salix/ecs/BoxCollider.h>
 #include <imgui.h>
+#include <ImGuizmo.h>
+#include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -42,6 +44,7 @@ namespace Salix {
         
         bool is_panel_focused_this_frame = false;
         Ray last_picking_ray;
+        ImGuizmo::OPERATION mCurrentGizmoOperation = ImGuizmo::TRANSLATE;
         GLint render_pass_begin();
         void render_pass_end(GLint last_fbo);
         void draw_scene();
@@ -108,43 +111,38 @@ namespace Salix {
             }
 
             if (!pimpl->is_locked) {
-                // Allow camera to move if window is in focus
                 pimpl->is_panel_focused_this_frame = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow);
                 pimpl->context->editor_camera->set_mouse_inside_scene(pimpl->is_panel_focused_this_frame);
             } else {
                 pimpl->context->editor_camera->set_mouse_inside_scene(false);
             }
-            // handle icon adjustment for OpenGL rendering
+
             ImVec2 icon_size = ImVec2(16, 16);
             ImVec2 top_left = ImVec2(0, 0);
             ImVec2 bottom_right = ImVec2(1, 1);
             
-
             ImGui::Separator();
             // --- PANEL LOCK/UNLOCK BUTTON ---
             ImGui::AlignTextToFramePadding();
-            // ImGui::SameLine(
 
             const IconInfo& lock_icon = pimpl->is_locked ? 
                 pimpl->icon_manager->get_icon_by_name("Panel Locked") :
                 pimpl->icon_manager->get_icon_by_name("Panel Unlocked");
 
-            ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
+            ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
             if (pimpl->is_locked) {
-                tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
+                tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f);
             }
 
-            // Only attempt to draw if the icon texture ID is valid
             if (lock_icon.texture_id != 0) {
                 if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
-                    // Button was clicked, toggle the lock state
                     pimpl->is_locked = !pimpl->is_locked; 
                     std::cout << "Realm Designer Panel lock toggled to: " << (pimpl->is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
                 }
             } 
             
             if (pimpl->is_locked) {
-                ImGui::BeginDisabled(); // Disable all interactive widgets below this point
+                ImGui::BeginDisabled();
             }
             
             ImVec2 new_size = ImGui::GetContentRegionAvail();
@@ -169,26 +167,61 @@ namespace Salix {
                 ImTextureID tex_id = renderer->get_framebuffer_texture_id(pimpl->framebuffer_id);
                 if (tex_id != 0) {
                     ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0, 1), ImVec2(1, 0));
+
+                    // --- BEGIN IMGUIZMO LOGIC ---
+                    Entity* selected_entity = pimpl->context->selected_entity;
+                    if (selected_entity)
+                    {
+                        ImGuizmo::SetOrthographic(false);
+                        ImGuizmo::SetDrawlist();
+
+                        ImVec2 viewport_min = ImGui::GetItemRectMin();
+                        ImVec2 viewport_max = ImGui::GetItemRectMax();
+                        ImGuizmo::SetRect(viewport_min.x, viewport_min.y, viewport_max.x - viewport_min.x, viewport_max.y - viewport_min.y);
+
+                        const glm::mat4& camera_projection = pimpl->context->editor_camera->get_projection_matrix();
+                        const glm::mat4& camera_view = pimpl->context->editor_camera->get_view_matrix();
+                        
+                        Transform* entity_transform = selected_entity->get_transform();
+                        glm::mat4 entity_model_matrix = entity_transform->get_model_matrix();
+
+                        if (ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection),
+                            pimpl->mCurrentGizmoOperation, ImGuizmo::LOCAL, glm::value_ptr(entity_model_matrix)))
+                        {
+                            glm::vec3 position, scale;
+                            glm::quat rotation;
+                            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(entity_model_matrix),
+                                glm::value_ptr(position), glm::value_ptr(rotation), glm::value_ptr(scale));
+                            
+                            glm::vec3 euler_angles_rad = glm::eulerAngles(rotation);
+
+                            entity_transform->set_position({ position.x, position.y, position.z });
+                            entity_transform->set_rotation({ glm::degrees(euler_angles_rad.x), glm::degrees(euler_angles_rad.y), glm::degrees(euler_angles_rad.z) });
+                            entity_transform->set_scale({ scale.x, scale.y, scale.z });
+                        }
+                    }
+                    // --- END IMGUIZMO LOGIC ---
+
+                    // --- MOUSE PICKING LOGIC ---
+                    // We only do picking if the window is hovered AND we are not currently dragging the gizmo.
+                    if (ImGui::IsWindowHovered() && !ImGuizmo::IsUsing()) {
+                        ImVec2 viewport_min = ImGui::GetItemRectMin();
+                        ImVec2 viewport_max = ImGui::GetItemRectMax();
+                        pimpl->handle_mouse_picking(viewport_min, viewport_max);
+                    }
                 }
             }
         }
 
-        // We only care about picking if the viewport is hovered
-        if (ImGui::IsWindowHovered()) {
-            // Get the rect of the Image item we just drew. This is the most reliable way.
-            ImVec2 viewport_min = ImGui::GetItemRectMin();
-            ImVec2 viewport_max = ImGui::GetItemRectMax();
-            
-            // Call the picking function with the precise coordinates
-            pimpl->handle_mouse_picking(viewport_min, viewport_max);
-        }
-
         if (pimpl->is_locked) {
-                    ImGui::EndDisabled(); // Disable all interactive widgets below this point
-                }
+            ImGui::EndDisabled();
+        }
         ImGui::End();
         ImGui::PopStyleVar();
     }
+
+
+    
 
 
 
