@@ -13,7 +13,9 @@
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/Camera.h>
 #include <Salix/ecs/Transform.h>
+#include <Salix/ecs/BoxCollider.h>
 #include <imgui.h>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
@@ -39,12 +41,14 @@ namespace Salix {
         ImVec2 viewport_size = { 1280, 720 };
         
         bool is_panel_focused_this_frame = false;
+        Ray last_picking_ray;
         GLint render_pass_begin();
         void render_pass_end(GLint last_fbo);
         void draw_scene();
         void draw_test_cube();
         void draw_test_cube_only();
-        void handle_mouse_picking();
+        void handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max);
+        void draw_bounding_boxes();
     };
 
     RealmDesignerPanel::RealmDesignerPanel() : pimpl(std::make_unique<Pimpl>()) {
@@ -169,7 +173,15 @@ namespace Salix {
             }
         }
 
-        pimpl->handle_mouse_picking();
+        // We only care about picking if the viewport is hovered
+        if (ImGui::IsWindowHovered()) {
+            // Get the rect of the Image item we just drew. This is the most reliable way.
+            ImVec2 viewport_min = ImGui::GetItemRectMin();
+            ImVec2 viewport_max = ImGui::GetItemRectMax();
+            
+            // Call the picking function with the precise coordinates
+            pimpl->handle_mouse_picking(viewport_min, viewport_max);
+        }
 
         if (pimpl->is_locked) {
                     ImGui::EndDisabled(); // Disable all interactive widgets below this point
@@ -181,62 +193,55 @@ namespace Salix {
 
 
 
-    void RealmDesignerPanel::Pimpl::handle_mouse_picking() {
-        if (is_locked || !ImGui::IsWindowHovered() || !ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+    void RealmDesignerPanel::Pimpl::handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max) {
+        // We only proceed if the mouse was actually clicked within the hovered window
+        if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             return;
         }
 
-        // --- Step 1: Get Mouse and Viewport Info ---
-        // We need to do the ImVec2 math component-wise
-        ImVec2 content_min = ImGui::GetWindowContentRegionMin();
-        ImVec2 panel_pos   = ImGui::GetWindowPos();
-        ImVec2 viewport_pos = { panel_pos.x + content_min.x, panel_pos.y + content_min.y };
-        
-        ImVec2 panel_size = ImGui::GetContentRegionAvail();
-        ImVec2 mouse_pos  = ImGui::GetMousePos();
+        // --- Step 1: Create the world-space ray from mouse ---
+        // Calculate viewport size from the min/max points passed as arguments.
+        viewport_size = { (viewport_max.x - viewport_min.x), (viewport_max.y - viewport_min.y) };
+        ImVec2 mouse_pos = ImGui::GetMousePos();
 
-        // --- Step 2 & 3: Create the 3D Ray ---
-        // Use your new static Raycast class
-        Ray ray = Raycast::CreateRayFromScreen(
-            context->editor_camera,
-            mouse_pos,
-            viewport_pos,
-            panel_size
-        );
+         // Create the ray using the reliable viewport data 
+        Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
+        last_picking_ray = world_ray; // Save the ray for visualization
 
-        // --- Step 4: Perform Ray-Intersection Test ---
+        // --- Step 2: Find the closest entity with a collider that was hit ---
         Entity* selected_entity = nullptr;
         float closest_hit_distance = FLT_MAX;
 
         for (Entity* entity : context->active_scene->get_entities()) {
+
             Transform* transform = entity->get_transform();
-            if (!transform) continue;
+            BoxCollider* collider = entity->get_element<BoxCollider>();
 
-            glm::vec3 scale = transform->get_scale().to_glm();
-            glm::vec3 box_min = transform->get_position().to_glm() - (glm::vec3(0.5f) * scale);
-            glm::vec3 box_max = transform->get_position().to_glm() + (glm::vec3(0.5f) * scale);
+             // We can only pick objects that have both a transform and a collider  
+            if (transform && collider) {
+                glm::vec3 half_extents = collider->get_size().to_glm() * 0.5f;
+                glm::mat4 model_matrix = transform->get_model_matrix();  
+                float distance = 0.0f;
 
-            float distance;
-            // Use your new static Raycast class
-            if (Raycast::IntersectsAABB(ray, box_min, box_max, distance)) {
-                if (distance < closest_hit_distance) {
-                    closest_hit_distance = distance;
-                    selected_entity = entity;
+                if (Raycast::IntersectsOBB(world_ray, model_matrix, half_extents, distance)) {
+                    glm::vec3 world_hit_point = world_ray.origin + world_ray.direction * distance;  
+                    float world_distance = glm::distance(world_ray.origin, world_hit_point);  
+
+                    if (world_distance < closest_hit_distance) {
+                        closest_hit_distance = world_distance;
+                        selected_entity = entity;  
+                    }
                 }
             }
         }
 
-        // --- Step 5: Fire the Selection Event ---
+        // --- Step 3: Fire the selection event ---
         if (context->event_manager) {
-            // Create a named event object on the stack
             EntitySelectedEvent event(selected_entity);
-            // Now, pass the named object to the dispatch function
-            context->event_manager->dispatch(event);
+            context->selected_entity = selected_entity;
+            context->event_manager->dispatch(event);  
         }
     }
-
-
-
 
 
 
@@ -249,10 +254,7 @@ namespace Salix {
         if (!pimpl->is_visible || !pimpl->context || !pimpl->context->active_scene) {
             return;
         }
-       // OpenGLRenderer* renderer = pimpl->context->renderer->as_opengl_renderer();
-        //if (!renderer) return;
-
-
+       
         // 1. Prepare the render pass (state management)
         pimpl->context->renderer->begin_render_pass(pimpl->framebuffer_id);
         pimpl->context->renderer->set_viewport(0, 0, (int)pimpl->viewport_size.x, (int)pimpl->viewport_size.y);
@@ -262,7 +264,12 @@ namespace Salix {
          
         pimpl->draw_test_cube(); // draw 3D first.
         pimpl->draw_scene(); // draw 2D (in game gui/HUD elements).
-        
+        pimpl->draw_bounding_boxes();
+        pimpl->context->renderer->draw_line(
+            pimpl->last_picking_ray.origin,
+            pimpl->last_picking_ray.origin + pimpl->last_picking_ray.direction * 1000.0f, // A long line
+            {1.0f, 1.0f, 0.0f, 1.0f} // Yellow
+    );
 
         pimpl->context->renderer->end_render_pass();
     }
@@ -424,4 +431,28 @@ namespace Salix {
         pimpl->is_locked = true;
     }   
 
+    void RealmDesignerPanel::Pimpl::draw_bounding_boxes() {
+        OpenGLRenderer* renderer = context->renderer->as_opengl_renderer();
+        if (!renderer) return;
+        // Define a color for the bounding boxes
+        Color box_color = {0.0f, 1.0f, 0.0f, 1.0f}; // Green
+
+        for (Entity* entity : context->active_scene->get_entities()) {
+            Transform* transform = entity->get_transform(); 
+            BoxCollider* collider = entity->get_element<BoxCollider>(); 
+
+            // We only draw boxes for entities that have a transform and a collider
+            if (transform && collider) { 
+                // Get the base model matrix from the entity's transform
+                glm::mat4 model_matrix = transform->get_model_matrix();
+
+                // Get the size from the collider and scale the model matrix
+                glm::vec3 collider_size = collider->get_size().to_glm();
+                model_matrix = glm::scale(model_matrix, collider_size);
+
+                // Draw the wireframe box
+                renderer->draw_wire_box(model_matrix, box_color);
+            }
+        }
+    }
 }  // namespace Salix
