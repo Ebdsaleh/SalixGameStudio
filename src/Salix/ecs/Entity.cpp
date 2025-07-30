@@ -8,6 +8,7 @@
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/RenderableElement.h>
 #include <Salix/ecs/Transform.h>
+#include <Salix/ecs/BoxCollider.h>
 #include <Salix/assets/AssetManager.h>
 #include <cereal/cereal.hpp>
 #include <cereal/archives/json.hpp>
@@ -25,7 +26,7 @@ namespace Salix {
         Transform* transform = nullptr;
         SimpleGuid id = SimpleGuid::generate();
         InitContext context;
-
+        BoxCollider* box_collider = nullptr;
         Pimpl() = default;
         template<class Archive>
         void serialize (Archive & archive) {
@@ -38,6 +39,7 @@ namespace Salix {
     Entity::Entity() : pimpl(std::make_unique<Pimpl>()) {
         // Automatically add and store a pointer to the mandatory Transform component.
         pimpl->transform = add_element<Transform>();
+        pimpl->box_collider = add_element<BoxCollider>();
        
     }
     Entity::~Entity() = default;
