@@ -789,7 +789,82 @@ namespace Salix {
      
        
 
+
+
+    void OpenGLRenderer::draw_wire_box(const glm::mat4& model_matrix, const Color& color) {
+
+        if (!pimpl->active_camera) return;
+        // Use the same 3D shader as the solid cube
+        pimpl->simple_3d_shader->use();
+        pimpl->simple_3d_shader->setMat4("model", model_matrix);
+        pimpl->simple_3d_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
+        pimpl->simple_3d_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
+        pimpl->simple_3d_shader->setVec4("tint_color", { color.r, color.g, color.b, color.a });
+        glad_glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+        glad_glBindVertexArray(pimpl->cube_vao);
+        glad_glDrawArrays(GL_TRIANGLES, 0, 36);
+        glad_glBindVertexArray(0);
+
+        glad_glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        glad_glUseProgram(0);
+    }
     
+
+
+    void OpenGLRenderer::draw_line(const glm::vec3& start, const glm::vec3& end, const Color& color) {
+        // 1. Initial safety check
+        if (!pimpl->active_camera) {
+            std::cerr << "WARNING: draw_line called with no active camera set." << std::endl;
+            return;
+        }
+
+        // 2. Use the 3D shader that understands view and projection matrices
+        pimpl->simple_3d_shader->use();
+
+        // 3. Set the camera matrices
+        pimpl->simple_3d_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
+        pimpl->simple_3d_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
+        
+        // 4. The line's vertices are already in world space, so the model matrix is the identity
+        pimpl->simple_3d_shader->setMat4("model", glm::mat4(1.0f));
+        
+        // 5. Set the line color
+        pimpl->simple_3d_shader->setVec4("tint_color", { color.r, color.g, color.b, color.a });
+
+        // --- 6. Create geometry on the fly ---
+        GLuint line_vao, line_vbo;
+        float vertices[] = {
+            start.x, start.y, start.z,
+            end.x,   end.y,   end.z
+        };
+
+        // Create and bind the Vertex Array Object and Vertex Buffer Object
+        glad_glGenVertexArrays(1, &line_vao);
+        glad_glGenBuffers(1, &line_vbo);
+
+        glad_glBindVertexArray(line_vao);
+        glad_glBindBuffer(GL_ARRAY_BUFFER, line_vbo);
+        
+        // Upload the vertex data to the VBO
+        glad_glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        // Set up the vertex attribute pointer (we only have position for this)
+        // Location 0, 3 components (x,y,z), float type, not normalized, stride is 3 floats, offset is 0
+        glad_glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+        glad_glEnableVertexAttribArray(0);
+
+        // --- 7. Draw the line ---
+        glad_glDrawArrays(GL_LINES, 0, 2);
+
+        // --- 8. Clean up temporary objects ---
+        glad_glBindVertexArray(0);
+        glad_glDeleteVertexArrays(1, &line_vao);
+        glad_glDeleteBuffers(1, &line_vbo);
+        glad_glUseProgram(0);
+    }
+
+
 
     void OpenGLRenderer::set_clear_color(const Color& color) {
 

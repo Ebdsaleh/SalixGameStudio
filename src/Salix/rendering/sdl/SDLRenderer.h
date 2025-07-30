@@ -61,7 +61,14 @@ namespace Salix{
             void draw_texture(ITexture* texture, const Rect& dest_rect) override;
 
             void draw_sprite(ITexture* texture, const Transform* transform, const Color& color, SpriteFlip flip) override; 
-            
+            void draw_wire_box(const glm::mat4& model_matrix, const Color& color) override {
+                (void) model_matrix; 
+                (void) color;
+            }
+
+            void draw_line(const glm::vec3& start, const glm::vec3& end, const Color& color) override {
+                (void) start; (void) end; (void) color;
+            };
             // A method to access the IWindow-inherited object.
             IWindow* get_window() override;
 

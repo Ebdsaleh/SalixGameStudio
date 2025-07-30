@@ -3,15 +3,15 @@
 #include <Salix/core/Core.h>
 #include <Salix/math/Vector2.h>
 #include <Salix/math/Vector3.h>
+#include <Salix/rendering/ICamera.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 // Forward declare ImGui's 2D vector type to avoid including imgui.h
 struct ImVec2;
 
 namespace Salix {
     
-    // Forward declare the camera interface
-    class ICamera;
 
     // A simple struct to represent a 3D ray
     struct Ray {
@@ -41,11 +41,13 @@ namespace Salix {
         // Checks for intersection between a ray and an Axis-Aligned Bounding Box (AABB).
         // Returns true if there is an intersection and outputs the distance to the hit.
         static bool IntersectsAABB(
+
             const Ray& ray,
             const glm::vec3& box_min,
             const glm::vec3& box_max,
             float& distance
         );
+
 
         static bool IntersectsAABB(
             const Ray& ray,
@@ -53,6 +55,16 @@ namespace Salix {
             const Vector3& box_max,
             float& distance
         );
+
+        static bool IntersectsOBB(
+            const Ray& ray,
+            const glm::mat4& model_matrix,
+            const glm::vec3& half_extents,
+            float& out_distance
+        );
+
+        
     };
+    
 
 } // namespace Salix

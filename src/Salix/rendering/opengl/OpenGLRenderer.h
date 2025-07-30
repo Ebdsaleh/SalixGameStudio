@@ -78,6 +78,8 @@ namespace Salix {
         // This will take specific framebuffer IDs and render to them.
         void draw_cube(uint32_t framebuffer_id_magenta, uint32_t framebuffer_id_blue, float current_time);
 
+        void draw_wire_box(const glm::mat4& model_matrix, const Color& color) override;
+        void draw_line(const glm::vec3& start, const glm::vec3& end, const Color& color) override;
         
     private:
         struct Pimpl;

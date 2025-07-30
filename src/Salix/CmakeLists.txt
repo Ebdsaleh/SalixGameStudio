@@ -9,6 +9,7 @@ add_library(SalixEngine SHARED
     core/EngineInfo.cpp
     core/SDLTimer.cpp
     core/SimpleGuid.cpp
+    ecs/BoxCollider.cpp
     ecs/Camera.cpp
     ecs/CppScript.cpp
     ecs/Entity.cpp
