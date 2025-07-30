@@ -259,6 +259,7 @@ namespace Salix {
         if (direction == MouseScroll::Backward) {
             return scroll_delta < 0.0f;
         }
+        return false;
     }
     // Additional queries
     float ImGuiInputManager::get_mouse_scroll_delta() const {

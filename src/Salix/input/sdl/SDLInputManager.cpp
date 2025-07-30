@@ -370,6 +370,7 @@ namespace Salix {
         if (direction == MouseScroll::Backward) {
             return scroll_delta < 0.0f;
         }
+        return false;
     }
 
 
