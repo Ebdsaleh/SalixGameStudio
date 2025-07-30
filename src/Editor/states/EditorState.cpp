@@ -17,6 +17,7 @@
 #include <Salix/ecs/RenderableElement.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/BoxCollider.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
 #include <Salix/management/SceneManager.h>
@@ -422,7 +423,15 @@ namespace Salix {
         Sprite2D* player_sprite = player->add_element<Sprite2D>();
         const std::string sprite_file_path = "src/Sandbox/TestProject/Assets/Images/test.png";
         player_sprite->load_texture(editor_context->asset_manager, sprite_file_path);
-        
+        BoxCollider* player_collider = player->add_element<BoxCollider>();
+        float ppu = editor_context->renderer->get_pixels_per_unit();
+        player_collider->set_size(
+            Vector3(
+                (float)player_sprite->get_texture()->get_width() / ppu,
+                (float)player_sprite->get_texture()->get_height() / ppu,
+                0.1f
+            )
+        );
 
         editor_context->active_project = mock_project.get();     
     }
@@ -465,6 +474,10 @@ namespace Salix {
 
         const glm::mat4& view = camera->get_view_matrix();
         const glm::mat4& projection = camera->get_projection_matrix();
+        Vector3 position = camera->get_transform()->get_position();
+        Vector3 rotation = camera->get_transform()->get_rotation();
+        Vector3 scale = camera->get_transform()->get_scale();
+
 
         ImGui::Text("View Matrix:");
         // Use ImGui::Text with formatting for each row
@@ -479,6 +492,10 @@ namespace Salix {
         ImGui::Text("%.3f, %.3f, %.3f, %.3f", projection[2][0], projection[2][1], projection[2][2], projection[2][3]);
         ImGui::Text("%.3f, %.3f, %.3f, %.3f", projection[3][0], projection[3][1], projection[3][2], projection[3][3]);
 
+        ImGui::Text("Transform:");
+        ImGui::Text("Position: %.3f, %.3f, %.3f", position.x, position.y, position.z);
+        ImGui::Text("Rotation: %.3f, %.3f, %.3f", rotation.x, rotation.y, rotation.z);
+        ImGui::Text("Scale: %.3f, %.3f, %.3f", scale.x, scale.y, scale.z);
         ImGui::End();
     }
         
