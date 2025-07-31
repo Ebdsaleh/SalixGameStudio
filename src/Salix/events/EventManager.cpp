@@ -41,6 +41,11 @@ namespace Salix {
     }
 
     void EventManager::dispatch(IEvent& event) {
+
+         if (event.should_block()) {
+            event.handled = true;
+            return;
+        }
         // When an event comes in, we need to notify listeners for all categories
         // that this event belongs to.
 
