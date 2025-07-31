@@ -5007,6 +5007,8 @@ void* ImGui::MemAlloc(size_t size)
 }
 
 // IM_FREE() == ImGui::MemFree()
+// ---ORIGINAL CODE ---
+/*
 void ImGui::MemFree(void* ptr)
 {
 #ifndef IMGUI_DISABLE_DEBUG_TOOLS
@@ -5016,6 +5018,24 @@ void ImGui::MemFree(void* ptr)
 #endif
     return (*GImAllocatorFreeFunc)(ptr, GImAllocatorUserData);
 }
+*/
+// --- END ORIGINAL CODE ---
+void ImGui::MemFree(void* ptr)
+{
+    if (ptr == NULL)
+        return;
+    if (GImGui == NULL) {
+        // Context already destroyed, use plain free
+        ::free(ptr);
+        return;
+    }
+    #ifndef IMGUI_DISABLE_DEBUG_TOOLS
+    if (ImGuiContext* ctx = GImGui)
+        DebugAllocHook(&ctx->DebugAllocInfo, ctx->FrameCount, ptr, (size_t)-1);
+    #endif
+    ::free(ptr);
+}
+
 
 // We record the number of allocation in recent frames, as a way to audit/sanitize our guiding principles of "no allocations on idle/repeating frames"
 void ImGui::DebugAllocHook(ImGuiDebugAllocInfo* info, int frame_count, void* ptr, size_t size)
