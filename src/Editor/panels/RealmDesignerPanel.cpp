@@ -50,6 +50,10 @@ namespace Salix {
         void draw_scene();
         void draw_test_cube();
         void draw_test_cube_only();
+        void draw_lock_button();
+        void draw_gizmo_toolbar();
+        void update_viewport(IRenderer* renderer);
+        void handle_gizmos(EditorCamera* camera, Entity* selected_entity);
         void handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max);
         void draw_bounding_boxes();
     };
@@ -108,133 +112,153 @@ namespace Salix {
                     ImGui::PopStyleVar();
                     return;
                 }
+
+                // --- Camera Control ---
                 bool camera_can_move = false;
-                if (ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow) && ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow)) {
+                if (!pimpl->is_locked &&  // THIS IS THE CRITICAL ADDITION
+                    ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow) && 
+                    ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow)) {
                     camera_can_move = true;
-                } else { camera_can_move = false; }
+                }
                 pimpl->context->editor_camera->set_mouse_inside_scene(camera_can_move);
-                // --- PANEL LOCK/UNLOCK BUTTON ---
-                ImGui::AlignTextToFramePadding();
-                const IconInfo& lock_icon = pimpl->is_locked ? 
-                    pimpl->icon_manager->get_icon_by_name("Panel Locked") :
-                    pimpl->icon_manager->get_icon_by_name("Panel Unlocked");
 
-                ImVec4 tint_color = pimpl->is_locked ? ImVec4(0.50f, 0.0f, 0.0f, 1.0f) : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
-                if (lock_icon.texture_id != 0 && ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, ImVec2(16, 16), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint_color)) {
-                    pimpl->is_locked = !pimpl->is_locked;
-                }
+                // --- Panel Lock Button ---
+                pimpl->draw_lock_button();
 
-                if (pimpl->is_locked) {
-                        ImGui::BeginDisabled(); // Disable all interactive widgets below this point
-                        pimpl->context->editor_camera->set_mouse_inside_scene(false);
-                    }
-
-                // --- GIZMO TOOLBAR ---
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Translate", pimpl->CurrentGizmoOperation == ImGuizmo::TRANSLATE))
-                    pimpl->CurrentGizmoOperation = ImGuizmo::TRANSLATE;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Rotate", pimpl->CurrentGizmoOperation == ImGuizmo::ROTATE))
-                    pimpl->CurrentGizmoOperation = ImGuizmo::ROTATE;
-                ImGui::SameLine();
-                if (ImGui::RadioButton("Scale", pimpl->CurrentGizmoOperation == ImGuizmo::SCALE))
-                    pimpl->CurrentGizmoOperation = ImGuizmo::SCALE;
-
-                if (!pimpl->is_locked) {
-                    // Keyboard shortcuts
-                    if (ImGui::IsKeyPressed(ImGuiKey_W, false)) pimpl->CurrentGizmoOperation = ImGuizmo::TRANSLATE;
-                    if (ImGui::IsKeyPressed(ImGuiKey_E, false)) pimpl->CurrentGizmoOperation = ImGuizmo::ROTATE;
-                    if (ImGui::IsKeyPressed(ImGuiKey_R, false)) pimpl->CurrentGizmoOperation = ImGuizmo::SCALE;
-                }
-                // --- VIEWPORT ---
-                ImVec2 new_size = ImGui::GetContentRegionAvail();
-                if (new_size.x > 0 && new_size.y > 0 && 
-                (new_size.x != pimpl->viewport_size.x || new_size.y != pimpl->viewport_size.y)) {
-                    if (pimpl->framebuffer_id != 0)
-                        renderer->delete_framebuffer(pimpl->framebuffer_id);
-                    pimpl->framebuffer_id = renderer->create_framebuffer((int)new_size.x, (int)new_size.y);
-                    pimpl->viewport_size = new_size;
-                    if (pimpl->context->editor_camera)
-                        pimpl->context->editor_camera->set_viewport_size((int)new_size.x, (int)new_size.y);
-                }
+                // --- Gizmo Toolbar ---
+                pimpl->draw_gizmo_toolbar();
+                
+                // --- Viewport ---
+                pimpl->update_viewport(renderer);
 
                 if (pimpl->framebuffer_id != 0) {
                     ImTextureID tex_id = renderer->get_framebuffer_texture_id(pimpl->framebuffer_id);
                     if (tex_id != 0) {
                         ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0,1), ImVec2(1,0));
-                        bool is_viewport_hovered = ImGui::IsItemHovered();
 
-                        // --- GIZMO IMPLEMENTATION ---
+                        // --- Gizmo Interaction ---
                         if (!pimpl->is_locked && pimpl->context->selected_entity) {
-                            ImGuizmo::SetOrthographic(false);
-                            ImGuizmo::SetDrawlist();
-                            
-                            ImVec2 viewport_min = ImGui::GetItemRectMin();
-                            ImVec2 viewport_max = ImGui::GetItemRectMax();
-                            ImGuizmo::SetRect(viewport_min.x, viewport_min.y, 
-                                            viewport_max.x - viewport_min.x, 
-                                            viewport_max.y - viewport_min.y);
-
-                            // Get matrices
-                            const glm::mat4& camera_view = pimpl->context->editor_camera->get_view_matrix();
-                            const glm::mat4& camera_projection = pimpl->context->editor_camera->get_projection_matrix();
-                            Transform* transform = pimpl->context->selected_entity->get_transform();
-                            glm::mat4 entity_matrix = transform->get_model_matrix();
-                            
-                            if (ImGuizmo::IsOver()){
-                                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-                            }
-                            // Handle gizmo interaction
-                            bool manipulated = ImGuizmo::Manipulate(
-                                glm::value_ptr(camera_view),
-                                glm::value_ptr(camera_projection),
-                                pimpl->CurrentGizmoOperation,
-                                ImGuizmo::LOCAL,
-                                glm::value_ptr(entity_matrix)
+                            pimpl->handle_gizmos( 
+                                pimpl->context->editor_camera, 
+                                pimpl->context->selected_entity
                             );
-
-                            // Update transform if manipulated
-                            if (manipulated) {
-                                glm::vec3 translation, rotation, scale;
-                                ImGuizmo::DecomposeMatrixToComponents(
-                                    glm::value_ptr(entity_matrix),
-                                    glm::value_ptr(translation),
-                                    glm::value_ptr(rotation),
-                                    glm::value_ptr(scale)
-                                );
-
-                                transform->set_position(Vector3(translation.x, translation.y, translation.z));
-                                transform->set_rotation(
-                                    glm::radians(rotation.x),
-                                    glm::radians(rotation.y),
-                                    glm::radians(rotation.z)
-                                );
-                                transform->set_scale(Vector3(scale.x, scale.y, scale.z));
-                            }
-                            
-                            // Block selection when gizmo is hovered or in use
-                            EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
                         }
-
+                        
                         // --- MOUSE PICKING ---
-                        if (is_viewport_hovered && !EntitySelectedEvent::block_selection && !pimpl->is_locked) {
+                        if (ImGui::IsItemHovered() && !EntitySelectedEvent::block_selection && !pimpl->is_locked) {
                             pimpl->handle_mouse_picking(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
                         }
                     }
                 }
-
-                if (pimpl->is_locked) {
-                    ImGui::EndDisabled();
-                }
             }
             ImGui::End();
             ImGui::PopStyleVar();
-        } else {
-            return;
         }
-    } 
+    }
 
     
+
+    void RealmDesignerPanel::Pimpl::draw_lock_button() {
+        const IconInfo& lock_icon = is_locked ? 
+            icon_manager->get_icon_by_name("Panel Locked") :
+            icon_manager->get_icon_by_name("Panel Unlocked");
+
+        ImVec4 tint_color = is_locked ? ImVec4(0.50f, 0.0f, 0.0f, 1.0f) : ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+        if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, ImVec2(16, 16), 
+                            ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint_color)) {
+            is_locked = !is_locked;
+        }
+    }
+
+
+    void RealmDesignerPanel::Pimpl::draw_gizmo_toolbar() {
+        if (ImGui::RadioButton("Translate", CurrentGizmoOperation == ImGuizmo::TRANSLATE))
+            CurrentGizmoOperation = ImGuizmo::TRANSLATE;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Rotate", CurrentGizmoOperation == ImGuizmo::ROTATE))
+            CurrentGizmoOperation = ImGuizmo::ROTATE;
+        ImGui::SameLine();
+        if (ImGui::RadioButton("Scale", CurrentGizmoOperation == ImGuizmo::SCALE))
+            CurrentGizmoOperation = ImGuizmo::SCALE;
+
+        if (!is_locked) {
+            if (ImGui::IsKeyPressed(ImGuiKey_W)) CurrentGizmoOperation = ImGuizmo::TRANSLATE;
+            if (ImGui::IsKeyPressed(ImGuiKey_E)) CurrentGizmoOperation = ImGuizmo::ROTATE;
+            if (ImGui::IsKeyPressed(ImGuiKey_R)) CurrentGizmoOperation = ImGuizmo::SCALE;
+        }
+    }
+
+
+    void RealmDesignerPanel::Pimpl::update_viewport(IRenderer* renderer) {
+        ImVec2 new_size = ImGui::GetContentRegionAvail();
+        if (new_size.x > 0 && new_size.y > 0 && 
+                (new_size.x != viewport_size.x || new_size.y != viewport_size.y)) {
+            if (framebuffer_id != 0)
+                renderer->delete_framebuffer(framebuffer_id);
+            framebuffer_id = renderer->create_framebuffer((int)new_size.x, (int)new_size.y);
+            viewport_size = new_size;
+            if (context->editor_camera)
+                context->editor_camera->set_viewport_size((int)new_size.x, (int)new_size.y);
+        }
+    }
+
+
+
+    void RealmDesignerPanel::Pimpl::handle_gizmos(EditorCamera* camera, Entity* selected_entity) {
+        if (is_locked || !selected_entity) return;
+
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist();
+        
+        // Set viewport rect
+        ImVec2 viewport_min = ImGui::GetItemRectMin();
+        ImVec2 viewport_max = ImGui::GetItemRectMax();
+        ImGuizmo::SetRect(viewport_min.x, viewport_min.y, 
+                         viewport_max.x - viewport_min.x, 
+                         viewport_max.y - viewport_min.y);
+
+        // Get matrices
+        const glm::mat4& camera_view = camera->get_view_matrix();
+        const glm::mat4& camera_projection = camera->get_projection_matrix();
+        Transform* transform = selected_entity->get_transform();
+        glm::mat4 entity_matrix = transform->get_model_matrix();
+        
+        // Handle interaction
+        bool manipulated = ImGuizmo::Manipulate(
+            glm::value_ptr(camera_view),
+            glm::value_ptr(camera_projection),
+            CurrentGizmoOperation,
+            ImGuizmo::LOCAL,
+            glm::value_ptr(entity_matrix)
+        );
+
+        // Update transform if manipulated
+        if (manipulated) {
+            glm::vec3 translation, rotation, scale;
+            ImGuizmo::DecomposeMatrixToComponents(
+                glm::value_ptr(entity_matrix),
+                glm::value_ptr(translation),
+                glm::value_ptr(rotation),
+                glm::value_ptr(scale)
+            );
+
+            transform->set_position(Vector3(translation.x, translation.y, translation.z));
+            transform->set_rotation(
+                glm::radians(rotation.x),
+                glm::radians(rotation.y),
+                glm::radians(rotation.z)
+            );
+            transform->set_scale(Vector3(scale.x, scale.y, scale.z));
+        }
+
+        // Block selection when gizmo is active
+        EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+        
+        // Set cursor
+        if (ImGuizmo::IsOver()) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        }
+    }
 
 
 
