@@ -785,6 +785,7 @@ void ImGui_ImplSDL2_Shutdown()
         fprintf(stderr, "[ImGui SDL2] Warning: SDL video subsystem still active\n");
     }
     #endif
+    IM_ASSERT(ImGui::GetIO().BackendPlatformUserData == nullptr);
 }
 
 // This code is incredibly messy because some of the functions we need for full viewport support are not available in SDL < 2.0.4.

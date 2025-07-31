@@ -483,6 +483,7 @@ void ImGui_ImplOpenGL3_Shutdown() {
         fprintf(stderr, "[ImGui OpenGL3] Post-shutdown GL error 0x%x\n", err);
     }
     #endif
+    IM_ASSERT(ImGui::GetIO().BackendRendererUserData == nullptr);
 }
 
 
