@@ -20,12 +20,15 @@ namespace Salix {
 
 class EntitySelectedEvent : public IEvent { 
     public:
+        static bool block_selection;
         EntitySelectedEvent(Entity* selected_entity)
             : entity(selected_entity) {}
 
         EVENT_CLASS_TYPE(EditorEntitySelected)
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
 
+        bool should_block() const override { return block_selection; }
+        void set_block(bool block) override { block_selection = block;}
         Entity* entity;
     };
 
