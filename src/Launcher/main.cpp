@@ -74,6 +74,6 @@ int main(int argc, char* argv[]) {
 
     std::cout << "Engine is shutting down." << std::endl;
     engine->shutdown();
-
+    _CrtDumpMemoryLeaks();
     return 0;
 }
