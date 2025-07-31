@@ -10,7 +10,8 @@
 #include <Salix/gui/IDialog.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
-#include <imgui.h>
+#include <imgui/imgui.h>
+#include <ImGuizmo/ImGuizmo.h>
 #include <ImGuiFileDialog/ImGuiFileDialog.h>
 #include <backends/imgui_impl_sdl2.h>
 #include <backends/imgui_impl_opengl3.h>
@@ -102,8 +103,19 @@ namespace Salix {
         // Unregister raw event callback first
         std::cout << "OpenGLImGUi::Shutdown - Shutdown called." << std::endl;
         pimpl->unregister_raw_event_callback_if_registered();
+
+        // 2. Clean up ImGuizmo before ImGui
+        #ifdef USING_IMGUIZMO
+            std::cout << "Shutting down ImGuizmo..." << std::endl;
+            ImGuizmo::SetImGuiContext(nullptr);
+            std::cout << "ImGuizmo shut down. Proceeding with ImGui..." << std::endl;
+        // Or if your version has it:
+        // ImGuizmo::Deinitialize();
+        #endif
+
         ImGui_ImplOpenGL3_Shutdown();
         ImGui_ImplSDL2_Shutdown();
+        
         if (ImGui::GetCurrentContext()) { ImGui::DestroyContext(); }
     }
 
@@ -112,7 +124,6 @@ namespace Salix {
 
     void OpenGLImGui::new_frame() {
         ImGuiIO& io = ImGui::GetIO(); // Get current IO state
-
         // Create and dispatch the ImGuiInputEvent
         ImGuiInputEvent event(io.WantCaptureMouse, io.WantCaptureKeyboard);
         if (pimpl->event_manager) { // Ensure event manager is valid
@@ -202,9 +213,11 @@ namespace Salix {
 
     void OpenGLImGui::update_and_render_platform_windows() {
         ImGuiIO& io = ImGui::GetIO();
-        if (io.ConfigFlags& ImGuiConfigFlags_ViewportsEnable) {
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
+        if (ImGui::GetCurrentContext()) {
+            if (io.ConfigFlags& ImGuiConfigFlags_ViewportsEnable) {
+                ImGui::UpdatePlatformWindows();
+                ImGui::RenderPlatformWindowsDefault();
+            }
         }
     }
 
