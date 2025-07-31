@@ -16,6 +16,7 @@ add_library(SalixEditor SHARED
     panels/RealmDesignerPanel.cpp
     panels/RealmPortalPanel.cpp
     camera/EditorCamera.cpp
+    events/EntitySelectedEvent.cpp
     # Add any other .cpp files specific to SalixEditor.dll here
 )
 
