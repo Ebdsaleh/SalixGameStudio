@@ -100,25 +100,24 @@ namespace Salix {
 
 
     void OpenGLImGui::shutdown() {
-        // Unregister raw event callback first
+        // 1. Unregister raw event callback first
         std::cout << "OpenGLImGUi::Shutdown - Shutdown called." << std::endl;
         pimpl->unregister_raw_event_callback_if_registered();
 
-        // 2. Clean up ImGuizmo before ImGui
-        #ifdef USING_IMGUIZMO
-            std::cout << "Shutting down ImGuizmo..." << std::endl;
-            ImGuizmo::SetImGuiContext(nullptr);
-            std::cout << "ImGuizmo shut down. Proceeding with ImGui..." << std::endl;
-        // Or if your version has it:
-        // ImGuizmo::Deinitialize();
-        #endif
-
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplSDL2_Shutdown();
         
-        if (ImGui::GetCurrentContext()) { ImGui::DestroyContext(); }
-    }
+        // 2. First shutdown extensions
+        ImGuizmo::Deinitialize();
 
+        // 3. Then renderer (OpenGL/Vulkan/etc)
+        ImGui_ImplOpenGL3_Shutdown();
+
+        // 4. Then platform (SDL)
+        ImGui_ImplSDL2_Shutdown();  // Now fully protected
+
+        // 5. Finally core context
+        if (ImGui::GetCurrentContext())
+            ImGui::DestroyContext();
+    }
 
 
 
