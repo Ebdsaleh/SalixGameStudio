@@ -215,7 +215,9 @@ namespace Salix {
     }
 
 
-    bool WorldTreePanel::get_visibility() const  { return pimpl->is_visible; }
+    bool WorldTreePanel::get_visibility() const  { 
+        return pimpl->is_visible; 
+    }
 
     bool WorldTreePanel::is_locked() {
         return pimpl->is_locked;
