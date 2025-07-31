@@ -7,6 +7,8 @@
 
 namespace Salix {
 
+    
+
     struct ApplicationEventListener::Pimpl {
         Engine* engine_ptr = nullptr;
     };

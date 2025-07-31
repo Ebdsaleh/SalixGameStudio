@@ -14,6 +14,8 @@ namespace Salix {
 
     class SALIX_API ApplicationEventListener : public IEventListener {
     public:
+
+
         // Constructor takes a pointer to the Engine, allowing it to signal shutdown.
         ApplicationEventListener();
         ~ApplicationEventListener() override;
