@@ -64,7 +64,9 @@ namespace Salix {
         inline bool is_mouse_button_event() const { return is_in_category(EventCategory::MouseButton); }
         virtual void* get_native_handle() { return nullptr; } // Default implementation returns nullptr
         // This will be overridden by concrete SDL events to return the SDL_Event*
-
+        virtual bool should_block() const { return false; } // Default implementation
+        virtual void set_block(bool block) {(void)block;}              // Default does nothing
+    
         bool handled = false;
     };
 
