@@ -6,6 +6,8 @@
 // =================================================================================
 #include <Editor/EditorAPI.h>
 #include <Editor/states/EditorState.h>
+#include <imgui/imgui.h>
+#include <ImGuizmo/ImGuizmo.h>
 
 Salix::IAppState* create_editor_state(Salix::AppStateType state_type) {
     switch (state_type) {
@@ -23,4 +25,6 @@ Salix::IAppState* create_editor_state(Salix::AppStateType state_type) {
 // This will allow the ImGui context to traverse the Dll scope barrier.
 void set_imgui_context(ImGuiContext* context) {
     ImGui::SetCurrentContext(context);
+    ImGuizmo::SetImGuiContext(context);
 }
+
