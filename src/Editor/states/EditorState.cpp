@@ -45,6 +45,7 @@
 #include <Salix/gui/DialogBox.h>
 #include <ImGuiFileDialog.h>
 #include <imgui/imgui.h>
+#include <ImGuizmo.h>
 #include <iostream>
 #include <fstream> // For file logging
 #include <glm/glm.hpp>
@@ -221,6 +222,9 @@ namespace Salix {
             ImGui::PushFont(active_font->get_imgui_font_ptr());
         }
 
+        if (pimpl->editor_context->init_context->engine->is_running()) {
+            ImGuizmo::BeginFrame();
+        }  
         pimpl->begin_dockspace();
         pimpl->draw_debug_window();
         // moved pimpl->render_menu_bar_and_panels() to EditorState::render()
