@@ -697,6 +697,8 @@ bool ImGui_ImplSDL2_InitForOther(SDL_Window* window)
 
 static void ImGui_ImplSDL2_CloseGamepads();
 
+// ---ORIGINAL CODE---
+/*
 void ImGui_ImplSDL2_Shutdown()
 {
     ImGui_ImplSDL2_Data* bd = ImGui_ImplSDL2_GetBackendData();
@@ -715,6 +717,74 @@ void ImGui_ImplSDL2_Shutdown()
     io.BackendPlatformUserData = nullptr;
     io.BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_HasSetMousePos | ImGuiBackendFlags_HasGamepad | ImGuiBackendFlags_PlatformHasViewports | ImGuiBackendFlags_HasMouseHoveredViewport);
     IM_DELETE(bd);
+}
+    */
+// ---END OF ORIGINAL CODE---
+
+// Modified by Ebdsaleh for SalixGameStudio 31/07/2025.
+void ImGui_ImplSDL2_Shutdown()
+{
+    // Layer 1: Context validation
+    if (!ImGui::GetCurrentContext())
+        return;
+
+    // Layer 2: Safe IO access
+    ImGuiIO* io = &ImGui::GetIO();
+    if (!io->BackendPlatformUserData)
+        return;
+
+    // Layer 3: Backend data validation
+    ImGui_ImplSDL2_Data* bd = ImGui_ImplSDL2_GetBackendData();
+    if (!bd) {
+        io->BackendPlatformUserData = nullptr;
+        return;
+    }
+
+    // Layer 4: Conditional multi-viewport cleanup
+    if (io->BackendFlags & ImGuiBackendFlags_PlatformHasViewports) {
+        ImGui_ImplSDL2_ShutdownMultiViewportSupport();
+    }
+
+    // Layer 5: Safe resource cleanup
+    if (bd->ClipboardTextData) {
+        SDL_free(bd->ClipboardTextData);
+        bd->ClipboardTextData = nullptr;
+    }
+
+    // Layer 6: Cursor cleanup with validation
+    if (bd->MouseCursors) {
+        for (ImGuiMouseCursor cursor_n = 0; cursor_n < ImGuiMouseCursor_COUNT; cursor_n++) {
+            if (bd->MouseCursors[cursor_n] && bd->MouseCursors[cursor_n] != bd->MouseCursors[ImGuiMouseCursor_Arrow]) {
+                SDL_FreeCursor(bd->MouseCursors[cursor_n]);
+                bd->MouseCursors[cursor_n] = nullptr;
+            }
+        }
+    }
+
+    // Layer 7: Gamepad cleanup
+    ImGui_ImplSDL2_CloseGamepads();
+
+    // Layer 8: State reset
+    io->BackendPlatformName = nullptr;
+    io->BackendPlatformUserData = nullptr;
+    io->BackendFlags &= ~(ImGuiBackendFlags_HasMouseCursors | 
+                         ImGuiBackendFlags_HasSetMousePos |
+                         ImGuiBackendFlags_HasGamepad |
+                         ImGuiBackendFlags_PlatformHasViewports |
+                         ImGuiBackendFlags_HasMouseHoveredViewport);
+
+    // Layer 9: Safe memory deletion
+    if (bd) {
+        IM_DELETE(bd);
+        io->BackendPlatformUserData = nullptr; // Double protection
+    }
+
+    // Layer 10: SDL state verification (optional)
+    #ifdef IMGUI_IMPL_SDL2_DEBUG
+    if (SDL_WasInit(SDL_INIT_VIDEO)) {
+        fprintf(stderr, "[ImGui SDL2] Warning: SDL video subsystem still active\n");
+    }
+    #endif
 }
 
 // This code is incredibly messy because some of the functions we need for full viewport support are not available in SDL < 2.0.4.

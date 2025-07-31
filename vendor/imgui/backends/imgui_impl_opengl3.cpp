@@ -418,7 +418,8 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
 
     return true;
 }
-
+/*
+// ---- ORIGINAL CODE ---
 void    ImGui_ImplOpenGL3_Shutdown()
 {
     ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
@@ -431,7 +432,59 @@ void    ImGui_ImplOpenGL3_Shutdown()
     io.BackendRendererUserData = nullptr;
     io.BackendFlags &= ~(ImGuiBackendFlags_RendererHasVtxOffset | ImGuiBackendFlags_RendererHasTextures | ImGuiBackendFlags_RendererHasViewports);
     IM_DELETE(bd);
+} 
+// --- END OF ORIGINAL CODE ---
+*/
+// Modified by Ebdsaleh for SalixGameStudio 31/07/2025.
+void ImGui_ImplOpenGL3_Shutdown() {
+    // Layer 1: Early exit if ImGui context is invalid
+    if (!ImGui::GetCurrentContext())
+        return;
+
+    // Layer 2: Safe access to IO structure
+    ImGuiIO* io = &ImGui::GetIO();
+    if (!io->BackendRendererUserData)  // Already cleaned up
+        return;
+
+    // Layer 3: Safe backend data access
+    ImGui_ImplOpenGL3_Data* bd = ImGui_ImplOpenGL3_GetBackendData();
+    if (!bd) {
+        io->BackendRendererUserData = nullptr;
+        return;
+    }
+
+    // Layer 4: Graceful multi-viewport shutdown
+    if (io->BackendFlags & ImGuiBackendFlags_RendererHasViewports) {
+        ImGui_ImplOpenGL3_ShutdownMultiViewportSupport();
+    }
+
+    // Layer 5: Protected device objects cleanup
+    if (bd->ShaderHandle) {
+        ImGui_ImplOpenGL3_DestroyDeviceObjects();
+    }
+
+    // Layer 6: Atomic backend state clearance
+    io->BackendRendererName = nullptr;
+    io->BackendRendererUserData = nullptr;
+    io->BackendFlags &= ~(ImGuiBackendFlags_RendererHasVtxOffset | 
+                         ImGuiBackendFlags_RendererHasTextures | 
+                         ImGuiBackendFlags_RendererHasViewports);
+
+    // Layer 7: Safe memory deletion
+    if (bd) {
+        IM_DELETE(bd);
+        io->BackendRendererUserData = nullptr;  // Double protection
+    }
+
+    // Layer 8: GL state sanity check (optional)
+    #ifdef IMGUI_IMPL_OPENGL_DEBUG
+    GLenum err = glGetError();
+    if (err != GL_NO_ERROR) {
+        fprintf(stderr, "[ImGui OpenGL3] Post-shutdown GL error 0x%x\n", err);
+    }
+    #endif
 }
+
 
 void    ImGui_ImplOpenGL3_NewFrame()
 {
