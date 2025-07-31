@@ -498,6 +498,7 @@ namespace Salix {
 
             if (pimpl->gui_system) {
             pimpl->gui_system->new_frame();
+            
             }
             
            
@@ -514,6 +515,7 @@ namespace Salix {
 
     void Engine::shutdown() {
         std::cout << "Shutting down engine." << std::endl;
+        
         // Shutdown GUI System
         if (pimpl->gui_system) {
             pimpl->gui_system->shutdown();
@@ -550,16 +552,19 @@ namespace Salix {
 
         pimpl->asset_manager.reset();
 
+        if (pimpl->editor_dll_handle) {
+            FreeLibrary(pimpl->editor_dll_handle);
+            
+            pimpl->editor_dll_handle = nullptr; // Clear handle after freeing
+        }
+
         pimpl->renderer.reset();
         if (pimpl->game_dll_handle) {
             FreeLibrary(pimpl->game_dll_handle);
             pimpl->game_dll_handle = nullptr; // Clear handle after freeing
         }
 
-        if (pimpl->editor_dll_handle) {
-            FreeLibrary(pimpl->editor_dll_handle);
-            pimpl->editor_dll_handle = nullptr; // Clear handle after freeing
-        }
+        
         TTF_Quit();
         SDL_Quit();
     }
@@ -637,6 +642,7 @@ namespace Salix {
     }
 
     void Engine::update(float delta_time) {
+        if (pimpl->is_running) {
         if (pimpl->current_state) {
             pimpl->current_state->update(delta_time);
         }
@@ -644,6 +650,7 @@ namespace Salix {
         if (get_input_manager()) {
             get_input_manager()->update(delta_time);
         }
+    }
 
     }
 
@@ -651,31 +658,30 @@ namespace Salix {
         if (!pimpl->renderer) return;
 
 
-        
-        pimpl->renderer->begin_frame();
-        
+            pimpl->renderer->begin_frame();
+            
 
-        if (pimpl->current_state) {
-            pimpl->current_state->render(pimpl->renderer.get());
-        }
+            if (pimpl->current_state) {
+                pimpl->current_state->render(pimpl->renderer.get());
+            }
 
-        
+            
 
-        // Render GUI if active
-        if (pimpl->gui_system) {
-            // 1. Prepare ImGui's draw data
-            pimpl->gui_system->render(); 
-        }
-        
-        // 2. Swap the main window's buffer to show the result
-        pimpl->renderer->end_frame();
+            // Render GUI if active
+            if (pimpl->gui_system) {
+                // 1. Prepare ImGui's draw data
+                pimpl->gui_system->render(); 
+            }
+            
+            // 2. Swap the main window's buffer to show the result
+            pimpl->renderer->end_frame();
 
+            
         
-       
-        // 3. NOW, update and render any extra ImGui windows
-       if (pimpl->gui_system) {
-           pimpl->gui_system->update_and_render_platform_windows();
-        }
+            // 3. NOW, update and render any extra ImGui windows
+            if (pimpl->gui_system) {
+                pimpl->gui_system->update_and_render_platform_windows();
+            }
         
     }
 
