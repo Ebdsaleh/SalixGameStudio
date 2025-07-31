@@ -1223,6 +1223,61 @@ namespace IMGUIZMO_NAMESPACE
       }
    }
 
+   // Added by Ebdsaleh for SalixGameStudio 31/07/2025.
+   void ImGuizmo::Deinitialize() {
+      // Clear all allocated resources in the context
+      if (gContext.mDrawList) {
+         gContext.mDrawList = nullptr;  // ImDrawList is owned by ImGui
+      }
+      
+      // Clear all vectors and dynamic data
+      gContext.mIDStack.clear();
+      
+      // Reset matrices to identity
+      gContext.mViewMat = matrix_t();
+      gContext.mProjectionMat = matrix_t();
+      gContext.mModel = matrix_t();
+      gContext.mModelLocal = matrix_t();
+      gContext.mModelInverse = matrix_t();
+      gContext.mModelSource = matrix_t();
+      gContext.mModelSourceInverse = matrix_t();
+      gContext.mMVP = matrix_t();
+      gContext.mMVPLocal = matrix_t();
+      gContext.mViewProjection = matrix_t();
+
+      // Reset all vectors
+      gContext.mModelScaleOrigin = vec_t();
+      gContext.mCameraEye = vec_t();
+      gContext.mCameraRight = vec_t();
+      gContext.mCameraDir = vec_t();
+      gContext.mCameraUp = vec_t();
+      gContext.mRayOrigin = vec_t();
+      gContext.mRayVector = vec_t();
+      gContext.mRelativeOrigin = vec_t();
+
+      gContext.mRadiusSquareCenter = 1.0f;
+      gContext.mScreenSquareCenter = ImVec2(0.0f, 0.0f);
+      gContext.mScreenSquareMin = ImVec2(0.0f, 0.0f);
+      gContext.mScreenSquareMax = ImVec2(0.0f, 0.0f);
+      gContext.mScreenFactor = 1.0f;
+      
+      
+      // Reset all other state
+      gContext.mbUsing = false;
+      gContext.mbUsingViewManipulate = false;
+      gContext.mbEnable = true;
+      // ... reset all other bool flags ...
+      
+      // Clear ImGui references
+      gContext.mAlternativeWindow = nullptr;
+      gContext.mEditingID = -1;
+      
+      // Important: Break connection to ImGui context
+      SetImGuiContext(nullptr);
+      gContext = Context();
+   }
+
+
    static void ComputeSnap(float* value, float snap)
    {
       if (snap <= FLT_EPSILON)
