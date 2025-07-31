@@ -29,9 +29,9 @@ namespace Salix {
         virtual void set_visibility(bool visibility) = 0;
         virtual bool get_visibility() const = 0;
         virtual void set_name(const std::string& new_name) = 0;
-        virtual bool is_locked() = 0;
-        virtual void unlock() = 0;
-        virtual void lock() = 0;
+        virtual bool is_locked() { return false;}
+        virtual void unlock() {};
+        virtual void lock() {};
 
         virtual const std::string& get_name() = 0;
     };
