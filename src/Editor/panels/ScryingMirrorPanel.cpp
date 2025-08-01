@@ -67,7 +67,6 @@ namespace Salix {
         }
 
         ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-        begin();
         
         ImGui::Text("Properties:");
         ImGui::Separator();
@@ -111,7 +110,7 @@ namespace Salix {
         } else {
             ImGui::Text("No object selected.");
         }
-        end();
+        
     }
 
 
