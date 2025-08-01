@@ -6,6 +6,7 @@
 #include <Salix/management/FileManager.h>
 #include <filesystem> // <<< The C++ standard library for file system operations
 #include <iostream>
+#include <algorithm>  // For std::replace
 #include <fstream>    // For std::ifstream, std::ios::binary
 #include <sstream>    // For std::stringstream (used in hex dump formatting)
 #include <iomanip>    // For std::hex, std::setw, std::setfill
@@ -152,4 +153,27 @@ namespace Salix {
             return false;
         }
     }
+
+     std::string FileManager::convert_to_relative(const std::string& project_root, const std::string& absolute_path)
+    {
+        // 1. Create copies to work with that we can modify.
+        std::string root = project_root;
+        std::string abs_path = absolute_path;
+
+        // 2. Normalize all path separators to forward slashes for consistent comparison.
+        std::replace(root.begin(), root.end(), '\\', '/');
+        std::replace(abs_path.begin(), abs_path.end(), '\\', '/');
+
+        // 3. Check if the absolute path starts with the project root path.
+        //    string::rfind is a reliable C++ way to check for a prefix.
+        if (abs_path.rfind(root, 0) == 0) {
+            // 4. If it does, get the part of the string that comes after the root path.
+            //    The +1 is to also remove the leading slash from the result.
+            return abs_path.substr(root.length() + 1);
+        }
+
+        // 5. If the path is not inside the project, return the original absolute path as a fallback.
+        return absolute_path;
+    }
+
 } // namespace Salix
