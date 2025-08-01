@@ -10,6 +10,7 @@ add_library(SalixEditor SHARED
     EditorFactory.cpp
     states/EditorState.cpp
     panels/PanelManager.cpp
+    panels/LockablePanel.cpp
     panels/WorldTreePanel.cpp
     panels/ScryingMirrorPanel.cpp
     panels/ThemeEditorPanel.cpp
