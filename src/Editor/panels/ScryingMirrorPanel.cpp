@@ -34,118 +34,86 @@ namespace Salix {
         
     };
 
-    ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) { }
+    ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
+        set_name("Scrying Mirror Panel");
+        set_title("Scrying Mirror");
+        set_lock_icon_size(ImVec2(16, 16));
+    }
     ScryingMirrorPanel::~ScryingMirrorPanel() = default;
 
 
     void ScryingMirrorPanel::initialize(EditorContext* context) {
         if(!context) { return; } // Cannot accept a null EditorContext pointer.
+        LockablePanel::initialize(context); // CRUCIAL: Base init first
         pimpl->context = context;
-        pimpl->icon_manager = dynamic_cast<ImGuiIconManager*>(pimpl->context->gui->get_icon_manager());
-        if (!pimpl->icon_manager) { return ;} // ImGuiIconManager failed casting.
+        set_visibility(true);
+        
+        // Configure lock visuals
+        set_locked_state_tint_color(ImVec4(0.5f, 0.0f, 0.0f, 1.0f));
+        set_unlocked_state_tint_color(ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+        set_lock_icon("Panel Unlocked");
         // Subscribe this panel to the Editor event category
         pimpl->context->event_manager->subscribe(EventCategory::Editor, this);
         std::cout << "ScryingMirrorPanel Initialized and subscribed to Editor events." << std::endl;
     }
 
-
-    void ScryingMirrorPanel::set_name(const std::string& new_name) {
-        pimpl->name = new_name;
+    ImGuiWindowFlags ScryingMirrorPanel::get_window_flags() const {
+        return ImGuiWindowFlags_None; // Add any custom flags here
     }
-
-    const std::string& ScryingMirrorPanel::get_name() {
-        return pimpl->name;
-    }
-
    
-    void ScryingMirrorPanel::on_gui_update() {
+    void ScryingMirrorPanel::on_panel_gui_update() {
         if (!pimpl->is_visible) {
             return;
         }
 
-        if(ImGui::Begin("Scrying Mirror", &pimpl->is_visible)){
-            ImGui::Separator();
-            // handle icon adjustment for OpenGL rendering
-                ImVec2 icon_size = ImVec2(16, 16);
-                ImVec2 top_left = ImVec2(0, 0);
-                ImVec2 bottom_right = ImVec2(1, 1);
-                // --- PANEL LOCK/UNLOCK BUTTON ---
-                ImGui::AlignTextToFramePadding();
-                // ImGui::SameLine(
+        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
+        begin();
+        
+        ImGui::Text("Properties:");
+        ImGui::Separator();
 
-                const IconInfo& lock_icon = pimpl->is_locked ? 
-                    pimpl->icon_manager->get_icon_by_name("Panel Locked") :
-                    pimpl->icon_manager->get_icon_by_name("Panel Unlocked");
-
-                ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
-                if (pimpl->is_locked) {
-                    tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
-                }
-
-                // Only attempt to draw if the icon texture ID is valid
-                if (lock_icon.texture_id != 0) {
-                    if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
-                        // Button was clicked, toggle the lock state
-                        pimpl->is_locked = !pimpl->is_locked; 
-                        std::cout << "Scrying Mirror Panel lock toggled to: " << (pimpl->is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
-                    }
-                } 
-            ImGui::Text("Properties:");
-            ImGui::Separator();
-
-            if (pimpl->is_locked) {
-                ImGui::BeginDisabled(); // Disable all interactive widgets below this point
+        if (pimpl->selected_element || (pimpl->context && pimpl->context->selected_entity)) {
+            if (pimpl->context->selected_entity) {
+                ImGui::Text("Entity: %s", pimpl->context->selected_entity->get_name().c_str());
+                ImGui::Separator();
             }
-            if (pimpl->selected_element || (pimpl->context && pimpl->context->selected_entity)) {
-                if (pimpl->context->selected_entity) {
-                    ImGui::Text("Entity: %s", pimpl->context->selected_entity->get_name().c_str());
-                    ImGui::Separator();
+
+            std::vector<Salix::Element*> elements_to_display;
+
+            if (pimpl->selected_element) {
+                elements_to_display.push_back(pimpl->selected_element);
+            }
+            else if (pimpl->context && pimpl->context->selected_entity) {
+                elements_to_display = pimpl->context->selected_entity->get_all_elements();
+            }
+
+            for (auto* element : elements_to_display) {
+                const std::type_index typeIndex = typeid(*element);
+                const TypeInfo* typeInfo = ByteMirror::get_type_info(typeIndex);
+
+                if (!typeInfo) {
+                    ImGui::Text("Unreflected Element: %s", typeIndex.name());
+                    continue;
                 }
-
-                std::vector<Salix::Element*> elements_to_display;
-
-                if (pimpl->selected_element) {
-                    elements_to_display.push_back(pimpl->selected_element);
-                }
-                else if (pimpl->context && pimpl->context->selected_entity) {
-                    elements_to_display = pimpl->context->selected_entity->get_all_elements();
-                }
-
-                for (auto* element : elements_to_display) {
-                    const std::type_index typeIndex = typeid(*element);
-                    const TypeInfo* typeInfo = ByteMirror::get_type_info(typeIndex);
-
-                    if (!typeInfo) {
-                        ImGui::Text("Unreflected Element: %s", typeIndex.name());
-                        continue;
-                    }
-                    
-                    if (ImGui::CollapsingHeader(typeInfo->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                        // This is where we add the table.
-                        if (ImGui::BeginTable(typeInfo->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
-                            ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-                            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-                            for (const auto& prop : typeInfo->properties) {
-                                pimpl->draw_property(prop, element);
-                            }
-                            ImGui::EndTable();
+                
+                if (ImGui::CollapsingHeader(typeInfo->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                    // This is where we add the table.
+                    if (ImGui::BeginTable(typeInfo->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
+                        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+                        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+                        for (const auto& prop : typeInfo->properties) {
+                            pimpl->draw_property(prop, element);
                         }
+                        ImGui::EndTable();
                     }
                 }
-            } else {
-                ImGui::Text("No object selected.");
             }
+        } else {
+            ImGui::Text("No object selected.");
         }
-        if (pimpl->is_locked) {
-            ImGui::EndDisabled(); // End the disabled block
-        }
-        ImGui::End();
+        end();
     }
 
-
-    void ScryingMirrorPanel::on_gui_render() {}
-
-    void ScryingMirrorPanel::on_render() {}
 
     void ScryingMirrorPanel::on_event(IEvent& event) {
         if (event.get_event_type() == EventType::EditorEntitySelected) {
@@ -165,14 +133,6 @@ namespace Salix {
     }
 
 
-    bool ScryingMirrorPanel::get_visibility() const {
-        return pimpl->is_visible;
-    }
-
-
-    void ScryingMirrorPanel::set_visibility(bool visibility) {
-        pimpl->is_visible = visibility;
-    }
 
 
 
@@ -191,19 +151,5 @@ namespace Salix {
 
         ImGui::PopItemWidth();
     }
-
-    bool ScryingMirrorPanel::is_locked() {
-        return pimpl->is_locked;
-    }
-
-
-    void ScryingMirrorPanel::unlock() {
-        pimpl->is_locked = false;
-    }
-
-
-    void ScryingMirrorPanel::lock() {
-        pimpl->is_locked = true;
-    }   
 
 }  // namespace Salix

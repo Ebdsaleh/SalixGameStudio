@@ -5,30 +5,26 @@
 // =================================================================================
 #pragma once
 #include <Editor/EditorAPI.h>
-#include <Editor/panels/IPanel.h>
+#include <Editor/panels/LockablePanel.h>
 #include <Editor/EditorContext.h>
 #include <memory>
 
 namespace Salix {
 
-    class EDITOR_API ScryingMirrorPanel : public IPanel {
+    class EDITOR_API ScryingMirrorPanel : public LockablePanel {
     
     public:
 
         ScryingMirrorPanel();
         ~ScryingMirrorPanel() override;
         void initialize(EditorContext* context) override;
-        void on_gui_update() override;
-        void on_gui_render() override;
-        void on_render() override;
-        void set_visibility(bool visibility) override;
-        bool get_visibility() const override;
+        bool is_panel_derived() const override { return true; }
+
         void on_event(IEvent& event) override;
-        void set_name(const std::string& new_name) override;
-        bool is_locked()override;
-        void unlock() override;
-        void lock() override;
-        const std::string& get_name() override;
+        
+    protected:
+        void on_panel_gui_update() override; // Main content
+        ImGuiWindowFlags get_window_flags() const override;
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
