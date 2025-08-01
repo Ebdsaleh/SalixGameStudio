@@ -63,12 +63,12 @@ namespace Salix {
             return;
         }
         ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-        begin();
+        
         // Render all entities
         for (Entity* entity : pimpl->context->active_scene->get_entities()) {
             if (entity) render_entity_tree(entity);
         }
-        end();
+        
     }
 
     void WorldTreePanel::render_entity_tree(Entity* entity) {

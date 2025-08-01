@@ -34,4 +34,4 @@ namespace Salix {
         void render_entity_tree(Entity* entity);
         void render_element(Element* element);
     };
-}
+}  // namespace Salix
