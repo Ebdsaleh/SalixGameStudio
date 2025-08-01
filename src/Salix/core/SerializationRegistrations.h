@@ -14,6 +14,8 @@
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/ecs/RenderableElement.h>
+#include <Salix/ecs/RenderableElement2D.h>
+#include <Salix/ecs/RenderableElement3D.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/ecs/CppScript.h> // The engine knows about the CppScript base class
@@ -28,7 +30,10 @@ CEREAL_REGISTER_TYPE(Salix::CppScript); // Register the CppScript base class
 // --- Step 5: Define Polymorphic Relationships for Engine Types ---
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::Transform);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::RenderableElement);
-CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::RenderableElement, Salix::Sprite2D);
+// 2D and 3D elements inherit from the base RenderableElement
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::RenderableElement, Salix::RenderableElement2D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::RenderableElement, Salix::RenderableElement3D);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::RenderableElement2D, Salix::Sprite2D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::ScriptElement);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::ScriptElement, Salix::CppScript);
 
