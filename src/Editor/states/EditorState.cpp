@@ -427,7 +427,7 @@ namespace Salix {
         Sprite2D* player_sprite = player->add_element<Sprite2D>();
         const std::string sprite_file_path = "src/Sandbox/TestProject/Assets/Images/test.png";
         player_sprite->load_texture(editor_context->asset_manager, sprite_file_path);
-        BoxCollider* player_collider = player->add_element<BoxCollider>();
+        BoxCollider* player_collider = player->get_element<BoxCollider>();
         float ppu = editor_context->renderer->get_pixels_per_unit();
         player_collider->set_size(
             Vector3(
