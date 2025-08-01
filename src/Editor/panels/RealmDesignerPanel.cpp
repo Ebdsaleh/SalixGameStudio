@@ -13,6 +13,8 @@
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/RenderableElement2D.h>
+#include <Salix/ecs/RenderableElement3D.h>
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/ecs/BoxCollider.h>
@@ -242,14 +244,36 @@ namespace Salix {
                 glm::value_ptr(scale)
             );
 
+            // Position and Scale are always applied regardless of type
             transform->set_position(Vector3(translation.x, translation.y, translation.z));
-            transform->set_rotation(
-                glm::radians(rotation.x),
-                glm::radians(rotation.y),
-                glm::radians(rotation.z)
-            );
             transform->set_scale(Vector3(scale.x, scale.y, scale.z));
+            // --- Hierarchical Rotation Logic ---
+
+            // Priority 1: Check for a 3D component FIRST.
+            if (selected_entity->get_element<RenderableElement3D>()) {
+                // It has a 3D component, so ALWAYS treat it as fully 3D.
+                transform->set_rotation(
+                    rotation.x,
+                    rotation.y,
+                    rotation.z
+                );
+            }
+            // Priority 2: ONLY if no 3D component exists, check for a 2D one.
+            else if (selected_entity->get_element<RenderableElement2D>()) {
+                // It's purely a 2D object, so constrain rotation to the Z-axis.
+                transform->set_rotation(0.0f, 0.0f, rotation.z);
+            }
+            else {
+                // Default behavior for entities with no renderable component (e.g., an empty locator).
+                // Treat as 3D by default.
+                transform->set_rotation(
+                    rotation.x,
+                    rotation.y,
+                    rotation.z
+                );
+            }
         }
+            
 
         // Block selection when gizmo is active
         EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
