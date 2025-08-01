@@ -1,3 +1,4 @@
+// Editor/panels/ThemeEditorPanel.cpp
 #include <Editor/panels/ThemeEditorPanel.h>
 #include <Editor/EditorContext.h>
 #include <Salix/core/InitContext.h>
@@ -10,6 +11,7 @@
 #include <Salix/gui/imgui/ImGuiTheme.h> 
 #include <Salix/gui/imgui/ImGuiThemeData.h>
 #include <Salix/gui/DialogBox.h>
+#include <Salix/management/FileManager.h>
 #include <imgui/imgui.h>
 #include <iostream>
 #include <string>
@@ -379,16 +381,31 @@ namespace Salix {
 
                             // 2. Set the callback HERE, capturing the current 'data' pointer
                             dialog->set_callback([this, data](const FileDialogResult& result) {
-                                if (!icon_type_being_edited.empty()) {
-                                    if (result.is_ok) {
-                                        // Now we directly modify the captured 'data' object
-                                        data->icon_paths[icon_type_being_edited] = result.file_path_name;
-                                        last_icon_directory = result.folder_path;
-                                    }
-                                    icon_type_being_edited.clear();
+                            if (!icon_type_being_edited.empty()) {
+                                if (result.is_ok) {
+                                    // 1. Get the absolute path from the dialog.
+                                    std::string absolute_path = result.file_path_name;
+
+                                    // 2. Get the project's current working directory directly.
+                                    std::string project_root = std::filesystem::current_path().string();
+
+                                    // 3. Convert the absolute path to a clean, relative one using your new utility.
+                                    std::string relative_path = FileManager::convert_to_relative(project_root, absolute_path);
+
+                                    // 4. Update the theme data with the portable, RELATIVE path.
+                                    data->icon_paths[icon_type_being_edited] = relative_path;
+                                    
+                                    // 5. Update the last-used directory for a better user experience.
+                                    last_icon_directory = result.folder_path;
+
+                                    // 6. Request a theme reload to make the UI update automatically.
+                                    context->gui->request_theme_reload();
                                 }
+                                
+                                // 7. Clear the state variable.
+                                icon_type_being_edited.clear();
+                            }
                             });
-                            
                             // 3. Set the dialog's starting path
                             dialog->set_default_path(last_icon_directory);
 
@@ -402,6 +419,11 @@ namespace Salix {
             }
         }
     }
+
+
+
+
+
 
     bool ThemeEditorPanel::is_locked() {
         return pimpl->is_locked;
