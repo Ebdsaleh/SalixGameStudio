@@ -85,5 +85,6 @@ namespace Salix {
         private:
             struct Pimpl;
             std::unique_ptr<Pimpl> pimpl;
+            void draw_lock_ui();
     };
 } // namespace Salix

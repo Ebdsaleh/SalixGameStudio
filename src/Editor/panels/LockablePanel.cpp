@@ -28,7 +28,7 @@ namespace Salix {
         IIconManager* icon_manager = nullptr;
 
         // 1. Handle lock button
-        void draw_lock_ui(); 
+         
         
     };
 
@@ -55,35 +55,35 @@ namespace Salix {
     }
 
 
-    void LockablePanel::Pimpl::draw_lock_ui() {
+    void LockablePanel::draw_lock_ui() {
 
-        if (!icon_manager) {
+        if (!pimpl->icon_manager) {
             ImGui::TextColored(ImVec4(1,0,0,1), "No icon manager!");
             return;
         }
 
         ImGui::PushID(this);
-        if (lock_icon.texture_id) {
+        if (pimpl->lock_icon.texture_id) {
             const bool clicked = ImGui::ImageButton(
                 "##PanelLock", 
-                lock_icon.texture_id,
-                lock_icon_size,
-                top_left, 
-                bottom_right,
+                pimpl->lock_icon.texture_id,
+                pimpl->lock_icon_size,
+                pimpl->top_left, 
+                pimpl->bottom_right,
                 ImVec4(0,0,0,0), 
-                is_locked ? locked_tint_color : unlocked_tint_color
+                pimpl->is_locked ? pimpl->locked_tint_color : pimpl->unlocked_tint_color
             );
 
-            if (clicked && icon_manager) {
-                is_locked = !is_locked;
+            if (clicked && pimpl->icon_manager) {
+                pimpl->is_locked = !pimpl->is_locked;
                 // Auto-swap icon (optional)
-                lock_icon = icon_manager->get_icon_by_name(
-                    is_locked ? locked_state_icon_name : unlocked_state_icon_name
+                pimpl->lock_icon = pimpl->icon_manager->get_icon_by_name(
+                    pimpl->is_locked ? pimpl->locked_state_icon_name : pimpl->unlocked_state_icon_name
                 );
             }
 
             if (ImGui::IsItemHovered()) {
-                ImGui::SetTooltip("%s", is_locked ? "Unlock panel" : "Lock panel");
+                ImGui::SetTooltip("%s", pimpl->is_locked ? "Unlock panel" : "Lock panel");
             }
         }
         ImGui::PopID();
@@ -104,9 +104,8 @@ namespace Salix {
 
 
     void LockablePanel::draw_panel_contents() {
-        pimpl->draw_lock_ui();
         if (!pimpl->is_locked) {
-            on_panel_gui_update();  // For derived classes
+                on_panel_gui_update();  // For derived classes
         }
     }
 
@@ -124,7 +123,19 @@ namespace Salix {
         } 
         else {
             // 2. Let derived class implement content
-            draw_panel_contents();
+            if (ImGui::Begin(pimpl->title.c_str(), &pimpl->is_visible)) {
+                draw_lock_ui();
+                ImGui::End();
+            }
+            if (pimpl->is_locked) { 
+                ImGui::BeginDisabled();
+            }
+                on_panel_gui_update();  // For derived classes
+            if (pimpl->is_locked) {
+                ImGui::EndDisabled();
+            }
+            
+            
         }
     } 
 
