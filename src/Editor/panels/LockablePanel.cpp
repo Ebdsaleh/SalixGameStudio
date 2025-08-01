@@ -110,35 +110,39 @@ namespace Salix {
     }
 
 
-
+    
     void LockablePanel::on_gui_update() {
         if (!pimpl->is_visible) return;
-        
-        // Case 1: Standalone mode (direct instantiation)
-        if (!is_panel_derived()) {  // Implement this flag (see below)
-            if (ImGui::Begin(pimpl->title.c_str(), &pimpl->is_visible)) {
-                draw_panel_contents();
-                ImGui::End();
-            }
-        } 
-        else {
-            // 2. Let derived class implement content
-            if (ImGui::Begin(pimpl->title.c_str(), &pimpl->is_visible)) {
-                draw_lock_ui();
-                ImGui::End();
-            }
-            if (pimpl->is_locked) { 
-                ImGui::BeginDisabled();
-            }
-                on_panel_gui_update();  // For derived classes
-            if (pimpl->is_locked) {
-                ImGui::EndDisabled();
-            }
-            
-            
-        }
-    } 
 
+        // The window creation is now the first step for any panel.
+        if (begin()) { // This calls ImGui::Begin()
+
+            // --- PATH B: Derived Panel ---
+            if (is_panel_derived()) {
+                // 1. Draw the lock UI provided by the base class.
+                draw_lock_ui();
+                ImGui::Separator(); // Visually separate lock from content
+
+                // 2. Wrap the derived content if locked.
+                if (pimpl->is_locked) {
+                    ImGui::BeginDisabled();
+                }
+                
+                on_panel_gui_update(); // Call derived content (no begin/end needed)
+                
+                if (pimpl->is_locked) {
+                    ImGui::EndDisabled();
+                }
+            }
+            // --- PATH A: Standalone Panel ---
+            else {
+                draw_panel_contents();
+            }
+
+            // The window is always closed here, once.
+            end(); // This calls ImGui::End()
+        }
+    }
 
 
 
