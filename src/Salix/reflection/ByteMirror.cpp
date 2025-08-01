@@ -9,6 +9,7 @@
 #include <Salix/ecs/CppScript.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/RenderableElement.h>
+#include <Salix/ecs/RenderableElement2D.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/Transform.h>
 #include <glm/glm.hpp>
@@ -150,7 +151,7 @@ namespace Salix {
     void ByteMirror::register_type<Sprite2D>() { 
         TypeInfo type_info;
         type_info.name = std::string("Sprite2D");
-        type_info.ancestor = get_type_info(typeid(RenderableElement));
+        type_info.ancestor = get_type_info(typeid(RenderableElement2D));
         type_info.properties = {
             { 
                 "Color", PropertyType::Color, nullptr,
@@ -176,6 +177,20 @@ namespace Salix {
                 [](void* instance, void* data) {
                     static_cast<Sprite2D*>(instance)->set_offset(*static_cast<Vector2*>(data));
                 }
+            },
+
+            {
+                "Use Entity Rotation", PropertyType::Bool, nullptr,
+                // getter_func
+                [](void* instance) {return static_cast<void*>(
+                    &static_cast<Sprite2D*>(instance)->get_use_entity_rotation());
+                },
+
+                // setter_func
+                [](void* instance, void* data) {
+                    static_cast<Sprite2D*>(instance)->set_use_entity_rotation(*static_cast<bool*>(data)); 
+                }
+
             },
 
             {
