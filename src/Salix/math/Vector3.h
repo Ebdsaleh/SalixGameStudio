@@ -22,6 +22,10 @@ namespace Salix {
         // Constructor that takes x, y, and z values
         Vector3(float x_in, float y_in, float z_in) : x(x_in), y(y_in), z(z_in) {}
 
+        // Constructor to seamlessly convert from a glm::vec3
+        Vector3(const glm::vec3& other) : x(other.x), y(other.y), z(other.z) {}
+
+
         //  Calculates the magnitude (length) of the vector.
         float length() const;
 
