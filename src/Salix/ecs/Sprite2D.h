@@ -3,7 +3,7 @@
 
 #include <Salix/core/Core.h>
 #include <Salix/math/Color.h>
-#include <Salix/ecs/RenderableElement.h>
+#include <Salix/ecs/RenderableElement2D.h>
 #include <Salix/math/Vector2.h>  // For the pivot and offset.
 #include <string>
 #include <memory>
@@ -17,7 +17,7 @@ namespace Salix {
     class IRenderer;
     class AssetManager;
     struct InitContext;
-    class SALIX_API Sprite2D : public RenderableElement {
+    class SALIX_API Sprite2D : public RenderableElement2D {
         public:
             Sprite2D();
             virtual ~Sprite2D();
@@ -34,7 +34,7 @@ namespace Salix {
 
 
             // --- Properties ---
-            
+            bool use_entity_rotation = false;  // For use with hybrid rendering pipeline, set to true when camera is in 'perspective' mode.
             Color color;                // Color property for color tinting.
             Vector2 offset;             // A local offset from the Transform's position
             Vector2 pivot;              // Normalized pivot point (0,0 = top-left, 1,1 = bottom-right).
@@ -42,8 +42,14 @@ namespace Salix {
             bool flip_v = false;        // Flip veritcally?
             int sorting_layer = 0;      // For future use in the Scene.
             std::string texture_path;   // The path to the image used as the texture.
-            
+
             // Getters and Setters for use with our ByteMirror reflection system.
+            bool& get_use_entity_rotation() { return use_entity_rotation; }
+
+            void set_use_entity_rotation(bool should_use_entity_rotation) {
+                use_entity_rotation = should_use_entity_rotation; 
+            }
+
             Color& get_color() { return color; }
             void set_color(const Color& new_color) { color = new_color; }
 
@@ -64,6 +70,7 @@ namespace Salix {
 
             const std::string& get_texture_path() const;
             void set_texture_path(const std::string& new_texture_path) { texture_path = new_texture_path; }
+
 
             ITexture* get_texture() const;
 
