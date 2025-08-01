@@ -8,7 +8,7 @@ Font:
   font_size: 16
   font_scale_main: 1
 Icons:
-  Camera: C:\Users\nadir\repos\CPP\SalixGameStudio\Assets\Icons\Editor\Kenney\Generic\PNG\Colored\genericItem_color_001.png
+  Camera: Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_047.png
 Colors:
   text_color:
     r: 0.18476431
