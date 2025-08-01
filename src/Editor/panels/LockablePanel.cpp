@@ -122,8 +122,10 @@ namespace Salix {
                 ImGui::End();
             }
         } 
-        // 2. Let derived class implement content
-        
+        else {
+            // 2. Let derived class implement content
+            draw_panel_contents();
+        }
     } 
 
 
@@ -140,6 +142,9 @@ namespace Salix {
     }
 
 
+     void LockablePanel::on_event(IEvent& event) {
+        (void)event;
+    }
 
     void LockablePanel::set_visibility(bool visibility) {
          pimpl->is_visible = visibility;

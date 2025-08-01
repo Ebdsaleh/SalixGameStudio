@@ -3,19 +3,20 @@
 #include <Editor/EditorAPI.h>
 #include <Editor/panels/IPanel.h>
 #include <Editor/EditorContext.h>
+#include <Salix/events/IEvent.h>
 #include <memory>
 #include <string>
 #include <imgui/imgui.h>
 
 namespace Salix {
 
-    class SALIX_API LockablePanel : public IPanel {
+    class EDITOR_API LockablePanel : public IPanel {
 
         public:
 
             LockablePanel();
             
-            virtual ~LockablePanel() override;
+            ~LockablePanel() override;
 
             void initialize(EditorContext* context);
 
@@ -25,6 +26,7 @@ namespace Salix {
 
             void on_render() override;
 
+            void on_event(IEvent& event) override; 
             void set_visibility(bool visibility) override;
 
             bool get_visibility() const override;
