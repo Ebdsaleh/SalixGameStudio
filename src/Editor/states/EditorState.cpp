@@ -29,6 +29,7 @@
 #include <Editor/panels/ScryingMirrorPanel.h>
 #include <Editor/panels/RealmDesignerPanel.h>
 #include <Editor/panels/RealmPortalPanel.h>
+#include <Editor/panels/ProjectSettingsPanel.h>
 #include <Editor/panels/ThemeEditorPanel.h>
 
 // For ImGui Docking
@@ -47,6 +48,7 @@
 #include <imgui/imgui.h>
 #include <ImGuizmo.h>
 #include <iostream>
+#include <memory>
 #include <fstream> // For file logging
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -67,6 +69,7 @@ namespace Salix {
         RealmPortalPanel* realm_portal = nullptr;
         bool show_theme_editor = false; 
         bool show_camera_debug_window = true;
+        bool show_project_settings  = false;
         void handle_first_frame_setup();
         void begin_dockspace();
         void update_menu_bar_and_panels();
@@ -174,6 +177,16 @@ namespace Salix {
         log_file << "[DEBUG] Registering ThemeEditorPanel..." << std::endl;
         pimpl->panel_manager->register_panel(std::move(theme_editor_panel), theme_editor_name);
         log_file << "[DEBUG] ThemeEditorPanel registered." << std::endl;
+
+        // NEW ProjectSettingsPanel
+        log_file << "[DEBUG] Creating ProjectSettingsPanel..." << std::endl;
+        auto project_settings_panel = std::make_unique<ProjectSettingsPanel>();
+        std::string project_settings_name = "Project Settings Panel";
+        log_file << "[DEBUG] Initializing Project Settings Panel..." << std::endl;
+        project_settings_panel->initialize(pimpl->editor_context.get());
+        log_file << "[DEBUG] Registering Project Settings Panel..." << std::endl;
+        pimpl->panel_manager->register_panel(std::move(project_settings_panel), project_settings_name);
+        log_file << "[DEBUG] ProjectSettingsPanel registered." << std::endl;
 
         log_file << "[DEBUG] EditorState::on_enter FINISHED successfully." << std::endl;
 
@@ -338,8 +351,11 @@ namespace Salix {
                 }
                 }
             if (ImGui::MenuItem("Project Settings")) {
-                /* TODO: Will implement later...*/
-            }
+                    show_project_settings = true;
+                    if( IPanel* project_settings_panel = panel_manager->get_panel(std::string("Project Settings Panel"))) {
+                        project_settings_panel->set_visibility(true);
+                    }
+                }
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("View")) {
@@ -503,4 +519,6 @@ namespace Salix {
         ImGui::End();
     }
         
-}
+
+
+} // namespace Salix
