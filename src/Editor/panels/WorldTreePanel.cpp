@@ -64,25 +64,6 @@ namespace Salix {
 
 
 
-    // Currently stable 
-    /*
-    void WorldTreePanel::on_panel_gui_update() {
-        if (!pimpl->context || !pimpl->context->active_scene) {
-            ImGui::Text("No active scene.");
-            return;
-        }
-        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-        
-        // Render all entities
-        for (Entity* entity : pimpl->context->active_scene->get_entities()) {
-            if (entity) render_entity_tree(entity);
-        }
-        
-    }
-    // End of currently stable
-    */
-
-
     void WorldTreePanel::on_panel_gui_update() {
         if (!pimpl->context || !pimpl->context->active_scene) {
             ImGui::Text("No active scene.");
