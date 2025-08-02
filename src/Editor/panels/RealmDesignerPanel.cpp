@@ -205,88 +205,7 @@ namespace Salix {
     }
 
 
-    // Currently working code
-    /*
-    void RealmDesignerPanel::Pimpl::handle_gizmos(EditorCamera* camera, Entity* selected_entity) {
-        if (is_locked || !selected_entity) return;
-
-        ImGuizmo::SetOrthographic(false);
-        ImGuizmo::SetDrawlist();
-        
-        // Set viewport rect
-        ImVec2 viewport_min = ImGui::GetItemRectMin();
-        ImVec2 viewport_max = ImGui::GetItemRectMax();
-        ImGuizmo::SetRect(viewport_min.x, viewport_min.y, 
-                         viewport_max.x - viewport_min.x, 
-                         viewport_max.y - viewport_min.y);
-
-        // Get matrices
-        const glm::mat4& camera_view = camera->get_view_matrix();
-        const glm::mat4& camera_projection = camera->get_projection_matrix();
-        Transform* transform = selected_entity->get_transform();
-        glm::mat4 entity_matrix = transform->get_model_matrix();
-        
-        // Handle interaction
-        bool manipulated = ImGuizmo::Manipulate(
-            glm::value_ptr(camera_view),
-            glm::value_ptr(camera_projection),
-            CurrentGizmoOperation,
-            ImGuizmo::LOCAL,
-            glm::value_ptr(entity_matrix)
-        );
-
-        // Update transform if manipulated
-        if (manipulated) {
-            glm::vec3 translation, rotation, scale;
-            ImGuizmo::DecomposeMatrixToComponents(
-                glm::value_ptr(entity_matrix),
-                glm::value_ptr(translation),
-                glm::value_ptr(rotation),
-                glm::value_ptr(scale)
-            );
-
-            // Position and Scale are always applied regardless of type
-            transform->set_position(Vector3(translation.x, translation.y, translation.z));
-            transform->set_scale(Vector3(scale.x, scale.y, scale.z));
-            // --- Hierarchical Rotation Logic ---
-
-            // Priority 1: Check for a 3D component FIRST.
-            if (selected_entity->get_element<RenderableElement3D>()) {
-                // It has a 3D component, so ALWAYS treat it as fully 3D.
-                transform->set_rotation(
-                    rotation.x,
-                    rotation.y,
-                    rotation.z
-                );
-            }
-            // Priority 2: ONLY if no 3D component exists, check for a 2D one.
-            else if (selected_entity->get_element<RenderableElement2D>()) {
-                // It's purely a 2D object, so constrain rotation to the Z-axis.
-                transform->set_rotation(0.0f, 0.0f, rotation.z);
-            }
-            else {
-                // Default behavior for entities with no renderable component (e.g., an empty locator).
-                // Treat as 3D by default.
-                transform->set_rotation(
-                    rotation.x,
-                    rotation.y,
-                    rotation.z
-                );
-            }
-        }
-            
-
-        // Block selection when gizmo is active
-        EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
-        
-        // Set cursor
-        if (ImGuizmo::IsOver()) {
-            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
-        }
-    }
-
-    // End of currently working code
-    */
+    
 
 
 
@@ -450,7 +369,7 @@ namespace Salix {
         if (!pimpl->is_visible || !pimpl->context || !pimpl->context->active_scene) {
             return;
         }
-       
+        
         // 1. Prepare the render pass (state management)
         pimpl->context->renderer->begin_render_pass(pimpl->framebuffer_id);
         pimpl->context->renderer->set_viewport(0, 0, (int)pimpl->viewport_size.x, (int)pimpl->viewport_size.y);
@@ -466,7 +385,7 @@ namespace Salix {
             pimpl->last_picking_ray.origin + pimpl->last_picking_ray.direction * 1000.0f, // A long line
             {1.0f, 1.0f, 0.0f, 1.0f} // Yellow
     );
-
+        draw_grid();
         pimpl->context->renderer->end_render_pass();
     }
 
@@ -648,6 +567,110 @@ namespace Salix {
 
                 // Draw the wireframe box
                 renderer->draw_wire_box(model_matrix, box_color);
+            }
+        }
+    }
+
+
+
+
+
+    // DRAW GRID
+    /*
+    void RealmDesignerPanel::draw_grid() {
+        if (!pimpl->context || !pimpl->context->grid_settings.snap_enabled) 
+            return;
+
+        IRenderer* renderer = pimpl->context->renderer;
+        const auto& grid = pimpl->context->grid_settings;
+        
+        // Calculate visible grid area based on camera
+        Vector3 camera_pos = pimpl->context->editor_camera->get_transform()->get_position();
+        float visible_range = pimpl->context->editor_camera->get_far_plane() * 0.5f;  // No method get_far_plane() yet
+        
+        // Draw grid lines
+        for (float x = -grid.size; x <= grid.size; x += grid.major_division) {
+            renderer->draw_line(
+                {x, 0, -grid.size}, 
+                {x, 0, grid.size},
+                grid.color
+            );
+        }
+        for (float z = -grid.size; z <= grid.size; z += grid.major_division) {
+            renderer->draw_line(
+                {-grid.size, 0, z}, 
+                {grid.size, 0, z},
+                grid.color
+            );
+        }
+    }
+        */
+
+
+    void RealmDesignerPanel::draw_grid() {
+        if (!pimpl->context || !pimpl->context->grid_settings.snap_enabled) 
+            return;
+
+        IRenderer* renderer = pimpl->context->renderer;
+        const auto& grid = pimpl->context->grid_settings;
+        
+        // Get camera information
+        Vector3 camera_pos = pimpl->context->editor_camera->get_transform()->get_position();
+        float visible_range = pimpl->context->editor_camera->get_far_plane(); // Assuming this is now available
+        
+        // Calculate grid bounds based on camera position and visible range
+        float min_x = std::floor((camera_pos.x - visible_range) / grid.major_division) * grid.major_division;
+        float max_x = std::ceil((camera_pos.x + visible_range) / grid.major_division) * grid.major_division;
+        float min_z = std::floor((camera_pos.z - visible_range) / grid.major_division) * grid.major_division;
+        float max_z = std::ceil((camera_pos.z + visible_range) / grid.major_division) * grid.major_division;
+        
+        // Clamp to grid size limits
+        min_x = std::max(min_x, -grid.size);
+        max_x = std::min(max_x, grid.size);
+        min_z = std::max(min_z, -grid.size);
+        max_z = std::min(max_z, grid.size);
+        
+        // Draw grid lines
+        for (float x = min_x; x <= max_x; x += grid.major_division) {
+            renderer->draw_line(
+                {x, 0, min_z}, 
+                {x, 0, max_z},
+                grid.color
+            );
+        }
+        
+        for (float z = min_z; z <= max_z; z += grid.major_division) {
+            renderer->draw_line(
+                {min_x, 0, z}, 
+                {max_x, 0, z},
+                grid.color
+            );
+        }
+        
+        // Draw minor grid lines if enabled
+        if (grid.minor_division > 0 && grid.minor_division < grid.major_division) {
+            Color minor_color = grid.color * 0.7f; // Slightly dimmer color for minor lines
+            
+            for (float x = min_x; x <= max_x; x += grid.minor_division) {
+                // Skip major division lines
+                if (std::fmod(x, grid.major_division) < 0.001f) continue;
+                
+                renderer->draw_line(
+                    {x, 0, min_z}, 
+                    {x, 0, max_z},
+                    minor_color
+                );
+            }
+            
+            for (float z = min_z; z <= max_z; z += grid.minor_division) {
+                // Skip major division lines
+                if (std::fmod(z, grid.major_division) < 0.001f) continue;
+                
+                renderer->draw_line(
+                    {min_x, 0, z}, 
+                    {max_x, 0, z},
+                    minor_color
+                );
             }
         }
     }
