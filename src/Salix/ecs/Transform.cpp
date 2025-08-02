@@ -50,6 +50,16 @@ namespace Salix {
     }
 
     void Transform::set_parent(Transform* new_parent) {
+        // Prevent circular hierarchy
+        if (new_parent && owner) {
+            // Check if new_parent is already a child of this transform
+            for (Transform* current = new_parent; current != nullptr; current = current->get_parent()) {
+                if (current == this) {
+                    std::cerr << "Circular transform hierarchy detected" << std::endl;
+                    return;
+                }
+            }
+        }
         // If we already have a parent, detatch from it first.
         if (pimpl->parent) {
             pimpl->parent->remove_child(this);
@@ -66,6 +76,20 @@ namespace Salix {
     Transform* Transform::get_parent() const{
         return pimpl->parent;
     }
+
+    
+
+    bool Transform::is_child_of(const Transform* potential_parent) const {
+        for (Transform* current = pimpl->parent; current != nullptr; current = current->get_parent()) {
+            if (current == potential_parent) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+
 
     const std::vector<Transform*>& Transform::get_children() const {
         return pimpl->children;
@@ -90,34 +114,32 @@ namespace Salix {
 
 
     Vector3 Transform::get_world_position() {
-        if (pimpl->parent) {
-            // recursively add our local postiton to our parent's world position.
-            // NOTE: This is a simplified version. Generally we would use Matrix math.
-            return pimpl->parent->get_world_position() + position;
-        }
-        // If no parent, return local position Vector3
-        return position;
+        // Get the final world matrix and extract the translation component from the 4th column.
+        glm::mat4 world_matrix = get_model_matrix();
+        return Vector3(world_matrix[3].x, world_matrix[3].y, world_matrix[3].z);
     }
 
-    Vector3 Transform::get_world_rotation() {
-        if (pimpl->parent) {
-            // Rotations also add up.
-            return pimpl->parent->get_world_rotation() + rotation;
 
+    Vector3 Transform::get_world_rotation() {
+        
+        if (pimpl->parent) {
+            return pimpl->parent->get_world_rotation() + rotation;
         }
-        // If no parent, return local rotation Vector3
         return rotation;
     }
 
+
     Vector3 Transform::get_world_scale() {
+        // Decomposing for scale is also complex. Your current multiplication is a good approximation.
         if (pimpl->parent) {
-            // Scales multiply
             return pimpl->parent->get_world_scale() * scale;
         }
-        // If no parent, return local scale Vector3
         return scale;
     }
+
+
     // --- SETTTERS ---
+
     // --- POSITION ---
     void Transform::set_position(const Vector3& new_position) {
         position = new_position;
@@ -213,7 +235,8 @@ namespace Salix {
         return orientation * glm::vec3(1.0f, 0.0f, 0.0f);
     }
 
-
+    // --- Previously working code ---
+    /*
     glm::mat4 Transform::get_model_matrix() const {
         const glm::mat4 transform_x = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x),
             glm::vec3(1.0f, 0.0f, 0.0f));
@@ -230,8 +253,36 @@ namespace Salix {
             rotation_matrix *
             glm::scale(glm::mat4(1.0f), scale.to_glm());
     }
+    // --- End of previously working code
+    */
 
-    
+
+    glm::mat4 Transform::get_model_matrix() const {
+        // 1. Calculate this transform's local matrix. Your existing code is perfect.
+        const glm::mat4 transform_x = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x),
+            glm::vec3(1.0f, 0.0f, 0.0f));
+        const glm::mat4 transform_y = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y),
+            glm::vec3(0.0f, 1.0f, 0.0f));
+        const glm::mat4 transform_z = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z),
+            glm::vec3(0.0f, 0.0f, 1.0f));
+        const glm::mat4 rotation_matrix = transform_z * transform_y * transform_x;
+        const glm::mat4 local_matrix = glm::translate(glm::mat4(1.0f), position.to_glm()) *
+                                    rotation_matrix *
+                                    glm::scale(glm::mat4(1.0f), scale.to_glm());
+
+        // 2. If we have a parent, multiply our local matrix by our parent's world matrix.
+        if (pimpl->parent) {
+            return pimpl->parent->get_model_matrix() * local_matrix;
+        }
+        
+        // 3. If there's no parent, our local matrix is our world matrix.
+        return local_matrix;
+    }
+
+
+
+
+
 
     template<class Archive>
     void Transform::serialize(Archive& archive) {
