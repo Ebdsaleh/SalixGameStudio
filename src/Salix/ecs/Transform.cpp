@@ -80,6 +80,7 @@ namespace Salix {
     
 
     bool Transform::is_child_of(const Transform* potential_parent) const {
+        if (!potential_parent) return false;
         for (Transform* current = pimpl->parent; current != nullptr; current = current->get_parent()) {
             if (current == potential_parent) {
                 return true;
