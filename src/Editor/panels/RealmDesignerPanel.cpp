@@ -205,7 +205,8 @@ namespace Salix {
     }
 
 
-
+    // Currently working code
+    /*
     void RealmDesignerPanel::Pimpl::handle_gizmos(EditorCamera* camera, Entity* selected_entity) {
         if (is_locked || !selected_entity) return;
 
@@ -283,6 +284,107 @@ namespace Salix {
             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         }
     }
+
+    // End of currently working code
+    */
+
+
+
+    void RealmDesignerPanel::Pimpl::handle_gizmos(EditorCamera* camera, Entity* selected_entity) {
+        if (is_locked || !selected_entity) return;
+
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist();
+        
+        // Set viewport rect
+        ImVec2 viewport_min = ImGui::GetItemRectMin();
+        ImVec2 viewport_max = ImGui::GetItemRectMax();
+        ImGuizmo::SetRect(viewport_min.x, viewport_min.y, 
+                        viewport_max.x - viewport_min.x, 
+                        viewport_max.y - viewport_min.y);
+
+        // Get matrices
+        const glm::mat4& camera_view = camera->get_view_matrix();
+        const glm::mat4& camera_projection = camera->get_projection_matrix();
+        Transform* transform = selected_entity->get_transform();
+        
+        // Get the world matrix of the entity
+        glm::mat4 entity_matrix = transform->get_model_matrix();
+        
+        // Handle interaction
+        bool manipulated = ImGuizmo::Manipulate(
+            glm::value_ptr(camera_view),
+            glm::value_ptr(camera_projection),
+            CurrentGizmoOperation,
+            ImGuizmo::LOCAL, // Always use local space for the gizmo
+            glm::value_ptr(entity_matrix)
+        );
+
+        // Update transform if manipulated
+        if (manipulated) {
+            // For child entities, we need to convert the world matrix back to local space
+            if (transform->get_parent()) {
+                // Get parent's world matrix and its inverse
+                glm::mat4 parent_matrix = transform->get_parent()->get_model_matrix();
+                glm::mat4 parent_inverse = glm::inverse(parent_matrix);
+                
+                // Calculate the new local matrix
+                glm::mat4 new_local_matrix = parent_inverse * entity_matrix;
+                
+                // Decompose the new local matrix
+                glm::vec3 translation, rotation, scale;
+                ImGuizmo::DecomposeMatrixToComponents(
+                    glm::value_ptr(new_local_matrix),
+                    glm::value_ptr(translation),
+                    glm::value_ptr(rotation),
+                    glm::value_ptr(scale)
+                );
+                
+                // Apply the local transform
+                transform->set_position(Vector3(translation.x, translation.y, translation.z));
+                transform->set_scale(Vector3(scale.x, scale.y, scale.z));
+                
+                // Handle rotation based on entity type
+                if (selected_entity->get_element<RenderableElement3D>()) {
+                    transform->set_rotation(rotation.x, rotation.y, rotation.z);
+                } else if (selected_entity->get_element<RenderableElement2D>()) {
+                    transform->set_rotation(0.0f, 0.0f, rotation.z);
+                } else {
+                    transform->set_rotation(rotation.x, rotation.y, rotation.z);
+                }
+            } else {
+                // For root entities, decompose directly
+                glm::vec3 translation, rotation, scale;
+                ImGuizmo::DecomposeMatrixToComponents(
+                    glm::value_ptr(entity_matrix),
+                    glm::value_ptr(translation),
+                    glm::value_ptr(rotation),
+                    glm::value_ptr(scale)
+                );
+                
+                transform->set_position(Vector3(translation.x, translation.y, translation.z));
+                transform->set_scale(Vector3(scale.x, scale.y, scale.z));
+                
+                if (selected_entity->get_element<RenderableElement3D>()) {
+                    transform->set_rotation(rotation.x, rotation.y, rotation.z);
+                } else if (selected_entity->get_element<RenderableElement2D>()) {
+                    transform->set_rotation(0.0f, 0.0f, rotation.z);
+                } else {
+                    transform->set_rotation(rotation.x, rotation.y, rotation.z);
+                }
+            }
+        }
+
+        // Block selection when gizmo is active
+        EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+        
+        // Set cursor
+        if (ImGuizmo::IsOver()) {
+            ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+        }
+    }
+
+
 
 
 
