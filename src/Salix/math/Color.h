@@ -1,7 +1,7 @@
 // Salix/math/Color.h
 #pragma once
 #include <Salix/core/Core.h>
-#include <algorithm> // For std::min and std::max
+#include <algorithm>
 #include <cereal/access.hpp>
 #include <glad/glad.h>
 #include <imgui/imgui.h>
@@ -15,59 +15,75 @@ namespace Salix {
         float b = 0.0f;
         float a = 0.0f;
 
+        // Constructors
+        constexpr Color() : r(1.0f), g(1.0f), b(1.0f), a(1.0f) {}
+        constexpr Color(float red, float green, float blue, float alpha = 1.0f) 
+            : r(red), g(green), b(blue), a(alpha) {}
 
-        // Default constructor for white.
-        Color();
+        // Static factory methods
+        static constexpr Color from_rgba_int(int red, int green, int blue, int alpha = 255) {
+            return Color(
+                static_cast<float>(red) / 255.0f,
+                static_cast<float>(green) / 255.0f,
+                static_cast<float>(blue) / 255.0f,
+                static_cast<float>(alpha) / 255.0f
+            );
+        }
 
-        // Constructor to easily create a color.
-        Color(float red, float green, float blue, float alpha = 1.0f);
-
-        // --- Static Factory Methods ---
-        // A static method to create a Color object from 0-255 integer values
-        static Color from_rgba_int(int red, int green, int blue, int alpha = 255);
-
-        // A static method to create a Color object from HSV values.
-        // h (hue) is 0-360, s (saturation) and v (value) are 0-1.
         static Color from_hsv(float h, float s, float v, float alpha = 1.0f);
 
-        // Linearly interpolates between two colors.
-        // t=0.0 returns 'start', t=1.0 returns 'end'.
-        static Color lerp(const Color& start, const Color& end, float t); 
+        // Color operations
+        static constexpr Color lerp(const Color& start, const Color& end, float t) {
+            t = (t < 0.0f) ? 0.0f : ((t > 1.0f) ? 1.0f : t);
+            return {
+                start.r * (1.0f - t) + end.r * t,
+                start.g * (1.0f - t) + end.g * t,
+                start.b * (1.0f - t) + end.b * t,
+                start.a * (1.0f - t) + end.a * t
+            };
+        }
 
-        ImVec4 to_imvec4();
-        
-        
+        ImVec4 to_imvec4() const;
+
+        // Serialization
+        template<class Archive>
+        void serialize(Archive& archive) {
+            archive(cereal::make_nvp("r", r), cereal::make_nvp("g", g),
+                   cereal::make_nvp("b", b), cereal::make_nvp("a", a));
+        }
 
     private:
         friend class cereal::access;
-
-        template<class Archive>
-        void serialize(Archive& archive);
-        
     };
-    // --- NEW: STATIC PRE-DEFINED COLORS ---
-    // By making these 'inline', we can define them directly in the header.
-    // This is the modern C++17 way to handle static const members in a DLL.
-    inline static const Color White   = Color(1.0f, 1.0f, 1.0f); 
-    inline static const Color Black   = Color(0.0f, 0.0f, 0.0f);
-    inline static const Color Red     = Color(1.0f, 0.0f, 0.0f);
-    inline static const Color Green   = Color(0.0f, 1.0f, 0.0f);
-    inline static const Color Blue    = Color(0.0f, 0.0f, 1.0f);
-    inline static const Color Yellow  = Color(1.0f, 1.0f, 0.0f);
-    inline static const Color Cyan    = Color(0.0f, 1.0f, 1.0f);
-    inline static const Color Magenta = Color(1.0f, 0.0f, 1.0f);
 
-    // --- OPERATOR OVERLOADS for color math ---
-    SALIX_API Color operator+(const Color& a, const Color& b);
+    // Predefined colors
+    inline constexpr Color White   = Color(1.0f, 1.0f, 1.0f);
+    inline constexpr Color Black   = Color(0.0f, 0.0f, 0.0f);
+    inline constexpr Color Red     = Color(1.0f, 0.0f, 0.0f);
+    inline constexpr Color Green   = Color(0.0f, 1.0f, 0.0f);
+    inline constexpr Color Blue    = Color(0.0f, 0.0f, 1.0f);
+    inline constexpr Color Yellow  = Color(1.0f, 1.0f, 0.0f);
+    inline constexpr Color Cyan    = Color(0.0f, 1.0f, 1.0f);
+    inline constexpr Color Magenta = Color(1.0f, 0.0f, 1.0f);
 
-    SALIX_API Color operator-(const Color& a, const Color& b); 
+    // Operators
+    constexpr SALIX_API Color operator+(const Color& a, const Color& b) {
+        return {a.r + b.r, a.g + b.g, a.b + b.b, a.a + b.a};
+    }
 
-    SALIX_API Color operator*(const Color& a, float scalar); 
+    constexpr SALIX_API Color operator-(const Color& a, const Color& b) {
+        return {a.r - b.r, a.g - b.g, a.b - b.b, a.a - b.a};
+    }
 
-    SALIX_API Color operator*(float scalar, const Color& a);  // required for lerp method.
+    constexpr SALIX_API Color operator*(const Color& a, float scalar) {
+        return {a.r * scalar, a.g * scalar, a.b * scalar, a.a * scalar};
+    }
 
-    SALIX_API YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Color& c);
-    
-    SALIX_API void operator>>(const YAML::Node& node, Salix::Color& c);
-     
-} // namespace Salix
+    constexpr SALIX_API Color operator*(float scalar, const Color& a) {
+        return a * scalar;
+    }
+
+    // Non-constexpr operators (YAML)
+    SALIX_API YAML::Emitter& operator<<(YAML::Emitter& out, const Color& c);
+    SALIX_API void operator>>(const YAML::Node& node, Color& c);
+}
