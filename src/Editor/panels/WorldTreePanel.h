@@ -25,7 +25,11 @@ namespace Salix {
     protected:
         void on_panel_gui_update() override; // Main content
         ImGuiWindowFlags get_window_flags() const override;
-        
+        void show_empty_space_context_menu();
+        void show_entity_context_menu(Entity* entity);
+        void create_new_entity(Entity* parent = nullptr);
+        void add_element_to_entity(Entity* entity, const std::string& element_type);
+
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
