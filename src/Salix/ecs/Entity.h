@@ -35,6 +35,16 @@ namespace Salix {
             void render(IRenderer* renderer);
             Transform* get_transform() const;
 
+            void set_parent(Entity* parent);
+            Entity* get_parent() const;
+
+            void add_child(Entity* child);
+            void remove_child(Entity* child);
+            const std::vector<Entity*>& get_children() const;
+
+            bool is_child_of(const Entity* potential_parent) const;
+            bool is_root() const { return get_parent() == nullptr; }
+
             void purge();
             bool is_purged() const;
             void set_name(const std::string& new_name);
@@ -117,5 +127,7 @@ namespace Salix {
             void add_element_internal(std::unique_ptr<Element> element);
             Element* get_element_internal(const std::type_info& type_info);
             const Element* get_element_internal(const std::type_info& type_info) const;          
+            Entity* parent = nullptr;
+            std::vector<Entity*> children;
         };
 } // namespace Salix

@@ -20,7 +20,9 @@ namespace Salix {
     // Define the hidden implementation details here.
     struct Entity::Pimpl {
         std::string name;
+        Entity* parent = nullptr;
         bool is_purged_flag = false;
+        std::vector<Entity*>children;
         std::vector<std::unique_ptr<Element>> all_elements;
         std::vector<RenderableElement*> renderable_elements;
         Transform* transform = nullptr;
@@ -104,6 +106,73 @@ namespace Salix {
     const SimpleGuid& Entity::get_id() const {
         return pimpl->id;
     }
+
+
+    // Heirarchial methods
+
+    void Entity::set_parent(Entity* new_parent) {
+        if (new_parent == this) return; // No self-parenting
+        
+        // Prevent circular hierarchy
+        if (new_parent && new_parent->is_child_of(this)) {
+            std::cerr << "Cannot create circular parent-child relationship" << std::endl;
+            return;
+        }
+
+        // Remove from current parent
+        if (pimpl->parent) {
+            pimpl->parent->remove_child(this);
+        }
+
+        // Set new parent
+        pimpl->parent = new_parent;
+        
+        // Add to new parent's children
+        if (new_parent) {
+            new_parent->add_child(this);
+        }
+
+        // Update transform hierarchy
+        if (pimpl->transform && new_parent && new_parent->pimpl->transform) {
+            pimpl->transform->set_parent(new_parent->pimpl->transform);
+        }
+        
+    }
+
+
+    void Entity::add_child(Entity* child) {
+        if (child && std::find(pimpl->children.begin(), pimpl->children.end(), child) == pimpl->children.end()) {
+            pimpl->children.push_back(child);
+        }
+    }
+
+    void Entity::remove_child(Entity* child) {
+        pimpl->children.erase(
+            std::remove(pimpl->children.begin(), pimpl->children.end(), child),
+            pimpl->children.end()
+        );
+    }
+
+
+    const std::vector<Entity*>& Entity::get_children() const {
+        return pimpl->children;
+    }
+
+
+    bool Entity::is_child_of(const Entity* potential_parent) const {
+        const Entity* current = pimpl->parent;
+        while (current) {
+            if (current == potential_parent) return true;
+            current = current->pimpl->parent;
+        }
+        return false;
+    }
+
+
+    Entity* Entity::get_parent() const {
+        return pimpl->parent;
+    }
+
 
     std::vector<Element*> Entity::get_all_elements() {
         // 1. Create a new, empty vector that will hold the raw pointers.
