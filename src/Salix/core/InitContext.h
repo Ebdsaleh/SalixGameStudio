@@ -41,6 +41,7 @@ namespace Salix {
         IIconManager* icon_manager;
         EngineMode engine_mode = EngineMode::None;
         std::string project_file_path;
+        std::string project_root_path;
         std::string  project_dll_path;
         float dpi_scale;
     };
