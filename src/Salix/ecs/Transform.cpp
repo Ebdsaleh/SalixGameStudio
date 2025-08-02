@@ -139,6 +139,23 @@ namespace Salix {
     }
 
 
+    Vector3 Transform::world_to_local_position(const Vector3& world_pos) const {
+        if (!pimpl->parent) return world_pos;
+        glm::vec4 local = glm::inverse(pimpl->parent->get_model_matrix()) * 
+                        glm::vec4(world_pos.x, world_pos.y, world_pos.z, 1.0f);
+        return Vector3(local.x, local.y, local.z);
+    }
+
+
+    Vector3 Transform::local_to_world_position(const Vector3& local_pos) const {
+        glm::vec4 world = get_model_matrix() * glm::vec4(local_pos.x, local_pos.y, local_pos.z, 1.0f);
+        return Vector3(world.x, world.y, world.z);
+    }
+
+
+
+
+
     // --- SETTTERS ---
 
     // --- POSITION ---

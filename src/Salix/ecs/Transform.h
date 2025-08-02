@@ -23,6 +23,9 @@ namespace Salix {
             Vector3 get_world_rotation();
             Vector3 get_world_scale();
 
+            Vector3 world_to_local_position(const Vector3& world_pos) const;
+            Vector3 local_to_world_position(const Vector3& local_pos) const;
+
             void set_position(const Vector3& new_position);
             void set_position(const float new_x, float new_y, float new_z);
             
@@ -55,6 +58,9 @@ namespace Salix {
             glm::vec3 get_right() const;
             
             glm::mat4 get_model_matrix() const;
+
+
+            
         private:
             
             // All implementation details are hidden behind this single pointer
