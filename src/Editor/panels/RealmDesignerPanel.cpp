@@ -575,38 +575,6 @@ namespace Salix {
 
 
 
-    // DRAW GRID
-    /*
-    void RealmDesignerPanel::draw_grid() {
-        if (!pimpl->context || !pimpl->context->grid_settings.snap_enabled) 
-            return;
-
-        IRenderer* renderer = pimpl->context->renderer;
-        const auto& grid = pimpl->context->grid_settings;
-        
-        // Calculate visible grid area based on camera
-        Vector3 camera_pos = pimpl->context->editor_camera->get_transform()->get_position();
-        float visible_range = pimpl->context->editor_camera->get_far_plane() * 0.5f;  // No method get_far_plane() yet
-        
-        // Draw grid lines
-        for (float x = -grid.size; x <= grid.size; x += grid.major_division) {
-            renderer->draw_line(
-                {x, 0, -grid.size}, 
-                {x, 0, grid.size},
-                grid.color
-            );
-        }
-        for (float z = -grid.size; z <= grid.size; z += grid.major_division) {
-            renderer->draw_line(
-                {-grid.size, 0, z}, 
-                {grid.size, 0, z},
-                grid.color
-            );
-        }
-    }
-        */
-
-
     void RealmDesignerPanel::draw_grid() {
         if (!pimpl->context || !pimpl->context->grid_settings.snap_enabled) 
             return;
