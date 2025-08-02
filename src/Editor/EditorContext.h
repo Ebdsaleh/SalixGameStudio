@@ -7,6 +7,7 @@
 // =================================================================================
 #pragma once
 #include <Editor/EditorAPI.h>
+#include <Editor/GridSettings.h>
 
 namespace Salix {
 
@@ -60,8 +61,10 @@ namespace Salix {
         Camera* main_camera = nullptr;
         Element* selected_element = nullptr;
         Entity* selected_entity = nullptr;
-        
-        
+        GridSettings grid_settings; 
+
+        EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}) {}
     };
+    
 
 } // namespace Salix
