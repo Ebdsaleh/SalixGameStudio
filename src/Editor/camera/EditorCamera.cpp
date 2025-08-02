@@ -107,6 +107,36 @@ namespace Salix {
     }
 
 
+    float EditorCamera::get_far_plane() const {
+        return pimpl->far_clip;
+    }
+
+
+
+    void  EditorCamera::set_far_plane(float far_plane) {
+        if (far_plane <= pimpl->near_clip) {
+            std::cerr << "EditorCamera::set_far_plane - Far plane must be greater than near plane!" << std::endl;
+            return;
+        }
+        pimpl->far_clip = far_plane;
+        pimpl->projection_dirty = true; // Mark projection matrix as dirty
+    }
+
+
+    float EditorCamera::get_near_plane() const {
+        return pimpl->near_clip;
+    }
+
+
+    void EditorCamera::set_near_plane(float near_plane) {
+        if (near_plane >= pimpl->far_clip) {
+            std::cerr << "EditorCamera::set_near_plane - Near plane must be less than far plane!" << std::endl;
+            return;
+        }
+        pimpl->near_clip = near_plane;
+        pimpl->projection_dirty = true; // Mark projection matrix as dirty
+    }
+
 
 
     void EditorCamera::initialize(EditorContext* context) {

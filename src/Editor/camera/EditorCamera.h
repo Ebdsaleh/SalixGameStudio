@@ -20,6 +20,10 @@ namespace Salix {
         // The main update loop for handling input
         void on_update(float delta_time);
 
+        float get_far_plane() const;
+        void set_far_plane(float far_plane);
+        float get_near_plane() const;
+        void set_near_plane(float near_plane);
         const glm::mat4& get_view_matrix() override;
         const glm::mat4& get_projection_matrix() override;
         void set_projection_mode(ProjectionMode mode) override;
