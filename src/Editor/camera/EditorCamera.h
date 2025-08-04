@@ -19,7 +19,8 @@ namespace Salix {
         void initialize(EditorContext* context);
         // The main update loop for handling input
         void on_update(float delta_time);
-
+        bool get_should_draw_boundary_warning() const;
+        const Vector3& get_boundary_violation_direction() const;
         float get_far_plane() const;
         void set_far_plane(float far_plane);
         float get_near_plane() const;
@@ -37,6 +38,7 @@ namespace Salix {
         void focus_on(glm::vec3 focus_position);
         void focus_on(Transform* target_transform, float distance);
         void simple_focus_on(Transform* target_transform, float distance);
+        void check_scene_bounds();
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;

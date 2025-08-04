@@ -1,6 +1,7 @@
 // Editor/camera/EditorCamera.cpp
 #define GLM_ENABLE_EXPERIMENTAL
 #include <Editor/camera/EditorCamera.h>
+#include <Editor/EditorContext.h>
 #include <Salix/input/ImGuiInputManager.h>
 #include <Salix/events/sdl/SDLEvent.h>
 #include <Salix/ecs/Transform.h>
@@ -15,8 +16,11 @@
 namespace Salix {
 
     struct EditorCamera::Pimpl {
+        EditorContext* context;
         bool is_initialzed = false;
         bool mouse_is_inside_scene = false;
+        bool should_draw_boundary_warning = false;
+        Vector3 boundary_violation_direction = Vector3::Zero;
         ImGuiInputManager* input;
         Transform transform = Transform();
         // It owns all the state and matrices itself.
@@ -106,6 +110,8 @@ namespace Salix {
         return pimpl->projection_matrix;
     }
 
+    bool EditorCamera::get_should_draw_boundary_warning() const { return pimpl->should_draw_boundary_warning; }
+    const Vector3& EditorCamera::get_boundary_violation_direction() const { return pimpl->boundary_violation_direction; }
 
     float EditorCamera::get_far_plane() const {
         return pimpl->far_clip;
@@ -144,6 +150,7 @@ namespace Salix {
             std::cerr << "EditorCamera::initialize - Failed initialization, EditorContext is NULL!" << std::endl;
             return; 
         }
+        pimpl->context = context;
 
         ImGuiInputManager* input_manager = dynamic_cast<ImGuiInputManager*>(context->init_context->input_manager);
         if (! input_manager) {
@@ -169,6 +176,7 @@ namespace Salix {
             }
            
             pimpl->handle_zoom();
+            
         }
         (void) delta_time;
         pimpl->view_dirty = true; 
@@ -187,6 +195,43 @@ namespace Salix {
     }
 
 
+    void EditorCamera::check_scene_bounds() {
+        // 1. Reset warning flag first (fast)
+        pimpl->should_draw_boundary_warning = false;
+        
+        // 2. Early exit if bounds checking is disabled
+        if (!pimpl->context || !pimpl->context->scene_settings.use_scene_bounds) {
+            return;
+        }
+
+        // 3. Cache frequently accessed values
+        const float max_dist = pimpl->context->scene_settings.scene_size * 0.9f;
+        const Vector3& current_pos = pimpl->transform.get_position();
+        
+        // 4. Check bounds without modifying position first
+        bool out_of_bounds = 
+            (std::abs(current_pos.x) > max_dist) || 
+            (std::abs(current_pos.z) > max_dist);
+
+        // 5. Only modify position if absolutely necessary
+        if (out_of_bounds) {
+            Vector3 new_pos = current_pos;
+            pimpl->boundary_violation_direction = Vector3::Zero;
+            
+            if (std::abs(new_pos.x) > max_dist) {
+                pimpl->boundary_violation_direction.x = (new_pos.x > 0) ? 1.0f : -1.0f;
+                new_pos.x = max_dist * pimpl->boundary_violation_direction.x;
+            }
+            if (std::abs(new_pos.z) > max_dist) {
+                pimpl->boundary_violation_direction.z = (new_pos.z > 0) ? 1.0f : -1.0f;
+                new_pos.z = max_dist * pimpl->boundary_violation_direction.z;
+            }
+
+            pimpl->transform.set_position(new_pos);
+            pimpl->should_draw_boundary_warning = true;
+        }
+    }
+    
 
 
     void EditorCamera::Pimpl::handle_movement() {
