@@ -9,6 +9,7 @@
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/rendering/IRenderer.h>
+#include <Salix/rendering/DummyCamera.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Entity.h>
@@ -36,6 +37,7 @@ namespace Salix {
         uint32_t framebuffer_id = 0;
         ImVec2 viewport_size = { 1280, 720 };
         bool is_panel_focused_this_frame = false;
+        std::unique_ptr<DummyCamera> failsafe_camera;
         
         void draw_scene();
         
@@ -57,7 +59,7 @@ namespace Salix {
             std::cerr << "RealmPortalPanel Error: Renderer is not available, cannot create framebuffer!" << std::endl;
             return;
         }
-        
+        pimpl->failsafe_camera = std::make_unique<DummyCamera>();
         pimpl->icon_manager = dynamic_cast<ImGuiIconManager*>(pimpl->context->gui->get_icon_manager());
         if (!pimpl->icon_manager) { return; }
         
@@ -180,10 +182,11 @@ namespace Salix {
         }
 
         // Find the MainCamera from the context (which is set when the scene is created) 
-        ICamera* main_camera = pimpl->context->main_camera;
-        if (!main_camera) {
+        ICamera* camera_to_use = pimpl->context->main_camera;
+        if (!camera_to_use) {
             // If there's no main camera, we can't render the game view.
-            return; 
+
+            camera_to_use = pimpl->failsafe_camera.get();
         }
 
         IRenderer* renderer = pimpl->context->renderer;
@@ -195,7 +198,7 @@ namespace Salix {
         renderer->clear();
 
         //  Use the MainCamera for this render pass 
-        renderer->set_active_camera(main_camera);
+        renderer->set_active_camera(camera_to_use);
 
         // --- Draw the Scene ---
         pimpl->draw_scene();
