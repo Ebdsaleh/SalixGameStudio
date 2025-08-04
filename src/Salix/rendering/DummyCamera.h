@@ -1,12 +1,13 @@
 // Salix/rendering/DummyCamera/h
 #pragma once
+#include <Salix/core/Core.h>
 #include <Salix/rendering/ICamera.h>
 #include <glm/glm.hpp>
 #include <memory>
 
 namespace Salix {
 
-    class DummyCamera : public ICamera {
+    class SALIX_API DummyCamera : public ICamera {
     public:
         DummyCamera();
         ~DummyCamera() override;
