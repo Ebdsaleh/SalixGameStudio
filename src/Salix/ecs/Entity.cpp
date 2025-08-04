@@ -80,12 +80,14 @@ namespace Salix {
     }
     
     void Entity::update(float delta_time) {
+        if (pimpl->is_purged_flag) return;
         for (auto& element : pimpl->all_elements) {
             element->update(delta_time);
         }
     }
 
     void Entity::render(IRenderer* renderer) {
+        if (pimpl->is_purged_flag) return;
         for (auto& element : pimpl->renderable_elements) {
             element->render(renderer);
         }
