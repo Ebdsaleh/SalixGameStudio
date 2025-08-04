@@ -1,12 +1,15 @@
 // Editor/panels/LockablePanel.h
 #pragma once
+#define IMGUI_HAS_DOCK
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 #include <Editor/EditorAPI.h>
 #include <Editor/panels/IPanel.h>
 #include <Editor/EditorContext.h>
 #include <Salix/events/IEvent.h>
 #include <memory>
 #include <string>
-#include <imgui/imgui.h>
+
 
 namespace Salix {
 

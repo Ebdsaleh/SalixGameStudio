@@ -139,9 +139,9 @@ namespace Salix {
                 draw_panel_contents();
             }
 
-            // The window is always closed here, once.
-            end(); // This calls ImGui::End()
         }
+        // The window is always closed here, once.
+            end(); // This calls ImGui::End()
     }
 
 
