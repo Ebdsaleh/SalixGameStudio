@@ -294,7 +294,7 @@ namespace Salix {
                 // Future duplicate functionality
             }
 
-            if (ImGui::MenuItem("Delete##DeleteEntity", "Del")) {
+            if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
                 if (pimpl->context && pimpl->context->active_scene) {
                     if (entity){
                         if (entity->get_parent()) entity->release_from_parent();
