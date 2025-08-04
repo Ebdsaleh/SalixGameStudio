@@ -68,7 +68,7 @@ namespace Salix {
         virtual void set_viewport(int x, int y, int width, int height) = 0;
 
         virtual void on_window_resize(int width, int height) = 0;
-         virtual void set_active_camera(ICamera* camera) = 0;
+        virtual void set_active_camera(ICamera* camera) = 0;
 
         // Provide access to the window it owns, without giving up ownership.
         virtual IWindow* get_window() = 0;
@@ -85,5 +85,11 @@ namespace Salix {
         virtual void draw_sprite(ITexture* texture, const Transform* transform, const Color& color, SpriteFlip flip) = 0;
         virtual void draw_wire_box(const glm::mat4& model_matrix, const Color& color) = 0;
         virtual void draw_line(const glm::vec3& start, const glm::vec3& end, const Color& color) = 0; 
+        virtual const float get_line_width() const { return 1.0f; }
+        virtual void draw_sphere(const glm::vec3& center, 
+            float radius, 
+            const Color& color,
+            int segments = 16) {(void)center, (void)radius, (void)color, (void)segments;}
+        virtual void set_line_width(float line_width) {(void)line_width;}
     };
 } // namespace Salix
