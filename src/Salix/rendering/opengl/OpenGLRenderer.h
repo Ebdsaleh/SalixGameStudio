@@ -71,6 +71,7 @@ namespace Salix {
 
         // Sets the active camera that the renderer will use to get view/projection matrices.
         void set_active_camera(ICamera* camera) override;
+        ICamera* get_active_camera() override;
 
         // A test function to draw a simple colored cube.
         void draw_cube(const glm::mat4& model_matrix, const Color& color);

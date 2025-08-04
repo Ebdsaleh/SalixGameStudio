@@ -594,6 +594,10 @@ namespace Salix {
         pimpl->active_camera = camera;
     }
 
+    ICamera* OpenGLRenderer::get_active_camera() {
+        return pimpl->active_camera;
+    }
+
     void OpenGLRenderer::clear_depth_buffer() {
         glad_glClear(GL_DEPTH_BUFFER_BIT);
     }
