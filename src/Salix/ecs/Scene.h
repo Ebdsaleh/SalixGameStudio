@@ -23,14 +23,17 @@ struct InitContext;
         Scene(const std::string& scene_name, const std::string& relative_file_path);
         ~Scene();
 
+
         // Lifecycle methods
         void on_load(const InitContext& new_context, const std::string& project_root_path); // need for AssetManager
         void update(float delta_time);
         void render(IRenderer* renderer);
         void on_unload();
         bool load_content_from_file(const std::string& project_root_path);
+        void maintain();
+        void set_context(const InitContext& context);
 
-         // Tries to deserialize content from this scene's file path.
+        // Tries to deserialize content from this scene's file path.
         bool load_from_file();
         // Loops through entities and tells them to load their assets (textures, etc.).
         void load_assets(const InitContext& new_context);

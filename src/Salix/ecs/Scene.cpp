@@ -8,7 +8,8 @@
 #include <Salix/management/FileManager.h> // For file operations
 #include <Salix/core/SerializationRegistrations.h>
 #include <Salix/rendering/ICamera.h>
-
+#include <Salix/events/EventManager.h>
+#include <Salix/events/BeforeEntityPurgedEvent.h>
 #include <filesystem> // For std::filesystem::path
 #include <fstream>    // For std::ifstream
 #include <algorithm>  // For std::remove_if
@@ -159,6 +160,14 @@ namespace Salix {
         std::cout << "Scene '" << name << "' unloaded." << std::endl;
     }
 
+
+
+    void Scene::set_context(const InitContext& context) {
+        pimpl->context = context;
+    }
+
+
+
     void Scene::update(float delta_time) {
         
         // --- The Purge Phase ---
@@ -174,6 +183,39 @@ namespace Salix {
         }
         
     }
+
+
+
+
+    void Scene::maintain() {
+        // --- The Purge Phase ---
+
+        // Step 1: Find all entities marked for purging and collect them in a separate list.
+        std::vector<Entity*> entities_to_purge;
+        for (const auto& entity : pimpl->entities) {
+            if (entity && entity->is_purged()) {
+                entities_to_purge.push_back(entity.get());
+            }
+        }
+
+        // Step 2: Dispatch the 'BeforeEntityDestroyedEvent' for each one.
+        // This gives other systems a chance to safely clean up their references.
+        for (Entity* entity : entities_to_purge) {
+            BeforeEntityPurgedEvent event(entity);
+            pimpl->context.event_manager->dispatch(event);
+        }
+        
+        // Step 3: Now that everyone has been notified, we can safely delete the entities.
+        // This is the same erase-remove idiom you already have.
+        auto it = std::remove_if(pimpl->entities.begin(), pimpl->entities.end(), 
+            [](const std::unique_ptr<Entity>& entity) {
+                return entity->is_purged();
+        });
+        pimpl->entities.erase(it, pimpl->entities.end());
+    }
+
+
+
 
     void Scene::render(IRenderer* renderer) {
         // --- The Render Phase ---
