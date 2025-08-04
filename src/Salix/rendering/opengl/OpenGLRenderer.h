@@ -80,6 +80,13 @@ namespace Salix {
 
         void draw_wire_box(const glm::mat4& model_matrix, const Color& color) override;
         void draw_line(const glm::vec3& start, const glm::vec3& end, const Color& color) override;
+        const float get_line_width() const override;
+        void set_line_width(float line_width) override;
+        void draw_sphere(const glm::vec3& center, 
+            float radius, 
+            const Color& color,
+            int segments = 16
+            ) override;
         
     private:
         struct Pimpl;

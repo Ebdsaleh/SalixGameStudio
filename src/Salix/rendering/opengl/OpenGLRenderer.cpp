@@ -47,6 +47,10 @@ namespace Salix {
         int window_width = 0;  // Store current window dimensions.
         int window_height = 0;
 
+        float line_width = 1.0f;
+        GLuint sphere_vao = 0;
+        unsigned int sphere_index_count = 0;
+        std::vector<GLuint> sphere_vbos; // For cleanup
         // --- Shader Programs ---
         // 2D Shaders
         const std::string texture_vertex_file = "Assets/Shaders/OpenGL/2D/textured.vert";
@@ -87,6 +91,7 @@ namespace Salix {
         // Private helper methods for Pimpl's internal setup
         void setup_quad_geometry();
         void setup_cube_geometry();
+        void setup_sphere_geometry(int segments = 16); // Default segments
         void setup_shaders();
         void create_2D_projection_matrix(int width, int height); // Takes window dimensions.
         
@@ -209,6 +214,92 @@ namespace Salix {
         std::cout << "DEBUG: Cube geometry setup complete." << std::endl;
     }
 
+
+   
+    void OpenGLRenderer::Pimpl::setup_sphere_geometry(int segments) {
+        std::vector<glm::vec3> positions;
+        std::vector<glm::vec3> normals;
+        std::vector<glm::vec2> uv;
+        std::vector<unsigned int> indices;
+
+        // Generate sphere vertices (same as before)
+        for (int y = 0; y <= segments; ++y) {
+            for (int x = 0; x <= segments; ++x) {
+                float xSegment = (float)x / (float)segments;
+                float ySegment = (float)y / (float)segments;
+                float xPos = std::cos(xSegment * 2.0f * glm::pi<float>()) * 
+                            std::sin(ySegment * glm::pi<float>());
+                float yPos = std::cos(ySegment * glm::pi<float>());
+                float zPos = std::sin(xSegment * 2.0f * glm::pi<float>()) * 
+                            std::sin(ySegment * glm::pi<float>());
+
+                positions.emplace_back(xPos, yPos, zPos);
+                normals.emplace_back(xPos, yPos, zPos);
+                uv.emplace_back(xSegment, ySegment);
+            }
+        }
+
+        // Generate indices (same as before)
+        for (int y = 0; y < segments; ++y) {
+            for (int x = 0; x < segments; ++x) {
+                indices.push_back((y + 1) * (segments + 1) + x);
+                indices.push_back(y * (segments + 1) + x);
+                indices.push_back(y * (segments + 1) + x + 1);
+
+                indices.push_back((y + 1) * (segments + 1) + x);
+                indices.push_back(y * (segments + 1) + x + 1);
+                indices.push_back((y + 1) * (segments + 1) + x + 1);
+            }
+        }
+
+        // Create VAO/VBO using DSA (like cube)
+        glad_glCreateVertexArrays(1, &sphere_vao);
+        GLuint vbo, ebo;
+        glad_glCreateBuffers(1, &vbo);
+        glad_glCreateBuffers(1, &ebo);
+
+        // Combine all vertex data into one buffer
+        std::vector<float> vertexData;
+        for (size_t i = 0; i < positions.size(); ++i) {
+            vertexData.push_back(positions[i].x);
+            vertexData.push_back(positions[i].y);
+            vertexData.push_back(positions[i].z);
+            vertexData.push_back(normals[i].x);
+            vertexData.push_back(normals[i].y);
+            vertexData.push_back(normals[i].z);
+            vertexData.push_back(uv[i].x);
+            vertexData.push_back(uv[i].y);
+        }
+
+        // Upload data using DSA
+        glad_glNamedBufferData(vbo, vertexData.size() * sizeof(float), vertexData.data(), GL_STATIC_DRAW);
+        glad_glNamedBufferData(ebo, indices.size() * sizeof(unsigned int), indices.data(), GL_STATIC_DRAW);
+
+        // Configure VAO attributes using DSA
+        // Position (location = 0)
+        glad_glEnableVertexArrayAttrib(sphere_vao, 0);
+        glad_glVertexArrayAttribBinding(sphere_vao, 0, 0);
+        glad_glVertexArrayAttribFormat(sphere_vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+
+        // Normal (location = 1)
+        glad_glEnableVertexArrayAttrib(sphere_vao, 1);
+        glad_glVertexArrayAttribBinding(sphere_vao, 1, 0);
+        glad_glVertexArrayAttribFormat(sphere_vao, 1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float));
+
+        // UV (location = 2)
+        glad_glEnableVertexArrayAttrib(sphere_vao, 2);
+        glad_glVertexArrayAttribBinding(sphere_vao, 2, 0);
+        glad_glVertexArrayAttribFormat(sphere_vao, 2, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float));
+
+        // Bind buffers to VAO
+        glad_glVertexArrayVertexBuffer(sphere_vao, 0, vbo, 0, 8 * sizeof(float));
+        glad_glVertexArrayElementBuffer(sphere_vao, ebo);
+
+        sphere_index_count = static_cast<unsigned int>(indices.size());
+        sphere_vbos = {vbo, ebo}; // Store for cleanup
+
+        std::cout << "DEBUG: Sphere geometry setup complete (DSA)." << std::endl;
+    }
 
 
     void OpenGLRenderer::Pimpl::setup_shaders() {
@@ -364,6 +455,10 @@ namespace Salix {
         pimpl->setup_cube_geometry();
         log_file << "[DEBUG Cube geometry setup... OK]" << std::endl;
 
+        log_file << "[DEBUG] Setting up sphere geometry..." << std::endl;
+        pimpl->setup_sphere_geometry();  // initializes with 16 segments.
+        log_file << "[DEBUG Sphere geometry setup... OK]" << std::endl;
+
         log_file << "[DEBUG] Setting up shaders..." << std::endl;
         pimpl->setup_shaders();
         log_file << "[DEBUG] Shaders setup... OK" << std::endl;
@@ -403,6 +498,17 @@ namespace Salix {
             pimpl->cube_vbo = 0;
         }
 
+        // --- Clean up sphere resources ---
+        if (pimpl->sphere_vao != 0) {
+            glad_glDeleteVertexArrays(1, &pimpl->sphere_vao);
+            pimpl->sphere_vao = 0;
+        }
+        if (!pimpl->sphere_vbos.empty()) {
+            glad_glDeleteBuffers(static_cast<GLsizei>(pimpl->sphere_vbos.size()),
+                            pimpl->sphere_vbos.data());
+            pimpl->sphere_vbos.clear();
+        }
+
         pimpl->simple_3d_shader.reset();    // Calls destructor, glDeleteProgram
         pimpl->texture_shader.reset();      // Calls destructor, glDeleteProgram
         pimpl->color_shader.reset();        // Calls destructor, glDeleteProgram
@@ -423,11 +529,13 @@ namespace Salix {
             SDL_GL_DeleteContext(pimpl->gl_context);
             pimpl->gl_context = nullptr;
         }
+
         // Shutdown SDL window
         if (pimpl->window) {
             pimpl->window->shutdown();
             pimpl->window.reset();
         }
+
         // nullify the local sdl_window member (SDL_Window*)
         pimpl->sdl_window = nullptr;
         std::cout << "OpenGLRenderer shut down." << std::endl;
@@ -489,6 +597,70 @@ namespace Salix {
     void OpenGLRenderer::clear_depth_buffer() {
         glad_glClear(GL_DEPTH_BUFFER_BIT);
     }
+
+
+    void OpenGLRenderer::set_line_width(float line_width) { pimpl->line_width = line_width;}
+
+    const float OpenGLRenderer::get_line_width() const {
+        return pimpl->line_width;
+    }
+
+    
+
+
+
+    void OpenGLRenderer::draw_sphere(
+        const glm::vec3& center,
+        float radius, 
+        const Color& color,
+        int segments)
+        {
+            // 0. Initial checks (same as your cube implementation)
+            if (!pimpl->active_camera) {
+                std::cerr << "WARNING: Attempted to draw_sphere with no active camera set." << std::endl;
+                return;
+            }
+
+            if (!pimpl->simple_3d_shader) {
+                std::cerr << "[FATAL] simple_3d_shader is null in draw_sphere()\n";
+                return;
+            }
+
+            // 1. Set up transform matrix (similar to your cube but with scale)
+            glm::mat4 model = glm::translate(glm::mat4(1.0f), center);
+            model = glm::scale(model, glm::vec3(radius));
+
+            // 2. Enable depth test (like your cube)
+            glad_glEnable(GL_DEPTH_TEST);
+            pimpl->simple_3d_shader->use();
+
+            // 3. Set shader uniforms (same as cube)
+            pimpl->simple_3d_shader->setMat4("model", model);
+            pimpl->simple_3d_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
+            pimpl->simple_3d_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
+            pimpl->simple_3d_shader->setVec4("tint_color", 
+                glm::vec4(color.r, color.g, color.b, color.a));
+
+            
+            // 4. Draw the sphere
+            glad_glBindVertexArray(pimpl->sphere_vao);
+            glad_glDrawElements(GL_TRIANGLES, 
+                            pimpl->sphere_index_count, 
+                            GL_UNSIGNED_INT, 
+                            nullptr);
+            glad_glBindVertexArray(0);
+            glad_glUseProgram(0);
+        }
+
+    
+
+
+
+
+
+
+
+
 
     void OpenGLRenderer::draw_cube(const glm::mat4& model_matrix, const Color& color) {
         // --- ADD THESE DEBUG PRINTS ---
