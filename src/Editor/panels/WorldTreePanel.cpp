@@ -33,6 +33,8 @@
 namespace Salix {
     struct WorldTreePanel::Pimpl {
         EditorContext* context = nullptr;
+        Entity* entity_to_rename = nullptr;
+        char rename_buffer[256]; // <-- Add a buffer for the text field
         
     };
 
@@ -72,11 +74,16 @@ namespace Salix {
             return;
         }
 
-        // Scene header
-        ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "Scene: %s", 
-                        pimpl->context->active_scene->get_name().c_str());
-        ImGui::Separator();
 
+       
+        // Scene header
+        ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "Scene: %s ", 
+                        pimpl->context->active_scene->get_name().c_str());
+        // Status bar
+        // ImGui::Separator();
+        ImGui::TextDisabled("\tEntities: %d", pimpl->context->active_scene->get_entities().size());
+        ImGui::Separator();
+        
         // Content area with scrolling
         if (ImGui::BeginChild("WorldTreeContent", ImVec2(0, 0), true, 
                             ImGuiWindowFlags_AlwaysVerticalScrollbar)) {
@@ -97,13 +104,13 @@ namespace Salix {
 
             // Show empty space context menu
             show_empty_space_context_menu();
+            
+            
         }
         ImGui::EndChild();
 
-        // Status bar
-        ImGui::Separator();
-        ImGui::TextDisabled("%d entities", 
-                        pimpl->context->active_scene->get_entities().size());
+        
+        
     }
 
 
@@ -123,47 +130,79 @@ namespace Salix {
         if (pimpl->context->selected_entity == entity) {
             flags |= ImGuiTreeNodeFlags_Selected;
         }
-        const auto& icon = pimpl->context->init_context->icon_manager->get_icon_for_entity(entity);
-        if (icon.texture_id) {
-            ImGui::Image(icon.texture_id, get_lock_icon_size(), get_top_left(), get_bottom_right());
+
+        bool is_renaming_this_entity = (pimpl->entity_to_rename == entity);
+
+        if (is_renaming_this_entity) {
+            // Draw the tree node part (the arrow) without a label
+            // We use "##" to give it an ID without displaying any text.
+            bool node_open = ImGui::TreeNodeEx("##TreeDummy", flags);
             ImGui::SameLine();
-        }
-        bool node_open = ImGui::TreeNodeEx(entity, flags, "%s", entity->get_name().c_str());
 
-        // 3. Handle dragging FROM this entity and dropping ONTO this entity
-        setup_entity_drag_source(entity);
-        handle_entity_drop_target(entity);
+            // Give the input text widget focus when it first appears.
+            ImGui::SetKeyboardFocusHere(0);
+            
+            // Draw the input text field.
+            if (ImGui::InputText("##RenameBox", pimpl->rename_buffer, sizeof(pimpl->rename_buffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+                // If the user presses Enter, set the new name and end the rename state.
+                entity->set_name(pimpl->rename_buffer);
+                pimpl->entity_to_rename = nullptr;
+            }
 
-        // 4. Handle standard interactions like clicking and context menus
-        if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
-            pimpl->context->selected_entity = entity;
-            pimpl->context->selected_element = nullptr;
-            EntitySelectedEvent event(entity);
-            pimpl->context->event_manager->dispatch(event);
+            // If the user clicks away from the input box, also end the rename state.
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                pimpl->entity_to_rename = nullptr;
+            }
 
-            if (ImGui::IsMouseDoubleClicked(0)) {
-                if (auto transform = entity->get_transform()) {
-                    pimpl->context->editor_camera->focus_on(transform, 3.0f);
-                }
+            // The rest of the function (rendering children) happens inside this if block.
+            if (node_open) {
+                // ... (Your code to render children and elements) ...
+                ImGui::TreePop();
             }
         }
-        show_entity_context_menu(entity);
+        else {
 
-        // 5. If the node is open, render all of its children recursively
-        if (node_open) {
-            if (auto transform = entity->get_transform()) {
-                for (auto child_transform : transform->get_children()) {
-                    if (auto child_entity = dynamic_cast<Entity*>(child_transform->get_owner())) {
-                        render_entity_tree(child_entity);
+            const auto& icon = pimpl->context->init_context->icon_manager->get_icon_for_entity(entity);
+            if (icon.texture_id) {
+                ImGui::Image(icon.texture_id, get_lock_icon_size(), get_top_left(), get_bottom_right());
+                ImGui::SameLine();
+            }
+            bool node_open = ImGui::TreeNodeEx(entity, flags, "%s", entity->get_name().c_str());
+
+            // 3. Handle dragging FROM this entity and dropping ONTO this entity
+            setup_entity_drag_source(entity);
+            handle_entity_drop_target(entity);
+
+            // 4. Handle standard interactions like clicking and context menus
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                pimpl->context->selected_entity = entity;
+                pimpl->context->selected_element = nullptr;
+                EntitySelectedEvent event(entity);
+                pimpl->context->event_manager->dispatch(event);
+
+                if (ImGui::IsMouseDoubleClicked(0)) {
+                    if (auto transform = entity->get_transform()) {
+                        pimpl->context->editor_camera->focus_on(transform, 3.0f);
                     }
                 }
             }
-            for (auto& element : entity->get_all_elements()) {
-                if (element) render_element(element);
-            }
-            ImGui::TreePop();
-        }
+            show_entity_context_menu(entity);
 
+            // 5. If the node is open, render all of its children recursively
+            if (node_open) {
+                if (auto transform = entity->get_transform()) {
+                    for (auto child_transform : transform->get_children()) {
+                        if (auto child_entity = dynamic_cast<Entity*>(child_transform->get_owner())) {
+                            render_entity_tree(child_entity);
+                        }
+                    }
+                }
+                for (auto& element : entity->get_all_elements()) {
+                    if (element) render_element(element);
+                }
+                ImGui::TreePop();
+            }
+        }
         ImGui::PopID();
     }
 
@@ -285,9 +324,15 @@ namespace Salix {
 
             ImGui::Separator();
 
-            // Entity Operations with unique IDs
             if (ImGui::MenuItem("Rename##RenameEntity", "F2")) {
-                // Future rename functionality
+                pimpl->entity_to_rename = entity; // Store which entity we are renaming
+                 // And copy its current name into our buffer to start editing
+                strncpy_s(pimpl->rename_buffer, sizeof(
+                pimpl->rename_buffer), entity->get_name().c_str(),
+                sizeof(pimpl->rename_buffer) - 1);
+                
+                
+
             }
 
             if (ImGui::MenuItem("Duplicate##DuplicateEntity", "Ctrl+D")) {
@@ -541,6 +586,5 @@ namespace Salix {
             ImGui::EndDragDropTarget();
         }
     }
-
 
 }  // namespace Salix
