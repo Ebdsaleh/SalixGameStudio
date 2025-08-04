@@ -50,6 +50,7 @@ namespace Salix {
             // --- Hierarchy Methods ---
             void set_parent(Transform* new_parent);
             Transform* get_parent() const;
+            void release_from_parent();
             bool is_child_of(const Transform* potential_parent) const;
             const std::vector<Transform*>& get_children() const;
             

@@ -114,6 +114,24 @@ namespace Salix {
     }
 
 
+    void Transform::release_from_parent() {
+        if (!pimpl->parent) return;
+
+        // 2. Get our current world-space values BEFORE detaching.
+        Vector3 world_position = get_world_position();
+        Vector3 world_rotation = get_world_rotation();
+        Vector3 world_scale    = get_world_scale();
+
+        // 3. Detach from the parent transform using the existing set_parent method.
+        set_parent(nullptr);
+        // 4. Apply the stored world values back to our now-local properties.
+        set_position(world_position);
+        set_rotation(world_rotation);
+        set_scale(world_scale);
+    }
+
+
+
     Vector3 Transform::get_world_position() {
         // Get the final world matrix and extract the translation component from the 4th column.
         glm::mat4 world_matrix = get_model_matrix();
