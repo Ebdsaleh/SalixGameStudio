@@ -258,6 +258,14 @@ namespace Salix {
                 }
                 ImGui::EndMenu();
             }
+            // Release from Parent
+            if (entity->get_parent()) {
+                if(ImGui::MenuItem("Release From Parent##ReleaseFromParent")) {
+                    if(pimpl->context && pimpl->context->active_scene) {
+                        entity->release_from_parent();
+                    }
+                }
+            }
 
             // Hierarchy Operations with unique IDs
             if (ImGui::MenuItem("Add Child Entity##AddChildEntity")) {
