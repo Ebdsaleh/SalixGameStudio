@@ -1,4 +1,9 @@
 // Editor/state/EditorState.cpp
+
+#define IMGUI_HAS_DOCK
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
+
 #include <Editor/states/EditorState.h>
 #include <Editor/camera/EditorCamera.h>
 
@@ -44,8 +49,8 @@
 #include <Salix/gui/IFontManager.h>
 #include <Salix/gui/imgui/ImGuiTheme.h>
 #include <Salix/gui/DialogBox.h>
-#include <ImGuiFileDialog.h>
-#include <imgui/imgui.h>
+#include <ImGuiFileDialog/ImGuiFileDialog.h>
+
 #include <ImGuizmo.h>
 #include <iostream>
 #include <memory>
@@ -299,6 +304,13 @@ namespace Salix {
 
 
     void EditorState::Pimpl::begin_dockspace() {
+         // Add this before any docking operations
+        if (GImGui->CurrentWindow && 
+            GImGui->CurrentWindow->DockNode && 
+            GImGui->CurrentWindow->DockNode->HostWindow) {
+            GImGui->CurrentWindow->DockNode->LocalFlags |= 
+            ImGuiDockNodeFlags_NoDockingOverOther;
+        }
         const ImGuiIO& io = ImGui::GetIO();
         ImVec2 display_size = io.DisplaySize;
 
@@ -316,6 +328,7 @@ namespace Salix {
         flags |= ImGuiWindowFlags_NoBackground;
 
         
+       
 
         ImGui::Begin("Salix Editor Dockspace", nullptr, flags);
         
@@ -330,7 +343,11 @@ namespace Salix {
         ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
         ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
         ImGui::PopStyleColor();
-        // ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_None);
+        // Add this right after ImGui::Begin("Dockspace")
+        if (ImGuiDockNode* node = ImGui::GetWindowDockNode()) {
+        node->LocalFlags |= ImGuiDockNodeFlags_NoDockingOverOther | 
+                            ImGuiDockNodeFlags_NoDockingSplitOther;
+    }
 
         // --- Main Menu Bar ---
         if (ImGui::BeginMenuBar()) {
