@@ -58,6 +58,7 @@ namespace Salix {
         void handle_gizmos(EditorCamera* camera, Entity* selected_entity);
         void handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max);
         void draw_bounding_boxes();
+        void draw_grid();
     };
 
     RealmDesignerPanel::RealmDesignerPanel() : pimpl(std::make_unique<Pimpl>()) {
@@ -385,7 +386,7 @@ namespace Salix {
             pimpl->last_picking_ray.origin + pimpl->last_picking_ray.direction * 1000.0f, // A long line
             {1.0f, 1.0f, 0.0f, 1.0f} // Yellow
     );
-        draw_grid();
+        pimpl->draw_grid();
         pimpl->context->renderer->end_render_pass();
     }
 
@@ -575,16 +576,16 @@ namespace Salix {
 
 
 
-    void RealmDesignerPanel::draw_grid() {
-        if (!pimpl->context || !pimpl->context->grid_settings.snap_enabled) 
+    void RealmDesignerPanel::Pimpl::draw_grid() {
+        if (!context || !context->grid_settings.snap_enabled) 
             return;
 
-        IRenderer* renderer = pimpl->context->renderer;
-        const auto& grid = pimpl->context->grid_settings;
+        IRenderer* renderer = context->renderer;
+        const auto& grid = context->grid_settings;
         
         // Get camera information
-        Vector3 camera_pos = pimpl->context->editor_camera->get_transform()->get_position();
-        float visible_range = pimpl->context->editor_camera->get_far_plane(); // Assuming this is now available
+        Vector3 camera_pos = context->editor_camera->get_transform()->get_position();
+        float visible_range = context->editor_camera->get_far_plane(); // Assuming this is now available
         
         // Calculate grid bounds based on camera position and visible range
         float min_x = std::floor((camera_pos.x - visible_range) / grid.major_division) * grid.major_division;

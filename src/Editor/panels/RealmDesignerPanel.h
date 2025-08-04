@@ -7,7 +7,7 @@
 
 namespace Salix {
     struct EditorContext;
-
+    class IRenderer;
 
 
     class EDITOR_API RealmDesignerPanel : public IPanel {
@@ -31,9 +31,10 @@ namespace Salix {
 
             uint32_t get_framebuffer_id() const;
             ImVec2 get_viewport_size() const;
-            void draw_grid();
+            
         private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
+        
     };
 }
