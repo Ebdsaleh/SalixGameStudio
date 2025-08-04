@@ -25,6 +25,19 @@ namespace Salix {
         // Constructor to seamlessly convert from a glm::vec3
         Vector3(const glm::vec3& other) : x(other.x), y(other.y), z(other.z) {}
 
+        Vector3(float scalar) : x(scalar), y(scalar), z(scalar) {}
+
+        Vector3(int scalar) : 
+            x(static_cast<float>(scalar)),
+            y(static_cast<float>(scalar)),
+            z(static_cast<float>(scalar)) {}
+
+        
+        // Static constants
+        static const Vector3 Zero; // declaration only 
+
+        
+
 
         //  Calculates the magnitude (length) of the vector.
         float length() const;
@@ -58,37 +71,39 @@ namespace Salix {
 
         // Return a reference to this object
         return *this;
-    }
-
-    Vector3& operator-=(const Vector3& other) {
-        x -= other.x;
-        y -= other.y;
-        z -= other.z;
-        return *this;
-    }
-
-    Vector3& operator*=(float scalar) {
-        x *= scalar;
-        y *= scalar;
-        z *= scalar;
-        return *this;
-    }
-
-    Vector3& operator/=(float divisor) {
-        if (divisor != 0.0f) {
-            x /= divisor;
-            y /= divisor;
-            z /= divisor;
-        } else {
-            // Handle error, e.g., set to zero or log a warning.
-            x = 0.0f;
-            y = 0.0f;
-            z = 0.0f;
         }
-        return *this;
-    }
+
+        Vector3& operator-=(const Vector3& other) {
+            x -= other.x;
+            y -= other.y;
+            z -= other.z;
+            return *this;
+        }
+
+        Vector3& operator*=(float scalar) {
+            x *= scalar;
+            y *= scalar;
+            z *= scalar;
+            return *this;
+        }
+
+        Vector3& operator/=(float divisor) {
+            if (divisor != 0.0f) {
+                x /= divisor;
+                y /= divisor;
+                z /= divisor;
+            } else {
+                // Handle error, e.g., set to zero or log a warning.
+                x = 0.0f;
+                y = 0.0f;
+                z = 0.0f;
+            }
+            return *this;
+        }
     };
 
+   
+    
     // Operator overloads
     // Adding Vector3's.
     inline Vector3 operator+(const Vector3& a, const Vector3& b) {
@@ -188,6 +203,16 @@ namespace Salix {
         }
 
         return Vector3 { result_x, result_y, result_z };
+    }
+
+    // Inequality operator
+    inline bool operator!=(const Vector3& a, const Vector3& b) {
+        return !(a.x == b.x && a.y == b.y && a.z == b.z);
+    }
+
+    // Equality operator
+    inline bool operator==(const Vector3& a, const Vector3& b) {
+        return a.x == b.x && a.y == b.y && a.z == b.z;
     }
 
     /// Calculates the dot product of two vectors.

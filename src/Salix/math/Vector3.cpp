@@ -33,6 +33,10 @@ namespace Salix {
         return glm::vec3(x, y, z);
     }
     
+    // For constexpr compatibility (C++17)
+    const Vector3 Vector3::Zero {0.0f, 0.0f, 0.0f};
+    
+
     YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Vector3& v) {
         out << YAML::BeginMap;
         out << YAML::Key << "x" << YAML::Value << v.x;
