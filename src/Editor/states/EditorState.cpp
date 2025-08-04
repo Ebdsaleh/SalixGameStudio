@@ -23,6 +23,8 @@
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/BoxCollider.h>
+#include <Salix/events/BeforeEntityPurgedEvent.h>
+#include <Salix/events/EventManager.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
 #include <Salix/management/SceneManager.h>
@@ -131,6 +133,12 @@ namespace Salix {
         pimpl->editor_context->font_manager = engine_context.font_manager;
         log_file << "[DEBUG] EditorContext populated." << std::endl;
 
+        // Subscribe this EditorState instance to listen for Editor category events.
+        if (pimpl->editor_context->event_manager) {
+            log_file << "[DEBUG] Subscribing EditorState to EventManager..." << std::endl;
+            pimpl->editor_context->event_manager->subscribe(EventCategory::Editor, this);
+        }
+
         // 4. Set the engine mode
         log_file << "[DEBUG] Setting engine mode to Editor..." << std::endl;
         engine_context.engine->set_mode(EngineMode::Editor);
@@ -232,9 +240,18 @@ namespace Salix {
         pimpl->total_time += delta_time;
         pimpl->handle_first_frame_setup();
         pimpl->process_input();
+
+
+        if (pimpl->editor_context->active_scene) {
+            pimpl->editor_context->active_scene->maintain();
+        }
+
+
         if (pimpl->camera) {
             pimpl->camera->on_update(delta_time);
         }
+
+
         IFont* active_font = pimpl->editor_context->font_manager->get_active_font();
         if (active_font && active_font->get_imgui_font_ptr()) {
             ImGui::PushFont(active_font->get_imgui_font_ptr());
@@ -288,6 +305,47 @@ namespace Salix {
             }
         }
     }
+
+
+
+
+
+
+    void EditorState::on_event(IEvent& event) {
+        // Check if the event is the one we care about
+        if (event.get_event_type() == EventType::BeforeEntityPurged)
+        {
+            // Cast the event to access its data
+            BeforeEntityPurgedEvent& e = static_cast<BeforeEntityPurgedEvent&>(event);
+            Entity* purged_entity = e.entity;
+
+            // --- THE CRASH FIX ---
+            // Check our context's pointers and nullify them if they match the purged entity.
+            if (pimpl->editor_context->selected_entity == purged_entity) {
+                pimpl->editor_context->selected_entity = nullptr;
+            }
+
+            if (pimpl->editor_context->main_camera && pimpl->editor_context->main_camera->get_owner() == purged_entity) {
+                pimpl->editor_context->main_camera = nullptr;
+            }
+
+            // We can also check the renderer's active camera pointer, as that seems to be
+            // a separate pointer causing the crash in your screenshot.
+            if (pimpl->editor_context->renderer) {
+                Camera* active_cam = dynamic_cast<Camera*>(
+                    pimpl->editor_context->renderer->get_active_camera());
+                if (!active_cam) { return; }
+                if (active_cam && active_cam->get_owner() == purged_entity) {
+                    pimpl->editor_context->renderer->set_active_camera(nullptr);
+                }
+            }
+        }
+    }
+
+
+
+
+
 
 
     void EditorState::Pimpl::handle_first_frame_setup() {
@@ -443,6 +501,7 @@ namespace Salix {
         mock_project->initialize(*editor_context->init_context);
         editor_context->scene_manager = mock_project->get_scene_manager();
         editor_context->active_scene = editor_context->scene_manager->create_scene("New Scene");
+        editor_context->active_scene->set_context(*editor_context->init_context);
         Entity* camera_entity = editor_context->active_scene->create_entity("Main Camera");
         
         Camera* main_camera= camera_entity->add_element<Camera>();
