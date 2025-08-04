@@ -4,10 +4,13 @@
 // Description: Defines the abstract interface for all editor panels.
 // =================================================================================
 #pragma once
+#define IMGUI_HAS_DOCK
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
 #include <Editor/EditorAPI.h>
 #include <Editor/behaviours/EditorBehaviour.h>
 #include <Salix/events/IEventListener.h>
-#include <imgui/imgui.h>
+
 namespace Salix {
 
     struct EditorContext;
