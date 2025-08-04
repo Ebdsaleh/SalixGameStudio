@@ -37,6 +37,7 @@ namespace Salix {
 
             void set_parent(Entity* parent);
             Entity* get_parent() const;
+            void release_from_parent();
 
             void add_child(Entity* child);
             void remove_child(Entity* child);

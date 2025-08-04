@@ -139,6 +139,22 @@ namespace Salix {
         
     }
 
+    void Entity::release_from_parent() {
+        if (!pimpl->parent) return;
+
+        // 2. Use the cached transform pointer directly, as you pointed out,
+        //    to tell our Transform to handle its own release.
+        if (pimpl->transform) { //
+            pimpl->transform->release_from_parent();
+        }
+
+        // 3. Now, manage the Entity-level hierarchy.
+        pimpl->parent->remove_child(this);
+        pimpl->parent = nullptr;
+    }
+
+
+
 
     void Entity::add_child(Entity* child) {
         if (child && std::find(pimpl->children.begin(), pimpl->children.end(), child) == pimpl->children.end()) {
