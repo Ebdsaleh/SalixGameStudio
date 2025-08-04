@@ -107,40 +107,33 @@ namespace Salix {
 
 
 
+    
     void WorldTreePanel::render_entity_tree(Entity* entity) {
         if (!entity) return;
 
-        // 1. PUSH a unique ID for this entity before drawing anything.
-        //    The entity's memory address is a perfect unique ID.
+        // Use the entity's memory address for a unique ID scope
         ImGui::PushID(entity);
 
-        
-       
+        // 1. Handle the drop zone ABOVE this entity (for re-ordering/un-parenting)
+        handle_inter_entity_drop_target(entity);
 
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | 
-                                ImGuiTreeNodeFlags_SpanAvailWidth;
-        
+        // 2. Draw the actual entity node (icon, text, etc.)
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
         if (pimpl->context->selected_entity == entity) {
             flags |= ImGuiTreeNodeFlags_Selected;
         }
-
-        // (Your icon rendering code is perfect, no changes needed here)
         const auto& icon = pimpl->context->init_context->icon_manager->get_icon_for_entity(entity);
         if (icon.texture_id) {
             ImGui::Image(icon.texture_id, get_lock_icon_size(), get_top_left(), get_bottom_right());
             ImGui::SameLine();
         }
-
-        // Render tree node (now has a unique ID because of PushID)
         bool node_open = ImGui::TreeNodeEx(entity, flags, "%s", entity->get_name().c_str());
 
-         // NEW DRAG AND DROP CODE
-
-        setup_entity_drag_source(entity);  // Makes entity draggable
+        // 3. Handle dragging FROM this entity and dropping ONTO this entity
+        setup_entity_drag_source(entity);
         handle_entity_drop_target(entity);
 
-
-        // Handle left-click
+        // 4. Handle standard interactions like clicking and context menus
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
             pimpl->context->selected_entity = entity;
             pimpl->context->selected_element = nullptr;
@@ -153,13 +146,10 @@ namespace Salix {
                 }
             }
         }
-
-        // Show entity context menu (now has a unique ID because of PushID)
         show_entity_context_menu(entity);
 
-        // Render children recursively (they will have their own PushID/PopID scopes)
+        // 5. If the node is open, render all of its children recursively
         if (node_open) {
-            ImGui::Indent(10.0f);
             if (auto transform = entity->get_transform()) {
                 for (auto child_transform : transform->get_children()) {
                     if (auto child_entity = dynamic_cast<Entity*>(child_transform->get_owner())) {
@@ -167,15 +157,12 @@ namespace Salix {
                     }
                 }
             }
-            
             for (auto& element : entity->get_all_elements()) {
                 if (element) render_element(element);
             }
-            ImGui::Unindent(10.0f);
             ImGui::TreePop();
         }
 
-        // 2. POP the unique ID after we are completely done with this entity and its children.
         ImGui::PopID();
     }
 
@@ -457,51 +444,89 @@ namespace Salix {
     }
 
 
+    void WorldTreePanel::process_entity_drop(Entity* dragged_entity, Entity* target_entity)
+    {
+        // This function is called AFTER a payload has been accepted.
+
+        // All validation logic now lives in one place.
+        if (!dragged_entity) {
+            std::cerr << "Null dragged entity in drop!" << std::endl;
+            return;
+        }
+        // Note: 'target_entity' CAN be null, which means we are dropping on the background.
+        
+        if (dragged_entity == target_entity) {
+            // Self-parenting blocked
+            return;
+        }
+
+        if (target_entity && target_entity->is_child_of(dragged_entity)) {
+            // Circular parenting blocked
+            return;
+        }
+
+        // --- The Core Action ---
+        if (target_entity) {
+            // If there IS a target, we are re-parenting ONTO it.
+            dragged_entity->set_parent(target_entity);
+        } else {
+            // If the target is NULL, we are releasing to become a root object.
+            dragged_entity->release_from_parent();
+        }
+        
+        // Select the entity that was moved and dispatch an event
+        pimpl->context->selected_entity = dragged_entity;
+        EntitySelectedEvent event(dragged_entity);
+        if (pimpl->context->event_manager) {
+            pimpl->context->event_manager->dispatch(event);
+        }
+    }
+
+
+
+
+    void WorldTreePanel::handle_inter_entity_drop_target(Entity* anchor_entity) {
+        // Create a small, invisible region to act as our drop target hitbox
+        ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, 4.0f));
+
+        if (ImGui::BeginDragDropTarget())
+        {
+            // Use a special flag to get feedback before the drop happens
+            const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DND", ImGuiDragDropFlags_AcceptBeforeDelivery);
+
+            // If a valid payload is hovering over our dummy hitbox...
+            if (payload) {
+                // --- THIS IS THE CORRECTED SECTION ---
+                // Get the rectangle for the dummy item we just created
+                ImVec2 rect_min = ImGui::GetItemRectMin();
+                ImVec2 rect_max = ImGui::GetItemRectMax();
+                
+                // Draw our visible feedback line over that rectangle
+                ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                draw_list->AddLine(ImVec2(rect_min.x, rect_min.y), ImVec2(rect_max.x, rect_min.y), ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
+                // --- END CORRECTION ---
+            }
+
+            // If the user actually releases the mouse...
+            if (payload && ImGui::IsMouseReleased(0)) {
+                Entity* dragged_entity = *(Entity**)payload->Data;
+                // The logic is to parent the dragged item to the ANCHOR's parent.
+                if (anchor_entity) {
+                    process_entity_drop(dragged_entity, anchor_entity->get_parent());
+                }
+            }
+
+            ImGui::EndDragDropTarget();
+        }
+    }
 
 
     void WorldTreePanel::handle_entity_drop_target(Entity* target) {
         if (ImGui::BeginDragDropTarget()) {
-            std::cout << "DROP TARGET ACTIVE: " << target->get_name() << std::endl; // DEBUG
-            
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DND")) {
-                std::cout << "PAYLOAD ACCEPTED" << std::endl; // DEBUG
-                
-                if (payload->DataSize != sizeof(Entity*)) {
-                    std::cerr << "Invalid payload size!" << std::endl;
-                    ImGui::EndDragDropTarget();
-                    return;
-                }
-
                 Entity* dragged_entity = *(Entity**)payload->Data;
-                std::cout << "DRAGGED ENTITY: " << dragged_entity->get_name() << std::endl; // DEBUG
-
-                // Validate operation
-                if (!dragged_entity || !target) {
-                    std::cerr << "Null entity in drag-drop!" << std::endl;
-                } 
-                else if (dragged_entity == target) {
-                    std::cout << "Self-parenting blocked" << std::endl;
-                }
-                else if (target->is_child_of(dragged_entity)) {
-                    std::cout << "Circular parenting blocked" << std::endl;
-                }
-                else if (!target->get_transform()) {
-                    std::cerr << "Target missing transform!" << std::endl;
-                }
-                else {
-                    // EXACTLY like your working context menu version
-                    dragged_entity->get_transform()->set_parent(target->get_transform());
-                    pimpl->context->selected_entity = dragged_entity;
-                    
-                    EntitySelectedEvent event(dragged_entity);
-                    pimpl->context->event_manager->dispatch(event);
-                    
-                    std::cout << "SUCCESS: Reparented " << dragged_entity->get_name() 
-                            << " under " << target->get_name() << std::endl;
-                }
-            }
-            else {
-                std::cout << "Payload rejected" << std::endl; // DEBUG
+                // Just call the central processor with the target entity
+                process_entity_drop(dragged_entity, target);
             }
             ImGui::EndDragDropTarget();
         }

@@ -38,6 +38,8 @@ namespace Salix {
         void render_entity_tree(Entity* entity);
         void render_element(Element* element);
         void setup_entity_drag_source(Entity* entity);
+        void process_entity_drop(Entity* dragged_entity, Entity* target_entity);
+        void handle_inter_entity_drop_target(Entity* anchor_entity);
         void handle_entity_drop_target(Entity* entity);
     };
 }  // namespace Salix
