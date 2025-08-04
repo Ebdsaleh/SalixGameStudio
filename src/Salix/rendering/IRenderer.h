@@ -69,7 +69,7 @@ namespace Salix {
 
         virtual void on_window_resize(int width, int height) = 0;
         virtual void set_active_camera(ICamera* camera) = 0;
-
+        virtual ICamera* get_active_camera() { return nullptr; }
         // Provide access to the window it owns, without giving up ownership.
         virtual IWindow* get_window() = 0;
         virtual void* get_native_handle() = 0;
