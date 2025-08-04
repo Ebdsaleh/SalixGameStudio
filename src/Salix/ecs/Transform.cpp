@@ -60,10 +60,17 @@ namespace Salix {
                 }
             }
         }
+        // 1. Before changing anything, get our current world transform.
+        Vector3 world_position = get_world_position();
+        Vector3 world_rotation = get_world_rotation();
+        Vector3 world_scale    = get_world_scale();  
+        
+        // 2. Update the transform hierarchy
         // If we already have a parent, detatch from it first.
         if (pimpl->parent) {
             pimpl->parent->remove_child(this);
         }
+
         // Set the new parent.
         pimpl->parent = new_parent;
 
@@ -71,6 +78,21 @@ namespace Salix {
         if (pimpl->parent) {
             pimpl->parent->add_child(this);
         }
+
+       
+        // 3. Calculate and apply the new local transform to preserve the world state.
+        if (pimpl->parent) {
+            // If we have a new parent, convert the world position to its local space.
+            set_position(pimpl->parent->world_to_local_position(world_position));
+            set_rotation(world_rotation - pimpl->parent->get_world_rotation());
+            set_scale(world_scale / pimpl->parent->get_world_scale());
+        } else {
+            // If we have no new parent, our local transform IS our world transform.
+            set_position(world_position);
+            set_rotation(world_rotation);
+            set_scale(world_scale);
+        }
+        
     }
 
     Transform* Transform::get_parent() const{
