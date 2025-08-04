@@ -17,6 +17,7 @@
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/Transform.h>
+#include <Salix/management/Project.h>
 #include <Salix/management/SceneManager.h>
 #include <Salix/core/InitContext.h>
 #include <Editor/EditorContext.h>
@@ -295,10 +296,9 @@ namespace Salix {
 
             if (ImGui::MenuItem("Delete##DeleteEntity", "Del")) {
                 if (pimpl->context && pimpl->context->active_scene) {
-                    if (entity->get_transform() && entity->get_transform()->get_parent()) {
-                        if (auto parentEntity = dynamic_cast<Entity*>(entity->get_transform()->get_parent()->get_owner())) {
-                            pimpl->context->selected_entity = parentEntity;
-                        }
+                    if (entity){
+                        if (entity->get_parent()) entity->release_from_parent();
+
                     }
                     entity->purge();
                     EntitySelectedEvent event(nullptr);
