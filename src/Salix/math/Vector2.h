@@ -167,6 +167,17 @@ namespace Salix {
         return Vector2 { result_x, result_y };
     }
     
+    // Inequality operator
+    inline bool operator!=(const Vector2& a, const Vector2& b) {
+        return !(a.x == b.x && a.y == b.y);
+    }
+
+    // Equality operator
+    inline bool operator==(const Vector2& a, const Vector2& b) {
+        return a.x == b.x && a.y == b.y;
+    }
+
+    
     // Calculates the dot product of two 2D vectors.
     inline float dot(const Vector2& a, const Vector2& b) {
         return a.x * b.x + a.y * b.y;
