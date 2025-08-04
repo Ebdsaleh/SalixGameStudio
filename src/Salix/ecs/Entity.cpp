@@ -111,7 +111,8 @@ namespace Salix {
     // Heirarchial methods
 
     void Entity::set_parent(Entity* new_parent) {
-        if (new_parent == this) return; // No self-parenting
+        if (pimpl->parent == new_parent) return;  // No change if trying to set the current parent.
+        if (new_parent == this) return; // No self-parenting.
         
         // Prevent circular hierarchy
         if (new_parent && new_parent->is_child_of(this)) {
@@ -119,25 +120,28 @@ namespace Salix {
             return;
         }
 
-        // Remove from current parent
+        // 1. Manage the Entity-level hierarchy
+        // Remove from current parent's list of children
         if (pimpl->parent) {
             pimpl->parent->remove_child(this);
         }
 
-        // Set new parent
+        // Set internal parent pointer.
         pimpl->parent = new_parent;
         
-        // Add to new parent's children
+        // Add to new parent's list of children.
         if (new_parent) {
             new_parent->add_child(this);
         }
 
-        // Update transform hierarchy
-        if (pimpl->transform && new_parent && new_parent->pimpl->transform) {
-            pimpl->transform->set_parent(new_parent->pimpl->transform);
-        }
-        
+        // 2. Delegate the transform update to the new, smarter Transform::set_parent().
+        Transform* new_parent_transform = new_parent ? new_parent->get_transform() : nullptr;
+        if (pimpl->transform) {
+            pimpl->transform->set_parent(new_parent_transform);
+        }        
     }
+
+
 
     void Entity::release_from_parent() {
         if (!pimpl->parent) return;
