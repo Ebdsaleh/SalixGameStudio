@@ -29,7 +29,7 @@ namespace Salix {
     // Editor Systems
     class PanelManager;
     class ProjectManager;
-
+    struct SceneSettings;
     // Game World Data
     class Project;
     class Scene;
@@ -62,7 +62,7 @@ namespace Salix {
         Element* selected_element = nullptr;
         Entity* selected_entity = nullptr;
         GridSettings grid_settings; 
-
+        SceneSettings scene_settings;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}) {}
     };
     
