@@ -1,3 +1,8 @@
+#define IMGUI_HAS_DOCK
+#define IMGUI_DEFINE_MATH_OPERATORS
+#include <imgui/imgui.h>
+#include <imgui/imgui_internal.h>
+#include <ImGuizmo/ImGuizmo.h>
 #include <Salix/gui/imgui/opengl/OpenGLImGui.h>
 #include <Salix/window/IWindow.h>
 #include <Salix/rendering/IRenderer.h>
@@ -10,8 +15,7 @@
 #include <Salix/gui/IDialog.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
-#include <imgui/imgui.h>
-#include <ImGuizmo/ImGuizmo.h>
+
 #include <ImGuiFileDialog/ImGuiFileDialog.h>
 #include <backends/imgui_impl_sdl2.h>
 #include <backends/imgui_impl_opengl3.h>
@@ -73,6 +77,11 @@ namespace Salix {
 
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
+
+        // NEW: Add this right after ImGui::CreateContext()
+        ImGui::GetIO().ConfigDockingAlwaysTabBar = true; // Critical for stability
+        ImGui::GetIO().ConfigDockingTransparentPayload = true; // Prevents visual glitches
+
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable; // | ImGuiConfigFlags_ViewportsEnable;
 
