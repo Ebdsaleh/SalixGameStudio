@@ -202,7 +202,7 @@ namespace Salix {
 
 
     void WorldTreePanel::show_empty_space_context_menu() {
-        if (ImGui::BeginPopupContextWindow("WorldTreeContextMenu", 
+        if (ImGui::BeginPopupContextWindow("WorldTreeContextMenu",
             ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverExistingPopup)) {
             
             if (ImGui::MenuItem("Add Entity##AddRootEntity")) {
@@ -271,8 +271,10 @@ namespace Salix {
             if (ImGui::MenuItem("Add Child Entity##AddChildEntity")) {
                 if (pimpl->context && pimpl->context->active_scene) {
                     Entity* newEntity = pimpl->context->active_scene->create_entity();
-                    if (newEntity && entity->get_transform()) {
-                        newEntity->get_transform()->set_parent(entity->get_transform());
+
+                    if (newEntity && entity) {
+                         // This single, high-level call handles everything for us.
+                        newEntity->set_parent(entity);
                         pimpl->context->selected_entity = newEntity;
                         EntitySelectedEvent event(newEntity);
                         pimpl->context->event_manager->dispatch(event);
