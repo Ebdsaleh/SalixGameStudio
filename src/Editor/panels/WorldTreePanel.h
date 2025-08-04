@@ -37,5 +37,7 @@ namespace Salix {
         // Entity/element rendering helpers
         void render_entity_tree(Entity* entity);
         void render_element(Element* element);
+        void setup_entity_drag_source(Entity* entity);
+        void handle_entity_drop_target(Entity* entity);
     };
 }  // namespace Salix

@@ -32,6 +32,7 @@
 namespace Salix {
     struct WorldTreePanel::Pimpl {
         EditorContext* context = nullptr;
+        
     };
 
     WorldTreePanel::WorldTreePanel() : pimpl(std::make_unique<Pimpl>()) {
@@ -113,6 +114,9 @@ namespace Salix {
         //    The entity's memory address is a perfect unique ID.
         ImGui::PushID(entity);
 
+        
+       
+
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | 
                                 ImGuiTreeNodeFlags_SpanAvailWidth;
         
@@ -129,6 +133,12 @@ namespace Salix {
 
         // Render tree node (now has a unique ID because of PushID)
         bool node_open = ImGui::TreeNodeEx(entity, flags, "%s", entity->get_name().c_str());
+
+         // NEW DRAG AND DROP CODE
+
+        setup_entity_drag_source(entity);  // Makes entity draggable
+        handle_entity_drop_target(entity);
+
 
         // Handle left-click
         if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
@@ -200,6 +210,7 @@ namespace Salix {
             ElementSelectedEvent event(element);
             pimpl->context->event_manager->dispatch(event);
         }
+        
     }
 
 
@@ -436,7 +447,65 @@ namespace Salix {
     }
 
 
+    void WorldTreePanel::setup_entity_drag_source(Entity* entity) {
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+            std::cout << "DRAG START: " << entity->get_name() << std::endl; // DEBUG
+            ImGui::SetDragDropPayload("ENTITY_DND", &entity, sizeof(Entity*));
+            ImGui::Text("Moving %s", entity->get_name().c_str());
+            ImGui::EndDragDropSource();
+        }
+    }
 
+
+
+
+    void WorldTreePanel::handle_entity_drop_target(Entity* target) {
+        if (ImGui::BeginDragDropTarget()) {
+            std::cout << "DROP TARGET ACTIVE: " << target->get_name() << std::endl; // DEBUG
+            
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DND")) {
+                std::cout << "PAYLOAD ACCEPTED" << std::endl; // DEBUG
+                
+                if (payload->DataSize != sizeof(Entity*)) {
+                    std::cerr << "Invalid payload size!" << std::endl;
+                    ImGui::EndDragDropTarget();
+                    return;
+                }
+
+                Entity* dragged_entity = *(Entity**)payload->Data;
+                std::cout << "DRAGGED ENTITY: " << dragged_entity->get_name() << std::endl; // DEBUG
+
+                // Validate operation
+                if (!dragged_entity || !target) {
+                    std::cerr << "Null entity in drag-drop!" << std::endl;
+                } 
+                else if (dragged_entity == target) {
+                    std::cout << "Self-parenting blocked" << std::endl;
+                }
+                else if (target->is_child_of(dragged_entity)) {
+                    std::cout << "Circular parenting blocked" << std::endl;
+                }
+                else if (!target->get_transform()) {
+                    std::cerr << "Target missing transform!" << std::endl;
+                }
+                else {
+                    // EXACTLY like your working context menu version
+                    dragged_entity->get_transform()->set_parent(target->get_transform());
+                    pimpl->context->selected_entity = dragged_entity;
+                    
+                    EntitySelectedEvent event(dragged_entity);
+                    pimpl->context->event_manager->dispatch(event);
+                    
+                    std::cout << "SUCCESS: Reparented " << dragged_entity->get_name() 
+                            << " under " << target->get_name() << std::endl;
+                }
+            }
+            else {
+                std::cout << "Payload rejected" << std::endl; // DEBUG
+            }
+            ImGui::EndDragDropTarget();
+        }
+    }
 
 
 }  // namespace Salix
