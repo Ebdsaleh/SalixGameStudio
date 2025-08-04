@@ -1,4 +1,6 @@
 // Editor/panels/ThemeEditorPanel.cpp
+
+#include <imgui/imgui.h>
 #include <Editor/panels/ThemeEditorPanel.h>
 #include <Editor/EditorContext.h>
 #include <Salix/core/InitContext.h>
@@ -12,12 +14,13 @@
 #include <Salix/gui/imgui/ImGuiThemeData.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/management/FileManager.h>
-#include <imgui/imgui.h>
+
 #include <iostream>
 #include <string>
 #include <memory>
 #include <vector>
 #include <map>
+
 
 namespace Salix {
 
@@ -58,6 +61,36 @@ namespace Salix {
     
     void ThemeEditorPanel::on_gui_update() {
         if (!pimpl->is_visible) return;
+
+        // Use RAII to handle disabled state safely
+        struct DisabledGuard {
+            bool active;
+            DisabledGuard(bool should_disable) : active(should_disable) { 
+                if (active) ImGui::BeginDisabled(); 
+            }
+            ~DisabledGuard() { 
+                if (active) ImGui::EndDisabled(); 
+            }
+        } disabled_guard(pimpl->is_locked);
+
+        // Early return checks AFTER setting up the guard
+        ITheme* active_theme_base = pimpl->context->theme_manager->get_active_theme();
+        ImGuiTheme* active_imgui_theme = dynamic_cast<ImGuiTheme*>(active_theme_base);
+
+        if (!active_imgui_theme) {
+            ImGui::Text("No active ImGui theme to edit.");
+            return; // Guard will auto-cleanup disabled state
+        }
+
+        ImGuiThemeData* data = active_imgui_theme->get_data();
+        if (!data) {
+            ImGui::Text("Active theme has no data.");
+            return; // Guard will auto-cleanup disabled state
+        }
+        
+        
+        
+        // Main panel rendering
         pimpl->render_layout();
     }
 
@@ -88,6 +121,8 @@ namespace Salix {
         
 
     }
+
+   
 
     void ThemeEditorPanel::Pimpl::render_layout() {
         if (ImGui::Begin(name.c_str(), &is_visible)) {
@@ -129,6 +164,9 @@ namespace Salix {
 
             if (!active_imgui_theme) {
                 ImGui::Text("No active ImGui theme to edit.");
+                 if (is_locked) {
+                    ImGui::EndDisabled(); // <-- This was missing!
+                }
                 ImGui::End();
                 return;
             }
@@ -172,8 +210,8 @@ namespace Salix {
             if (is_locked) {
                 ImGui::EndDisabled();
             }
-            ImGui::End();
         }
+        ImGui::End();
     }
 
     void ThemeEditorPanel::Pimpl::load_selected_theme(ImGuiThemeData* data) {
