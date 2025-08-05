@@ -294,6 +294,9 @@ namespace Salix {
     Entity* Scene::get_entity_by_name(const std::string& entity_name) {
     for (const auto& entity : pimpl->entities) {
         if (entity && entity->get_name() == entity_name) {
+            if (entity->is_purged()) {
+                continue;
+            }
             return entity.get();
         }
     }
@@ -307,6 +310,9 @@ namespace Salix {
 
         if (pimpl->entities.size() == 0) return nullptr;
         for (auto& entity : pimpl->entities) {
+            if (entity->is_purged()) {
+                continue;
+            }
             if (entity->get_id() == id) return entity.get();
         }
         return nullptr;
