@@ -8,6 +8,7 @@
 #include <Salix/core/SDLTimer.h>
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/core/InitContext.h>
+#include <Salix/core/SimpleGuid.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/DummyCamera.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
@@ -215,7 +216,7 @@ namespace Salix {
 
         // Loop through all entities in the scene and draw them
         for (Entity* entity : active_scene->get_entities()) {
-            if (!entity) continue;
+            if (!entity || entity->is_purged()) continue;
             
             Transform* transform = entity->get_element<Transform>();
             Sprite2D* sprite = entity->get_element<Sprite2D>();
