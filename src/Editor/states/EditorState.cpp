@@ -38,6 +38,7 @@
 #include <Editor/panels/RealmPortalPanel.h>
 #include <Editor/panels/ProjectSettingsPanel.h>
 #include <Editor/panels/ThemeEditorPanel.h>
+#include <Salix/reflection/EditorDataMode.h>
 
 // For ImGui Docking
 #include <Salix/gui/IGui.h>
