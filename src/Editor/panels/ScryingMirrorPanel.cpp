@@ -7,6 +7,7 @@
 #include <Salix/gui/IGui.h>
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/IconInfo.h>
+#include <Salix/reflection/EditorDataMode.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/ui/TypeDrawer.h>
 #include <Salix/ecs/Camera.h>
@@ -85,29 +86,41 @@ namespace Salix {
         Entity* selected_entity_live = nullptr;
         Element* selected_element_live = nullptr;
 
+        Entity* selected_entity_live_yaml = nullptr;
+        Element* selected_element_live_yaml = nullptr;
+
         if (pimpl->context && pimpl->context->active_scene) {
-            selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
-            if (selected_entity_live) {
-                selected_element_live = selected_entity_live->get_element_by_id(pimpl->selected_element_id);
+            // --- Live Mode Pathway ---
+            if (pimpl->context->data_mode == EditorDataMode::Live) {
+                selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
+                if (selected_entity_live) {
+                    selected_element_live = selected_entity_live->get_element_by_id(pimpl->selected_element_id);
+                }
             }
+            // --- YAML Mode Pathway ---
+            // This pathway will eventually get a proxy or data-only object.
+            // For now, it will return a nullptr as a placeholder. 
+            else if(pimpl->context->data_mode == EditorDataMode::Yaml) {
+            // TODO: Implement YAML data pathway here.
+            }  
         }
         // --- End New Data-Driven Lookup Logic ---
 
 
-
-        if (pimpl->selected_element || (pimpl->context && pimpl->context->selected_entity)) {
-            if (pimpl->context->selected_entity) {
-                ImGui::Text("Entity: %s", pimpl->context->selected_entity->get_name().c_str());
+        // Use the new live pointers instead of the old ones.
+        if (selected_element_live|| (selected_entity_live)) {
+            if (selected_entity_live) {
+                ImGui::Text("Entity: %s", selected_entity_live->get_name().c_str());
                 ImGui::Separator();
             }
 
             std::vector<Salix::Element*> elements_to_display;
 
-            if (pimpl->selected_element) {
-                elements_to_display.push_back(pimpl->selected_element);
+            if (selected_element_live) {
+                elements_to_display.push_back(selected_element_live);
             }
-            else if (pimpl->context && pimpl->context->selected_entity) {
-                elements_to_display = pimpl->context->selected_entity->get_all_elements();
+            else if (selected_entity_live) {
+                elements_to_display = selected_entity_live->get_all_elements();
             }
 
             for (auto* element : elements_to_display) {
@@ -146,35 +159,31 @@ namespace Salix {
     void ScryingMirrorPanel::on_event(IEvent& event) {
         if (event.get_event_type() == EventType::EditorEntitySelected) {
             EntitySelectedEvent& entity_selection = static_cast<EntitySelectedEvent&>(event);
+
             if (entity_selection.entity == nullptr) {
-                pimpl->selected_entity = nullptr;
                 pimpl->selected_entity_id = SimpleGuid::invalid();
-                pimpl->selected_element = nullptr;
                 pimpl->selected_element_id = SimpleGuid::invalid();
                 std::cout << "Scrying Mirror received selection event for: None" << std::endl;
-                return; // Exit the method to prevent further use of the null pointer.
+                return;
             }
-            pimpl->selected_entity = entity_selection.entity; 
+            
             pimpl->selected_entity_id = entity_selection.entity->get_id();
-            pimpl->selected_element = nullptr; // Clear the element selection
             pimpl->selected_element_id = SimpleGuid::invalid();
             std::cout << "Scrying Mirror received selection event for: "
                 << (entity_selection.entity ? entity_selection.entity->get_name() : "None") << std::endl;
         }
         else if (event.get_event_type() == EventType::EditorElementSelected) {
             ElementSelectedEvent& element_selection = static_cast<ElementSelectedEvent&>(event);
+            
             if (element_selection.element == nullptr) {
-                pimpl->selected_element = nullptr;
                 pimpl->selected_element_id = SimpleGuid::invalid();
-                pimpl->selected_entity = nullptr;
                 pimpl->selected_entity_id = SimpleGuid::invalid();
                 std::cout << "Scrying Mirror received selection event for: None" << std::endl;
                 return;
             }
-            pimpl->selected_element = element_selection.element;
+
             pimpl->selected_element_id = element_selection.element->get_id();
-            pimpl->selected_entity = nullptr; // Clear the element selection
-            pimpl->selected_entity_id = SimpleGuid::invalid();
+            pimpl->selected_entity_id = element_selection.element->get_owner()->get_id();
             std::cout << "Scrying Mirror received selection event for: "
                 << (element_selection.element ? element_selection.element->get_class_name() : "None") << std::endl;
         }
