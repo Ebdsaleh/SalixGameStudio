@@ -17,6 +17,9 @@ namespace Salix {
         // Public method to get a new, unique ID. This is the only way to create one.
         static SimpleGuid generate();
 
+        // Add a public static method to get an invalid ID.
+        static SimpleGuid invalid();
+
         // Constructors are made private to ensure IDs are only made via generate().
     private:
         SimpleGuid(); // Default constructor creates an invalid ID (0)

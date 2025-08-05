@@ -23,9 +23,15 @@ namespace Salix {
         return SimpleGuid(next_id_counter++);
     }
 
+    SimpleGuid SimpleGuid::invalid() {
+        return SimpleGuid();
+    }
+
     // --- Constructor Implementations ---
     SimpleGuid::SimpleGuid() : id(0) {}
     SimpleGuid::SimpleGuid(uint64_t guid) : id(guid) {}
+
+
 
     // --- Operator Implementations ---
     bool SimpleGuid::operator==(const SimpleGuid& other) const { return id == other.id; }
