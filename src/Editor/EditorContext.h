@@ -8,6 +8,7 @@
 #pragma once
 #include <Editor/EditorAPI.h>
 #include <Editor/GridSettings.h>
+#include <Salix/core/SimpleGuid.h>
 
 namespace Salix {
 
@@ -63,7 +64,8 @@ namespace Salix {
         Entity* selected_entity = nullptr;
         GridSettings grid_settings; 
         SceneSettings scene_settings;
-        EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}) {}
+        SimpleGuid selected_entity_id = SimpleGuid::invalid();
+        EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
     };
     
 
