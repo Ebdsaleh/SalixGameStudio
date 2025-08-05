@@ -98,6 +98,17 @@ namespace Salix {
     }
 
     void Entity::purge() {
+        // 1. First, detach all children from this entity.
+        // We make a copy of the children list because `release_from_parent`
+        // will modify the original list.
+        auto children_copy = pimpl->children;
+        for (auto* child : children_copy) {
+            if (child) {
+                child->release_from_parent();
+            }
+        }
+        
+        // 2. Now that all children are detached, we can mark this entity for purging.
         pimpl->is_purged_flag = true;
     }
 
@@ -167,7 +178,10 @@ namespace Salix {
         }
 
         // 3. Now, manage the Entity-level hierarchy.
-        pimpl->parent->remove_child(this);
+        if (pimpl->parent) {
+            pimpl->parent->remove_child(this);
+        }
+
         pimpl->parent = nullptr;
     }
 
@@ -181,10 +195,12 @@ namespace Salix {
     }
 
     void Entity::remove_child(Entity* child) {
-        pimpl->children.erase(
+        if (pimpl->children.size() !=0) {
+            pimpl->children.erase(
             std::remove(pimpl->children.begin(), pimpl->children.end(), child),
             pimpl->children.end()
-        );
+            );
+        }
     }
 
 
