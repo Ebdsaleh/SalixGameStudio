@@ -9,6 +9,7 @@
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>
 #include <Salix/events/EventManager.h>
+#include <Salix/core/SimpleGuid.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/Element.h>
@@ -34,6 +35,7 @@ namespace Salix {
     struct WorldTreePanel::Pimpl {
         EditorContext* context = nullptr;
         Entity* entity_to_rename = nullptr;
+        SimpleGuid entity_to_rename_id = SimpleGuid::invalid();
         char rename_buffer[256]; // <-- Add a buffer for the text field
         
     };
@@ -120,17 +122,25 @@ namespace Salix {
 
     
     void WorldTreePanel::render_entity_tree(Entity* entity) {
-        if (!entity) return;
+        if (!entity || entity->is_purged()) return;
 
         // Use the entity's memory address for a unique ID scope
-        ImGui::PushID(entity);
+        int entity_id = static_cast<int>(entity->get_id().get_value());
+        if (entity_id == 0) return;
+        ImGui::PushID(entity_id);
 
         // 1. Handle the drop zone ABOVE this entity (for re-ordering/un-parenting)
         handle_inter_entity_drop_target(entity);
 
+         
         // 2. Draw the actual entity node (icon, text, etc.)
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-        if (pimpl->context->selected_entity == entity) {
+
+        // Add the new check for the SimpleGuid
+        if (pimpl->context->selected_entity_id == entity->get_id()) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+        else if (pimpl->context->selected_entity == entity) {
             flags |= ImGuiTreeNodeFlags_Selected;
         }
 
@@ -158,10 +168,10 @@ namespace Salix {
             }
 
             // The rest of the function (rendering children) happens inside this if block.
-            if (node_open) {
+            //if (node_open) {
                 // ... (Your code to render children and elements) ...
-                ImGui::TreePop();
-            }
+            //    ImGui::TreePop();
+            //}
         }
         else {
 
@@ -177,11 +187,16 @@ namespace Salix {
             handle_entity_drop_target(entity);
 
             // 4. Handle standard interactions like clicking and context menus
+            // --- LIVE OBJECT USAGE ---
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
                 pimpl->context->selected_entity = entity;
                 pimpl->context->selected_element = nullptr;
                 EntitySelectedEvent event(entity);
                 pimpl->context->event_manager->dispatch(event);
+                // --- END LIVE OBJECT USAGE ---
+                // --- The New, Data-Driven System (Additions) ---
+                pimpl->context->selected_entity_id = entity->get_id();
+                pimpl->context->selected_element_id = SimpleGuid::invalid();
 
                 if (ImGui::IsMouseDoubleClicked(0)) {
                     if (auto transform = entity->get_transform()) {
@@ -214,11 +229,18 @@ namespace Salix {
 
 
     void WorldTreePanel::render_element(Element* element) {
+        if (!element) return;
+
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_Leaf | 
                                   ImGuiTreeNodeFlags_NoTreePushOnOpen |
                                   ImGuiTreeNodeFlags_SpanAvailWidth;
         
-        if (pimpl->context->selected_element == element) {
+        // Add the new check for the SimpleGuid
+        if (pimpl->context->selected_element_id == element->get_id()) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+
+        else if (pimpl->context->selected_element == element) {
             flags |= ImGuiTreeNodeFlags_Selected;
         }
 
@@ -235,10 +257,17 @@ namespace Salix {
         ImGui::TreeNodeEx(element, flags, "  - %s", element->get_class_name());
 
         if (ImGui::IsItemClicked()) {
+            // --- The Old, Pointer-Based System ---
             pimpl->context->selected_element = element;
             pimpl->context->selected_entity = element->get_owner();
             ElementSelectedEvent event(element);
             pimpl->context->event_manager->dispatch(event);
+            // --- End Of The Old, Pointer-Based System ---
+
+            // --- The New, Data-Driven System (Additions) ---
+            pimpl->context->selected_element_id = element->get_id();
+            pimpl->context->selected_entity_id = element->get_owner()->get_id();
+
         }
         
     }
@@ -255,6 +284,9 @@ namespace Salix {
                         pimpl->context->selected_entity = newEntity;
                         EntitySelectedEvent event(newEntity);
                         pimpl->context->event_manager->dispatch(event);
+
+                        // --- New, Data-Driven System (Additions) ---
+                        pimpl->context->selected_entity_id = newEntity->get_id();
                     }
                 }
             }
@@ -286,18 +318,28 @@ namespace Salix {
                     entity->add_element<Sprite2D>();
                     EntitySelectedEvent event(entity);
                     pimpl->context->event_manager->dispatch(event);
+
+                    // New: GUID-based context update
+                    pimpl->context->selected_entity_id = entity->get_id();
                 }
                 
                 if (ImGui::MenuItem("Script##AddScript")) {
                     entity->add_element<ScriptElement>();
                     EntitySelectedEvent event(entity);
                     pimpl->context->event_manager->dispatch(event);
+
+                    // New: GUID-based context update
+                    pimpl->context->selected_entity_id = entity->get_id();
+
                 }
                 
                 if (ImGui::MenuItem("Camera##AddCamera")) {
                     entity->add_element<Camera>();
                     EntitySelectedEvent event(entity);
                     pimpl->context->event_manager->dispatch(event);
+
+                    // New: GUID-based context update
+                    pimpl->context->selected_entity_id = entity->get_id();
                 }
                 ImGui::EndMenu();
             }
@@ -321,6 +363,9 @@ namespace Salix {
                         pimpl->context->selected_entity = newEntity;
                         EntitySelectedEvent event(newEntity);
                         pimpl->context->event_manager->dispatch(event);
+
+                        // New: GUID-based context update
+                        pimpl->context->selected_entity_id = newEntity->get_id();
                     }
                 }
             }
@@ -329,7 +374,11 @@ namespace Salix {
 
             if (ImGui::MenuItem("Rename##RenameEntity", "F2")) {
                 pimpl->entity_to_rename = entity; // Store which entity we are renaming
-                 // And copy its current name into our buffer to start editing
+                
+                // New: GUID-based context update
+                pimpl->entity_to_rename_id = entity->get_id();
+                
+                // And copy its current name into our buffer to start editing
                 strncpy_s(pimpl->rename_buffer, sizeof(
                 pimpl->rename_buffer), entity->get_name().c_str(),
                 sizeof(pimpl->rename_buffer) - 1);
@@ -344,13 +393,17 @@ namespace Salix {
 
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
                 if (pimpl->context && pimpl->context->active_scene) {
-                    if (entity){
-                        if (entity->get_parent()) entity->release_from_parent();
-
+                    if (entity && !entity->is_purged()){
+                        if (entity->get_parent()) {
+                            entity->release_from_parent();
+                        }
                     }
                     entity->purge();
                     EntitySelectedEvent event(nullptr);
                     pimpl->context->event_manager->dispatch(event);
+
+                    // New: GUID-based context update
+                    pimpl->context->selected_entity_id = SimpleGuid::invalid();
                 }
             }
 
@@ -361,8 +414,16 @@ namespace Salix {
 
 
     void WorldTreePanel::handle_keyboard_shortcuts() {
+
+        // --- New Data-Driven Lookup Logic ---
+        // Get the selected entity using its GUID, which is a stable ID.
+        Entity* selected_entity = nullptr;
+        if (pimpl->context && pimpl->context->active_scene) {
+            selected_entity = pimpl->context->active_scene->get_entity_by_id(pimpl->context->selected_entity_id);
+
+        }
+
         // Do nothing if no entity is selected.
-        Entity* selected_entity = pimpl->context->selected_entity;
         if (!selected_entity) {
             return;
         }
