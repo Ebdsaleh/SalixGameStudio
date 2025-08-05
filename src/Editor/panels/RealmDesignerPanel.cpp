@@ -5,6 +5,7 @@
 #include <Salix/gui/IconInfo.h>
 #include <Editor/EditorContext.h>
 #include <Salix/core/SDLTimer.h>
+#include <Salix/core/SimpleGuid.h>
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/rendering/IRenderer.h>
@@ -45,6 +46,7 @@ namespace Salix {
         ImVec2 viewport_size = { 1280, 720 };
         
         bool is_panel_focused_this_frame = false;
+        SimpleGuid selected_entity_id = SimpleGuid::invalid();
         Ray last_picking_ray;
         ImGuizmo::OPERATION CurrentGizmoOperation = ImGuizmo::TRANSLATE;
         GLint render_pass_begin();
@@ -116,6 +118,12 @@ namespace Salix {
                     return;
                 }
 
+                // --- Get the selected entity via its GUID (The Data-Driven Approach) ---
+                Entity* selected_entity_live = nullptr;
+                if (pimpl->context && pimpl->context->active_scene) {
+                    selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->context->selected_entity_id);
+                }
+
                 // --- Camera Control ---
                 bool camera_can_move = false;
                 if (!pimpl->is_locked &&  // THIS IS THE CRITICAL ADDITION
@@ -140,10 +148,10 @@ namespace Salix {
                         ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0,1), ImVec2(1,0));
 
                         // --- Gizmo Interaction ---
-                        if (!pimpl->is_locked && pimpl->context->selected_entity) {
+                        if (!pimpl->is_locked && selected_entity_live) {
                             pimpl->handle_gizmos( 
                                 pimpl->context->editor_camera, 
-                                pimpl->context->selected_entity
+                                selected_entity_live
                             );
                         }
                         
@@ -211,7 +219,7 @@ namespace Salix {
 
 
     void RealmDesignerPanel::Pimpl::handle_gizmos(EditorCamera* camera, Entity* selected_entity) {
-        if (is_locked || !selected_entity) return;
+        if (is_locked || !selected_entity || selected_entity->is_purged()) return;
 
         ImGuizmo::SetOrthographic(false);
         ImGuizmo::SetDrawlist();
@@ -328,7 +336,11 @@ namespace Salix {
         Entity* selected_entity = nullptr;
         float closest_hit_distance = FLT_MAX;
 
+        // Add the SimpleGuid variable to store the new ID
+        SimpleGuid temp_selected_entity_id = SimpleGuid::invalid();
+
         for (Entity* entity : context->active_scene->get_entities()) {
+            if (!entity || entity->is_purged()) continue;
 
             Transform* transform = entity->get_transform();
             BoxCollider* collider = entity->get_element<BoxCollider>();
@@ -345,7 +357,8 @@ namespace Salix {
 
                     if (world_distance < closest_hit_distance) {
                         closest_hit_distance = world_distance;
-                        selected_entity = entity;  
+                        selected_entity = entity; 
+                        temp_selected_entity_id = entity->get_id(); 
                     }
                 }
             }
@@ -356,6 +369,11 @@ namespace Salix {
             EntitySelectedEvent event(selected_entity);
             context->selected_entity = selected_entity;
             context->event_manager->dispatch(event);  
+
+            // New, data-driven system (Additions)
+            selected_entity_id = temp_selected_entity_id;
+            context->selected_entity_id = selected_entity_id;
+            
         }
     }
 
@@ -422,7 +440,7 @@ namespace Salix {
 
         // Loop through all entities in the scene and draw them
         for (Entity* entity : active_scene->get_entities()) {
-            if (!entity) continue;
+            if (!entity || entity->is_purged()) continue;
             
             Transform* transform = entity->get_element<Transform>();
             Sprite2D* sprite = entity->get_element<Sprite2D>();
@@ -554,6 +572,7 @@ namespace Salix {
         Color box_color = {0.0f, 1.0f, 0.0f, 1.0f}; // Green
 
         for (Entity* entity : context->active_scene->get_entities()) {
+            if (!entity || entity->is_purged()) continue;
             Transform* transform = entity->get_transform(); 
             BoxCollider* collider = entity->get_element<BoxCollider>(); 
 
