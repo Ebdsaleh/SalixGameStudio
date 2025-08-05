@@ -8,6 +8,7 @@
 #include <Salix/core/SimpleGuid.h>
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/core/InitContext.h>
+#include <Salix/reflection/EditorDataMode.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/ecs/Scene.h>
