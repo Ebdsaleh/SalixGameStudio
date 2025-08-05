@@ -301,10 +301,11 @@ namespace Salix {
     }
 
 
-    
+
     Entity* Scene::get_entity_by_id(SimpleGuid id) {
         if (id == SimpleGuid::invalid()) return nullptr;
 
+        if (pimpl->entities.size() == 0) return nullptr;
         for (auto& entity : pimpl->entities) {
             if (entity->get_id() == id) return entity.get();
         }
