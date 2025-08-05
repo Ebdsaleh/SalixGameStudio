@@ -21,6 +21,7 @@
 #include <Salix/management/Project.h>
 #include <Salix/management/SceneManager.h>
 #include <Salix/core/InitContext.h>
+#include <Salix/reflection/EditorDataMode.h>
 #include <Editor/EditorContext.h>
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/rendering/ITexture.h>
