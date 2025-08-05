@@ -9,6 +9,7 @@
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/core/SimpleGuid.h>
+#include <Salix/reflection/EditorDataMode.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/DummyCamera.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
