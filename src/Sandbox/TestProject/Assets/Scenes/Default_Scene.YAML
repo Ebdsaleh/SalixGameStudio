@@ -1,0 +1,25 @@
+# A simple player entity with a transform and a sprite
+- Entity: Player
+  components:
+    - Transform:
+        Position: { x: 0.0, y: 50.0, z: 0.0 }
+        Rotation: { x: 0.0, y: 0.0, z: 0.0 }
+        Scale:    { x: 1.0, y: 1.0, z: 1.0 }
+    - Sprite2D:
+        Texture: "Assets/Images/test.png"
+        Color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
+        FlipH: false
+        FlipV: false
+    - BoxCollider:
+        Size: { x: 32.0, y: 32.0, z: 1.0 }
+
+# A camera entity
+- Entity: MainCamera
+  components:
+    - Transform:
+        Position: { x: 0.0, y: 50.0, z: 200.0 }
+    - Camera:
+        Projection: Perspective
+        FieldOfView: 60.0
+        NearClip: 0.1
+        FarClip: 1000.0
