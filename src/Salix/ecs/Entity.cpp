@@ -109,6 +109,16 @@ namespace Salix {
         return pimpl->id;
     }
 
+    Element* Entity::get_element_by_id(SimpleGuid id) {
+        if (id == SimpleGuid::invalid()) return nullptr;
+
+        if (pimpl->all_elements.size() == 0) return nullptr;
+
+        for (auto& element : pimpl->all_elements) {
+            if (element->get_id() == id) return element.get();
+        }
+        return nullptr;
+    }
 
     // Heirarchial methods
 

@@ -52,6 +52,7 @@ namespace Salix {
             const std::string& get_name() const;
             const SimpleGuid&  get_id() const;
 
+            Element* get_element_by_id(SimpleGuid id);
             // --- PUBLIC TEMPLATE METHODS (defined in the header) ---
             // New public template overload for add_element.
             template<typename T>
