@@ -10,6 +10,7 @@
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/ui/TypeDrawer.h>
 #include <Salix/ecs/Camera.h>
+#include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Entity.h>
@@ -30,8 +31,9 @@ namespace Salix {
         ImGuiIconManager* icon_manager = nullptr;
         Entity* selected_entity = nullptr;
         Element* selected_element = nullptr;
+        SimpleGuid selected_entity_id = SimpleGuid::invalid();
+        SimpleGuid selected_element_id = SimpleGuid::invalid();
         void draw_property(const Property& prop, Element* element);
-        
     };
 
     ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
@@ -61,6 +63,12 @@ namespace Salix {
         return ImGuiWindowFlags_None; // Add any custom flags here
     }
    
+
+
+
+
+
+
     void ScryingMirrorPanel::on_panel_gui_update() {
         if (!pimpl->is_visible) {
             return;
@@ -70,6 +78,22 @@ namespace Salix {
         
         ImGui::Text("Properties:");
         ImGui::Separator();
+
+
+        // --- New Data-Driven Lookup Logic ---
+
+        Entity* selected_entity_live = nullptr;
+        Element* selected_element_live = nullptr;
+
+        if (pimpl->context && pimpl->context->active_scene) {
+            selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
+            if (selected_entity_live) {
+                selected_element_live = selected_entity_live->get_element_by_id(pimpl->selected_element_id);
+            }
+        }
+        // --- End New Data-Driven Lookup Logic ---
+
+
 
         if (pimpl->selected_element || (pimpl->context && pimpl->context->selected_entity)) {
             if (pimpl->context->selected_entity) {
@@ -114,18 +138,43 @@ namespace Salix {
     }
 
 
+
+
+
+
+
     void ScryingMirrorPanel::on_event(IEvent& event) {
         if (event.get_event_type() == EventType::EditorEntitySelected) {
             EntitySelectedEvent& entity_selection = static_cast<EntitySelectedEvent&>(event);
-            pimpl->selected_entity = entity_selection.entity;
+            if (pimpl->selected_entity == nullptr) {
+                pimpl->selected_entity = nullptr;
+                pimpl->selected_entity_id = SimpleGuid::invalid();
+                pimpl->selected_element = nullptr;
+                pimpl->selected_element_id = SimpleGuid::invalid();
+                std::cout << "Scrying Mirror received selection event for: None" << std::endl;
+                return; // Exit the method to prevent further use of the null pointer.
+            }
+            pimpl->selected_entity = entity_selection.entity; 
+            pimpl->selected_entity_id = entity_selection.entity->get_id();
             pimpl->selected_element = nullptr; // Clear the element selection
+            pimpl->selected_element_id = SimpleGuid::invalid();
             std::cout << "Scrying Mirror received selection event for: "
                 << (entity_selection.entity ? entity_selection.entity->get_name() : "None") << std::endl;
         }
         else if (event.get_event_type() == EventType::EditorElementSelected) {
             ElementSelectedEvent& element_selection = static_cast<ElementSelectedEvent&>(event);
+            if (element_selection.element == nullptr) {
+                pimpl->selected_element = nullptr;
+                pimpl->selected_element_id = SimpleGuid::invalid();
+                pimpl->selected_entity = nullptr;
+                pimpl->selected_entity_id = SimpleGuid::invalid();
+                std::cout << "Scrying Mirror received selection event for: None" << std::endl;
+                return;
+            }
             pimpl->selected_element = element_selection.element;
+            pimpl->selected_element_id = element_selection.element->get_id();
             pimpl->selected_entity = nullptr; // Clear the element selection
+            pimpl->selected_entity_id = SimpleGuid::invalid();
             std::cout << "Scrying Mirror received selection event for: "
                 << (element_selection.element ? element_selection.element->get_class_name() : "None") << std::endl;
         }
@@ -136,6 +185,10 @@ namespace Salix {
 
 
     // --- Private methods ---
+
+    
+
+
 
      void ScryingMirrorPanel::Pimpl::draw_property(const Property& prop, Element* element) {
         // We now draw the property across two columns.
