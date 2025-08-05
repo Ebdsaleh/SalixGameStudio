@@ -10,11 +10,7 @@ namespace Salix {
 
     using DrawFunc = std::function<void(const Property& prop, Element* element)>;
 
-    enum class EditorDataMode {
-        LIVE,
-        YAML
-    };
-
+    
     class SALIX_API TypeDrawer {
     public:
     
