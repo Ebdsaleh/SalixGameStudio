@@ -29,6 +29,7 @@ namespace Salix {
                 owner = owner_entity;
             }
 
+           
             template <class Archive>
             void serialize(Archive& /* archive*/) {
                 /// The base class of the hierarchy has no parent to serialize.
