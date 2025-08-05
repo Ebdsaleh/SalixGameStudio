@@ -14,6 +14,7 @@ class Entity;
 class IRenderer;
 class AssetManager;
 struct InitContext;
+class SimpleGuid;
 
     class SALIX_API Scene {
     public:
@@ -43,6 +44,7 @@ struct InitContext;
         
         // A method to get an Entity by name.
         Entity* get_entity_by_name(const std::string& entity_name);  // Had to add this for testing in 'Game/GameState.cpp'
+        Entity* get_entity_by_id(SimpleGuid id);
         std::vector<Entity*> get_entities(); 
         // --- Public Getters for Shell Info ---
         const std::string& get_name() const;

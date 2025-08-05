@@ -1,5 +1,6 @@
 // Salix/ecs/Scene.cpp
 #include <Salix/core/InitContext.h>
+#include <Salix/core/SimpleGuid.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Transform.h>  // used for test code.
@@ -298,7 +299,22 @@ namespace Salix {
     }
     return nullptr; // Not found
     }
+
+
     
+    Entity* Scene::get_entity_by_id(SimpleGuid id) {
+        if (id == SimpleGuid::invalid()) return nullptr;
+
+        for (auto& entity : pimpl->entities) {
+            if (entity->get_id() == id) return entity.get();
+        }
+        return nullptr;
+    }
+    
+
+
+
+
     std::vector<Entity*> Scene::get_entities() {
         std::vector<Entity*> raw_pointers;
         // Reserve space for efficiency (optional but good practice).
