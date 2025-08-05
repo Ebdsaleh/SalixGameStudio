@@ -41,6 +41,6 @@ namespace Salix {
         void process_entity_drop(Entity* dragged_entity, Entity* target_entity);
         void handle_inter_entity_drop_target(Entity* anchor_entity);
         void handle_entity_drop_target(Entity* entity);
-        
+        void handle_keyboard_shortcuts(); 
     };
 }  // namespace Salix

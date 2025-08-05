@@ -104,6 +104,9 @@ namespace Salix {
 
             // Show empty space context menu
             show_empty_space_context_menu();
+            if (ImGui::IsWindowFocused()) {
+                handle_keyboard_shortcuts();
+            }
             
             
         }
@@ -357,7 +360,43 @@ namespace Salix {
     
 
 
+    void WorldTreePanel::handle_keyboard_shortcuts() {
+        // Do nothing if no entity is selected.
+        Entity* selected_entity = pimpl->context->selected_entity;
+        if (!selected_entity) {
+            return;
+        }
 
+        // --- Purge Shortcut (Del key) ---
+        // We check if the 'Delete' key was pressed this frame.
+        if (ImGui::IsKeyPressed(ImGuiKey_Delete)) {
+            // This is the same logic from your MenuItem.
+            if (selected_entity->get_parent()) {
+                selected_entity->release_from_parent();
+            }
+            selected_entity->purge();
+            
+            // We set selection to null here, but the event will also do this.
+            pimpl->context->selected_entity = nullptr; 
+            EntitySelectedEvent event(nullptr);
+            pimpl->context->event_manager->dispatch(event);
+        }
+
+        // --- Rename Shortcut (F2 key) ---
+        if (ImGui::IsKeyPressed(ImGuiKey_F2)) {
+            // This is the same logic from your MenuItem.
+            pimpl->entity_to_rename = selected_entity;
+            strncpy_s(pimpl->rename_buffer, sizeof(pimpl->rename_buffer), 
+                    selected_entity->get_name().c_str(), sizeof(pimpl->rename_buffer) - 1);
+        }
+
+        // --- Duplicate Shortcut (Ctrl+D) ---
+        // ImGui::GetIO().KeyCtrl checks if the Ctrl key is held down.
+        if (ImGui::GetIO().KeyCtrl && ImGui::IsKeyPressed(ImGuiKey_D)) {
+            // TODO: Implement duplication logic here.
+            std::cout << "Ctrl+D pressed for entity: " << selected_entity->get_name() << std::endl;
+        }
+    }
 
 
 
