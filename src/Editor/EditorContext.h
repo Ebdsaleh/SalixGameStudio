@@ -9,6 +9,7 @@
 #include <Editor/EditorAPI.h>
 #include <Editor/GridSettings.h>
 #include <Salix/core/SimpleGuid.h>
+#include <Salix/reflection/EditorDataMode.h>
 
 namespace Salix {
 
@@ -66,6 +67,7 @@ namespace Salix {
         SceneSettings scene_settings;
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
+        EditorDataMode data_mode = EditorDataMode::Live;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
     };
     
