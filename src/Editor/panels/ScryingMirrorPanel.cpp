@@ -146,7 +146,7 @@ namespace Salix {
     void ScryingMirrorPanel::on_event(IEvent& event) {
         if (event.get_event_type() == EventType::EditorEntitySelected) {
             EntitySelectedEvent& entity_selection = static_cast<EntitySelectedEvent&>(event);
-            if (pimpl->selected_entity == nullptr) {
+            if (entity_selection.entity == nullptr) {
                 pimpl->selected_entity = nullptr;
                 pimpl->selected_entity_id = SimpleGuid::invalid();
                 pimpl->selected_element = nullptr;
