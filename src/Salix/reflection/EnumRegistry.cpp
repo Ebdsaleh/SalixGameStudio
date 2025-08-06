@@ -32,4 +32,17 @@ namespace Salix {
         editor_mode_data.ordered_names.push_back("Yaml");
         EnumRegistry::register_enum(typeid(Salix::EditorDataMode), std::move(editor_mode_data));
     }
-}
+
+    const EnumRegistry::EnumData* EnumRegistry::get_enum_data_as_ptr(std::type_index type_index) {
+        // Use .find() to safely search the map
+        auto it = enum_data_registry.find(type_index);
+
+        if (it != enum_data_registry.end()) {
+            // If we found it, return the address of the EnumData object
+            return &it->second;
+        }
+
+        // If the type_index was not found in our registry, return nullptr
+        return nullptr;
+    }
+}  // namespace Salix
