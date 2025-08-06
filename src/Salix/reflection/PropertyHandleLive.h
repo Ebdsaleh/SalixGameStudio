@@ -16,18 +16,18 @@ namespace Salix {
     // This class wraps a pointer to a live component (an object derived from Element*)
     // and uses the reflection functions from ByteMirror (via the Property struct)
     // to get and set its properties.
-    class SALIX_API PropertyHandle_Live : public PropertyHandle {
+    class SALIX_API PropertyHandleLive : public PropertyHandle {
         public:
             // Constructor: Takes the reflection info for the property and a pointer to the live object instance.
-            PropertyHandle_Live(const Property* property_info, Element* instance);
+            PropertyHandleLive(const Property* property_info, Element* instance);
 
             // Explicitly default the virtual destructor. Good practice.
-            ~PropertyHandle_Live() override = default;
+            ~PropertyHandleLive() override = default;
 
             // Override the pure virtual functions from the PropertyHandle base class.
             // The full implementation for these will be in PropertyHandle_Live.cpp.
-            PropertyValue getValue() const override;
-            void setValue(const PropertyValue& value) override;
+            PropertyValue get_value() const override;
+            void set_value(const PropertyValue& value) override;
 
         private:
             // A pointer to the live component instance that this handle operates on.
