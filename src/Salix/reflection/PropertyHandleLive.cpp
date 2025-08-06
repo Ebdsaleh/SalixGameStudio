@@ -23,10 +23,12 @@ PropertyValue PropertyHandleLive::get_value() const
     switch (property_info->type)
     {
         case PropertyType::Int:
+        return *static_cast<int*>(property_info->get_data(instance));
         case PropertyType::UInt64:
             return *static_cast<uint64_t*>(property_info->get_data(instance));
 
         case PropertyType::Enum: // Enums are handled as ints at this level
+            return *static_cast<int*>(property_info->get_data(instance));
         case PropertyType::EnumClass:
             return *static_cast<int*>(property_info->get_data(instance));
 
@@ -77,56 +79,88 @@ void PropertyHandleLive::set_value(const PropertyValue& value)
     switch (property_info->type)
     {
         case PropertyType::Int:
+            if (std::holds_alternative<int>(value)) {
+                    auto copy = std::get<int>(value);
+                    property_info->set_data(instance, &copy);
+            }
+            break;
+
         case PropertyType::UInt64:
             if (std::holds_alternative<uint64_t>(value)) {
                 auto copy = std::get<uint64_t>(value);
-            property_info->set_data(instance, &copy);
+                property_info->set_data(instance, &copy);
             }
             break;
+
         case PropertyType::Enum:
+        if (std::holds_alternative<int>(value)) {
+                auto copy = std::get<int>(value);
+                property_info->set_data(instance, &copy);
+            }
+            
+            break;
         case PropertyType::EnumClass:
-            if (std::holds_alternative<int>(value))
-                property_info->set_data(instance, (void*)&std::get<int>(value));
+            if (std::holds_alternative<int>(value)) {
+                auto copy = std::get<int>(value);
+                property_info->set_data(instance, &copy);
+            }
+            
             break;
 
         case PropertyType::Float:
-            if (std::holds_alternative<float>(value))
-                property_info->set_data(instance, (void*)&std::get<float>(value));
+            if (std::holds_alternative<float>(value)) {
+                auto copy = std::get<float>(value);
+                property_info->set_data(instance, &copy);
+            }
             break;
 
         case PropertyType::Bool:
-            if (std::holds_alternative<bool>(value))
-                property_info->set_data(instance, (void*)&std::get<bool>(value));
+            if (std::holds_alternative<bool>(value)) {
+                auto copy = std::get<bool>(value);
+                property_info->set_data(instance, &copy);
+            }
             break;
 
         case PropertyType::String:
-            if (std::holds_alternative<std::string>(value))
-                property_info->set_data(instance, (void*)&std::get<std::string>(value));
+            if (std::holds_alternative<std::string>(value)) {
+                auto copy = std::get<std::string>(value);
+                property_info->set_data(instance, &copy);
+            }
             break;
 
         case PropertyType::Vector2:
-            if (std::holds_alternative<Vector2>(value))
-                property_info->set_data(instance, (void*)&std::get<Vector2>(value));
+            if (std::holds_alternative<Vector2>(value)) {
+                auto copy = std::get<Vector2>(value);
+                property_info->set_data(instance, &copy);
+            }
             break;
 
         case PropertyType::Vector3:
-            if (std::holds_alternative<Vector3>(value))
-                property_info->set_data(instance, (void*)&std::get<Vector3>(value));
+            if (std::holds_alternative<Vector3>(value)) {
+                auto copy = std::get<Vector3>(value);
+                property_info->set_data(instance, &copy);
+            }
             break;
 
         case PropertyType::Point:
-            if (std::holds_alternative<Point>(value))
-                property_info->set_data(instance, (void*)&std::get<Point>(value));
+            if (std::holds_alternative<Point>(value)) {
+                auto copy = std::get<Point>(value);
+                property_info->set_data(instance, &copy);
+            }
             break;
 
         case PropertyType::Color:
-            if (std::holds_alternative<Color>(value))
-                property_info->set_data(instance, (void*)&std::get<Color>(value));
+            if (std::holds_alternative<Color>(value)) {
+                auto copy = std::get<Color>(value);
+                property_info->set_data(instance, &copy);
+            }
             break;
 
         case PropertyType::Rect:
-            if (std::holds_alternative<Rect>(value))
-                property_info->set_data(instance, (void*)&std::get<Rect>(value));
+            if (std::holds_alternative<Rect>(value)) {
+                auto copy = std::get<Rect>(value);
+                property_info->set_data(instance, &copy);
+            }
             break;
 
         case PropertyType::GlmMat4:
