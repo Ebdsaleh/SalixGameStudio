@@ -18,10 +18,17 @@
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/Transform.h>
+#include <Salix/math/Vector2.h>
+#include <Salix/math/Vector3.h>
+#include <Salix/math/Point.h>
+#include <Salix/math/Rect.h>
 #include <Salix/management/Project.h>
 #include <Salix/management/SceneManager.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/reflection/EditorDataMode.h>
+#include <Salix/reflection/YamlConverters.h>
+#include <Salix/reflection/PropertyHandleLive.h>
+#include <Salix/reflection/PropertyHandleYaml.h>
 #include <Editor/EditorContext.h>
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/rendering/ITexture.h>
@@ -29,8 +36,10 @@
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/IconInfo.h>
 #include <Salix/gui/IGui.h>
+#include <yaml-cpp/yaml.h>
 #include <memory>
 #include <iostream>
+
 
 namespace Salix {
     struct WorldTreePanel::Pimpl {
@@ -38,8 +47,125 @@ namespace Salix {
         Entity* entity_to_rename = nullptr;
         SimpleGuid entity_to_rename_id = SimpleGuid::invalid();
         char rename_buffer[256]; // <-- Add a buffer for the text field
-        
+
+        // --- YAML PATHWAY HELPERS ---
+        void render_entity_tree_yaml(YAML::Node entity_node);
+        void show_empty_space_context_menu_yaml();
+        void show_entity_context_menu_yaml(YAML::Node entity_node); 
     };
+
+    
+
+
+    // --- START OF YAML HELPER IMPLEMENTATIONS ---
+
+    void WorldTreePanel::Pimpl::render_entity_tree_yaml(YAML::Node entity_node)
+    {
+        if (!entity_node || !entity_node["Entity"] || !entity_node["id"]) {
+            return;
+        }
+
+        std::string name = entity_node["Entity"].as<std::string>();
+        uint64_t id_val = entity_node["id"].as<uint64_t>();
+
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+        if (context->selected_entity_id.get_value() == id_val) {
+            flags |= ImGuiTreeNodeFlags_Selected;
+        }
+
+        bool is_renaming_this_entity = (context->selected_entity_id.get_value() == id_val && entity_to_rename_id.get_value() == id_val);
+        
+        bool node_open;
+        if (is_renaming_this_entity)
+        {
+            node_open = ImGui::TreeNodeEx("##TreeDummy", flags);
+            ImGui::SameLine();
+            ImGui::SetKeyboardFocusHere(0);
+            if (ImGui::InputText("##RenameBox", rename_buffer, sizeof(rename_buffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+                entity_node["Entity"] = std::string(rename_buffer);
+                entity_to_rename_id = SimpleGuid::invalid();
+            }
+            if (ImGui::IsItemDeactivatedAfterEdit()) {
+                entity_to_rename_id = SimpleGuid::invalid();
+            }
+        }
+        else
+        {
+            node_open = ImGui::TreeNodeEx((void*)id_val, flags, "%s", name.c_str());
+        }
+
+        if (ImGui::IsItemClicked()) {
+            context->selected_entity_id = SimpleGuid::from_value(id_val);
+            context->selected_element_id = SimpleGuid::invalid();
+        }
+
+        show_entity_context_menu_yaml(entity_node);
+
+        if (node_open) {
+            if (entity_node["elements"]) {
+                for (auto element_node : entity_node["elements"]) {
+                    std::string element_name = element_node.begin()->first.as<std::string>();
+                    ImGui::TreeNodeEx(element_name.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen, "  - %s", element_name.c_str());
+                }
+            }
+            ImGui::TreePop();
+        }
+    }
+
+
+
+    void WorldTreePanel::Pimpl::show_empty_space_context_menu_yaml()
+    {
+        if (ImGui::BeginPopupContextWindow("WorldTreeContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverExistingPopup))
+        {
+            if (ImGui::MenuItem("Add Entity##AddRootEntityYAML")) {
+                if (context && context->active_yaml_scene) {
+                    YAML::Node new_entity;
+                    SimpleGuid new_id = SimpleGuid::generate();
+                    new_entity["Entity"] = "New Entity";
+                    new_entity["id"] = new_id.get_value();
+                    
+                    YAML::Node elements(YAML::NodeType::Sequence);
+                    YAML::Node transform_element;
+                    transform_element["Transform"]["Position"] = Salix::Vector3(0, 0, 0);
+                    transform_element["Transform"]["Rotation"] = Salix::Vector3(0, 0, 0);
+                    transform_element["Transform"]["Scale"]    = Salix::Vector3(1, 1, 1);
+                    elements.push_back(transform_element);
+
+                    new_entity["elements"] = elements;
+
+                    context->active_yaml_scene.push_back(new_entity);
+                    context->selected_entity_id = new_id;
+                }
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+
+    
+
+
+     void WorldTreePanel::Pimpl::show_entity_context_menu_yaml(YAML::Node entity_node)
+    {
+        if (ImGui::BeginPopupContextItem("EntityContextMenuYAML"))
+        {
+            if (ImGui::MenuItem("Rename##RenameEntityYAML", "F2")) {
+                entity_to_rename_id = SimpleGuid::from_value(entity_node["id"].as<uint64_t>());
+                strncpy_s(rename_buffer, sizeof(rename_buffer), entity_node["Entity"].as<std::string>().c_str(), sizeof(rename_buffer) - 1);
+            }
+
+            if (ImGui::MenuItem("Purge##PurgeEntityYAML", "Del")) {
+                // This is complex - it requires finding and erasing the node from its parent sequence
+                // For now, we'll just clear the selection
+                context->selected_entity_id = SimpleGuid::invalid();
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+    // --- END OF YAML HELPER IMPLEMENTATIONS ---
+
 
     WorldTreePanel::WorldTreePanel() : pimpl(std::make_unique<Pimpl>()) {
         set_name("World Tree Panel");
@@ -67,6 +193,7 @@ namespace Salix {
     ImGuiWindowFlags WorldTreePanel::get_window_flags() const {
         return ImGuiWindowFlags_None; // Add any custom flags here
     }
+
 
 
 
@@ -119,16 +246,24 @@ namespace Salix {
             ImGui::EndChild();
 
         } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+            // --- YAML PATHWAY IMPLEMENTATION ---
+            ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.8f, 1.0f), "Scene: (YAML Mode)");
+            ImGui::TextDisabled("\tEntities: %d", pimpl->context->active_yaml_scene.size());
+            ImGui::Separator();
 
-            // --- This is the placeholder for the YAML pathway ---
-            ImGui::Text("YAML Data Mode");
-
-        } else {
-
-            // Default to Live mode if something is wrong.
-            pimpl->context->data_mode = EditorDataMode::Live;
-        
-        }         
+            if (ImGui::BeginChild("WorldTreeContent", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysVerticalScrollbar)) {
+                if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right) && !ImGui::IsAnyItemHovered()) {
+                    ImGui::OpenPopup("WorldTreeContextMenu");
+                }
+                if (pimpl->context->active_yaml_scene) {
+                    for (auto entity_node : pimpl->context->active_yaml_scene) {
+                        pimpl->render_entity_tree_yaml(entity_node);
+                    }
+                }
+                pimpl->show_empty_space_context_menu_yaml();
+            }
+            ImGui::EndChild();
+        }
     }
 
 
@@ -163,7 +298,6 @@ namespace Salix {
             if (is_renaming_this_entity) {
                 // Draw the tree node part (the arrow) without a label
                 // We use "##" to give it an ID without displaying any text.
-                bool node_open = ImGui::TreeNodeEx("##TreeDummy", flags);
                 ImGui::SameLine();
 
                 // Give the input text widget focus when it first appears.
@@ -181,11 +315,7 @@ namespace Salix {
                     pimpl->entity_to_rename = nullptr;
                 }
 
-                // The rest of the function (rendering children) happens inside this if block.
-                //if (node_open) {
-                    // ... (Your code to render children and elements) ...
-                //    ImGui::TreePop();
-                //}
+                
             }
             else {
 
@@ -616,7 +746,7 @@ namespace Salix {
                 // Log successful creation
                 std::cout << "Added " << elementName << " to entity: " << entity->get_name() << std::endl;
 
-                // Special handling for specific components
+                // Special handling for specific elements
                 if (element_type == "Camera" && pimpl->context->editor_camera) {
                     // Auto-focus when adding a camera
                     if (auto transform = entity->get_transform()) {
