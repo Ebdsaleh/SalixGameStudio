@@ -19,6 +19,7 @@ namespace Salix {
         Vector2,
         Vector3,
         Point,
+        Rect,
         Bool,
         String,
         Color,
