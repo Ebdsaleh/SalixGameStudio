@@ -11,6 +11,10 @@
 #include <optional>
 #include <memory>
 
+namespace YAML {
+    class YAML::Node;
+}
+
 namespace Salix {
 
     class PropertyHandle;
