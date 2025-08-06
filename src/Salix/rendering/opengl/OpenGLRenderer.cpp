@@ -924,21 +924,16 @@ namespace Salix {
         }
         pimpl->texture_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
         pimpl->texture_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
-
-        // 2. Build the Model Matrix directly from the Transform component
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, transform->get_position().to_glm());
         
-        // Rotation (around Z for now, can be expanded to full 3D rotation)
-        model = glm::rotate(model, glm::radians(transform->get_rotation().z), glm::vec3(0.0f, 0.0f, 1.0f));
+        // 2. Build the LOCAL Model Matrix for the sprite
+        glm::mat4 local_model = glm::mat4(1.0f);
+        local_model = glm::translate(local_model, transform->get_position().to_glm());
+        local_model = glm::rotate(local_model, glm::radians(transform->get_rotation().z), glm::vec3(0.0f, 0.0f, 1.0f));
         
         const float PIXELS_PER_UNIT = pimpl->pixels_per_unit;
-        // Calculate the sprite's size in world units
         float world_width = (float)texture->get_width() / PIXELS_PER_UNIT;
         float world_height = (float)texture->get_height() / PIXELS_PER_UNIT;
 
-
-        // Handle Flipping via negative scale 
         float scale_x = world_width * transform->get_scale().x;
         float scale_y = world_height * transform->get_scale().y;
         
@@ -949,11 +944,21 @@ namespace Salix {
             scale_y *= -1.0f;
         }
         
-        model = glm::scale(model, glm::vec3(scale_x, scale_y, 1.0f));
-        
-        pimpl->texture_shader->setMat4("model", model);
+        local_model = glm::scale(local_model, glm::vec3(scale_x, scale_y, 1.0f));
 
-        // 3. Set color, bind texture, and draw (same as before)
+        // --- THIS IS THE FIX ---
+        // 3. Get the final world matrix by applying the parent's transform
+        glm::mat4 final_world_model = local_model;
+        const Transform* parent = transform->get_parent();
+        if (parent) {
+            // If there is a parent, multiply our local matrix by the parent's full world matrix
+            final_world_model = parent->get_model_matrix() * local_model;
+        }
+        // --- END OF FIX ---
+
+        pimpl->texture_shader->setMat4("model", final_world_model);
+
+        // 4. Set color, bind texture, and draw
         pimpl->texture_shader->setVec4("tint_color", glm::vec4(color.r, color.g, color.b, color.a));
         glad_glActiveTexture(GL_TEXTURE0);
         glad_glBindTexture(GL_TEXTURE_2D, opengl_texture->get_id());
