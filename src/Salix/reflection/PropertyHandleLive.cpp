@@ -5,7 +5,7 @@
 namespace Salix {
 
 // The constructor's only job is to pass the required info to the base class
-// and store the pointer to the live component instance.
+// and store the pointer to the live element instance.
 PropertyHandleLive::PropertyHandleLive(const Property* property_info, Element* instance)
     : PropertyHandle(property_info), instance(instance) {}
 

@@ -13,7 +13,7 @@ namespace Salix {
 namespace Salix {
 
     // Concrete implementation of PropertyHandle for live C++ objects.
-    // This class wraps a pointer to a live component (an object derived from Element*)
+    // This class wraps a pointer to a live element (an object derived from Element*)
     // and uses the reflection functions from ByteMirror (via the Property struct)
     // to get and set its properties.
     class SALIX_API PropertyHandleLive : public PropertyHandle {
@@ -30,7 +30,7 @@ namespace Salix {
             void set_value(const PropertyValue& value) override;
 
         private:
-            // A pointer to the live component instance that this handle operates on.
+            // A pointer to the live element instance that this handle operates on.
             Element* instance;
     };
 
