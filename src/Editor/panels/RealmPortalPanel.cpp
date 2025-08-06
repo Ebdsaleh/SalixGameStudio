@@ -223,7 +223,7 @@ namespace Salix {
             Sprite2D* sprite = entity->get_element<Sprite2D>();
 
             if (transform && sprite && sprite->get_texture()) {
-                // 1. Determine the correct flip state from the component's data
+                // 1. Determine the correct flip state from the element's data
                 SpriteFlip flip_state = SpriteFlip::None;
                 if (sprite->flip_h && sprite->flip_v) {
                     flip_state = SpriteFlip::Both;
