@@ -150,7 +150,7 @@ namespace YAML {
         }
     };
     
-}
+} // namespace YAML
 
 namespace Salix {
 

@@ -2,6 +2,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <Salix/reflection/PropertyHandle.h>
+#include <yaml-cpp/yaml.h>
 
 
 namespace Salix {
