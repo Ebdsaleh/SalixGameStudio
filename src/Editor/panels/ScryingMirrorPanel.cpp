@@ -9,7 +9,9 @@
 #include <Salix/gui/IconInfo.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <Salix/reflection/ByteMirror.h>
+#include <Salix/reflection/YamlConverters.h>
 #include <Salix/reflection/PropertyHandleLive.h>
+#include <Salix/reflection/PropertyHandleYaml.h>
 #include <Salix/reflection/ui/TypeDrawer.h>
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/Scene.h>
@@ -66,85 +68,60 @@ namespace Salix {
    
 
 
-
-
-
-
     void ScryingMirrorPanel::on_panel_gui_update() {
         if (!pimpl->is_visible) {
             return;
         }
 
         ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
-        
         ImGui::Text("Properties:");
         ImGui::Separator();
 
-        // --- Data Lookup Logic (this part remains the same) ---
-        Entity* selected_entity_live = nullptr;
-        Element* selected_element_live = nullptr;
+        if (!pimpl->context) {
+            ImGui::Text("No context.");
+            return;
+        }
 
-        if (pimpl->context && pimpl->context->active_scene) {
-            if (pimpl->context->data_mode == EditorDataMode::Live) {
-                selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
-                if (selected_entity_live) {
-                    selected_element_live = selected_entity_live->get_element_by_id(pimpl->selected_element_id);
-                }
+        // =================================================================================
+        // --- LIVE MODE PATHWAY ---
+        // =================================================================================
+        if (pimpl->context->data_mode == EditorDataMode::Live) {
+            if (!pimpl->context->active_scene) {
+                ImGui::Text("No active scene.");
+                return;
             }
-            else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-                // TODO: Implement YAML data pathway here.
+
+            Entity* selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
+            Element* selected_element_live = selected_entity_live ? selected_entity_live->get_element_by_id(pimpl->selected_element_id) : nullptr;
+
+            std::vector<Salix::Element*> elements_to_display;
+            if (selected_element_live) {
+                elements_to_display.push_back(selected_element_live);
             }
-        }
-        // --- End Data Lookup Logic ---
+            else if (selected_entity_live) {
+                ImGui::Text("Entity: %s", selected_entity_live->get_name().c_str());
+                ImGui::Separator();
+                elements_to_display = selected_entity_live->get_all_elements();
+            }
 
+            if (!elements_to_display.empty()) {
+                for (auto* element : elements_to_display) {
+                    const TypeInfo* typeInfo = ByteMirror::get_type_info(typeid(*element));
+                    if (!typeInfo) continue;
 
-        // Determine which elements we need to draw properties for
-        std::vector<Salix::Element*> elements_to_display;
-        if (selected_element_live) {
-            elements_to_display.push_back(selected_element_live);
-        }
-        else if (selected_entity_live) {
-            ImGui::Text("Entity: %s", selected_entity_live->get_name().c_str());
-            ImGui::Separator();
-            elements_to_display = selected_entity_live->get_all_elements();
-        }
+                    if (ImGui::CollapsingHeader(typeInfo->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto handles = ByteMirror::create_handles_for(element);
+                        if (!handles.empty() && ImGui::BeginTable(typeInfo->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
 
-        // --- THIS IS THE NEW PROPERTYHANDLE-BASED DRAWING LOGIC ---
-        if (!elements_to_display.empty())
-        {
-            for (auto* element : elements_to_display)
-            {
-                const TypeInfo* typeInfo = ByteMirror::get_type_info(typeid(*element));
-                if (!typeInfo) {
-                    ImGui::Text("Unreflected Element: %s", typeid(*element).name());
-                    continue;
-                }
-
-                if (ImGui::CollapsingHeader(typeInfo->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-                {
-                    // 1. Get the list of handles from our new factory function.
-                    auto handles = ByteMirror::create_handles_for(element);
-                    
-                    if (!handles.empty())
-                    {
-                        if (ImGui::BeginTable(typeInfo->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit))
-                        {
                             ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
                             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-
-                            // 2. Loop through the handles instead of properties.
-                            for (const auto& handle : handles)
-                            {
+                            for (const auto& handle : handles) {
                                 ImGui::TableNextRow();
-                                ImGui::TableSetColumnIndex(0); // Column 1 for the label
+                                ImGui::TableSetColumnIndex(0);
                                 ImGui::Text("%s", handle->get_name().c_str());
-
-                                ImGui::TableSetColumnIndex(1); // Column 2 for the widget
+                                ImGui::TableSetColumnIndex(1);
                                 ImGui::PushItemWidth(-FLT_MIN);
-                                
-                                // 3. Call our new TypeDrawer function that takes a handle.
                                 TypeDrawer::draw_property(*handle);
-
                                 ImGui::PopItemWidth();
                             }
                             ImGui::EndTable();
@@ -152,12 +129,64 @@ namespace Salix {
                     }
                 }
             }
+            else {
+                ImGui::Text("No object selected.");
+            }
         }
-        else
-        {
-            ImGui::Text("No object selected.");
+        // =================================================================================
+        // --- YAML MODE PATHWAY ---
+        // =================================================================================
+        else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+            
+            ImGui::Text("Properties:");
+            ImGui::Separator();
+
+            if (pimpl->context->selected_entity_id.get_value() != 0 && pimpl->context->active_yaml_scene) {
+                YAML::Node selected_entity_node;
+                // CORRECTED LOOP: Use an index-based for loop
+                for (std::size_t i = 0; i < pimpl->context->active_yaml_scene.size(); i++) {
+                    YAML::Node entity_node = pimpl->context->active_yaml_scene[i];
+                    if (entity_node["id"] && entity_node["id"].as<uint64_t>() == pimpl->context->selected_entity_id.get_value()) {
+                        selected_entity_node = entity_node;
+                        break;
+                    }
+                }
+
+                if (selected_entity_node) {
+                    if (selected_entity_node["Entity"]) {
+                        ImGui::Text("Entity: %s", selected_entity_node["Entity"].as<std::string>().c_str());
+                        ImGui::Separator();
+                    }
+
+                    auto handles = ByteMirror::create_handles_for_yaml(&selected_entity_node);
+                    if (!handles.empty() && ImGui::BeginTable("PropertiesYAML", 2, ImGuiTableFlags_SizingFixedFit)) {
+                            ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+                            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+                            for (const auto& handle : handles) {
+                                ImGui::TableNextRow();
+                                ImGui::TableSetColumnIndex(0);
+                                ImGui::Text("%s", handle->get_name().c_str());
+                                ImGui::TableSetColumnIndex(1);
+                                ImGui::PushItemWidth(-FLT_MIN);
+                                TypeDrawer::draw_property(*handle);
+                                ImGui::PopItemWidth();
+                            }
+
+                            ImGui::EndTable();
+                        }
+                    }
+                }
+                else {
+                    ImGui::Text("No object selected.");
+                }
+            }
         }
-    }
+
+
+
+
+    
 
 
 
