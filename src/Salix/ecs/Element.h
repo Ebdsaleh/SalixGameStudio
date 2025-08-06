@@ -31,6 +31,10 @@ namespace Salix {
             }
             
             const SimpleGuid&  get_id() const {return id;}
+            // This helper returns a direct pointer to the ID's raw value,
+            // which is exactly what the reflection system needs.
+            const uint64_t* get_id_as_ptr() const { return &id.id; }
+
             template <class Archive>
             void serialize(Archive& archive) {
                 archive(cereal::make_nvp("id", id));
