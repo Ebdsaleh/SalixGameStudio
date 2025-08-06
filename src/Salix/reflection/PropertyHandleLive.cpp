@@ -23,6 +23,9 @@ PropertyValue PropertyHandleLive::get_value() const
     switch (property_info->type)
     {
         case PropertyType::Int:
+        case PropertyType::UInt64:
+            return *static_cast<uint64_t*>(property_info->get_data(instance));
+
         case PropertyType::Enum: // Enums are handled as ints at this level
         case PropertyType::EnumClass:
             return *static_cast<int*>(property_info->get_data(instance));
@@ -74,6 +77,12 @@ void PropertyHandleLive::set_value(const PropertyValue& value)
     switch (property_info->type)
     {
         case PropertyType::Int:
+        case PropertyType::UInt64:
+            if (std::holds_alternative<uint64_t>(value)) {
+                auto copy = std::get<uint64_t>(value);
+            property_info->set_data(instance, &copy);
+            }
+            break;
         case PropertyType::Enum:
         case PropertyType::EnumClass:
             if (std::holds_alternative<int>(value))
