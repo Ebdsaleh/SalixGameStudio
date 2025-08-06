@@ -2,6 +2,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <Salix/reflection/PropertyHandle.h>
+#include <Salix/reflection/YamlConverters.h>
 #include <yaml-cpp/yaml.h>
 
 
