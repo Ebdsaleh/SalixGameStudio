@@ -6,14 +6,14 @@ namespace Salix {
 
 // The constructor's only job is to pass the required info to the base class
 // and store the pointer to the live component instance.
-PropertyHandle_Live::PropertyHandle_Live(const Property* property_info, Element* instance)
+PropertyHandleLive::PropertyHandleLive(const Property* property_info, Element* instance)
     : PropertyHandle(property_info), instance(instance) {}
 
 // --- getValue() ---
 // This function's whole job is to look at the property's type, call the
 // generic get_data() function, and then use the correct static_cast to turn
 // the void* into a specific type that we can safely store in our PropertyValue variant.
-PropertyValue PropertyHandle_Live::getValue() const
+PropertyValue PropertyHandleLive::get_value() const
 {
     if (!instance || !property_info->get_data) {
         return {}; // Return empty variant if something is wrong
@@ -65,7 +65,7 @@ PropertyValue PropertyHandle_Live::getValue() const
 // the PropertyValue variant we received actually contains the correct type of data
 // (that's what std::holds_alternative does), and then passes a pointer to that
 // data to your generic set_data function.
-void PropertyHandle_Live::setValue(const PropertyValue& value)
+void PropertyHandleLive::set_value(const PropertyValue& value)
 {
     if (!instance || !property_info->set_data) {
         return; // Can't set if there's no instance or no setter
