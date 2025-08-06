@@ -6,6 +6,7 @@
 //              panel or editor tool might need to access.
 // =================================================================================
 #pragma once
+#include <yaml-cpp/yaml.h> 
 #include <Editor/EditorAPI.h>
 #include <Editor/GridSettings.h>
 #include <Salix/core/SimpleGuid.h>
@@ -68,6 +69,7 @@ namespace Salix {
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         EditorDataMode data_mode = EditorDataMode::Live;
+        YAML::Node active_yaml_scene;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
     };
     
