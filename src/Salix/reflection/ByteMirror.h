@@ -20,6 +20,7 @@ namespace Salix {
     enum class PropertyType
     {   
         Int,
+        UInt64,
         Float,
         Vector2,
         Vector3,

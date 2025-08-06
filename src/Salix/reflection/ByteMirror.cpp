@@ -4,6 +4,7 @@
 #include <typeindex>
 #include <memory>
 #include <functional>
+#include <core/SimpleGuid.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/PropertyHandleLive.h>
 #include <Salix/reflection/PropertyHandleYaml.h>
@@ -25,16 +26,33 @@ namespace Salix {
     std::unordered_map<std::type_index, TypeInfo> ByteMirror::type_registry;
     
     // Step 1: Register the base classes first.
-    // The Element class has no properties to expose to the editor in this example.
     template<>
     void ByteMirror::register_type<Element>() {
-    TypeInfo type_info;
-    type_info.name = "Element";
-    type_info.properties = {};
-    type_info.ancestor = nullptr;
-    type_info.type_index = typeid(Element);
+        TypeInfo type_info;
+        type_info.name = "Element";
+        type_info.ancestor = nullptr;
+        type_info.type_index = typeid(Element);
 
-    type_registry[typeid(Element)] = type_info;
+       
+        // Expose the Element's ID as a read-only property.
+        type_info.properties = {
+            {
+                "ID",                   // The name that will appear in the editor
+                PropertyType::UInt64,   // The new type we added for 64-bit integers
+                nullptr,                // No contained_type_info is needed
+
+                // Getter: This lambda calls the new get_id_as_ptr() method.
+                [](void* instance) {
+                    return (void*)static_cast<Element*>(instance)->get_id_as_ptr();
+                },
+
+                // Setter: This lambda is empty, making the ID read-only in the editor.
+                [](void* instance, void* data) {}
+            }
+        };
+        
+
+        type_registry[typeid(Element)] = type_info;
     }
     
 
