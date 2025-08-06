@@ -1,5 +1,6 @@
 // Salix/reflection/PropertyHandleYaml.cpp
 #include <Salix/reflection/PropertyHandleYaml.h>
+#include <Salix/core/SimpleGuid.h>
 #include <Salix/math/Vector2.h>
 #include <Salix/math/Vector3.h>
 #include <Salix/math/Color.h>
@@ -132,6 +133,22 @@ namespace YAML {
             return true;
         }
     };
+
+    // --- Converter for SimpleGuid ---
+    template<>
+    struct convert<Salix::SimpleGuid> {
+        // This function tells yaml-cpp how to turn a SimpleGuid INTO a YAML node
+        static Node encode(const Salix::SimpleGuid& guid) {
+            return Node(guid.get_value());
+        }
+
+        // This function tells yaml-cpp how to turn a YAML node INTO a SimpleGuid
+        static bool decode(const Node& node, Salix::SimpleGuid& guid) {
+            // We use the private constructor by calling it through our friend declaration
+            guid = Salix::SimpleGuid(node.as<uint64_t>());
+            return true;
+        }
+    };
     
 }
 
@@ -156,6 +173,7 @@ namespace Salix {
         switch (property_info->type)
         {
             case PropertyType::Int:       return property_node.as<int>();
+            case PropertyType::UInt64:    return property_node.as<uint64_t>();
             case PropertyType::Float:     return property_node.as<float>();
             case PropertyType::Bool:      return property_node.as<bool>();
             case PropertyType::String:    return property_node.as<std::string>();
@@ -182,38 +200,52 @@ namespace Salix {
                 if (std::holds_alternative<int>(value))
                     (*component_node)[property_info->name] = std::get<int>(value);
                 break;
+            
+            case PropertyType::UInt64:
+                if (std::holds_alternative<uint64_t>(value))
+                    (*component_node)[property_info->name] = std::get<uint64_t>(value);
+                break;
+
             case PropertyType::Float:
                 if (std::holds_alternative<float>(value))
                     (*component_node)[property_info->name] = std::get<float>(value);
                 break;
+
             case PropertyType::Bool:
                 if (std::holds_alternative<bool>(value))
                     (*component_node)[property_info->name] = std::get<bool>(value);
                 break;
+
             case PropertyType::String:
                 if (std::holds_alternative<std::string>(value))
                     (*component_node)[property_info->name] = std::get<std::string>(value);
                 break;
+
             case PropertyType::Vector2:
                 if (std::holds_alternative<Vector2>(value))
                     (*component_node)[property_info->name] = std::get<Vector2>(value);
                 break;
+
             case PropertyType::Vector3:
                 if (std::holds_alternative<Vector3>(value))
                     (*component_node)[property_info->name] = std::get<Vector3>(value);
                 break;
+
             case PropertyType::Color:
                 if (std::holds_alternative<Color>(value))
                     (*component_node)[property_info->name] = std::get<Color>(value);
                 break;
+
             case PropertyType::Point:
                 if (std::holds_alternative<Point>(value))
                     (*component_node)[property_info->name] = std::get<Point>(value);
                 break;
+
             case PropertyType::Rect:
                 if (std::holds_alternative<Rect>(value))
                     (*component_node)[property_info->name] = std::get<Rect>(value);
                 break;
+
             case PropertyType::GlmMat4:
                 if (std::holds_alternative<glm::mat4>(value))
                     (*component_node)[property_info->name] = std::get<glm::mat4>(value);
