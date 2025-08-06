@@ -1,5 +1,6 @@
 // Salix/reflection/ui/TypeDrawer.cpp
 #include <Salix/reflection/ui/TypeDrawer.h>
+#include <Salix/reflection/PropertyHandle.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <unordered_map>
 #include <imgui/imgui.h>
@@ -161,5 +162,114 @@ namespace Salix {
 
 
 
+    void Salix::TypeDrawer::draw_property(PropertyHandle& handle) {
+        // Use the property's name as the label for the ImGui widget
+        const char* label = handle.get_name().c_str();
+
+        switch (handle.get_type())
+        {
+            case PropertyType::Int: {
+                int value = std::get<int>(handle.get_value());
+                if (ImGui::DragInt(label, &value)) {
+                    handle.set_value(value);
+                }
+                break;
+            }
+
+            case PropertyType::Float: {
+                float value = std::get<float>(handle.get_value());
+                if (ImGui::DragFloat(label, &value, 0.1f)) {
+                    handle.set_value(value);
+                }
+                break;
+            }
+
+            case PropertyType::Bool: {
+                bool value = std::get<bool>(handle.get_value());
+                if (ImGui::Checkbox(label, &value)) {
+                    handle.set_value(value);
+                }
+                break;
+            }
+
+            case PropertyType::String: {
+                std::string value = std::get<std::string>(handle.get_value());
+                // ImGui's InputText works with char buffers, so we need this boilerplate
+                char buffer[256];
+                strncpy_s(buffer, sizeof(buffer), value.c_str(), sizeof(buffer) - 1);
+                if (ImGui::InputText(label, buffer, sizeof(buffer))) {
+                    handle.set_value(std::string(buffer));
+                }
+                break;
+            }
+
+            case PropertyType::Vector2: {
+                Vector2 value = std::get<Vector2>(handle.get_value());
+                if (ImGui::DragFloat2(label, &value.x, 0.1f)) {
+                    handle.set_value(value);
+                }
+                break;
+            }
+
+            case PropertyType::Vector3: {
+                Vector3 value = std::get<Vector3>(handle.get_value());
+                if (ImGui::DragFloat3(label, &value.x, 0.1f)) {
+                    handle.set_value(value);
+                }
+                break;
+            }
+
+            case PropertyType::Color: {
+                Color value = std::get<Color>(handle.get_value());
+                // Convert 8-bit color to float array for ImGui
+                float color_floats[] = { value.r / 255.0f, value.g / 255.0f, value.b / 255.0f, value.a / 255.0f };
+                if (ImGui::ColorEdit4(label, color_floats)) {
+                    // If changed, convert back to 8-bit and set the value
+                    value.r = static_cast<uint8_t>(color_floats[0] * 255.0f);
+                    value.g = static_cast<uint8_t>(color_floats[1] * 255.0f);
+                    value.b = static_cast<uint8_t>(color_floats[2] * 255.0f);
+                    value.a = static_cast<uint8_t>(color_floats[3] * 255.0f);
+                    handle.set_value(value);
+                }
+                break;
+            }
+
+            case PropertyType::EnumClass: {
+               
+                int current_value_int = std::get<int>(handle.get_value());
+                auto enum_data = EnumRegistry::get_enum_data_as_ptr(handle.get_contained_type_info()->type_index.value());
+
+                if (enum_data) {
+                    const char* current_item_name = enum_data->get_name(current_value_int).c_str();
+                    if (ImGui::BeginCombo(label, current_item_name)) {
+                        for (const auto& name : enum_data->get_names()) {
+                            bool is_selected = (current_item_name == name);
+                            if (ImGui::Selectable(name.c_str(), is_selected)) {
+                                handle.set_value(enum_data->get_value(name));
+                            }
+                            if (is_selected) {
+                                ImGui::SetItemDefaultFocus();
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
+                }
+                break;
+            }
+
+            case PropertyType::GlmMat4: {
+                // This is a read-only property, so we just display it
+                ImGui::Text("%s: (Read-only Matrix)", label);
+                // You could add code here to display the matrix values if you wanted
+                break;
+            }
+
+            // Add cases for Point and Rect here following the same pattern...
+
+            default:
+                ImGui::Text("%s: (UI not implemented for this type)", label);
+                break;
+        }
+    }
 
 }   // namespace Salix
