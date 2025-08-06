@@ -10,10 +10,9 @@
 #include <functional>
 #include <optional>
 #include <memory>
+#include <yaml-cpp/yaml.h>
 
-namespace YAML {
-    class YAML::Node;
-}
+
 
 namespace Salix {
 
