@@ -1,6 +1,7 @@
 // Salix/reflection/ByteMirror.h
 #pragma once
 #include <Salix/core/Core.h>
+#include <Salix/reflection/PropertyHandle.h>
 #include <string>
 #include <vector>
 #include <cstddef> // Required for offsetof
@@ -82,6 +83,8 @@ namespace Salix {
 
             static void register_all_types();
 
+            // Creates a vector of property handles for a given live element.
+            static std::vector<std::unique_ptr<PropertyHandle>> create_handles_for(Element* element);
         private:
             // The static registry mapping a type_index to its reflection data.
             static std::unordered_map<std::type_index, TypeInfo> type_registry;

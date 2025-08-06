@@ -2,8 +2,10 @@
 #include <cstddef>
 #include <unordered_map>
 #include <typeindex>
+#include <memory>
 #include <functional>
 #include <Salix/reflection/ByteMirror.h>
+#include <Salix/reflection/PropertyHandleLive.h>
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/ecs/CppScript.h>
@@ -380,6 +382,25 @@ namespace Salix {
         ByteMirror::register_type<Sprite2D>();
     } 
 
-    
+    std::vector<std::unique_ptr<PropertyHandle>> ByteMirror::create_handles_for(Element* element) {
+        std::vector<std::unique_ptr<PropertyHandle>> handles;
+        if (!element) {
+            return handles;
+        }
+
+        const TypeInfo* type_info = get_type_info(typeid(*element));
+        if (!type_info) {
+            return handles;
+        }
+
+        // For every property this type has...
+        for (const auto& prop : type_info->properties)
+        {
+            // ...create a new PropertyHandle_Live, wrap it in a unique_ptr, and add it to our list.
+            handles.push_back(std::make_unique<PropertyHandleLive>(&prop, element));
+        }
+
+        return handles;
+    }
 
 } // namespace Salix
