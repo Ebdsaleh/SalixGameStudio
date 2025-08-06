@@ -43,14 +43,14 @@ namespace Salix {
     struct TypeInfo;
 
 
-    // A generic function that takes a component instance and returns a pointer to the property's data.
+    // A generic function that takes a element instance and returns a pointer to the property's data.
     using getter_func = std::function<void*(void* type_instance)>;
 
-    // A generic function that takes a component instance and a pointer to the new data to set.
+    // A generic function that takes a element instance and a pointer to the new data to set.
     using setter_func = std::function<void(void* type_instance, void* data_to_set)>;
 
 
-    // Describes a single editable property of a component.
+    // Describes a single editable property of a element.
     struct Property
     {
         std::string name;
@@ -60,7 +60,7 @@ namespace Salix {
         setter_func set_data;
     };
 
-    // Contains all the reflection information for a given component type.
+    // Contains all the reflection information for a given element type.
     struct TypeInfo
     {
         std::string name;
@@ -75,7 +75,7 @@ namespace Salix {
 
         public:
            
-            // Registers a new component type with the reflection system.
+            // Registers a new element type with the reflection system.
             template<typename T>
             static void register_type();
 

@@ -443,27 +443,27 @@ namespace Salix {
     std::vector<std::unique_ptr<PropertyHandle>> ByteMirror::create_handles_for_yaml(YAML::Node* entity_node) {
 
         std::vector<std::unique_ptr<PropertyHandle>> handles;
-        if (!entity_node || !(*entity_node)["components"]) {
+        if (!entity_node || !(*entity_node)["elements"]) {
             return handles;
         }
 
-        // Loop through each component in the YAML data (e.g., Transform, Sprite2D)
-        for (auto component_node : (*entity_node)["components"]) {
+        // Loop through each element in the YAML data (e.g., Transform, Sprite2D)
+        for (auto element_node : (*entity_node)["elements"]) {
 
-            // The component name is the first (and only) key in the node
-            std::string component_name = component_node.begin()->first.as<std::string>();
+            // The element name is the first (and only) key in the node
+            std::string element_name = element_node.begin()->first.as<std::string>();
             
-            // Get the reflection data for this component type by its string name
+            // Get the reflection data for this element type by its string name
 
-            const TypeInfo* type_info = get_type_info_by_name(component_name);
+            const TypeInfo* type_info = get_type_info_by_name(element_name);
             if (!type_info) {
-                continue; // Skip if we don't have reflection data for this component
+                continue; // Skip if we don't have reflection data for this element
             }
 
-            // The actual properties are in the value part of the component node
-            YAML::Node properties_node = component_node.begin()->second;
+            // The actual properties are in the value part of the element node
+            YAML::Node properties_node = element_node.begin()->second;
 
-            // For every property this component type has...
+            // For every property this element type has...
             for (const auto& prop : type_info->properties)
             {
                 // ...if the property exists in the YAML file...
