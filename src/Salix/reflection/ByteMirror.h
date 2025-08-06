@@ -86,9 +86,14 @@ namespace Salix {
             }
 
             static void register_all_types();
+            
+            static const TypeInfo* get_type_info_by_name(const std::string& name);
 
             // Creates a vector of property handles for a given live element.
             static std::vector<std::unique_ptr<PropertyHandle>> create_handles_for(Element* element);
+            
+            // Creates a vector of property handles for a given YAML entity node.
+            static std::vector<std::unique_ptr<PropertyHandle>> create_handles_for_yaml(YAML::Node* entity_node);
         private:
             // The static registry mapping a type_index to its reflection data.
             static std::unordered_map<std::type_index, TypeInfo> type_registry;

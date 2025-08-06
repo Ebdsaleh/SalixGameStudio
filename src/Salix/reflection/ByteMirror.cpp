@@ -6,6 +6,7 @@
 #include <functional>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/PropertyHandleLive.h>
+#include <Salix/reflection/PropertyHandleYaml.h>
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/ecs/CppScript.h>
@@ -402,5 +403,63 @@ namespace Salix {
 
         return handles;
     }
+
+
+    const TypeInfo* ByteMirror::get_type_info_by_name(const std::string& name) {
+        if (name.empty()) return nullptr;
+
+        // Loop through all the registered types in our map
+        for (const auto& pair : type_registry) {
+        // pair.first is the type_index, pair.second is the TypeInfo struct
+        if (pair.second.name == name) {
+            // If we find a TypeInfo whose name matches, return a pointer to it
+            return &pair.second;
+        }
+    }
+
+    // If we loop through everything and find no match, return nullptr
+    return nullptr;
+    }
+
+
+    std::vector<std::unique_ptr<PropertyHandle>> ByteMirror::create_handles_for_yaml(YAML::Node* entity_node) {
+
+        std::vector<std::unique_ptr<PropertyHandle>> handles;
+        if (!entity_node || !(*entity_node)["components"]) {
+            return handles;
+        }
+
+        // Loop through each component in the YAML data (e.g., Transform, Sprite2D)
+        for (auto component_node : (*entity_node)["components"]) {
+
+            // The component name is the first (and only) key in the node
+            std::string component_name = component_node.begin()->first.as<std::string>();
+            
+            // Get the reflection data for this component type by its string name
+
+            const TypeInfo* type_info = get_type_info_by_name(component_name);
+            if (!type_info) {
+                continue; // Skip if we don't have reflection data for this component
+            }
+
+            // The actual properties are in the value part of the component node
+            YAML::Node properties_node = component_node.begin()->second;
+
+            // For every property this component type has...
+            for (const auto& prop : type_info->properties)
+            {
+                // ...if the property exists in the YAML file...
+                if (properties_node[prop.name])
+                {
+                    // ...create a new PropertyHandle_YAML and add it to our list.
+                    handles.push_back(std::make_unique<PropertyHandleYaml>(&prop, &properties_node));
+                }
+            }
+        }
+
+        return handles;
+    }
+
+    
 
 } // namespace Salix
