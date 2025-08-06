@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <Salix/core/Core.h>
 #include <Salix/reflection/ByteMirror.h>
+#include <Salix/reflection/YamlConverters.h>
 
 namespace Salix {
     class Element;
