@@ -5,11 +5,15 @@
 // =================================================================================
 #pragma once
 #include <Salix/core/Core.h>
+#include <yaml-cpp/yaml.h>
 #include <cstdint>
 #include <cereal/access.hpp>
 #include <cereal/cereal.hpp>
 
 namespace Salix {
+    class Element;
+
+
 
     // A type-safe wrapper around a 64-bit unsigned integer.
     class SALIX_API SimpleGuid {
@@ -33,6 +37,8 @@ namespace Salix {
 
         
     private:
+        friend class Element;
+        friend struct YAML::convert<SimpleGuid>;
         friend class cereal::access;
         // Cereal needs access to the private 'id' member to save/load it.
         template<class Archive>

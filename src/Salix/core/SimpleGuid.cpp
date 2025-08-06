@@ -4,10 +4,14 @@
 // Description: Implements the SimpleGuid class.
 // =================================================================================
 #include <Salix/core/SimpleGuid.h>
+#include <yaml-cpp/yaml.h>
 #include <cereal/archives/json.hpp>
 #include <cereal/archives/binary.hpp>
 #include <Salix/core/SerializationRegistrations.h>
 #include <cereal/cereal.hpp>
+
+
+
 
 namespace Salix {
 
@@ -50,3 +54,4 @@ namespace Salix {
 
 
 } // namespace Salix
+
