@@ -119,52 +119,63 @@ namespace Salix {
                     return;
                 }
 
-                // --- Get the selected entity via its GUID (The Data-Driven Approach) ---
-                Entity* selected_entity_live = nullptr;
-                if (pimpl->context && pimpl->context->active_scene) {
-                    selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->context->selected_entity_id);
-                }
+                if (pimpl->context->data_mode == EditorDataMode::Live) {
 
-                // --- Camera Control ---
-                bool camera_can_move = false;
-                if (!pimpl->is_locked &&  // THIS IS THE CRITICAL ADDITION
-                    ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow) && 
-                    ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow)) {
-                    camera_can_move = true;
-                }
-                pimpl->context->editor_camera->set_mouse_inside_scene(camera_can_move);
+                    // --- Get the selected entity via its GUID (The Data-Driven Approach) ---
+                    Entity* selected_entity_live = nullptr;
+                    if (pimpl->context && pimpl->context->active_scene) {
+                        selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->context->selected_entity_id);
+                    }
 
-                // --- Panel Lock Button ---
-                pimpl->draw_lock_button();
+                    // --- Camera Control ---
+                    bool camera_can_move = false;
+                    if (!pimpl->is_locked &&  // THIS IS THE CRITICAL ADDITION
+                        ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow) && 
+                        ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow)) {
+                        camera_can_move = true;
+                    }
+                    pimpl->context->editor_camera->set_mouse_inside_scene(camera_can_move);
 
-                // --- Gizmo Toolbar ---
-                pimpl->draw_gizmo_toolbar();
-                
-                // --- Viewport ---
-                pimpl->update_viewport(renderer);
+                    // --- Panel Lock Button ---
+                    pimpl->draw_lock_button();
 
-                if (pimpl->framebuffer_id != 0) {
-                    ImTextureID tex_id = renderer->get_framebuffer_texture_id(pimpl->framebuffer_id);
-                    if (tex_id != 0) {
-                        ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0,1), ImVec2(1,0));
+                    // --- Gizmo Toolbar ---
+                    pimpl->draw_gizmo_toolbar();
+                    
+                    // --- Viewport ---
+                    pimpl->update_viewport(renderer);
 
-                        // --- Gizmo Interaction ---
-                        if (!pimpl->is_locked && selected_entity_live) {
-                            pimpl->handle_gizmos( 
-                                pimpl->context->editor_camera, 
-                                selected_entity_live
-                            );
-                        }
-                        
-                        // --- MOUSE PICKING ---
-                        if (ImGui::IsItemHovered() && !EntitySelectedEvent::block_selection && !pimpl->is_locked) {
-                            pimpl->handle_mouse_picking(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+                    if (pimpl->framebuffer_id != 0) {
+                        ImTextureID tex_id = renderer->get_framebuffer_texture_id(pimpl->framebuffer_id);
+                        if (tex_id != 0) {
+                            ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0,1), ImVec2(1,0));
+
+                            // --- Gizmo Interaction ---
+                            if (!pimpl->is_locked && selected_entity_live) {
+                                pimpl->handle_gizmos( 
+                                    pimpl->context->editor_camera, 
+                                    selected_entity_live
+                                );
+                            }
+                            
+                            // --- MOUSE PICKING ---
+                            if (ImGui::IsItemHovered() && !EntitySelectedEvent::block_selection && !pimpl->is_locked) {
+                                pimpl->handle_mouse_picking(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+                            }
                         }
                     }
+                } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+
+                    // TODO: Implement YAML pathway here.
+
+                } else {
+                    // Default to Live mode if something is wrong.
+                    pimpl->context->data_mode = EditorDataMode::Live;
                 }
             }
             ImGui::End();
             ImGui::PopStyleVar();
+            
         }
     }
 
@@ -319,62 +330,67 @@ namespace Salix {
 
 
     void RealmDesignerPanel::Pimpl::handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max) {
-        // We only proceed if the mouse was actually clicked within the hovered window
-        if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-            return;
-        }
+        if (context->data_mode == EditorDataMode::Live) {
+            // We only proceed if the mouse was actually clicked within the hovered window
+            if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+                return;
+            }
 
-        // --- Step 1: Create the world-space ray from mouse ---
-        // Calculate viewport size from the min/max points passed as arguments.
-        viewport_size = { (viewport_max.x - viewport_min.x), (viewport_max.y - viewport_min.y) };
-        ImVec2 mouse_pos = ImGui::GetMousePos();
+            // --- Step 1: Create the world-space ray from mouse ---
+            // Calculate viewport size from the min/max points passed as arguments.
+            viewport_size = { (viewport_max.x - viewport_min.x), (viewport_max.y - viewport_min.y) };
+            ImVec2 mouse_pos = ImGui::GetMousePos();
 
-         // Create the ray using the reliable viewport data 
-        Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
-        last_picking_ray = world_ray; // Save the ray for visualization
+            // Create the ray using the reliable viewport data 
+            Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
+            last_picking_ray = world_ray; // Save the ray for visualization
 
-        // --- Step 2: Find the closest entity with a collider that was hit ---
-        Entity* selected_entity = nullptr;
-        float closest_hit_distance = FLT_MAX;
+            // --- Step 2: Find the closest entity with a collider that was hit ---
+            Entity* selected_entity = nullptr;
+            float closest_hit_distance = FLT_MAX;
 
-        // Add the SimpleGuid variable to store the new ID
-        SimpleGuid temp_selected_entity_id = SimpleGuid::invalid();
+            // Add the SimpleGuid variable to store the new ID
+            SimpleGuid temp_selected_entity_id = SimpleGuid::invalid();
 
-        for (Entity* entity : context->active_scene->get_entities()) {
-            if (!entity || entity->is_purged()) continue;
+            for (Entity* entity : context->active_scene->get_entities()) {
+                if (!entity || entity->is_purged()) continue;
 
-            Transform* transform = entity->get_transform();
-            BoxCollider* collider = entity->get_element<BoxCollider>();
+                Transform* transform = entity->get_transform();
+                BoxCollider* collider = entity->get_element<BoxCollider>();
 
-             // We can only pick objects that have both a transform and a collider  
-            if (transform && collider) {
-                glm::vec3 half_extents = collider->get_size().to_glm() * 0.5f;
-                glm::mat4 model_matrix = transform->get_model_matrix();  
-                float distance = 0.0f;
+                // We can only pick objects that have both a transform and a collider  
+                if (transform && collider) {
+                    glm::vec3 half_extents = collider->get_size().to_glm() * 0.5f;
+                    glm::mat4 model_matrix = transform->get_model_matrix();  
+                    float distance = 0.0f;
 
-                if (Raycast::IntersectsOBB(world_ray, model_matrix, half_extents, distance)) {
-                    glm::vec3 world_hit_point = world_ray.origin + world_ray.direction * distance;  
-                    float world_distance = glm::distance(world_ray.origin, world_hit_point);  
+                    if (Raycast::IntersectsOBB(world_ray, model_matrix, half_extents, distance)) {
+                        glm::vec3 world_hit_point = world_ray.origin + world_ray.direction * distance;  
+                        float world_distance = glm::distance(world_ray.origin, world_hit_point);  
 
-                    if (world_distance < closest_hit_distance) {
-                        closest_hit_distance = world_distance;
-                        selected_entity = entity; 
-                        temp_selected_entity_id = entity->get_id(); 
+                        if (world_distance < closest_hit_distance) {
+                            closest_hit_distance = world_distance;
+                            selected_entity = entity; 
+                            temp_selected_entity_id = entity->get_id(); 
+                        }
                     }
                 }
             }
-        }
 
-        // --- Step 3: Fire the selection event ---
-        if (context->event_manager) {
-            EntitySelectedEvent event(selected_entity);
-            context->selected_entity = selected_entity;
-            context->event_manager->dispatch(event);  
+            // --- Step 3: Fire the selection event ---
+            if (context->event_manager) {
+                EntitySelectedEvent event(selected_entity);
+                context->selected_entity = selected_entity;
+                context->event_manager->dispatch(event);  
 
-            // New, data-driven system (Additions)
-            selected_entity_id = temp_selected_entity_id;
-            context->selected_entity_id = selected_entity_id;
-            
+                // New, data-driven system (Additions)
+                selected_entity_id = temp_selected_entity_id;
+                context->selected_entity_id = selected_entity_id;
+                
+            }
+        } else if (context->data_mode == EditorDataMode::Yaml)
+        {
+             // TODO: Implement YAML pathway here.
         }
     }
 
