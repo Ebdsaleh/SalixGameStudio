@@ -29,12 +29,12 @@ namespace Salix {
     public:
         virtual ~PropertyHandle() = default;
 
-        const std::string& getName() const { return property_info->name; }
-        PropertyType getType() const { return property_info->type; }
+        const std::string& get_name() const { return property_info->name; }
+        PropertyType get_type() const { return property_info->type; }
 
         // These are now NON-template virtual functions. This will compile.
-        virtual PropertyValue getValue() const = 0;
-        virtual void setValue(const PropertyValue& value) = 0;
+        virtual PropertyValue get_value() const = 0;
+        virtual void set_value(const PropertyValue& value) = 0;
 
     protected:
         PropertyHandle(const Property* property_info) : property_info(property_info) {}
