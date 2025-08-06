@@ -366,9 +366,7 @@ namespace Salix {
                 }
             }
             ImGui::PopID();
-        }  else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            // TODO: Implement YAML pathway here.
-        }
+        }  
     }
 
 
@@ -417,9 +415,7 @@ namespace Salix {
                 pimpl->context->selected_entity_id = element->get_owner()->get_id();
 
             }
-        } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            // TODO: Implement YAML pathway here.
-        }
+        } 
     }
 
 
@@ -450,9 +446,7 @@ namespace Salix {
 
                 ImGui::EndPopup();
             }
-        } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            // TODO: Implement YAML pathway here.
-        }
+        } 
     } 
 
 
@@ -564,9 +558,7 @@ namespace Salix {
 
                 ImGui::EndPopup();
             }
-        } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            // TODO: Implement YAML pathway here.
-        }
+        } 
     }
     
 
@@ -616,9 +608,7 @@ namespace Salix {
                 // TODO: Implement duplication logic here.
                 std::cout << "Ctrl+D pressed for entity: " << selected_entity->get_name() << std::endl;
             }
-        } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            // TODO: Implement YAML pathway here.
-        }
+        } 
     }
 
 
@@ -849,7 +839,6 @@ namespace Salix {
 
                 // If a valid payload is hovering over our dummy hitbox...
                 if (payload) {
-                    // --- THIS IS THE CORRECTED SECTION ---
                     // Get the rectangle for the dummy item we just created
                     ImVec2 rect_min = ImGui::GetItemRectMin();
                     ImVec2 rect_max = ImGui::GetItemRectMax();
@@ -857,7 +846,7 @@ namespace Salix {
                     // Draw our visible feedback line over that rectangle
                     ImDrawList* draw_list = ImGui::GetWindowDrawList();
                     draw_list->AddLine(ImVec2(rect_min.x, rect_min.y), ImVec2(rect_max.x, rect_min.y), ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
-                    // --- END CORRECTION ---
+                    
                 }
 
                 // If the user actually releases the mouse...
