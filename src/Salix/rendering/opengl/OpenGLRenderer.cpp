@@ -619,6 +619,7 @@ namespace Salix {
         const Color& color,
         int segments)
         {
+            (void)segments;
             // 0. Initial checks (same as your cube implementation)
             if (!pimpl->active_camera) {
                 std::cerr << "WARNING: Attempted to draw_sphere with no active camera set." << std::endl;
