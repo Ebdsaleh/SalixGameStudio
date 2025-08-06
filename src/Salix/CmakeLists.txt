@@ -44,6 +44,7 @@ add_library(SalixEngine SHARED
     reflection/ByteMirror.cpp
     reflection/EnumRegistry.cpp
     reflection/ui/TypeDrawer.cpp
+    reflection/PropertyHandleLive.cpp
     rendering/DummyCamera.cpp
     rendering/sdl/SDLRenderer.cpp
     rendering/sdl/SDLTexture.cpp
