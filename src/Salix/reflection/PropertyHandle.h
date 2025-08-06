@@ -19,7 +19,7 @@ namespace Salix {
     // A variant to hold any possible type a property could be.
     // This now becomes the primary way we pass data.
     using PropertyValue = std::variant<
-        int, float, bool, std::string, Vector2, Vector3, Color, Point, Rect, glm::mat4
+        int, uint64_t, float, bool, std::string, Vector2, Vector3, Color, Point, Rect, glm::mat4
         // Note: You must add every type from your PropertyType enum here
     >;
 
