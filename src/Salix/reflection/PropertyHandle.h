@@ -24,8 +24,7 @@ namespace Salix {
     >;
 
     // Abstract base class for a generic property handle.
-    class SALIX_API PropertyHandle
-    {
+    class SALIX_API PropertyHandle {
     public:
         virtual ~PropertyHandle() = default;
 
@@ -35,7 +34,13 @@ namespace Salix {
         // These are now NON-template virtual functions. This will compile.
         virtual PropertyValue get_value() const = 0;
         virtual void set_value(const PropertyValue& value) = 0;
-
+        const TypeInfo* get_contained_type_info() const {
+            // Safely return the contained_type_info from the internal property struct
+            if (property_info) {
+                return property_info->contained_type_info;
+            }
+            return nullptr;
+        }
     protected:
         PropertyHandle(const Property* property_info) : property_info(property_info) {}
         const Property* property_info;
