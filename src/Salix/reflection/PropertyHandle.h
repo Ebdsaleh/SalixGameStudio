@@ -1,0 +1,44 @@
+// Salix/reflection/PropertyHandle.h
+#pragma once
+
+#include <Salix/core/Core.h>
+#include <Salix/reflection/ByteMirror.h>
+#include <Salix/math/Vector2.h>
+#include <Salix/math/Vector3.h>
+#include <Salix/math/Color.h>
+#include <Salix/math/Point.h>
+#include <Salix/math/Rect.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <vector>
+#include <string>
+#include <variant>
+
+namespace Salix {
+
+    // A variant to hold any possible type a property could be.
+    // This now becomes the primary way we pass data.
+    using PropertyValue = std::variant<
+        int, float, bool, std::string, Vector2, Vector3, Color, Point, Rect, glm::mat4
+        // Note: You must add every type from your PropertyType enum here
+    >;
+
+    // Abstract base class for a generic property handle.
+    class SALIX_API PropertyHandle
+    {
+    public:
+        virtual ~PropertyHandle() = default;
+
+        const std::string& getName() const { return property_info->name; }
+        PropertyType getType() const { return property_info->type; }
+
+        // These are now NON-template virtual functions. This will compile.
+        virtual PropertyValue getValue() const = 0;
+        virtual void setValue(const PropertyValue& value) = 0;
+
+    protected:
+        PropertyHandle(const Property* property_info) : property_info(property_info) {}
+        const Property* property_info;
+    };
+
+} // namespace Salix
