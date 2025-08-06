@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 
+
 namespace Salix {
 
     // Calculates the magnitude (length) of the vector.

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 
+
 namespace Salix {
 
     // Calculates the magnitude (length) of the vector.
