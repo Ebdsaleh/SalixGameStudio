@@ -35,6 +35,9 @@ namespace Salix {
     SimpleGuid::SimpleGuid() : id(0) {}
     SimpleGuid::SimpleGuid(uint64_t guid) : id(guid) {}
 
+    SimpleGuid SimpleGuid::from_value(uint64_t value) {
+        return SimpleGuid(value); // This can call the private constructor
+    }
 
 
     // --- Operator Implementations ---

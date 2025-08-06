@@ -24,6 +24,8 @@ namespace Salix {
         // Add a public static method to get an invalid ID.
         static SimpleGuid invalid();
 
+        static SimpleGuid from_value(uint64_t value);
+
         uint64_t get_value() const { return id; }
         // Constructors are made private to ensure IDs are only made via generate().
     private:
