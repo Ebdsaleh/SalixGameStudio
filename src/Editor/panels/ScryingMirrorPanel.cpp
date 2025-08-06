@@ -9,6 +9,7 @@
 #include <Salix/gui/IconInfo.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <Salix/reflection/ByteMirror.h>
+#include <Salix/reflection/PropertyHandleLive.h>
 #include <Salix/reflection/ui/TypeDrawer.h>
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/Scene.h>
@@ -34,7 +35,6 @@ namespace Salix {
         Element* selected_element = nullptr;
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
-        void draw_property(const Property& prop, Element* element);
     };
 
     ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
@@ -80,74 +80,83 @@ namespace Salix {
         ImGui::Text("Properties:");
         ImGui::Separator();
 
-
-        // --- New Data-Driven Lookup Logic ---
-
+        // --- Data Lookup Logic (this part remains the same) ---
         Entity* selected_entity_live = nullptr;
         Element* selected_element_live = nullptr;
 
-        Entity* selected_entity_live_yaml = nullptr;
-        Element* selected_element_live_yaml = nullptr;
-
         if (pimpl->context && pimpl->context->active_scene) {
-            // --- Live Mode Pathway ---
             if (pimpl->context->data_mode == EditorDataMode::Live) {
                 selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
                 if (selected_entity_live) {
                     selected_element_live = selected_entity_live->get_element_by_id(pimpl->selected_element_id);
                 }
             }
-            // --- YAML Mode Pathway ---
-            // This pathway will eventually get a proxy or data-only object.
-            // For now, it will return a nullptr as a placeholder. 
-            else if(pimpl->context->data_mode == EditorDataMode::Yaml) {
-            // TODO: Implement YAML data pathway here.
-            }  
+            else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+                // TODO: Implement YAML data pathway here.
+            }
         }
-        // --- End New Data-Driven Lookup Logic ---
+        // --- End Data Lookup Logic ---
 
 
-        // Use the new live pointers instead of the old ones.
-        if (selected_element_live|| (selected_entity_live)) {
-            if (selected_entity_live) {
-                ImGui::Text("Entity: %s", selected_entity_live->get_name().c_str());
-                ImGui::Separator();
-            }
+        // Determine which elements we need to draw properties for
+        std::vector<Salix::Element*> elements_to_display;
+        if (selected_element_live) {
+            elements_to_display.push_back(selected_element_live);
+        }
+        else if (selected_entity_live) {
+            ImGui::Text("Entity: %s", selected_entity_live->get_name().c_str());
+            ImGui::Separator();
+            elements_to_display = selected_entity_live->get_all_elements();
+        }
 
-            std::vector<Salix::Element*> elements_to_display;
-
-            if (selected_element_live) {
-                elements_to_display.push_back(selected_element_live);
-            }
-            else if (selected_entity_live) {
-                elements_to_display = selected_entity_live->get_all_elements();
-            }
-
-            for (auto* element : elements_to_display) {
-                const std::type_index typeIndex = typeid(*element);
-                const TypeInfo* typeInfo = ByteMirror::get_type_info(typeIndex);
-
+        // --- THIS IS THE NEW PROPERTYHANDLE-BASED DRAWING LOGIC ---
+        if (!elements_to_display.empty())
+        {
+            for (auto* element : elements_to_display)
+            {
+                const TypeInfo* typeInfo = ByteMirror::get_type_info(typeid(*element));
                 if (!typeInfo) {
-                    ImGui::Text("Unreflected Element: %s", typeIndex.name());
+                    ImGui::Text("Unreflected Element: %s", typeid(*element).name());
                     continue;
                 }
-                
-                if (ImGui::CollapsingHeader(typeInfo->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                    // This is where we add the table.
-                    if (ImGui::BeginTable(typeInfo->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
-                        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-                        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-                        for (const auto& prop : typeInfo->properties) {
-                            pimpl->draw_property(prop, element);
+
+                if (ImGui::CollapsingHeader(typeInfo->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+                {
+                    // 1. Get the list of handles from our new factory function.
+                    auto handles = ByteMirror::create_handles_for(element);
+                    
+                    if (!handles.empty())
+                    {
+                        if (ImGui::BeginTable(typeInfo->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit))
+                        {
+                            ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+                            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+
+                            // 2. Loop through the handles instead of properties.
+                            for (const auto& handle : handles)
+                            {
+                                ImGui::TableNextRow();
+                                ImGui::TableSetColumnIndex(0); // Column 1 for the label
+                                ImGui::Text("%s", handle->get_name().c_str());
+
+                                ImGui::TableSetColumnIndex(1); // Column 2 for the widget
+                                ImGui::PushItemWidth(-FLT_MIN);
+                                
+                                // 3. Call our new TypeDrawer function that takes a handle.
+                                TypeDrawer::draw_property(*handle);
+
+                                ImGui::PopItemWidth();
+                            }
+                            ImGui::EndTable();
                         }
-                        ImGui::EndTable();
                     }
                 }
             }
-        } else {
+        }
+        else
+        {
             ImGui::Text("No object selected.");
         }
-        
     }
 
 
@@ -193,24 +202,6 @@ namespace Salix {
 
 
 
-    // --- Private methods ---
-
     
-
-
-
-     void ScryingMirrorPanel::Pimpl::draw_property(const Property& prop, Element* element) {
-        // We now draw the property across two columns.
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0); // Column 1 for the label
-        ImGui::Text("%s", prop.name.c_str());
-
-        ImGui::TableSetColumnIndex(1); // Column 2 for the widget
-        ImGui::PushItemWidth(-FLT_MIN);
-        
-        TypeDrawer::get_drawer(prop.type)(prop, element);
-
-        ImGui::PopItemWidth();
-    }
 
 }  // namespace Salix
