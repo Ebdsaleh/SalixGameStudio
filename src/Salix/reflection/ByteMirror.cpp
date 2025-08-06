@@ -4,7 +4,7 @@
 #include <typeindex>
 #include <memory>
 #include <functional>
-#include <core/SimpleGuid.h>
+#include <Salix/core/SimpleGuid.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/PropertyHandleLive.h>
 #include <Salix/reflection/PropertyHandleYaml.h>
