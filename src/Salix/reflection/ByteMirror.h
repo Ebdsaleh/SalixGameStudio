@@ -1,7 +1,7 @@
 // Salix/reflection/ByteMirror.h
 #pragma once
 #include <Salix/core/Core.h>
-#include <Salix/reflection/PropertyHandle.h>
+
 #include <string>
 #include <vector>
 #include <cstddef> // Required for offsetof
@@ -9,8 +9,12 @@
 #include <typeindex>
 #include <functional>
 #include <optional>
+#include <memory>
 
 namespace Salix {
+
+    class PropertyHandle;
+    class Element;
     // An enum to represent the types we can edit in the UI.
     // We'll add more as needed (e.g., Color, Quaternion, etc.)
     enum class PropertyType
