@@ -3,7 +3,8 @@
 #pragma once
 
 #include <Salix/events/IEvent.h>
-#include <Salix/ecs/Entity.h> // We need to know what an Entity is
+#include <Salix/ecs/Entity.h>
+#include <Salix/core/SimpleGuid.h>
 
 
 #ifndef EVENT_CLASS_TYPE
@@ -20,9 +21,10 @@ namespace Salix {
 
 class EntitySelectedEvent : public IEvent { 
     public:
+        
         static bool block_selection;
-        EntitySelectedEvent(Entity* selected_entity)
-            : entity(selected_entity) {}
+        EntitySelectedEvent(SimpleGuid id, Entity* live_entity = nullptr)
+            : selected_id(id), entity(live_entity) {}
 
         EVENT_CLASS_TYPE(EditorEntitySelected)
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
@@ -30,6 +32,8 @@ class EntitySelectedEvent : public IEvent {
         bool should_block() const override { return block_selection; }
         void set_block(bool block) override { block_selection = block;}
         Entity* entity;
+        // The stable ID, which works in both modes
+        SimpleGuid selected_id;
     };
 
 } // namespace Salix
