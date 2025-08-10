@@ -18,9 +18,9 @@ namespace Salix {
         void initialize() override;
         void on_load(const InitContext& context) override;
         void update(float delta_time) override;
-        const Vector3 get_size();
-        void set_size(Vector3 new_size);
-        
+        // Required for ByteMirror.  
+        const Vector3& get_size() const;
+        void set_size(const Vector3& new_size);
        
     private:
         struct Pimpl;

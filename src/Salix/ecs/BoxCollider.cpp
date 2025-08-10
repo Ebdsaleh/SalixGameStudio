@@ -32,11 +32,13 @@ namespace Salix {
         return pimpl->class_name;
     }
 
-    const Vector3 BoxCollider::get_size() {
+
+
+    const Vector3& BoxCollider::get_size() const {
         return pimpl->size;
     }
-
-    void BoxCollider::set_size(Vector3 new_size) {
+    
+    void BoxCollider::set_size(const Vector3& new_size) {
         pimpl->size = new_size;
     }
 
