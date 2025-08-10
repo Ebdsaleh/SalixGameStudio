@@ -282,6 +282,17 @@ namespace Salix {
         return new_entity;
     }
 
+
+    Entity* Scene::create_entity(SimpleGuid id, const std::string& new_entity_name) {
+        auto new_entity_owner = std::make_unique<Entity>();
+        Entity* new_entity = new_entity_owner.get();
+
+        new_entity->set_name(new_entity_name);
+        new_entity->set_id(id);
+        pimpl->entities.push_back(std::move(new_entity_owner));
+        return new_entity;
+    }
+
     // Public Getters for Scene Shell Info
     const std::string& Scene::get_name() const {
         return name; // Returns Scene's own 'name' member
@@ -336,6 +347,12 @@ namespace Salix {
 
         return raw_pointers;
     }
+
+
+    void Scene::clear_all_entities() {
+        pimpl->entities.clear();
+    }
+
 
     // --- CEREAL IMPLEMENTATION ---
     template <class Archive>

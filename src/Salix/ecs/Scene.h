@@ -41,7 +41,7 @@ class SimpleGuid;
 
         // A method to create a new entity within this scene.
         Entity* create_entity(const std::string& new_entity_name = "Entity");
-        
+        Entity* create_entity(SimpleGuid id, const std::string& new_entity_name);
         // A method to get an Entity by name.
         Entity* get_entity_by_name(const std::string& entity_name);  // Had to add this for testing in 'Game/GameState.cpp'
         Entity* get_entity_by_id(SimpleGuid id);
@@ -49,7 +49,7 @@ class SimpleGuid;
         // --- Public Getters for Shell Info ---
         const std::string& get_name() const;
         const std::string& get_file_path() const; 
-        
+        void clear_all_entities();
         void set_active_camera(ICamera* camera);
         ICamera* get_active_camera();
 
