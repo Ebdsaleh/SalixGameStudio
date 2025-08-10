@@ -28,7 +28,7 @@
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
 #include <Salix/management/SceneManager.h>
-
+#include <Editor/management/RealmLoader.h>
 // Editor-specific systems
 #include <Editor/EditorContext.h>
 #include <Editor/panels/PanelManager.h>
@@ -57,6 +57,7 @@
 #include <ImGuizmo.h>
 #include <iostream>
 #include <memory>
+#include <cassert>
 #include <fstream> // For file logging
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -146,6 +147,7 @@ namespace Salix {
         log_file << "[DEBUG] Engine mode set." << std::endl;
 
         // 5. Create and initialize all the editor panels
+        
         log_file << "[DEBUG] Creating WorldTreePanel..." << std::endl;
         auto world_tree_panel = std::make_unique<WorldTreePanel>();
         std::string world_tree_name = "World Tree Panel";
@@ -154,7 +156,8 @@ namespace Salix {
         log_file << "[DEBUG] Registering WorldTreePanel..." << std::endl;
         pimpl->panel_manager->register_panel(std::move(world_tree_panel), world_tree_name);
         log_file << "[DEBUG] WorldTreePanel registered." << std::endl;
-
+        
+        
         log_file << "[DEBUG] Creating ScryingMirrorPanel..." << std::endl;
         auto scrying_mirror_panel = std::make_unique<ScryingMirrorPanel>();
         std::string scrying_mirror_name = "Scrying Mirror Panel";
@@ -163,7 +166,8 @@ namespace Salix {
         log_file << "[DEBUG] Registering ScryingMirrorPanel..." << std::endl;
         pimpl->panel_manager->register_panel(std::move(scrying_mirror_panel), scrying_mirror_name);
         log_file << "[DEBUG] ScryingMirrorPanel registered." << std::endl;
-
+        
+        
         log_file << "[DEBUG] Creating RealmDesignerPanel..." << std::endl;
         auto realm_designer_panel = std::make_unique<RealmDesignerPanel>();
         std::string realm_designer_name = "Realm Designer Panel";
@@ -172,7 +176,9 @@ namespace Salix {
         pimpl->panel_manager->register_panel(std::move(realm_designer_panel), realm_designer_name);
         pimpl->realm_designer = dynamic_cast<RealmDesignerPanel*>(pimpl->panel_manager->get_panel("Realm Designer Panel"));
         log_file << "[DEBUG] RealmDesignerPanel registered..." << std::endl;
+        
 
+        
         log_file << "[DEBUG] Creating RealmPortalPanel..." << std::endl;
         auto realm_portal_panel = std::make_unique<RealmPortalPanel>();
         std::string realm_portal_name = "Realm Portal Panel";
@@ -181,8 +187,9 @@ namespace Salix {
         pimpl->panel_manager->register_panel(std::move(realm_portal_panel), realm_portal_name);
         pimpl->realm_portal = dynamic_cast<RealmPortalPanel*>(pimpl->panel_manager->get_panel("Realm Portal Panel"));
         log_file << "[DEBUG] RealmPotalPanel registered..." << std::endl;
+        
 
-
+        
         log_file << "[DEBUG] Creating ThemeEditorPanel..." << std::endl;
         auto theme_editor_panel = std::make_unique<ThemeEditorPanel>();
         std::string theme_editor_name = "Theme Editor Panel";
@@ -192,6 +199,8 @@ namespace Salix {
         pimpl->panel_manager->register_panel(std::move(theme_editor_panel), theme_editor_name);
         log_file << "[DEBUG] ThemeEditorPanel registered." << std::endl;
 
+        
+        
         // NEW ProjectSettingsPanel
         log_file << "[DEBUG] Creating ProjectSettingsPanel..." << std::endl;
         auto project_settings_panel = std::make_unique<ProjectSettingsPanel>();
@@ -201,7 +210,7 @@ namespace Salix {
         log_file << "[DEBUG] Registering Project Settings Panel..." << std::endl;
         pimpl->panel_manager->register_panel(std::move(project_settings_panel), project_settings_name);
         log_file << "[DEBUG] ProjectSettingsPanel registered." << std::endl;
-
+        
         log_file << "[DEBUG] EditorState::on_enter FINISHED successfully." << std::endl;
 
         pimpl->camera = std::make_unique<EditorCamera>();
@@ -219,7 +228,42 @@ namespace Salix {
             engine_context.app_config->window_config.width,
             engine_context.app_config->window_config.height
         );
-        pimpl->create_mock_scene();
+        // load the scene/realm based on the EditorDataMode set during the Engine initialization.
+        if (pimpl->editor_context->data_mode == EditorDataMode::Yaml) {
+            std::cout << "DEBUG: Starting YAML load..." << std::endl;
+            pimpl->editor_context->current_realm = load_archetypes_from_file("default_realm.yaml");
+            std::cout << "DEBUG: Load completed. Vector size: " 
+                    << pimpl->editor_context->current_realm.size() << std::endl;
+
+            // Debug check #1 - Verify vector contents
+            for (const auto& archetype : pimpl->editor_context->current_realm) {
+                assert(!archetype.name.empty() && "Entity archetype has empty name");
+                assert(archetype.id.is_valid() && "Entity archetype has invalid ID");
+                std::cout << "  - " << archetype.name.c_str() << " (ID: " << archetype.id.get_value() << ") with "
+                        << archetype.elements.size() << " elements" << std::endl;
+                
+                for (const auto& element : archetype.elements) {
+                    assert(!element.type_name.empty() && "Element has empty type name");
+                    assert(element.id.is_valid() && "Element has invalid ID");
+                    std::cout << "    * " << element.type_name.c_str() << " (ID: " << element.id.get_value() << ")" << std::endl;
+                }
+            }
+
+            // Debug check #2 - Verify YAML node validity
+            for (const auto& archetype : pimpl->editor_context->current_realm) {
+                for (const auto& element : archetype.elements) {
+                    assert(element.data.IsDefined() && "Element data node is invalid");
+                    assert(element.data.IsMap() && "Element data is not a map");
+                }
+            }
+
+            std::cout << "DEBUG: All archetype data validated successfully" << std::endl;
+        }
+        else if (pimpl->editor_context->data_mode == EditorDataMode::Live) { pimpl->create_mock_scene(); }
+
+        else {
+            std::cerr << "EditorState::initialize - Invalid EditorDataMode detected!" << std::endl;
+        }
 
     }
 
@@ -531,6 +575,9 @@ namespace Salix {
         );
 
         editor_context->active_project = mock_project.get();     
+        camera_entity->report_ids();
+        player->report_ids();
+        
     }
 
     void EditorState::Pimpl::draw_test_cube() {
