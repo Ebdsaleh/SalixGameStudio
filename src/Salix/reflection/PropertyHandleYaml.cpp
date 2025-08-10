@@ -1,6 +1,6 @@
 // Salix/reflection/PropertyHandleYaml.cpp
+#include <Salix/serialization/YamlConverters.h>
 #include <Salix/reflection/PropertyHandleYaml.h>
-#include <Salix/reflection/YamlConverters.h>
 #include <Salix/core/SimpleGuid.h>
 #include <Salix/math/Vector2.h>
 #include <Salix/math/Vector3.h>
@@ -115,3 +115,4 @@ namespace Salix {
 
 
 }  // namespace Salix
+

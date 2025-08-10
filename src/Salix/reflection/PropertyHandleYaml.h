@@ -1,8 +1,8 @@
 // Salix/reflection/PropertyHandleYaml.h
 #pragma once
+#include <Salix/serialization/YamlConverters.h>
 #include <Salix/core/Core.h>
 #include <Salix/reflection/PropertyHandle.h>
-#include <Salix/reflection/YamlConverters.h>
 #include <yaml-cpp/yaml.h>
 
 
