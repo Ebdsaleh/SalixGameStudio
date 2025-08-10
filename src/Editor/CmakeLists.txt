@@ -8,6 +8,7 @@
 # Paths are relative to this CMakeLists.txt file's location (src/Editor/).
 add_library(SalixEditor SHARED
     EditorFactory.cpp
+    ArchetypeInstantiator.cpp
     states/EditorState.cpp
     panels/PanelManager.cpp
     panels/LockablePanel.cpp
@@ -19,6 +20,8 @@ add_library(SalixEditor SHARED
     panels/ProjectSettingsPanel.cpp
     camera/EditorCamera.cpp
     events/EntitySelectedEvent.cpp
+    reflection/ui/TypeDrawer.cpp
+    management/RealmLoader.cpp
     # Add any other .cpp files specific to SalixEditor.dll here
 )
 
