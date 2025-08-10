@@ -17,7 +17,7 @@
 // Reflection
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
-#include <Salix/reflection/ui/TypeDrawer.h>
+#include <Salix/reflection/ui/TypeDrawerLive.h>
 
 
 // Rendering includes
@@ -464,7 +464,7 @@ namespace Salix {
         ByteMirror::register_all_types();
         
         // --- INITIALIZE TYPE DRAWER ---
-        TypeDrawer::register_all_type_drawers();
+        TypeDrawerLive::register_all_type_drawers();
         
 
         // --- SWITCH INTO THE INITIAL STATE PASSED INTO THIS METHOD ---
