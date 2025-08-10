@@ -1,4 +1,4 @@
-// Editor/Archetype.h
+// Editor/Archetypes.h
 #pragma once
 #include <Editor/EditorAPI.h>
 #include <Salix/math/Vector2.h>
