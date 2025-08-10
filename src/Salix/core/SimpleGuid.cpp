@@ -31,8 +31,10 @@ namespace Salix {
         return SimpleGuid();
     }
 
+    bool SimpleGuid::is_valid() const { return id != 0; }
+
     // --- Constructor Implementations ---
-    SimpleGuid::SimpleGuid() : id(0) {}
+    SimpleGuid::SimpleGuid() : id(0) {} // this is now public, thanks to YAML-CPP being weird.
     SimpleGuid::SimpleGuid(uint64_t guid) : id(guid) {}
 
     SimpleGuid SimpleGuid::from_value(uint64_t value) {

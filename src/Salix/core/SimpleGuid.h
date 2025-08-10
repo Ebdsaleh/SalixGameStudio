@@ -18,6 +18,7 @@ namespace Salix {
     // A type-safe wrapper around a 64-bit unsigned integer.
     class SALIX_API SimpleGuid {
     public:
+        SimpleGuid(); // Default constructor creates an invalid ID (0)
         // Public method to get a new, unique ID. This is the only way to create one.
         static SimpleGuid generate();
 
@@ -27,9 +28,10 @@ namespace Salix {
         static SimpleGuid from_value(uint64_t value);
 
         uint64_t get_value() const { return id; }
+        bool is_valid() const;
         // Constructors are made private to ensure IDs are only made via generate().
     private:
-        SimpleGuid(); // Default constructor creates an invalid ID (0)
+        
         explicit SimpleGuid(uint64_t guid);
 
     public: // Public operators for comparison and use in maps.
