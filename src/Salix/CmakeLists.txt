@@ -43,7 +43,7 @@ add_library(SalixEngine SHARED
     math/MathUtils.cpp
     reflection/ByteMirror.cpp
     reflection/EnumRegistry.cpp
-    reflection/ui/TypeDrawer.cpp
+    reflection/ui/TypeDrawerLive.cpp
     reflection/PropertyHandleLive.cpp
     reflection/PropertyHandleYaml.cpp
     rendering/DummyCamera.cpp
