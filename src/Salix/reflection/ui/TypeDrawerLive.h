@@ -1,10 +1,9 @@
-// Salix/reflection/ui/TypeDrawer.h
+// Salix/reflection/ui/TypeDrawerLive.h
 #pragma once
 #include <functional>
 #include <unordered_map>
 #include <Salix/core/Core.h>
 #include <Salix/reflection/ByteMirror.h>
-#include <Salix/reflection/YamlConverters.h>
 
 namespace Salix {
     class Element;
@@ -13,7 +12,7 @@ namespace Salix {
     using DrawFunc = std::function<void(const Property& prop, Element* element)>;
 
     
-    class SALIX_API TypeDrawer {
+    class SALIX_API TypeDrawerLive {
     public:
     
         static void register_drawer(PropertyType type, DrawFunc draw_func) {

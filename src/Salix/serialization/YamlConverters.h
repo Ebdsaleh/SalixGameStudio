@@ -1,4 +1,4 @@
-// Salix/reflection/YamlConverters.h
+// Salix/serialization/YamlConverters.h
 #pragma once
 
 #include <Salix/core/SimpleGuid.h>
@@ -17,10 +17,16 @@ namespace YAML {
     // --- Converter for Salix::SimpleGuid ---
     template<>
     struct convert<Salix::SimpleGuid> {
-        static Node encode(const Salix::SimpleGuid& guid) {
+        static inline Node encode(const Salix::SimpleGuid& guid) {
             return Node(guid.get_value());
         }
-        static bool decode(const Node& node, Salix::SimpleGuid& guid) {
+        static inline bool decode(const Node& node, Salix::SimpleGuid& guid) {
+            if (!node.IsScalar()) {
+                return false;
+            }
+            // The key is here: Use the public static factory method
+            // to create the SimpleGuid, instead of trying to call
+            // a private constructor.
             guid = Salix::SimpleGuid::from_value(node.as<uint64_t>());
             return true;
         }
@@ -29,13 +35,13 @@ namespace YAML {
     // --- Converter for Salix::Vector2 ---
     template<>
     struct convert<Salix::Vector2> {
-        static Node encode(const Salix::Vector2& rhs) {
+        static inline Node encode(const Salix::Vector2& rhs) {
             Node node;
             node["x"] = rhs.x;
             node["y"] = rhs.y;
             return node;
         }
-        static bool decode(const Node& node, Salix::Vector2& rhs) {
+        static inline bool decode(const Node& node, Salix::Vector2& rhs) {
             if (!node.IsMap() || node.size() != 2) return false;
             rhs.x = node["x"].as<float>();
             rhs.y = node["y"].as<float>();
@@ -46,14 +52,14 @@ namespace YAML {
     // --- Converter for Salix::Vector3 ---
     template<>
     struct convert<Salix::Vector3> {
-        static Node encode(const Salix::Vector3& rhs) {
+        static inline Node encode(const Salix::Vector3& rhs) {
             Node node;
             node["x"] = rhs.x;
             node["y"] = rhs.y;
             node["z"] = rhs.z;
             return node;
         }
-        static bool decode(const Node& node, Salix::Vector3& rhs) {
+        static inline bool decode(const Node& node, Salix::Vector3& rhs) {
             if (!node.IsMap() || node.size() != 3) return false;
             rhs.x = node["x"].as<float>();
             rhs.y = node["y"].as<float>();
@@ -65,7 +71,7 @@ namespace YAML {
     // --- Converter for Salix::Color ---
     template<>
     struct convert<Salix::Color> {
-        static Node encode(const Salix::Color& rhs) {
+        static inline Node encode(const Salix::Color& rhs) {
             Node node;
             node["r"] = rhs.r;
             node["g"] = rhs.g;
@@ -73,7 +79,7 @@ namespace YAML {
             node["a"] = rhs.a;
             return node;
         }
-        static bool decode(const Node& node, Salix::Color& rhs) {
+        static inline bool decode(const Node& node, Salix::Color& rhs) {
             if (!node.IsMap() || node.size() != 4) return false;
             rhs.r = node["r"].as<float>();
             rhs.g = node["g"].as<float>();
@@ -86,13 +92,13 @@ namespace YAML {
     // --- Converter for Salix::Point ---
     template<>
     struct convert<Salix::Point> {
-        static Node encode(const Salix::Point& rhs) {
+        static inline Node encode(const Salix::Point& rhs) {
             Node node;
             node["x"] = rhs.x;
             node["y"] = rhs.y;
             return node;
         }
-        static bool decode(const Node& node, Salix::Point& rhs) {
+        static inline bool decode(const Node& node, Salix::Point& rhs) {
             if (!node.IsMap() || node.size() != 2) return false;
             rhs.x = node["x"].as<int>();
             rhs.y = node["y"].as<int>();
@@ -103,7 +109,7 @@ namespace YAML {
     // --- Converter for Salix::Rect ---
     template<>
     struct convert<Salix::Rect> {
-        static Node encode(const Salix::Rect& rhs) {
+        static inline Node encode(const Salix::Rect& rhs) {
             Node node;
             node["x"] = rhs.x;
             node["y"] = rhs.y;
@@ -111,7 +117,7 @@ namespace YAML {
             node["h"] = rhs.h;
             return node;
         }
-        static bool decode(const Node& node, Salix::Rect& rhs) {
+        static inline bool decode(const Node& node, Salix::Rect& rhs) {
             if (!node.IsMap() || node.size() != 4) return false;
             rhs.x = node["x"].as<int>();
             rhs.y = node["y"].as<int>();
@@ -124,14 +130,14 @@ namespace YAML {
     // --- Converter for glm::mat4 ---
     template<>
     struct convert<glm::mat4> {
-        static Node encode(const glm::mat4& rhs) {
+        static inline Node encode(const glm::mat4& rhs) {
             Node node(NodeType::Sequence);
             for (int i = 0; i < 4; ++i) {
                 node.push_back(std::vector<float>{rhs[i][0], rhs[i][1], rhs[i][2], rhs[i][3]});
             }
             return node;
         }
-        static bool decode(const Node& node, glm::mat4& rhs) {
+        static inline bool decode(const Node& node, glm::mat4& rhs) {
             if (!node.IsSequence() || node.size() != 4) return false;
             for (int i = 0; i < 4; ++i) {
                 std::vector<float> column = node[i].as<std::vector<float>>();

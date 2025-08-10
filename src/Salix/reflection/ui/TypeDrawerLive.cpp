@@ -1,5 +1,5 @@
-// Salix/reflection/ui/TypeDrawer.cpp
-#include <Salix/reflection/ui/TypeDrawer.h>
+// Salix/reflection/ui/TypeDrawerLive.cpp
+#include <Salix/reflection/ui/TypeDrawerLive.h>
 #include <Salix/reflection/PropertyHandle.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <unordered_map>
@@ -16,7 +16,7 @@
 
 namespace Salix {
 
-    std::unordered_map<PropertyType, DrawFunc> TypeDrawer::type_drawer_registry;
+    std::unordered_map<PropertyType, DrawFunc> TypeDrawerLive::type_drawer_registry;
 
     void draw_nested_object(const Property& prop, Element* element) {
         const TypeInfo* nested_type_info = prop.contained_type_info;
@@ -25,35 +25,35 @@ namespace Salix {
             // Iterate through all the properties of the nested object.
             for (const auto& nested_prop : nested_type_info->properties) {
                 // Here is the recursion! We call the TypeDrawer again to draw the nested property.
-                TypeDrawer::get_drawer(nested_prop.type)(nested_prop, element);
+                TypeDrawerLive::get_drawer(nested_prop.type)(nested_prop, element);
             }
         }
     }
 
 
-    void TypeDrawer::register_all_type_drawers() {
-        TypeDrawer::register_drawer(PropertyType::Int, [](const Property& prop, Element* element) {
+    void TypeDrawerLive::register_all_type_drawers() {
+        TypeDrawerLive::register_drawer(PropertyType::Int, [](const Property& prop, Element* element) {
             int value = *static_cast<int*>(prop.get_data(element));
             if (ImGui::InputInt(prop.name.c_str(), &value)) {
                 prop.set_data(element, &value);
             }
         });
 
-        TypeDrawer::register_drawer(PropertyType::Float, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::Float, [](const Property& prop, Element* element) {
             float value = *static_cast<float*>(prop.get_data(element));
             if (ImGui::InputFloat(prop.name.c_str(), &value)) {
                 prop.set_data(element, &value);
             }
         });
 
-        TypeDrawer::register_drawer(PropertyType::Bool, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::Bool, [](const Property& prop, Element* element) {
             bool value = *static_cast<bool*>(prop.get_data(element));
             if (ImGui::Checkbox(prop.name.c_str(), &value)) {
                 prop.set_data(element, &value);
             }
         });
 
-        TypeDrawer::register_drawer(PropertyType::Vector2, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::Vector2, [](const Property& prop, Element* element) {
             Salix::Vector2 value = *static_cast<Salix::Vector2*>(prop.get_data(element));
             // The DragFloat2 function just needs a pointer to the first float.
             if (ImGui::DragFloat2(prop.name.c_str(), &value.x)) {
@@ -61,14 +61,14 @@ namespace Salix {
             }
         });
 
-        TypeDrawer::register_drawer(PropertyType::Vector3, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::Vector3, [](const Property& prop, Element* element) {
             Salix::Vector3 value = *static_cast<Salix::Vector3*>(prop.get_data(element));
             if (ImGui::DragFloat3(prop.name.c_str(), &value.x)) {
                 prop.set_data(element, &value);
             }
         });
 
-        TypeDrawer::register_drawer(PropertyType::Color, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::Color, [](const Property& prop, Element* element) {
             // We get a pointer to the color, then dereference it to get the object
             Salix::Color value = *static_cast<Salix::Color*>(prop.get_data(element));
             // We use ColorEdit4 and pass a pointer to the first float, which is 'r'
@@ -78,14 +78,14 @@ namespace Salix {
             }
         });
 
-        TypeDrawer::register_drawer(PropertyType::Point, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::Point, [](const Property& prop, Element* element) {
             Salix::Point value = *static_cast<Salix::Point*>(prop.get_data(element));
             if (ImGui::InputInt2(prop.name.c_str(), &value.x)) {
                 prop.set_data(element, &value);
             }
         });
 
-        TypeDrawer::register_drawer(PropertyType::String, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::String, [](const Property& prop, Element* element) {
             std::string value = *static_cast<std::string*>(prop.get_data(element));
             // We need a temporary buffer.
             char text_buffer[256];
@@ -101,7 +101,7 @@ namespace Salix {
         });
 
 
-        TypeDrawer::register_drawer(PropertyType::GlmMat4, [](const Property& prop, Element* element) { 
+        TypeDrawerLive::register_drawer(PropertyType::GlmMat4, [](const Property& prop, Element* element) { 
             // We get the pointer and dereference it to create a local copy.
             glm::mat4 value = *static_cast<glm::mat4*>(prop.get_data(element));
 
@@ -123,10 +123,10 @@ namespace Salix {
         });
 
 
-        TypeDrawer::register_drawer(PropertyType::Class, draw_nested_object);
-        TypeDrawer::register_drawer(PropertyType::Struct, draw_nested_object);
+        TypeDrawerLive::register_drawer(PropertyType::Class, draw_nested_object);
+        TypeDrawerLive::register_drawer(PropertyType::Struct, draw_nested_object);
 
-        TypeDrawer::register_drawer(PropertyType::Enum, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::Enum, [](const Property& prop, Element* element) {
             int value = *static_cast<int*>(prop.get_data(element));
             if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
                 const EnumRegistry::EnumData& enum_data = EnumRegistry::get_enum_data(*prop.contained_type_info->type_index);
@@ -142,7 +142,7 @@ namespace Salix {
             }
         });
         
-        TypeDrawer::register_drawer(PropertyType::EnumClass, [](const Property& prop, Element* element) {
+        TypeDrawerLive::register_drawer(PropertyType::EnumClass, [](const Property& prop, Element* element) {
             int value = *static_cast<int*>(prop.get_data(element));
             if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
                 const EnumRegistry::EnumData& enum_data = EnumRegistry::get_enum_data(*prop.contained_type_info->type_index);
@@ -162,7 +162,7 @@ namespace Salix {
 
 
 
-    void Salix::TypeDrawer::draw_property(PropertyHandle& handle) {
+    void Salix::TypeDrawerLive::draw_property(PropertyHandle& handle) {
         // Use the property's name as the label for the ImGui widget
         const char* label = handle.get_name().c_str();
 
