@@ -49,6 +49,8 @@ namespace Salix {
     // A generic function that takes a element instance and a pointer to the new data to set.
     using setter_func = std::function<void(void* type_instance, void* data_to_set)>;
 
+    // A type definition for a function that constructs an Element.
+    using constructor_func = std::function<Element*()>;
 
     // Describes a single editable property of a element.
     struct Property
@@ -98,9 +100,16 @@ namespace Salix {
             
             // Creates a vector of property handles for a given YAML entity node.
             static std::vector<std::unique_ptr<PropertyHandle>> create_handles_for_yaml(YAML::Node* entity_node);
+
+            // NEW: Factory functions to create elements from a string name.
+            static void register_constructor(const std::string& name, constructor_func func);
+            static Element* create_element_by_name(const std::string& name);
         private:
             // The static registry mapping a type_index to its reflection data.
             static std::unordered_map<std::type_index, TypeInfo> type_registry;
+
+            // A registry to store the constructor for each component type.
+            static std::unordered_map<std::string, constructor_func> constructor_registry;
         };
 
         // Will need to define the static map in a corresponding .cpp file.

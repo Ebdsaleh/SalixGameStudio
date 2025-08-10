@@ -8,6 +8,7 @@
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/PropertyHandleLive.h>
 #include <Salix/reflection/PropertyHandleYaml.h>
+#include <Salix/ecs/BoxCollider.h>
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/ecs/CppScript.h>
@@ -24,6 +25,24 @@ namespace Salix {
     // Define the static map here, outside of the class definition.
     // A static class cannot have a constructor.
     std::unordered_map<std::type_index, TypeInfo> ByteMirror::type_registry;
+
+    // Define the static map for the constructor registry.
+    std::unordered_map<std::string, constructor_func> ByteMirror::constructor_registry;
+
+    // Add the implementation for the factory functions.
+    void ByteMirror::register_constructor(const std::string& name, constructor_func func) {
+        constructor_registry[name] = func;
+    }
+
+
+    Element* ByteMirror::create_element_by_name(const std::string& name) {
+        if (constructor_registry.count(name)) {
+            // If we found a constructor for this name, call it.
+            return constructor_registry.at(name)();
+        }
+        // Return nullptr if no constructor is registered for that name.
+        return nullptr;
+    }
     
     // Step 1: Register the base classes first.
     template<>
@@ -57,6 +76,30 @@ namespace Salix {
     
 
     // Step 2: Register the descendents.
+
+    // Boxcollider
+    template<>
+    void ByteMirror::register_type<BoxCollider>() {
+        TypeInfo type_info;
+        type_info.name = std::string("BoxCollider");
+        type_info.ancestor = get_type_info(typeid(Element));
+        type_info.properties = {
+            {
+                "Size", PropertyType::Vector3, nullptr,
+                // getter_func
+                [](void* instance) {return static_cast<void*>(const_cast<Vector3*>(
+                    &static_cast<BoxCollider*>(instance)->get_size()));
+                },
+
+                // setter_func
+                [](void* instance, void* data) {
+                    static_cast<BoxCollider*>(instance)->set_size(*static_cast<Vector3*>(data));
+                }
+            }
+        };
+        type_info.type_index = typeid(BoxCollider);
+        type_registry[typeid(BoxCollider)] = type_info;
+    }
 
     // Transform
     template<>
@@ -399,6 +442,13 @@ namespace Salix {
         ByteMirror::register_type<ProjectionMode>();
         ByteMirror::register_type<Camera>();
         ByteMirror::register_type<Sprite2D>();
+        ByteMirror::register_type<BoxCollider>();
+
+        // REGISTER CONSTRUCTORS
+        ByteMirror::register_constructor("Transform",   []() -> Element* { return new Transform(); });
+        ByteMirror::register_constructor("Sprite2D",    []() -> Element* { return new Sprite2D(); });
+        ByteMirror::register_constructor("Camera",      []() -> Element* { return new Camera(); });
+        ByteMirror::register_constructor("BoxCollider", []() -> Element* { return new BoxCollider(); });
     } 
 
     std::vector<std::unique_ptr<PropertyHandle>> ByteMirror::create_handles_for(Element* element) {
