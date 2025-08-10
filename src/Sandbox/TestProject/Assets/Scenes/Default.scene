@@ -5,11 +5,16 @@
         "entities": [
             {
                 "ptr_wrapper": {
+                    "valid": 0
+                }
+            },
+            {
+                "ptr_wrapper": {
                     "valid": 1,
                     "data": {
                         "name": "Player",
                         "id": {
-                            "id": 1
+                            "id": 5
                         },
                         "elements": [
                             {
@@ -18,7 +23,11 @@
                                 "ptr_wrapper": {
                                     "valid": 1,
                                     "data": {
-                                        "value0": {},
+                                        "value0": {
+                                            "id": {
+                                                "id": 6
+                                            }
+                                        },
                                         "position": {
                                             "x": 640.0,
                                             "y": 360.0,
@@ -36,41 +45,4 @@
                                         }
                                     }
                                 }
-                            },
-                            {
-                                "polymorphic_id": 2147483650,
-                                "polymorphic_name": "Salix::Sprite2D",
-                                "ptr_wrapper": {
-                                    "valid": 1,
-                                    "data": {
-                                        "value0": {
-                                            "value0": {}
-                                        },
-                                        "color": {
-                                            "r": 1.0,
-                                            "g": 1.0,
-                                            "b": 1.0,
-                                            "a": 1.0
-                                        },
-                                        "offset": {
-                                            "x": 0.0,
-                                            "y": 0.0
-                                        },
-                                        "pivot": {
-                                            "x": 0.5,
-                                            "y": 0.5
-                                        },
-                                        "flip_h": false,
-                                        "flip_v": false,
-                                        "sorting_layer": 0,
-                                        "texture_path": "Assets/Images/test.png"
-                                    }
-                                }
                             }
-                        ]
-                    }
-                }
-            }
-        ]
-    }
-}
