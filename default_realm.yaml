@@ -1,0 +1,48 @@
+# default_realm.yaml (located in application root directory for testing).
+# Default Realm for Salix Game Studio
+RealmFileVersion: 1.0
+Settings:
+  name: "Default Realm"
+
+Entities:
+  - id: 2
+    name: "MainCamera"
+    parent: 0
+    elements:
+      Transform:
+        id: 3
+        position: { x: 0.0, y: 1.0, z: 10.0 }
+        rotation: { x: 0.0, y: 0.0, z: 0.0 }
+        scale:    { x: 1.0, y: 1.0, z: 1.0 }
+      BoxCollider:
+        id: 4
+        size: { x: 1.0, y: 1.0, z: 1.0 }
+      Camera:
+        id: 5
+        projection_mode: "Perspective"
+        field_of_view: 45.0
+        near_clip: 0.1
+        far_clip: 1000.0
+
+  - id: 6
+    name: "Player"
+    parent: 0
+    elements:
+      Transform:
+        id: 7
+        position: { x: 0.0, y: 0.0, z: 0.0 }
+        rotation: { x: 0.0, y: 0.0, z: 0.0 }
+        scale:    { x: 1.0, y: 1.0, z: 1.0 }
+      BoxCollider:
+        id: 8
+        size: { x: 1.0, y: 1.0, z: 1.0 }
+      Sprite2D:
+        id: 9
+        texture_path: "Assets/Images/test.png"
+        color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
+        flip_h: false
+        flip_v: false
+        use_entity_rotation: false
+        offset: { x: 0.0, y: 0.0 }
+        pivot: { x: 0, y: 0 }
+        sorting_layer: 0
