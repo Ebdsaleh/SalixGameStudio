@@ -120,6 +120,26 @@ namespace Salix {
         return pimpl->id;
     }
 
+    void Entity::set_id(SimpleGuid id) {
+        pimpl->id = SimpleGuid::invalid();
+        pimpl->id = id;
+    }
+
+    void Entity::report_ids() const {
+        std::cout << "Entity: " << pimpl->name << " - ID: " << pimpl->id.get_value() << std::endl;
+        if (pimpl->parent) {
+            std::cout << "Parent Entity: " << pimpl->parent->get_name() << " - ID: " << pimpl->parent->get_id().get_value() << std::endl;   
+        }
+        for (auto& element : pimpl->all_elements) {
+            std::cout << "Element: " << element->get_class_name() << " - ID: " << element->id.get_value() << std::endl;
+        }
+        if (!pimpl->children.empty()) {
+            for (auto* child_entity : pimpl->children) {
+                std::cout << "Child Entity: " << child_entity->get_name() << " - ID: " << child_entity->get_id().get_value() << std::endl;
+            }
+        }
+    }
+
     Element* Entity::get_element_by_id(SimpleGuid id) {
         if (id == SimpleGuid::invalid()) return nullptr;
 
@@ -131,6 +151,25 @@ namespace Salix {
             if (element->get_id() == id) return element.get();
         }
         return nullptr;
+    }
+
+    void Entity::add_element(Element* element_to_add) {
+        if (!element_to_add) {
+            return;
+        }
+
+        // 1. Set the back-reference to the owner entity.
+        element_to_add->set_owner(this);
+
+        // 2. Wrap the raw pointer in a unique_ptr. This is the key step
+        //    that correctly transfers ownership of the memory to the Entity.
+        std::unique_ptr<Element> element_owner(element_to_add);
+
+        // 3. Call your existing internal helper to add it to the master list.
+        add_element_internal(std::move(element_owner));
+
+        // 4. Call the element's one-time setup function.
+        element_to_add->initialize();
     }
 
     // Heirarchial methods
