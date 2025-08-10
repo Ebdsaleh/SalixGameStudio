@@ -1,7 +1,9 @@
 // Editor/panels/ScryingMirrorPanel.cpp
+#include <Salix/serialization/YamlConverters.h>
 #include <Editor/panels/ScryingMirrorPanel.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>
+#include <Editor/Archetypes.h>
 #include <Salix/events/EventManager.h>
 #include <imgui/imgui.h>
 #include <Salix/gui/IGui.h>
@@ -9,10 +11,10 @@
 #include <Salix/gui/IconInfo.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <Salix/reflection/ByteMirror.h>
-#include <Salix/reflection/YamlConverters.h>
 #include <Salix/reflection/PropertyHandleLive.h>
 #include <Salix/reflection/PropertyHandleYaml.h>
-#include <Salix/reflection/ui/TypeDrawer.h>
+#include <Editor/reflection/ui/TypeDrawer.h>
+#include <Salix/reflection/ui/TypeDrawerLive.h>
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Sprite2D.h>
@@ -121,7 +123,7 @@ namespace Salix {
                                 ImGui::Text("%s", handle->get_name().c_str());
                                 ImGui::TableSetColumnIndex(1);
                                 ImGui::PushItemWidth(-FLT_MIN);
-                                TypeDrawer::draw_property(*handle);
+                                TypeDrawerLive::draw_property(*handle);
                                 ImGui::PopItemWidth();
                             }
                             ImGui::EndTable();
@@ -141,96 +143,119 @@ namespace Salix {
             ImGui::Text("Properties:");
             ImGui::Separator();
 
-            if (pimpl->context->selected_entity_id.get_value() != 0 && pimpl->context->active_yaml_scene) {
-                YAML::Node selected_entity_node;
-                // CORRECTED LOOP: Use an index-based for loop
-                for (std::size_t i = 0; i < pimpl->context->active_yaml_scene.size(); i++) {
-                    YAML::Node entity_node = pimpl->context->active_yaml_scene[i];
-                    if (entity_node["id"] && entity_node["id"].as<uint64_t>() == pimpl->context->selected_entity_id.get_value()) {
-                        selected_entity_node = entity_node;
+            // 1. Check if an entity is selected
+            if (pimpl->selected_entity_id.get_value() == 0) {
+                ImGui::Text("No object selected.");
+                return;
+            }
+
+           
+            EntityArchetype* selected_archetype = nullptr;
+            std::vector<ElementArchetype*> elements_to_display;
+
+            // 2. Loop through the realm to find the archetype with the matching ID.
+            for (auto& archetype : pimpl->context->current_realm) {
+                if (archetype.id == pimpl->selected_entity_id) {
+                    selected_archetype = &archetype;
+                    break;
+                }
+            }
+
+            // 3. Make sure you actually found it before proceeding!
+            if (!selected_archetype) {
+                pimpl->selected_entity_id = SimpleGuid::invalid(); // Clear bad selection
+                return;
+            }
+            
+            // CASE 1: A specific element is selected
+            if (pimpl->selected_element_id.is_valid()) {
+                for (auto& elementArchetype : selected_archetype->elements) {
+                    if (elementArchetype.id == pimpl->selected_element_id) {
+                        elements_to_display.push_back(&elementArchetype);
                         break;
                     }
                 }
+            } 
+            // CASE 2: Only an entity is selected, so display all its elements
+            else {
+                for (auto& elementArchetype : selected_archetype->elements) {
+                    elements_to_display.push_back(&elementArchetype);
+                }
+            }
+            
+            
 
-                if (selected_entity_node) {
-                    if (selected_entity_node["Entity"]) {
-                        ImGui::Text("Entity: %s", selected_entity_node["Entity"].as<std::string>().c_str());
-                        ImGui::Separator();
-                    }
+            // The rest of the drawing code now loops over our prepared list
+            if (!elements_to_display.empty()) {
+                for (auto* elementArchetype : elements_to_display) {
+                    const TypeInfo* type_info = ByteMirror::get_type_info_by_name(elementArchetype->type_name);
+                    if (!type_info) continue;
 
-                    auto handles = ByteMirror::create_handles_for_yaml(&selected_entity_node);
-                    if (!handles.empty() && ImGui::BeginTable("PropertiesYAML", 2, ImGuiTableFlags_SizingFixedFit)) {
+                    if (ImGui::CollapsingHeader(type_info->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                        if (ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
                             ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
                             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
 
-                            for (const auto& handle : handles) {
+                            for (const Property& prop : type_info->properties) {
                                 ImGui::TableNextRow();
                                 ImGui::TableSetColumnIndex(0);
-                                ImGui::Text("%s", handle->get_name().c_str());
+                                ImGui::Text("%s", prop.name.c_str());
                                 ImGui::TableSetColumnIndex(1);
                                 ImGui::PushItemWidth(-FLT_MIN);
-                                TypeDrawer::draw_property(*handle);
+                                TypeDrawer::draw_yaml_property(prop, elementArchetype->data);
                                 ImGui::PopItemWidth();
                             }
-
                             ImGui::EndTable();
                         }
                     }
                 }
-                else {
-                    ImGui::Text("No object selected.");
-                }
             }
-        }
-
-
-
-
-    
-
-
-
-
-
-
-
-    void ScryingMirrorPanel::on_event(IEvent& event) {
-        if (event.get_event_type() == EventType::EditorEntitySelected) {
-            EntitySelectedEvent& entity_selection = static_cast<EntitySelectedEvent&>(event);
-
-            if (entity_selection.entity == nullptr) {
-                pimpl->selected_entity_id = SimpleGuid::invalid();
-                pimpl->selected_element_id = SimpleGuid::invalid();
-                std::cout << "Scrying Mirror received selection event for: None" << std::endl;
-                return;
-            }
-            
-            pimpl->selected_entity_id = entity_selection.entity->get_id();
-            pimpl->selected_element_id = SimpleGuid::invalid();
-            std::cout << "Scrying Mirror received selection event for: "
-                << (entity_selection.entity ? entity_selection.entity->get_name() : "None") << std::endl;
-        }
-        else if (event.get_event_type() == EventType::EditorElementSelected) {
-            ElementSelectedEvent& element_selection = static_cast<ElementSelectedEvent&>(event);
-            
-            if (element_selection.element == nullptr) {
-                pimpl->selected_element_id = SimpleGuid::invalid();
-                pimpl->selected_entity_id = SimpleGuid::invalid();
-                std::cout << "Scrying Mirror received selection event for: None" << std::endl;
-                return;
-            }
-
-            pimpl->selected_element_id = element_selection.element->get_id();
-            pimpl->selected_entity_id = element_selection.element->get_owner()->get_id();
-            std::cout << "Scrying Mirror received selection event for: "
-                << (element_selection.element ? element_selection.element->get_class_name() : "None") << std::endl;
         }
     }
 
 
 
 
+    void ScryingMirrorPanel::on_event(IEvent& event) {
+        if (event.get_event_type() == EventType::EditorEntitySelected) {
+            EntitySelectedEvent& e = static_cast<EntitySelectedEvent&>(event);
 
-    
+            // --- CORRECTED LOGIC ---
+            // Check the ID, not the pointer. If the ID is valid, it's a selection.
+            if (e.selected_id.is_valid()) {
+                pimpl->selected_entity_id = e.selected_id;
+                pimpl->selected_element_id = SimpleGuid::invalid(); // Clear element selection
+                std::cout << "Scrying Mirror received selection for entity ID: " << e.selected_id.get_value() << std::endl;
+            } else {
+                // This is a deselection event
+                pimpl->selected_entity_id = SimpleGuid::invalid();
+                pimpl->selected_element_id = SimpleGuid::invalid();
+                std::cout << "Scrying Mirror received deselection event" << std::endl;
+            }
+
+            // We can still store the live pointer for Live Mode's convenience
+            pimpl->selected_entity = e.entity;
+            pimpl->selected_element = nullptr;
+        }
+        else if (event.get_event_type() == EventType::EditorElementSelected) {
+            ElementSelectedEvent& e = static_cast<ElementSelectedEvent&>(event);
+
+            // --- CORRECTED LOGIC ---
+            // Check the ID, not the pointer.
+            if (e.selected_id.is_valid()) {
+                pimpl->selected_entity_id = e.owner_id;
+                pimpl->selected_element_id = e.selected_id;
+                std::cout << "Scrying Mirror received selection for element ID: " << e.selected_id.get_value() << std::endl;
+            } else {
+                // This is a deselection event
+                pimpl->selected_entity_id = SimpleGuid::invalid();
+                pimpl->selected_element_id = SimpleGuid::invalid();
+                std::cout << "Scrying Mirror received deselection event" << std::endl;
+            }
+
+            // Store the live pointer for Live Mode
+            pimpl->selected_element = e.element;
+        }
+    }
 
 }  // namespace Salix
