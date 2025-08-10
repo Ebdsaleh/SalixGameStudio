@@ -3,6 +3,8 @@
 // Author:      SalixGameStudio
 // Description: Implements the WorldTreePanel class.
 // =================================================================================
+
+#include <Salix/serialization/YamlConverters.h>
 #include <Editor/panels/WorldTreePanel.h>
 #include <imgui/imgui.h>
 #include <Salix/math/Color.h>
@@ -26,7 +28,6 @@
 #include <Salix/management/SceneManager.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/reflection/EditorDataMode.h>
-#include <Salix/reflection/YamlConverters.h>
 #include <Salix/reflection/PropertyHandleLive.h>
 #include <Salix/reflection/PropertyHandleYaml.h>
 #include <Editor/EditorContext.h>
@@ -38,6 +39,8 @@
 #include <Salix/gui/IGui.h>
 #include <yaml-cpp/yaml.h>
 #include <memory>
+#include <vector>
+#include <algorithm>
 #include <iostream>
 
 
@@ -49,9 +52,14 @@ namespace Salix {
         char rename_buffer[256]; // <-- Add a buffer for the text field
 
         // --- YAML PATHWAY HELPERS ---
-        void render_entity_tree_yaml(YAML::Node entity_node);
-        void show_empty_space_context_menu_yaml();
-        void show_entity_context_menu_yaml(YAML::Node entity_node); 
+        // Using Archetypes
+        void render_entity_tree_ARCHETYPE(EntityArchetype& archetype);
+        void show_empty_space_context_menu_ARCHETYPE();
+        void show_entity_context_menu_ARCHETYPE(EntityArchetype& archetype);
+        void setup_entity_drag_source_ARCHETYPE(EntityArchetype& archetype);
+        void process_entity_drop_ARCHETYPE(SimpleGuid dragged_id, SimpleGuid target_id);
+        void handle_entity_drop_target_ARCHETYPE(EntityArchetype& archetype);
+        void handle_inter_entity_drop_target_ARCHETYPE(EntityArchetype& archetype);
     };
 
     
@@ -59,110 +67,359 @@ namespace Salix {
 
     // --- START OF YAML HELPER IMPLEMENTATIONS ---
 
-    void WorldTreePanel::Pimpl::render_entity_tree_yaml(YAML::Node entity_node)
-    {
-        if (!entity_node || !entity_node["Entity"] || !entity_node["id"]) {
-            return;
-        }
+    // -- render_entity_tree_ARCHETYPE ---
+    void WorldTreePanel::Pimpl::render_entity_tree_ARCHETYPE(EntityArchetype& archetype) {
+        // Use string ID format that ImGui expects
+        ImGui::PushID(static_cast<int>(archetype.id.get_value()));
 
-        std::string name = entity_node["Entity"].as<std::string>();
-        uint64_t id_val = entity_node["id"].as<uint64_t>();
+        // 1. Drop zone above entity
+        handle_inter_entity_drop_target_ARCHETYPE(archetype);
 
+        // 2. Node setup - CORRECTED TreeNodeEx usage
         ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
-        if (context->selected_entity_id.get_value() == id_val) {
+        if (context->selected_entity_id == archetype.id) {
             flags |= ImGuiTreeNodeFlags_Selected;
         }
 
-        bool is_renaming_this_entity = (context->selected_entity_id.get_value() == id_val && entity_to_rename_id.get_value() == id_val);
-        
-        bool node_open;
-        if (is_renaming_this_entity)
-        {
-            node_open = ImGui::TreeNodeEx("##TreeDummy", flags);
+        // Renaming logic
+        bool is_renaming = (entity_to_rename_id == archetype.id);
+        if (is_renaming) {
             ImGui::SameLine();
             ImGui::SetKeyboardFocusHere(0);
-            if (ImGui::InputText("##RenameBox", rename_buffer, sizeof(rename_buffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
-                entity_node["Entity"] = std::string(rename_buffer);
+            if (ImGui::InputText("##RenameBox", rename_buffer, sizeof(rename_buffer),
+                ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+                archetype.name = rename_buffer;
                 entity_to_rename_id = SimpleGuid::invalid();
             }
             if (ImGui::IsItemDeactivatedAfterEdit()) {
                 entity_to_rename_id = SimpleGuid::invalid();
             }
-        }
-        else
-        {
-            node_open = ImGui::TreeNodeEx((void*)id_val, flags, "%s", name.c_str());
-        }
+        } else {
+            // CORRECTED: Use string format for TreeNodeEx
+            bool node_open = ImGui::TreeNodeEx(archetype.name.c_str(), flags);
 
-        if (ImGui::IsItemClicked()) {
-            context->selected_entity_id = SimpleGuid::from_value(id_val);
-            context->selected_element_id = SimpleGuid::invalid();
-        }
+            setup_entity_drag_source_ARCHETYPE(archetype);
+            handle_entity_drop_target_ARCHETYPE(archetype);
 
-        show_entity_context_menu_yaml(entity_node);
-
-        if (node_open) {
-            if (entity_node["elements"]) {
-                for (auto element_node : entity_node["elements"]) {
-                    std::string element_name = element_node.begin()->first.as<std::string>();
-                    ImGui::TreeNodeEx(element_name.c_str(), ImGuiTreeNodeFlags_Leaf | ImGuiTreeNodeFlags_NoTreePushOnOpen, "  - %s", element_name.c_str());
-                }
+            if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
+                context->selected_entity_id = archetype.id;
+                context->selected_element_id = SimpleGuid::invalid();
+                EntitySelectedEvent event(context->selected_entity_id , nullptr);
+                context->event_manager->dispatch(event);
             }
-            ImGui::TreePop();
-        }
-    }
 
+            show_entity_context_menu_ARCHETYPE(archetype);
 
-
-    void WorldTreePanel::Pimpl::show_empty_space_context_menu_yaml()
-    {
-        if (ImGui::BeginPopupContextWindow("WorldTreeContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverExistingPopup))
-        {
-            if (ImGui::MenuItem("Add Entity##AddRootEntityYAML")) {
-                if (context && context->active_yaml_scene) {
-                    YAML::Node new_entity;
-                    SimpleGuid new_id = SimpleGuid::generate();
-                    new_entity["Entity"] = "New Entity";
-                    new_entity["id"] = new_id.get_value();
+            if (node_open) {
+                for (auto& element : archetype.elements) {
+                    ImGuiTreeNodeFlags element_flags = ImGuiTreeNodeFlags_Leaf | 
+                                                    ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                                                    ImGuiTreeNodeFlags_SpanAvailWidth;
                     
-                    YAML::Node elements(YAML::NodeType::Sequence);
-                    YAML::Node transform_element;
-                    transform_element["Transform"]["Position"] = Salix::Vector3(0, 0, 0);
-                    transform_element["Transform"]["Rotation"] = Salix::Vector3(0, 0, 0);
-                    transform_element["Transform"]["Scale"]    = Salix::Vector3(1, 1, 1);
-                    elements.push_back(transform_element);
+                    if (context->selected_element_id == element.id) {
+                        element_flags |= ImGuiTreeNodeFlags_Selected;
+                    }
 
-                    new_entity["elements"] = elements;
-
-                    context->active_yaml_scene.push_back(new_entity);
-                    context->selected_entity_id = new_id;
+                    // CORRECTED: Use string format for element TreeNodeEx
+                    ImGui::TreeNodeEx(element.type_name.c_str(), element_flags);
+                    
+                    if (ImGui::IsItemClicked()) {
+                        context->selected_element_id = element.id;
+                        context->selected_entity_id = archetype.id;
+                        ElementSelectedEvent event(context->selected_element_id, context->selected_entity_id, nullptr);
+                        context->event_manager->dispatch(event);
+                    }
+                    
                 }
+                ImGui::TreePop();
             }
-            ImGui::EndPopup();
         }
+        ImGui::PopID();
     }
-
-
     
 
 
-     void WorldTreePanel::Pimpl::show_entity_context_menu_yaml(YAML::Node entity_node)
-    {
-        if (ImGui::BeginPopupContextItem("EntityContextMenuYAML"))
-        {
-            if (ImGui::MenuItem("Rename##RenameEntityYAML", "F2")) {
-                entity_to_rename_id = SimpleGuid::from_value(entity_node["id"].as<uint64_t>());
-                strncpy_s(rename_buffer, sizeof(rename_buffer), entity_node["Entity"].as<std::string>().c_str(), sizeof(rename_buffer) - 1);
+    // --- setup_entity_drag_source_ARCHETYPE ---
+    void WorldTreePanel::Pimpl::setup_entity_drag_source_ARCHETYPE(EntityArchetype& archetype) {
+        if (ImGui::BeginDragDropSource(ImGuiDragDropFlags_SourceAllowNullID)) {
+            // DEBUG: Match Live mode's logging
+            std::cout << "DRAG START (ARCHETYPE): " << archetype.name << std::endl;
+            
+            // Use GUID instead of pointer (key difference)
+            ImGui::SetDragDropPayload("ENTITY_DND_GUID", &archetype.id, sizeof(SimpleGuid));
+            
+            // Visual feedback identical to Live mode
+            ImGui::Text("Moving %s", archetype.name.c_str());
+            ImGui::EndDragDropSource();
+        }
+    }
+
+
+
+    //  --- handle_entity_drop_target_ARCHETYPE ---
+    void WorldTreePanel::Pimpl::handle_entity_drop_target_ARCHETYPE(EntityArchetype& target) {
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DND_GUID")) {
+                SimpleGuid dragged_id = *(const SimpleGuid*)payload->Data;
+                
+                // Skip if dropping onto self
+                if (dragged_id == target.id) {
+                    ImGui::EndDragDropTarget();
+                    return;
+                }
+                
+                // Immediate processing (no AcceptBeforeDelivery)
+                process_entity_drop_ARCHETYPE(dragged_id, target.id);
+            }
+            ImGui::EndDragDropTarget();
+        }
+    }
+
+
+
+
+    // --- handle_inter_entity_drop_target_ARCHETYPE ---
+    void WorldTreePanel::Pimpl::handle_inter_entity_drop_target_ARCHETYPE(EntityArchetype& anchor) {
+        // Same visual setup as Live mode
+        ImGui::Dummy(ImVec2(ImGui::GetContentRegionAvail().x, 4.0f));
+
+        if (ImGui::BeginDragDropTarget()) {
+            if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DND_GUID", 
+                ImGuiDragDropFlags_AcceptBeforeDelivery)) {
+                
+                // Visual feedback identical to Live mode
+                ImVec2 rect_min = ImGui::GetItemRectMin();
+                ImVec2 rect_max = ImGui::GetItemRectMax();
+                ImDrawList* draw_list = ImGui::GetWindowDrawList();
+                draw_list->AddLine(ImVec2(rect_min.x, rect_min.y), 
+                                ImVec2(rect_max.x, rect_min.y), 
+                                ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
+
+                if (ImGui::IsMouseReleased(0)) {
+                    SimpleGuid dragged_id = *(SimpleGuid*)payload->Data;
+                    
+                    // ACTUAL IMPLEMENTATION using anchor's parent_id
+                    SimpleGuid new_parent_id = anchor.parent_id; // Use the anchor's parent
+                    
+                    process_entity_drop_ARCHETYPE(dragged_id, new_parent_id);
+                }
+            }
+            ImGui::EndDragDropTarget();
+        }
+    }
+
+    
+
+    // --- process_entity_drop_ARCHETYPE ---
+    void WorldTreePanel::Pimpl::process_entity_drop_ARCHETYPE(SimpleGuid dragged_id, SimpleGuid target_id) {
+        // Find the dragged archetype
+        auto dragged_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+            [&](const EntityArchetype& e) { return e.id == dragged_id; });
+        
+        if (dragged_it == context->current_realm.end()) return;
+
+        // Check for circular parenting
+        if (target_id.is_valid()) {
+            auto current_id = target_id;
+            while (current_id.is_valid()) {
+                if (current_id == dragged_id) {
+                    std::cerr << "Circular parenting detected!" << std::endl;
+                    return;
+                }
+                
+                // Find parent of current
+                auto current_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                    [&](const EntityArchetype& e) { return e.id == current_id; });
+                
+                current_id = (current_it != context->current_realm.end()) ? current_it->parent_id : SimpleGuid::invalid();
+            }
+        }
+
+        // Remove from old parent
+        if (dragged_it->parent_id.is_valid()) {
+            auto old_parent_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                [&](const EntityArchetype& e) { return e.id == dragged_it->parent_id; });
+            
+            if (old_parent_it != context->current_realm.end()) {
+                old_parent_it->child_ids.erase(
+                    std::remove(old_parent_it->child_ids.begin(), old_parent_it->child_ids.end(), dragged_id),
+                    old_parent_it->child_ids.end());
+            }
+        }
+
+        // Add to new parent or make root
+        dragged_it->parent_id = target_id;
+        if (target_id.is_valid()) {
+            auto target_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                [&](const EntityArchetype& e) { return e.id == target_id; });
+            
+            if (target_it != context->current_realm.end()) {
+                target_it->child_ids.push_back(dragged_id);
+            }
+        }
+
+        // Update selection
+        context->selected_entity_id = dragged_id;
+        context->selected_element_id = SimpleGuid::invalid();
+        EntitySelectedEvent event(context->selected_entity_id, nullptr);
+        context->event_manager->dispatch(event);
+    }
+
+
+
+    // show_empty_space_context_menu_ARCHETYPE
+    void WorldTreePanel::Pimpl::show_empty_space_context_menu_ARCHETYPE() {
+        if (ImGui::BeginPopupContextWindow("WorldTreeContextMenu",
+            ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverExistingPopup)) {
+            
+            if (ImGui::MenuItem("Add Entity##AddRootEntity")) {
+                EntityArchetype new_entity;
+                new_entity.id = SimpleGuid::generate(); // Auto-generate new GUID
+                new_entity.name = "Entity";
+                
+                // Add to current realm
+                context->current_realm.push_back(new_entity);
+                
+                // Mirror Live mode selection behavior
+                context->selected_entity_id = new_entity.id;
+                context->selected_element_id = SimpleGuid::invalid();
+                
+                EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                context->event_manager->dispatch(event);
             }
 
-            if (ImGui::MenuItem("Purge##PurgeEntityYAML", "Del")) {
-                // This is complex - it requires finding and erasing the node from its parent sequence
-                // For now, we'll just clear the selection
-                context->selected_entity_id = SimpleGuid::invalid();
+            ImGui::Separator();
+            
+            if (ImGui::MenuItem("Refresh View##RefreshWorldTree")) {
+                // Same empty refresh logic as Live mode
             }
+
             ImGui::EndPopup();
         }
     }
+
+
+
+    //  --- show_entity_context_menu_ARCHETYPE ---
+    void WorldTreePanel::Pimpl::show_entity_context_menu_ARCHETYPE(EntityArchetype& archetype) {
+        if (ImGui::BeginPopupContextItem("EntityContextMenu")) {
+            // Header with entity name
+            ImGui::TextDisabled("%s", archetype.name.c_str());
+            ImGui::Separator();
+
+            // Element Creation Submenu
+            if (ImGui::BeginMenu("Add Element##AddElementMenu")) {
+                if (ImGui::MenuItem("Sprite2D##AddSprite2D")) {
+                    ElementArchetype new_element;
+                    new_element.type_name = "Sprite2D";
+                    new_element.id = SimpleGuid::generate();
+                    archetype.elements.push_back(new_element);
+                    
+                    // Mirror Live mode selection
+                    context->selected_entity_id = archetype.id;
+                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                    context->event_manager->dispatch(event);
+                }
+                
+                if (ImGui::MenuItem("Script##AddScript")) {
+                    ElementArchetype new_element;
+                    new_element.type_name = "ScriptElement";
+                    new_element.id = SimpleGuid::generate();
+                    archetype.elements.push_back(new_element);
+                    
+                    context->selected_entity_id = archetype.id;
+                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                    context->event_manager->dispatch(event);
+                }
+                
+                if (ImGui::MenuItem("Camera##AddCamera")) {
+                    ElementArchetype new_element;
+                    new_element.type_name = "Camera";
+                    new_element.id = SimpleGuid::generate();
+                    archetype.elements.push_back(new_element);
+                    
+                    context->selected_entity_id = archetype.id;
+                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                    context->event_manager->dispatch(event);
+                }
+                ImGui::EndMenu();
+            }
+
+            // Hierarchy Operations
+            if (archetype.parent_id.get_value() != 0) {
+                if(ImGui::MenuItem("Release From Parent##ReleaseFromParent")) {
+                    auto parent_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                        [&](const EntityArchetype& e) { return e.id == archetype.parent_id; });
+                    
+                    if (parent_it != context->current_realm.end()) {
+                        // Remove from parent's child_ids
+                        parent_it->child_ids.erase(
+                            std::remove(parent_it->child_ids.begin(), parent_it->child_ids.end(), archetype.id),
+                            parent_it->child_ids.end());
+                        
+                        // Clear our parent reference
+                        archetype.parent_id = SimpleGuid::invalid();
+                    }
+                }
+            }
+
+            if (ImGui::MenuItem("Add Child Entity##AddChildEntity")) {
+                EntityArchetype new_entity;
+                new_entity.id = SimpleGuid::generate();
+                new_entity.name = archetype.name + "_Child";
+                new_entity.parent_id = archetype.id;
+                
+                // Add to hierarchy
+                archetype.child_ids.push_back(new_entity.id);
+                context->current_realm.push_back(new_entity);
+                
+                // Mirror Live selection
+                context->selected_entity_id = new_entity.id;
+                EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                context->event_manager->dispatch(event);
+            }
+
+            ImGui::Separator();
+
+            if (ImGui::MenuItem("Rename##RenameEntity", "F2")) {
+                entity_to_rename_id = archetype.id;
+                strncpy_s(rename_buffer, sizeof(rename_buffer), 
+                        archetype.name.c_str(), sizeof(rename_buffer) - 1);
+            }
+
+            if (ImGui::MenuItem("Duplicate##DuplicateEntity", "Ctrl+D")) {
+                // TODO: Implement archetype duplication
+            }
+
+            if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
+                // Remove from parent's child_ids if exists
+                if (archetype.parent_id.get_value() != 0) {
+                    auto parent_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                        [&](const EntityArchetype& e) { return e.id == archetype.parent_id; });
+                    if (parent_it != context->current_realm.end()) {
+                        parent_it->child_ids.erase(
+                            std::remove(parent_it->child_ids.begin(), parent_it->child_ids.end(), archetype.id),
+                            parent_it->child_ids.end());
+                    }
+                }
+                
+                // Remove from current_realm
+                context->current_realm.erase(
+                    std::remove_if(context->current_realm.begin(), context->current_realm.end(),
+                        [&](const EntityArchetype& e) { return e.id == archetype.id; }),
+                    context->current_realm.end());
+                
+                // Clear selection
+                context->selected_entity_id = SimpleGuid::invalid();
+                EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                context->event_manager->dispatch(event);
+            }
+
+            ImGui::EndPopup();
+        }
+    }
+
+    // 
 
     // --- END OF YAML HELPER IMPLEMENTATIONS ---
 
@@ -199,15 +456,18 @@ namespace Salix {
 
 
     void WorldTreePanel::on_panel_gui_update() {
-        if (!pimpl->context || !pimpl->context->active_scene) {
-            ImGui::Text("No active scene.");
+        if (!pimpl->context) {
+            std::cerr << "Editor Context not initialized!" << std::endl;
             return;
         }
 
         // --- The conditional logic for the two pathways ---
         if (pimpl->context->data_mode == EditorDataMode::Live) {
             // --- All of the existing rendering logic goes in here for the Live pathway ---
-        
+            if (!pimpl->context->active_scene) {
+                ImGui::Text("No active scene.");
+                return;
+            }
             // Scene header
             ImGui::TextColored(ImVec4(0.5f, 0.8f, 1.0f, 1.0f), "Scene: %s ", 
                             pimpl->context->active_scene->get_name().c_str());
@@ -246,25 +506,33 @@ namespace Salix {
             ImGui::EndChild();
 
         } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+            if (pimpl->context->current_realm.empty()) {
+                ImGui::Text("No Entities in current realm.");
+                
+            }
             // --- YAML PATHWAY IMPLEMENTATION ---
             ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.8f, 1.0f), "Scene: (YAML Mode)");
-            ImGui::TextDisabled("\tEntities: %d", pimpl->context->active_yaml_scene.size());
+            ImGui::TextDisabled("\tEntities: %d", pimpl->context->current_realm.size());
             ImGui::Separator();
 
             if (ImGui::BeginChild("WorldTreeContent", ImVec2(0, 0), true, ImGuiWindowFlags_AlwaysVerticalScrollbar)) {
-                if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right) && !ImGui::IsAnyItemHovered()) {
+                if (ImGui::IsWindowHovered() && ImGui::IsMouseReleased(ImGuiMouseButton_Right) && 
+                    !ImGui::IsAnyItemHovered()) {
                     ImGui::OpenPopup("WorldTreeContextMenu");
                 }
-                if (pimpl->context->active_yaml_scene) {
-                    for (auto entity_node : pimpl->context->active_yaml_scene) {
-                        pimpl->render_entity_tree_yaml(entity_node);
+                if (pimpl->context->current_realm.size() != 0) {
+                    for (auto& entity_archetype : pimpl->context->current_realm) {
+                        // We now call our new, cleaner function!
+                        pimpl->render_entity_tree_ARCHETYPE(entity_archetype);
                     }
                 }
-                pimpl->show_empty_space_context_menu_yaml();
+                pimpl->show_empty_space_context_menu_ARCHETYPE();
             }
-            ImGui::EndChild();
+            
+                ImGui::EndChild();
+            }
         }
-    }
+    
 
 
 
@@ -335,7 +603,7 @@ namespace Salix {
                 if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
                     pimpl->context->selected_entity = entity;
                     pimpl->context->selected_element = nullptr;
-                    EntitySelectedEvent event(entity);
+                    EntitySelectedEvent event(entity->get_id(), entity);
                     pimpl->context->event_manager->dispatch(event);
                     // --- END LIVE OBJECT USAGE ---
                     // --- The New, Data-Driven System (Additions) ---
@@ -406,7 +674,7 @@ namespace Salix {
                 // --- The Old, Pointer-Based System ---
                 pimpl->context->selected_element = element;
                 pimpl->context->selected_entity = element->get_owner();
-                ElementSelectedEvent event(element);
+                ElementSelectedEvent event(element->get_id(),element->get_owner()->get_id(), element);
                 pimpl->context->event_manager->dispatch(event);
                 // --- End Of The Old, Pointer-Based System ---
 
@@ -426,14 +694,14 @@ namespace Salix {
                 
                 if (ImGui::MenuItem("Add Entity##AddRootEntity")) {
                     if (pimpl->context && pimpl->context->active_scene) {
-                        Entity* newEntity = pimpl->context->active_scene->create_entity();
-                        if (newEntity) {
-                            pimpl->context->selected_entity = newEntity;
-                            EntitySelectedEvent event(newEntity);
+                        Entity* new_entity = pimpl->context->active_scene->create_entity();
+                        if (new_entity) {
+                            pimpl->context->selected_entity = new_entity;
+                            EntitySelectedEvent event(new_entity->get_id(), new_entity);
                             pimpl->context->event_manager->dispatch(event);
 
                             // --- New, Data-Driven System (Additions) ---
-                            pimpl->context->selected_entity_id = newEntity->get_id();
+                            pimpl->context->selected_entity_id = new_entity->get_id();
                         }
                     }
                 }
@@ -465,7 +733,7 @@ namespace Salix {
                 if (ImGui::BeginMenu("Add Element##AddElementMenu")) {
                     if (ImGui::MenuItem("Sprite2D##AddSprite2D")) {
                         entity->add_element<Sprite2D>();
-                        EntitySelectedEvent event(entity);
+                        EntitySelectedEvent event(entity->get_id(), entity);
                         pimpl->context->event_manager->dispatch(event);
 
                         // New: GUID-based context update
@@ -474,7 +742,7 @@ namespace Salix {
                     
                     if (ImGui::MenuItem("Script##AddScript")) {
                         entity->add_element<ScriptElement>();
-                        EntitySelectedEvent event(entity);
+                        EntitySelectedEvent event(entity->get_id(), entity);
                         pimpl->context->event_manager->dispatch(event);
 
                         // New: GUID-based context update
@@ -484,7 +752,7 @@ namespace Salix {
                     
                     if (ImGui::MenuItem("Camera##AddCamera")) {
                         entity->add_element<Camera>();
-                        EntitySelectedEvent event(entity);
+                        EntitySelectedEvent event(entity->get_id(), entity);
                         pimpl->context->event_manager->dispatch(event);
 
                         // New: GUID-based context update
@@ -504,17 +772,17 @@ namespace Salix {
                 // Hierarchy Operations with unique IDs
                 if (ImGui::MenuItem("Add Child Entity##AddChildEntity")) {
                     if (pimpl->context && pimpl->context->active_scene) {
-                        Entity* newEntity = pimpl->context->active_scene->create_entity();
+                        Entity* new_entity = pimpl->context->active_scene->create_entity();
 
-                        if (newEntity && entity) {
+                        if (new_entity && entity) {
                             // This single, high-level call handles everything for us.
-                            newEntity->set_parent(entity);
-                            pimpl->context->selected_entity = newEntity;
-                            EntitySelectedEvent event(newEntity);
+                            new_entity->set_parent(entity);
+                            pimpl->context->selected_entity = new_entity;
+                            EntitySelectedEvent event(new_entity->get_id(), new_entity);
                             pimpl->context->event_manager->dispatch(event);
 
                             // New: GUID-based context update
-                            pimpl->context->selected_entity_id = newEntity->get_id();
+                            pimpl->context->selected_entity_id = new_entity->get_id();
                         }
                     }
                 }
@@ -548,7 +816,7 @@ namespace Salix {
                             }
                         }
                         entity->purge();
-                        EntitySelectedEvent event(nullptr);
+                        EntitySelectedEvent event(SimpleGuid::invalid(), nullptr);
                         pimpl->context->event_manager->dispatch(event);
 
                         // New: GUID-based context update
@@ -590,7 +858,7 @@ namespace Salix {
                 
                 // We set selection to null here, but the event will also do this.
                 pimpl->context->selected_entity = nullptr; 
-                EntitySelectedEvent event(nullptr);
+                EntitySelectedEvent event(SimpleGuid::invalid(), nullptr);
                 pimpl->context->event_manager->dispatch(event);
             }
 
@@ -624,26 +892,26 @@ namespace Salix {
             }
 
             // Create the new entity
-            Entity* newEntity = pimpl->context->active_scene->create_entity();
-            if (!newEntity) {
+            Entity* new_entity = pimpl->context->active_scene->create_entity();
+            if (!new_entity) {
                 std::cerr << "Failed to create new entity" << std::endl;
                 return;
             }
 
             // Set default name based on hierarchy
-            std::string entityName = "Entity";
+            std::string entity_name = "Entity";
             if (parent) {
-                entityName = parent->get_name() + "_Child";
+                entity_name = parent->get_name() + "_Child";
                 // Find unique name by checking existing children
                 int counter = 1;
-                bool nameExists = true;
-                while (nameExists) {
-                    nameExists = false;
+                bool name_exists = true;
+                while (name_exists) {
+                    name_exists = false;
                     if (parent->get_transform()) {
                         for (auto childTransform : parent->get_transform()->get_children()) {
                             if (auto childEntity = dynamic_cast<Entity*>(childTransform->get_owner())) {
-                                if (childEntity->get_name() == entityName + std::to_string(counter)) {
-                                    nameExists = true;
+                                if (childEntity->get_name() == entity_name + std::to_string(counter)) {
+                                    name_exists = true;
                                     counter++;
                                     break;
                                 }
@@ -651,30 +919,30 @@ namespace Salix {
                         }
                     }
                 }
-                entityName += std::to_string(counter);
+                entity_name += std::to_string(counter);
             }
-            newEntity->set_name(entityName);
+            new_entity->set_name(entity_name);
 
             // Set up parent-child relationship if specified
             if (parent && parent->get_transform()) {
-                newEntity->get_transform()->set_parent(parent->get_transform());
+                new_entity->get_transform()->set_parent(parent->get_transform());
             }
 
             // Select and focus the new entity
-            pimpl->context->selected_entity = newEntity;
+            pimpl->context->selected_entity = new_entity;
             
             // Dispatch selection event
-            EntitySelectedEvent event(newEntity);
+            EntitySelectedEvent event(new_entity->get_id(), new_entity);
             if (pimpl->context->event_manager) {
                 pimpl->context->event_manager->dispatch(event);
             }
 
             // Optionally focus camera on new entity
-            if (pimpl->context->editor_camera && newEntity->get_transform()) {
-                pimpl->context->editor_camera->focus_on(newEntity->get_transform(), 2.0f);
+            if (pimpl->context->editor_camera && new_entity->get_transform()) {
+                pimpl->context->editor_camera->focus_on(new_entity->get_transform(), 2.0f);
             }
 
-            std::cout <<"Created new entity: " << entityName <<
+            std::cout <<"Created new entity: " << entity_name <<
                         (parent ? " (child of " + parent->get_name() + ")" : " (root)") << std::endl;
 
         } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
@@ -730,7 +998,7 @@ namespace Salix {
             // Post-creation handling
             if (elementAdded) {
                 // Refresh selection to show new element
-                EntitySelectedEvent event(entity);
+                EntitySelectedEvent event(entity->get_id(), entity);
                 pimpl->context->event_manager->dispatch(event);
 
                 // Log successful creation
@@ -818,7 +1086,7 @@ namespace Salix {
         pimpl->context->selected_entity_id = dragged_entity->get_id();
 
         // Dispatch the old event
-        EntitySelectedEvent event(dragged_entity);
+        EntitySelectedEvent event(pimpl->context->selected_entity_id, pimpl->context->selected_entity);
 
         if (pimpl->context->event_manager) {
             pimpl->context->event_manager->dispatch(event);
