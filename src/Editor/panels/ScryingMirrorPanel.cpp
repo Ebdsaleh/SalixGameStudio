@@ -4,6 +4,7 @@
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>
 #include <Editor/Archetypes.h>
+#include <Editor/reflection/PropertyHandleFactory.h>
 #include <Salix/events/EventManager.h>
 #include <imgui/imgui.h>
 #include <Salix/gui/IGui.h>
@@ -21,6 +22,7 @@
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Transform.h>
+#include <Salix/core/StringUtils.h>
 #include <map>
 #include <string>
 #include <iostream>
@@ -70,153 +72,128 @@ namespace Salix {
    
 
 
+ 
+
     void ScryingMirrorPanel::on_panel_gui_update() {
-        if (!pimpl->is_visible) {
+        if (!pimpl->is_visible || !pimpl->context) {
             return;
         }
 
-        ImGui::SetNextWindowSize(ImVec2(400, 300), ImGuiCond_FirstUseEver);
         ImGui::Text("Properties:");
         ImGui::Separator();
 
-        if (!pimpl->context) {
-            ImGui::Text("No context.");
-            return;
-        }
+        // First, find the selected entity (live or archetype) based on the stored ID.
+        Entity* selected_entity_live = nullptr;
+        EntityArchetype* selected_archetype = nullptr;
 
-        // =================================================================================
-        // --- LIVE MODE PATHWAY ---
-        // =================================================================================
-        if (pimpl->context->data_mode == EditorDataMode::Live) {
-            if (!pimpl->context->active_scene) {
-                ImGui::Text("No active scene.");
-                return;
-            }
-
-            Entity* selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
-            Element* selected_element_live = selected_entity_live ? selected_entity_live->get_element_by_id(pimpl->selected_element_id) : nullptr;
-
-            std::vector<Salix::Element*> elements_to_display;
-            if (selected_element_live) {
-                elements_to_display.push_back(selected_element_live);
-            }
-            else if (selected_entity_live) {
-                ImGui::Text("Entity: %s", selected_entity_live->get_name().c_str());
-                ImGui::Separator();
-                elements_to_display = selected_entity_live->get_all_elements();
-            }
-
-            if (!elements_to_display.empty()) {
-                for (auto* element : elements_to_display) {
-                    const TypeInfo* typeInfo = ByteMirror::get_type_info(typeid(*element));
-                    if (!typeInfo) continue;
-
-                    if (ImGui::CollapsingHeader(typeInfo->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                        auto handles = ByteMirror::create_handles_for(element);
-                        if (!handles.empty() && ImGui::BeginTable(typeInfo->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
-
-                            ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-                            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-                            for (const auto& handle : handles) {
-                                ImGui::TableNextRow();
-                                ImGui::TableSetColumnIndex(0);
-                                ImGui::Text("%s", handle->get_name().c_str());
-                                ImGui::TableSetColumnIndex(1);
-                                ImGui::PushItemWidth(-FLT_MIN);
-                                TypeDrawerLive::draw_property(*handle);
-                                ImGui::PopItemWidth();
-                            }
-                            ImGui::EndTable();
-                        }
-                    }
+        if (pimpl->selected_entity_id.is_valid()) {
+            if (pimpl->context->data_mode == EditorDataMode::Live) {
+                if (pimpl->context->active_scene) {
+                    selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
                 }
-            }
-            else {
-                ImGui::Text("No object selected.");
-            }
-        }
-        // =================================================================================
-        // --- YAML MODE PATHWAY ---
-        // =================================================================================
-        else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            
-            ImGui::Text("Properties:");
-            ImGui::Separator();
-
-            // 1. Check if an entity is selected
-            if (pimpl->selected_entity_id.get_value() == 0) {
-                ImGui::Text("No object selected.");
-                return;
-            }
-
-           
-            EntityArchetype* selected_archetype = nullptr;
-            std::vector<ElementArchetype*> elements_to_display;
-
-            // 2. Loop through the realm to find the archetype with the matching ID.
-            for (auto& archetype : pimpl->context->current_realm) {
-                if (archetype.id == pimpl->selected_entity_id) {
-                    selected_archetype = &archetype;
-                    break;
-                }
-            }
-
-            // 3. Make sure you actually found it before proceeding!
-            if (!selected_archetype) {
-                pimpl->selected_entity_id = SimpleGuid::invalid(); // Clear bad selection
-                return;
-            }
-            
-            // CASE 1: A specific element is selected
-            if (pimpl->selected_element_id.is_valid()) {
-                for (auto& elementArchetype : selected_archetype->elements) {
-                    if (elementArchetype.id == pimpl->selected_element_id) {
-                        elements_to_display.push_back(&elementArchetype);
+            } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+                for (auto& archetype : pimpl->context->current_realm) {
+                    if (archetype.id == pimpl->selected_entity_id) {
+                        selected_archetype = &archetype;
                         break;
                     }
                 }
-            } 
-            // CASE 2: Only an entity is selected, so display all its elements
-            else {
-                for (auto& elementArchetype : selected_archetype->elements) {
-                    elements_to_display.push_back(&elementArchetype);
-                }
             }
+        }
+
+        // --- DRAWING LOGIC STARTS HERE ---
+
+        if (selected_entity_live) {
+            // --- LIVE MODE DRAWING ---
+            std::vector<Element*> elements_to_display;
             
-            
+            // NEW LOGIC: Check if a specific element is selected.
+            if (pimpl->selected_element_id.is_valid()) {
+                Element* selected_element = selected_entity_live->get_element_by_id(pimpl->selected_element_id);
+                if (selected_element) {
+                    elements_to_display.push_back(selected_element);
+                }
+            } else {
+                // Otherwise, display all elements for the entity.
+                elements_to_display = selected_entity_live->get_all_elements();
+                ImGui::Text("Entity: %s", selected_entity_live->get_name().c_str());
+                ImGui::Separator();
+            }
 
-            // The rest of the drawing code now loops over our prepared list
-            if (!elements_to_display.empty()) {
-                for (auto* elementArchetype : elements_to_display) {
-                    const TypeInfo* type_info = ByteMirror::get_type_info_by_name(elementArchetype->type_name);
-                    if (!type_info) continue;
-
-                    if (ImGui::CollapsingHeader(type_info->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                        if (ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
-                            ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-                            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-
-                            for (const Property& prop : type_info->properties) {
-                                ImGui::TableNextRow();
-                                ImGui::TableSetColumnIndex(0);
-                                ImGui::Text("%s", prop.name.c_str());
-                                ImGui::TableSetColumnIndex(1);
-                                ImGui::PushItemWidth(-FLT_MIN);
-                                TypeDrawer::draw_yaml_property(prop, elementArchetype->data);
-                                ImGui::PopItemWidth();
-                            }
-                            ImGui::EndTable();
+            for (auto* element : elements_to_display) {
+                const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element));
+                if (ImGui::CollapsingHeader(type_info->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                    auto handles = ByteMirror::create_handles_for(element);
+                    if (!handles.empty() && ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
+                        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+                        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+                        for (const auto& handle : handles) {
+                            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); 
+                            std::string display_name = StringUtils::to_title_case(handle->get_name(), true);
+                            ImGui::Text("%s", display_name.c_str());
+                            ImGui::TableSetColumnIndex(1); ImGui::PushItemWidth(-FLT_MIN);
+                            std::string widget_id = "##" + handle->get_name();
+                            TypeDrawer::draw_property(widget_id.c_str(), *handle);
+                            ImGui::PopItemWidth();
                         }
+                        ImGui::EndTable();
                     }
                 }
             }
+
+        } else if (selected_archetype) {
+            // --- YAML MODE DRAWING ---
+            std::vector<ElementArchetype*> elements_to_display;
+
+            // NEW LOGIC: Check if a specific element archetype is selected.
+            if (pimpl->selected_element_id.is_valid()) {
+                for (auto& element_archetype : selected_archetype->elements) {
+                    if (element_archetype.id == pimpl->selected_element_id) {
+                        elements_to_display.push_back(&element_archetype);
+                        break;
+                    }
+                }
+            } else {
+                // Otherwise, display all element archetypes for the entity archetype.
+                for (auto& element_archetype : selected_archetype->elements) {
+                    elements_to_display.push_back(&element_archetype);
+                }
+                ImGui::Text("Entity: %s", selected_archetype->name.c_str());
+                ImGui::Separator();
+            }
+
+            for (auto* element_archetype : elements_to_display) {
+                const TypeInfo* type_info = ByteMirror::get_type_info_by_name(element_archetype->type_name);
+                if (ImGui::CollapsingHeader(type_info->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                    auto handles = PropertyHandleFactory::create_handles_for_element_archetype(element_archetype);
+                    if (!handles.empty() && ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
+                        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+                        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+                        for (const auto& handle : handles) {
+                            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); 
+                            std::string display_name = StringUtils::to_title_case(handle->get_name(), true);
+                            ImGui::Text("%s", display_name.c_str());
+                            ImGui::TableSetColumnIndex(1); ImGui::PushItemWidth(-FLT_MIN);
+                            std::string widget_id = "##" + handle->get_name();
+                            TypeDrawer::draw_property(widget_id.c_str(), *handle);
+                            ImGui::PopItemWidth();
+                        }
+                        ImGui::EndTable();
+                    }
+                }
+            }
+
+        } else {
+            ImGui::Text("No object selected.");
         }
     }
 
 
 
-
     void ScryingMirrorPanel::on_event(IEvent& event) {
+        // ADD THIS LINE FOR DEBUGGING
+        std::cout << "[DEBUG:] [ScryingMirrorPanel] RECEIVED an event of type: " << static_cast<int>(event.get_event_type()) << std::endl;
+
         if (event.get_event_type() == EventType::EditorEntitySelected) {
             EntitySelectedEvent& e = static_cast<EntitySelectedEvent&>(event);
 
