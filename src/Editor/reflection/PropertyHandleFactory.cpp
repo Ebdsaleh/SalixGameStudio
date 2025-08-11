@@ -34,4 +34,24 @@ namespace Salix {
         return handles;
     }
 
+
+    std::vector<std::unique_ptr<Salix::PropertyHandle>> PropertyHandleFactory::create_handles_for_element_archetype(Salix::ElementArchetype* element_archetype) {
+        std::vector<std::unique_ptr<Salix::PropertyHandle>> handles;
+        if (!element_archetype) {
+            return handles;
+        }
+
+        const Salix::TypeInfo* type_info = Salix::ByteMirror::get_type_info_by_name(element_archetype->type_name);
+        if (!type_info) return handles;
+
+        YAML::Node* properties_node = &element_archetype->data;
+
+        for (const auto& prop : type_info->properties) {
+            if ((*properties_node)[prop.name]) {
+                handles.push_back(std::make_unique<Salix::PropertyHandleYaml>(&prop, properties_node));
+            }
+        }
+        return handles;
+    }
+
 } // namespace Salix

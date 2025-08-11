@@ -11,5 +11,8 @@ namespace Salix {
     public:
         // Creates a vector of property handles from a loaded EntityArchetype.
         static std::vector<std::unique_ptr<Salix::PropertyHandle>> create_handles_for_archetype(Salix::EntityArchetype* entity_archetype);
+
+        // This one is for a single element within an entity
+        static std::vector<std::unique_ptr<Salix::PropertyHandle>> create_handles_for_element_archetype(Salix::ElementArchetype* element_archetype);
     };
 } // namespace Salix
