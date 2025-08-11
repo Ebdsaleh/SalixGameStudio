@@ -26,7 +26,7 @@ namespace Salix {
         static void register_all_type_drawers();
 
         // Draws the appropriate UI for any given property handle.
-        static void draw_property(PropertyHandle& handle);
+        static void draw_property(const char* label, PropertyHandle& handle);
     private:
         static std::unordered_map<PropertyType, DrawFunc> type_drawer_registry;
     };
