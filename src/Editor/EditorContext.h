@@ -71,8 +71,8 @@ namespace Salix {
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         EditorDataMode data_mode = EditorDataMode::Yaml;
-        
         std::vector<EntityArchetype> current_realm;
+        bool realm_is_dirty = true; 
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
     };
     
