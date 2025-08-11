@@ -457,9 +457,12 @@ namespace Salix {
             transform_archetype->data["scale"]    = new_scale_vector;
 
             // 5. FIRE EVENTS to notify other systems of the change
-            context->event_manager->dispatch(PropertyValueChangedEvent(selected_archetype->id, "Transform", "position", new_position_vector));
-            context->event_manager->dispatch(PropertyValueChangedEvent(selected_archetype->id, "Transform", "rotation", new_rotation_vector));
-            context->event_manager->dispatch(PropertyValueChangedEvent(selected_archetype->id, "Transform", "scale",    new_scale_vector));
+            PropertyValueChangedEvent position_changed_event(selected_archetype->id, "Transform", "position", new_position_vector);
+            PropertyValueChangedEvent rotation_changed_event(selected_archetype->id, "Transform", "rotation", new_rotation_vector);
+            PropertyValueChangedEvent scale_changed_event(selected_archetype->id, "Transform", "scale",    new_scale_vector);
+            context->event_manager->dispatch(position_changed_event);
+            context->event_manager->dispatch(rotation_changed_event);
+            context->event_manager->dispatch(scale_changed_event);
 
         }
 
@@ -471,24 +474,28 @@ namespace Salix {
 
 
     void RealmDesignerPanel::Pimpl::handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max) {
-        if (context->data_mode == EditorDataMode::Live) {
-            // We only proceed if the mouse was actually clicked within the hovered window
-            if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
-                return;
-            }
+        
+        // We only proceed if the mouse was actually clicked within the hovered window
+        if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
+            return;
+        }
+        // --- Step 1: Create the world-space ray from mouse ---
+        // Calculate viewport size from the min/max points passed as arguments.
+        viewport_size = { (viewport_max.x - viewport_min.x), (viewport_max.y - viewport_min.y) };
+        ImVec2 mouse_pos = ImGui::GetMousePos();
 
-            // --- Step 1: Create the world-space ray from mouse ---
-            // Calculate viewport size from the min/max points passed as arguments.
-            viewport_size = { (viewport_max.x - viewport_min.x), (viewport_max.y - viewport_min.y) };
-            ImVec2 mouse_pos = ImGui::GetMousePos();
-
-            // Create the ray using the reliable viewport data 
-            Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
-            last_picking_ray = world_ray; // Save the ray for visualization
+        // Create the ray using the reliable viewport data 
+        Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
+        last_picking_ray = world_ray; // Save the ray for visualization
+        float closest_hit_distance = FLT_MAX;
+        // Declare closest_hit_id here so it's accessible by both modes.
+        SimpleGuid closest_hit_id = SimpleGuid::invalid();
+        if (context->data_mode == EditorDataMode::Live) {    
+                   
 
             // --- Step 2: Find the closest entity with a collider that was hit ---
             Entity* selected_entity = nullptr;
-            float closest_hit_distance = FLT_MAX;
+            
 
             // Add the SimpleGuid variable to store the new ID
             SimpleGuid temp_selected_entity_id = SimpleGuid::invalid();
@@ -531,7 +538,46 @@ namespace Salix {
             }
         } else if (context->data_mode == EditorDataMode::Yaml)
         {
-             // TODO: Implement YAML pathway here.
+            SimpleGuid temp_selected_archetype_id = SimpleGuid::invalid();
+            for (auto& archetype : context->current_realm) {
+                // Find the transform and collider data for this archetype
+                const ElementArchetype* transform_archetype = nullptr;
+                const ElementArchetype* collider_archetype = nullptr;
+                for (const auto& element : archetype.elements) {
+                    if (element.type_name == "Transform") transform_archetype = &element;
+                    if (element.type_name == "BoxCollider") collider_archetype = &element;
+                }
+                if (transform_archetype && collider_archetype) {
+                    // Read the data from the YAML nodes
+                    Vector3 pos = transform_archetype->data["position"].as<Vector3>();
+                    Vector3 rot = transform_archetype->data["rotation"].as<Vector3>();
+                    Vector3 scl = transform_archetype->data["scale"].as<Vector3>();
+                    Vector3 size = collider_archetype->data["size"].as<Vector3>();
+                    
+                    // Construct the model matrix (same as gizmo logic)
+                    glm::mat4 model_matrix;
+                    ImGuizmo::RecomposeMatrixFromComponents(glm::value_ptr(pos.to_glm()), glm::value_ptr(rot.to_glm()), glm::value_ptr(scl.to_glm()), glm::value_ptr(model_matrix));
+                    glm::vec3 half_extents = size.to_glm() * 0.5f;
+                    float distance = 0.0f;
+                    if (Raycast::IntersectsOBB(world_ray, model_matrix, half_extents, distance)) {
+                        if (distance < closest_hit_distance) {
+                            closest_hit_distance = distance;
+                            closest_hit_id = archetype.id;
+                        }
+                    }
+                }
+            }
+        
+            // --- Step 3: Fire the selection event (This is now the same for both modes) ---
+            if (context->event_manager) {
+
+                // Update the context with the new selection (or deselection if invalid)
+                context->selected_entity_id = closest_hit_id;
+                context->selected_entity = preview_scene->get_entity_by_id(context->selected_entity_id);
+                EntitySelectedEvent event(closest_hit_id, context->selected_entity);
+                // Dispatch the event. In YAML mode, the pointer will correctly be nullptr.
+                context->event_manager->dispatch(event);
+            }
         }
     }
 
