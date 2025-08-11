@@ -56,7 +56,7 @@ namespace Salix {
         // Expose the Element's ID as a read-only property.
         type_info.properties = {
             {
-                "ID",                   // The name that will appear in the editor
+                "id",                   // The name that will appear in the editor
                 PropertyType::UInt64,   // The new type we added for 64-bit integers
                 nullptr,                // No contained_type_info is needed
 
@@ -85,7 +85,7 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(Element));
         type_info.properties = {
             {
-                "Size", PropertyType::Vector3, nullptr,
+                "size", PropertyType::Vector3, nullptr,
                 // getter_func
                 [](void* instance) {return static_cast<void*>(const_cast<Vector3*>(
                     &static_cast<BoxCollider*>(instance)->get_size()));
@@ -109,7 +109,7 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(Element));
         type_info.properties = {
             { 
-                "Position", PropertyType::Vector3, nullptr,
+                "position", PropertyType::Vector3, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<Vector3*>(
                     &static_cast<Transform*>(instance)->get_position()));
@@ -122,7 +122,7 @@ namespace Salix {
             },
 
             { 
-                "Rotation", PropertyType::Vector3, nullptr,
+                "rotation", PropertyType::Vector3, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<Vector3*>(
                     &static_cast<Transform*>(instance)->get_rotation()));
@@ -136,7 +136,7 @@ namespace Salix {
             },
             
             { 
-                "Scale", PropertyType::Vector3, nullptr,
+                "scale", PropertyType::Vector3, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<Vector3*>(
                     &static_cast<Transform*>(instance)->get_scale())); 
@@ -191,7 +191,7 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(ScriptElement));
         type_info.properties = {
             { 
-                "Script Name", PropertyType::String, nullptr,
+                "script_name", PropertyType::String, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<std::string*>(
                     &static_cast<CppScript*>(instance)->get_script_name()));
@@ -218,7 +218,7 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(RenderableElement2D));
         type_info.properties = {
             { 
-                "Color", PropertyType::Color, nullptr,
+                "color", PropertyType::Color, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_color());
@@ -231,7 +231,7 @@ namespace Salix {
             },
 
             {
-                "Offset", PropertyType::Vector2, nullptr,
+                "offset", PropertyType::Vector2, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_offset()); 
@@ -244,7 +244,7 @@ namespace Salix {
             },
 
             {
-                "Use Entity Rotation", PropertyType::Bool, nullptr,
+                "use_entity_rotation", PropertyType::Bool, nullptr,
                 // getter_func
                 [](void* instance) {return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_use_entity_rotation());
@@ -258,7 +258,7 @@ namespace Salix {
             },
 
             {
-                "Pivot", PropertyType::Vector2, nullptr,
+                "pivot", PropertyType::Vector2, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_pivot()); 
@@ -271,7 +271,7 @@ namespace Salix {
             },
 
             {
-                "Flip H", PropertyType::Bool, nullptr,
+                "flip_h", PropertyType::Bool, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_flip_h()); 
@@ -284,7 +284,7 @@ namespace Salix {
             },
 
             {
-                "Flip V", PropertyType::Bool, nullptr,
+                "flip_v", PropertyType::Bool, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_flip_v()); 
@@ -297,7 +297,7 @@ namespace Salix {
             },
 
             {
-                "Sorting Layer", PropertyType::Int, nullptr,
+                "sorting_layer", PropertyType::Int, nullptr,
                 // getter_func
                 [](void* instance) { return static_cast<void*>(
                     &static_cast<Sprite2D*>(instance)->get_sorting_layer()); 
@@ -310,7 +310,7 @@ namespace Salix {
             },
 
             {
-                "Texture Path", PropertyType::String, nullptr, 
+                "texture_path", PropertyType::String, nullptr, 
                 // getter_func
                 [](void* instance) { return static_cast<void*>(const_cast<std::string*>(
                     &static_cast<Sprite2D*>(instance)->get_texture_path()));
@@ -335,7 +335,7 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(Element));
         type_info.properties = {
             {
-                "Projection Mode", PropertyType::EnumClass,
+                "projection_mode", PropertyType::EnumClass,
                 ByteMirror::get_type_info(typeid(Salix::ProjectionMode)),
                 [](void* instance) { 
                     return static_cast<void*>(
@@ -349,7 +349,7 @@ namespace Salix {
             },
 
             {
-                "Field of View", PropertyType::Float, nullptr,
+                "field_of_view", PropertyType::Float, nullptr,
                 [](void* instance) {
                     return static_cast<void*>(const_cast<float*>(
                         &static_cast<Camera*>(instance)->get_field_of_view()));
@@ -361,7 +361,7 @@ namespace Salix {
             },
 
             {
-                "Orthographic Size", PropertyType::Float, nullptr,
+                "orthographic_size", PropertyType::Float, nullptr,
                 [](void* instance) {
                     return static_cast<void*>(const_cast<float*>(
                         &static_cast<Camera*>(instance)->get_orthographic_size()));
@@ -373,7 +373,7 @@ namespace Salix {
             },
 
             {
-                "Near Clip", PropertyType::Float, nullptr,
+                "near_clip", PropertyType::Float, nullptr,
                 [](void* instance) {
                     return static_cast<void*>(const_cast<float*>(
                         &static_cast<Camera*>(instance)->get_near_clip()));
@@ -385,7 +385,7 @@ namespace Salix {
             },
 
             {
-                "Far Clip", PropertyType::Float, nullptr,
+                "far_clip", PropertyType::Float, nullptr,
                 [](void* instance) {
                     return static_cast<void*>(
                         const_cast<float*>(&static_cast<Camera*>(instance)->get_far_clip()));
@@ -398,7 +398,7 @@ namespace Salix {
 
             // This is a read-only property. We provide an empty setter lambda.
             {
-                "View Matrix", PropertyType::GlmMat4, nullptr,
+                "view_matrix", PropertyType::GlmMat4, nullptr,
                 [](void* instance) {
                     return static_cast<void*>(const_cast<glm::mat4*>(
                         &static_cast<Camera*>(instance)->get_view_matrix()));
@@ -409,7 +409,7 @@ namespace Salix {
 
             // This is a read-only property. We provide an empty setter lambda.
             {
-                "Projection Matrix", PropertyType::GlmMat4, nullptr,
+                "projection_matrix", PropertyType::GlmMat4, nullptr,
                 [](void* instance) {
                     return static_cast<void*>(const_cast<glm::mat4*>(
                         &static_cast<Camera*>(instance)->get_projection_matrix()));
