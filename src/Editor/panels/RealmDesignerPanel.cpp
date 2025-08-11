@@ -34,7 +34,9 @@
 #include <Salix/events/EventManager.h>
 #include <yaml-cpp/yaml.h>
 #include <Editor/Archetypes.h>
+#include <Editor/ArchetypeInstantiator.h>
 #include <Editor/events/EntitySelectedEvent.h>
+#include <Editor/events/PropertyValueChangedEvent.h>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -57,11 +59,15 @@ namespace Salix {
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         Ray last_picking_ray;
         ImGuizmo::OPERATION CurrentGizmoOperation = ImGuizmo::TRANSLATE;
+
+        
         GLint render_pass_begin();
         void render_pass_end(GLint last_fbo);
         // YAML update Methods
         void update_camera_and_buttons();
-        void handle_input_and_gizmos(Entity* selected_entity);
+        EntityArchetype* get_selected_archetype();
+        ElementArchetype* get_transform_archetype(EntityArchetype* entity_archetype);
+        void handle_gizmos_for_archetype(EditorCamera* camera);
 
         void draw_scene();
         void draw_test_cube();
@@ -69,10 +75,12 @@ namespace Salix {
         void draw_lock_button();
         void draw_gizmo_toolbar();
         void update_viewport(IRenderer* renderer);
-        void handle_gizmos(EditorCamera* camera, Entity* selected_entity);
+        void handle_gizmos_for_live_entity(EditorCamera* camera, Entity* selected_entity);
+        void handle_input();
         void handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max);
         void draw_bounding_boxes();
         void draw_grid();
+        
     };
 
     RealmDesignerPanel::RealmDesignerPanel() : pimpl(std::make_unique<Pimpl>()) {
@@ -119,10 +127,41 @@ namespace Salix {
 
         }
         
+        pimpl->context->event_manager->subscribe(EventCategory::Editor, this);
+        std::cout << "RealmDesignerPanel Initialized and subscribed to Editor events." << std::endl;
     }
 
     // YAML PATHWAY Update helpers
 
+
+
+    // --- Implementation of Archetype Helper Functions ---
+    EntityArchetype* RealmDesignerPanel::Pimpl::get_selected_archetype() {
+        if (!context || !context->selected_entity_id.is_valid()) {
+            return nullptr;
+        }
+        for (auto& archetype : context->current_realm) {
+            if (archetype.id == context->selected_entity_id) {
+                return &archetype;
+            }
+        }
+        return nullptr;
+    }
+
+
+    ElementArchetype* RealmDesignerPanel::Pimpl::get_transform_archetype(EntityArchetype* entity_archetype) {
+        if (!entity_archetype) {
+            return nullptr;
+        }
+        for (auto& element : entity_archetype->elements) {
+            if (element.type_name == "Transform") {
+                return &element;
+            }
+        }
+        return nullptr;
+    }
+
+    // --- Implementation of Archetype Helper Functions End ---
 
 
 
@@ -143,22 +182,6 @@ namespace Salix {
     }
 
 
-    void RealmDesignerPanel::Pimpl::handle_input_and_gizmos(Entity* selected_entity) {
-        // Important: Get the ImGui window's rect *after* drawing the image
-        ImVec2 min_bound = ImGui::GetItemRectMin();
-        ImVec2 max_bound = ImGui::GetItemRectMax();
-
-        // --- Gizmo Interaction ---
-        if (!is_locked && selected_entity) {
-            handle_gizmos(context->editor_camera, selected_entity);
-        }
-
-        // --- MOUSE PICKING ---
-        if (ImGui::IsItemHovered() && !EntitySelectedEvent::block_selection && !is_locked) {
-            handle_mouse_picking(min_bound, max_bound);
-        }
-    }
-
 
     void on_gui_update_early_exit() {
         ImGui::End();
@@ -168,14 +191,35 @@ namespace Salix {
     // End of YAML PATHWAYS Helper methods
 
 
+    // MODIFIED: This is now the single entry point for interactions.
+    void RealmDesignerPanel::Pimpl::handle_input() {
+        ImVec2 min_bound = ImGui::GetItemRectMin();
+        ImVec2 max_bound = ImGui::GetItemRectMax();
 
+        if (!is_locked) {
+            if (context->data_mode == EditorDataMode::Live) {
+                Entity* selected_entity = context->active_scene ? context->active_scene->get_entity_by_id(context->selected_entity_id) : nullptr;
+                if (selected_entity) {
+                    handle_gizmos_for_live_entity(context->editor_camera, selected_entity);
+                }
+            }
+            else if (context->data_mode == EditorDataMode::Yaml) {
+                // In YAML mode, we don't need to pass an entity pointer.
+                handle_gizmos_for_archetype(context->editor_camera);
+            }
+        }
+
+        if (ImGui::IsItemHovered() && !EntitySelectedEvent::block_selection && !is_locked) {
+            handle_mouse_picking(min_bound, max_bound);
+        }
+    }
 
     
 
 
-    // NEW on_gui_update() DRY principle
-    // In Editor/panels/RealmDesignerPanel.cpp
+  
 
+    // MODIFIED: The main update loop now calls the new handle_input function.
     void RealmDesignerPanel::on_gui_update() {
         if (!pimpl->is_visible) return;
 
@@ -183,87 +227,24 @@ namespace Salix {
         if (ImGui::Begin("Realm Designer", &pimpl->is_visible)) {
             IRenderer* renderer = pimpl->context->init_context->renderer;
             if (!renderer) {
-                ImGui::End();
-                ImGui::PopStyleVar();
-                return;
+                ImGui::End(); ImGui::PopStyleVar(); return;
             }
 
-            // --- 1. PREPARE THE SCENE (The only part that differs between modes) ---
-            Scene* scene_to_interact_with = nullptr;
-
-            if (pimpl->context->data_mode == EditorDataMode::Live) {
-                scene_to_interact_with = pimpl->context->active_scene;
-            } 
-            else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-                Scene* preview_scene = pimpl->preview_scene.get();
-                auto& realm_archetypes = pimpl->context->current_realm;
-
-                preview_scene->clear_all_entities();
-                
-                if (!realm_archetypes.empty()) {
-                    // INSTANTIATE: Create live objects from the Archetype data
-                    for (const auto& entity_archetype : realm_archetypes) {
-                        Entity* live_entity = preview_scene->create_entity(entity_archetype.id, entity_archetype.name);
-                        for (const auto& element_archetype : entity_archetype.elements) {
-                            if (element_archetype.type_name == "Transform") {
-                                Transform* transform = live_entity->get_element<Transform>();
-                                transform->set_position(element_archetype.data["position"].as<Vector3>());
-                                transform->set_rotation(element_archetype.data["rotation"].as<Vector3>());
-                                transform->set_scale(element_archetype.data["scale"].as<Vector3>());
-                            } else if (element_archetype.type_name == "BoxCollider") {
-                                BoxCollider* box_collider = live_entity->get_element<BoxCollider>();
-                                box_collider->set_size(element_archetype.data["size"].as<Vector3>());
-                            } else if (element_archetype.type_name == "Sprite2D") {
-                                Sprite2D* sprite = live_entity->add_element<Sprite2D>();
-                                assert(sprite != nullptr && "live_entity is missing Sprite2D.");
-                                assert(element_archetype.data["color"] && "color data for Sprite2D is missing.");
-                                assert(element_archetype.data["flip_h"] && "flip_h data for Sprite2D is missing.");
-                                assert(element_archetype.data["flip_v"] && "flip_v data for Sprite2D is missing.");
-                                assert(element_archetype.data["offset"] && "offset data for Sprite2D is missing.");
-                                assert(element_archetype.data["pivot"] && "pivot data for Sprite2D is missing.");
-                                assert(element_archetype.data["sorting_layer"] && "sorting_layer data for Sprite2D is missing.");
-                                assert(element_archetype.data["use_entity_rotation"] && "use_entity_rotation data for Sprite2D is missing.");
-                                
-                                sprite->texture_path = element_archetype.data["texture_path"].as<std::string>();
-                                sprite->load_texture(pimpl->context->asset_manager,sprite->texture_path);
-                                sprite->color = element_archetype.data["color"].as<Color>();
-                                sprite->flip_h = element_archetype.data["flip_h"].as<bool>();
-                                sprite->flip_v = element_archetype.data["flip_v"].as<bool>();
-                                sprite->offset = element_archetype.data["offset"].as<Vector2>();
-                                sprite->pivot = element_archetype.data["pivot"].as<Vector2>();
-                                sprite->sorting_layer = element_archetype.data["sorting_layer"].as<int>();
-                                sprite->use_entity_rotation = element_archetype.data["use_entity_rotation"].as<bool>();
-                                assert(sprite->get_texture() != nullptr && "Failed to set the sprite texture.");
-                                float ppu = pimpl->context->renderer->get_pixels_per_unit();
-                                int width = sprite->get_texture()->get_width();
-                                int height = sprite->get_texture()->get_height();
-                                Vector3 new_collider_size = Vector3((float)width / ppu, (float)height / ppu, 0.1f);
-                                // set the Entity's default box_collider to the size of the sprite
-                                live_entity->get_element<BoxCollider>()->set_size(new_collider_size);
-                                    
-                            } else if (element_archetype.type_name == "Camera") {
-                                Camera* camera = live_entity->add_element<Camera>();
-                                std::string mode = element_archetype.data["projection_mode"].as<std::string>();
-                                if (mode == "Perspective") {
-                                    camera->set_projection_mode(ProjectionMode::Perspective);
-                                } else if (mode == "Orthographic") {
-                                    camera->set_projection_mode(ProjectionMode::Orthographic);
-                                }
-                                camera->set_field_of_view(element_archetype.data["field_of_view"].as<float>());
-                                camera->set_near_clip(element_archetype.data["near_clip"].as<float>());
-                                camera->set_far_clip(element_archetype.data["far_clip"].as<float>());
-                            }
+            // --- Scene Preparation (This logic is now correct) ---
+            if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+                // 1. Check if the realm data has changed.
+                if (pimpl->context->realm_is_dirty) {
+                    Scene* preview_scene = pimpl->preview_scene.get();
+                    auto& realm_archetypes = pimpl->context->current_realm;
+                    preview_scene->clear_all_entities();
+                    if (!realm_archetypes.empty()) {
+                        for (const auto& entity_archetype : realm_archetypes) {
+                            ArchetypeInstantiator::instantiate(entity_archetype, preview_scene, *pimpl->context->init_context);
                         }
                     }
+                    // 3. Clear the flag so this doesn't run again.
+                    pimpl->context->realm_is_dirty = false;
                 }
-                scene_to_interact_with = preview_scene;
-            }
-
-            // --- 2. PERFORM SHARED UI AND INTERACTION LOGIC ---
-            
-            Entity* selected_entity = nullptr;
-            if (scene_to_interact_with) {
-                selected_entity = scene_to_interact_with->get_entity_by_id(pimpl->context->selected_entity_id);
             }
 
             pimpl->update_camera_and_buttons();
@@ -273,7 +254,8 @@ namespace Salix {
                 ImTextureID tex_id = renderer->get_framebuffer_texture_id(pimpl->framebuffer_id);
                 if (tex_id != 0) {
                     ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0, 1), ImVec2(1, 0));
-                    pimpl->handle_input_and_gizmos(selected_entity);
+                    // This single call now handles everything.
+                    pimpl->handle_input();
                 }
             }
         }
@@ -283,191 +265,6 @@ namespace Salix {
 
 
 
-/* --- Currently working ---
-
-
-    void RealmDesignerPanel::on_gui_update() {
-        if (!pimpl->is_visible) return;
-        if (pimpl->context->init_context->engine->is_running()) {  
-             
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-            if (ImGui::Begin("Realm Designer", &pimpl->is_visible)) {
-                IRenderer* renderer = pimpl->context->init_context->renderer;
-                if (!renderer) {
-                    ImGui::End();
-                    ImGui::PopStyleVar();
-                    return;
-                }
-                
-
-                if (pimpl->context->data_mode == EditorDataMode::Live) {
-
-                    // --- Get the selected entity via its GUID (The Data-Driven Approach) ---
-                    Entity* selected_entity_live = nullptr;
-                    if (pimpl->context && pimpl->context->active_scene) {
-                        selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->context->selected_entity_id);
-                    }
-
-                    // --- Camera Control ---
-                    bool camera_can_move = false;
-                    if (!pimpl->is_locked &&  // THIS IS THE CRITICAL ADDITION
-                        ImGui::IsWindowFocused(ImGuiFocusedFlags_RootWindow) && 
-                        ImGui::IsWindowHovered(ImGuiHoveredFlags_RootWindow)) {
-                        camera_can_move = true;
-                    }
-                    pimpl->context->editor_camera->set_mouse_inside_scene(camera_can_move);
-
-                    // --- Panel Lock Button ---
-                    pimpl->draw_lock_button();
-
-                    // --- Gizmo Toolbar ---
-                    pimpl->draw_gizmo_toolbar();
-                    
-                    // --- Viewport ---
-                    pimpl->update_viewport(renderer);
-
-                    if (pimpl->framebuffer_id != 0) {
-                        ImTextureID tex_id = renderer->get_framebuffer_texture_id(pimpl->framebuffer_id);
-                        if (tex_id != 0) {
-                            ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0,1), ImVec2(1,0));
-
-                            // --- Gizmo Interaction ---
-                            if (!pimpl->is_locked && selected_entity_live) {
-                                pimpl->handle_gizmos( 
-                                    pimpl->context->editor_camera, 
-                                    selected_entity_live
-                                );
-                            }
-                            
-                            // --- MOUSE PICKING ---
-                            if (ImGui::IsItemHovered() && !EntitySelectedEvent::block_selection && !pimpl->is_locked) {
-                                pimpl->handle_mouse_picking(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-                            }
-                        }
-                    }
-                } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-                    
-                    if (pimpl->context->current_realm.empty()) {
-                        on_gui_update_early_exit();
-                        return;
-                    }
-                    // 1. Get references to the core objects we'll use
-                    auto& realm_archetypes = pimpl->context->current_realm;
-                    assert(!realm_archetypes.empty() && "realm_archetypes is empty, realm loading failed.");
-                    Scene* preview_scene = pimpl->preview_scene.get(); // Use the panel's private preview scene
-                    assert(preview_scene != nullptr && "preview_scene is null.");
-
-                    // 2. WIPE CLEAN: Clear the preview scene of all objects from the last frame
-                    preview_scene->clear_all_entities(); // We will need to add this helper function to your Scene class
-
-                    // 3. INSTANTIATE: Create live objects from the Archetype data
-                    for (const auto& entity_archetype : realm_archetypes) {
-                        assert(entity_archetype.id.is_valid() && "entity_archetype.id is invalid");
-                        assert(entity_archetype.name != "" && "entity_archetype.name is empty");
-                        // Create a new, live entity in the preview scene
-                        Entity* live_entity = preview_scene->create_entity(entity_archetype.id, entity_archetype.name);
-                        assert(live_entity != nullptr && "live_entity didn't create successfully from achetype");
-
-
-                        // Loop through the elements in the Archetype
-                        for (const auto& element_archetype : entity_archetype.elements) {
-                            assert(&element_archetype != nullptr && "element_archetype is nullptr.");
-                            assert(element_archetype.type_name != "" && "element_archetype.type_name is empty.");
-
-                            // Logic to create components and apply properties from the YAML data
-                            if (element_archetype.type_name == "Transform") {
-                                // GET the existing Transform and APPLY the data
-                                Transform* transform = live_entity->get_element<Transform>();
-                                assert(transform != nullptr && "Transform is nullptr.");
-                                assert(element_archetype.data["position"] && "YAML data for Transform is missing.");
-                                assert(element_archetype.data["rotation"] && "YAML data for Transform is missing.");
-                                assert(element_archetype.data["scale"] && "YAML data for Transform is missing.");
-
-                                transform->set_position(element_archetype.data["position"].as<Vector3>());
-                                transform->set_rotation(element_archetype.data["rotation"].as<Vector3>());
-                                transform->set_scale(element_archetype.data["scale"].as<Vector3>());
-                            }
-                            else if (element_archetype.type_name == "BoxCollider") {
-                                // GET the existing BoxCollider and APPLY the data
-                                BoxCollider* box_collider = live_entity->get_element<BoxCollider>();
-                                assert(box_collider != nullptr && "BoxCollider is nullptr.");
-                                assert(element_archetype.data["size"] && "YAML data for BoxCollider is missing.");
-                                
-                                box_collider->set_size(element_archetype.data["size"].as<Vector3>());
-                            }
-                            else if (element_archetype.type_name == "Sprite2D") {
-                                Sprite2D* sprite = live_entity->add_element<Sprite2D>();
-                                assert(sprite != nullptr && "Sprite2D is nullptr");
-                                assert(element_archetype.data["color"] && "YAML data for Sprite2D is missing.");
-                                assert(element_archetype.data["flip_h"] && "YAML data for Sprite2D is missing.");
-                                assert(element_archetype.data["flip_v"] && "YAML data for Sprite2D is missing.");
-                                assert(element_archetype.data["offset"] && "YAML data for Sprite2D is missing.");
-                                assert(element_archetype.data["pivot"] && "YAML data for Sprite2D is missing.");
-                                assert(element_archetype.data["sorting_layer"] && "YAML data for Sprite2D is missing.");
-                                assert(element_archetype.data["use_entity_rotation"] && "YAML data for Sprite2D is missing.");
-                                
-                                sprite->texture_path = element_archetype.data["texture_path"].as<std::string>();
-                                sprite->color = element_archetype.data["color"].as<Color>();
-                                sprite->flip_h = element_archetype.data["flip_h"].as<bool>();
-                                sprite->flip_v = element_archetype.data["flip_v"].as<bool>();
-                                sprite->offset = element_archetype.data["offset"].as<Vector2>();
-                                sprite->pivot = element_archetype.data["pivot"].as<Vector2>();
-                                sprite->sorting_layer = element_archetype.data["sorting_layer"].as<int>();
-                                sprite->use_entity_rotation = element_archetype.data["use_entity_rotation"].as<bool>();
-                                
-                            }
-                            else if (element_archetype.type_name == "Camera") {
-                                Camera* camera = live_entity->add_element<Camera>();
-                                assert(camera != nullptr && "Camera is nullptr");
-                                assert(element_archetype.data["projection_mode"] && "YAML data for Camera is missing");
-                                assert(element_archetype.data["near_clip"] && "YAML data for Camera is missing");
-                                assert(element_archetype.data["far_clip"] && "YAML data for Camera is missing");
-                                std::string mode = element_archetype.data["projection_mode"].as<std::string>();
-                                if (mode == "Perspective") {
-                                    camera->set_projection_mode(ProjectionMode::Perspective);
-                                }
-                                else if (mode == "Orthographic") {
-                                    camera->set_projection_mode(ProjectionMode::Orthographic);
-                                }
-                                camera->set_field_of_view(element_archetype.data["field_of_view"].as<float>());
-                                camera->set_near_clip(element_archetype.data["near_clip"].as<float>());
-                                camera->set_far_clip(element_archetype.data["far_clip"].as<float>());
-                            }
-                        }
-                    }
-                    // 4. SET UP FOR RENDERING: The rest of the logic uses the now-populated previewScene
-                    // Find the selected live entity in our newly created preview scene
-                    Entity* selected_entity = preview_scene->get_entity_by_id(pimpl->context->selected_entity_id);
-
-                    // Update the camera and panel buttons
-                    pimpl->update_camera_and_buttons();
-
-                    // Update the viewport
-                    pimpl->update_viewport(renderer);
-                    
-                    // Prepare the framebuffer
-                    if (pimpl->framebuffer_id != 0) {
-                        ImTextureID tex_id = renderer->get_framebuffer_texture_id(pimpl->framebuffer_id);
-                        if (tex_id != 0) {
-                            ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0, 1), ImVec2(1, 0));
-                        }
-                        // Handle gizmos and mouse picking on the preview scene
-                       pimpl->handle_input_and_gizmos(selected_entity);
-                    } 
-                }
-                
-
-                else {
-                    // Default to Live mode if something is wrong.
-                    pimpl->context->data_mode = EditorDataMode::Live;
-                }
-            }
-            ImGui::End();
-            ImGui::PopStyleVar();
-            
-        }
-    }
-*/
     
 
     void RealmDesignerPanel::Pimpl::draw_lock_button() {
@@ -519,7 +316,7 @@ namespace Salix {
 
 
 
-    void RealmDesignerPanel::Pimpl::handle_gizmos(EditorCamera* camera, Entity* selected_entity) {
+    void RealmDesignerPanel::Pimpl::handle_gizmos_for_live_entity(EditorCamera* camera, Entity* selected_entity) {
         if (is_locked || !selected_entity || selected_entity->is_purged()) return;
 
         ImGuizmo::SetOrthographic(false);
@@ -614,6 +411,61 @@ namespace Salix {
     }
 
 
+    // NEW: The complete implementation for the Archetype gizmo handler.
+    void RealmDesignerPanel::Pimpl::handle_gizmos_for_archetype(EditorCamera* camera) {
+        EntityArchetype* selected_archetype = get_selected_archetype();
+        if (is_locked || !selected_archetype) return;
+
+        ElementArchetype* transform_archetype = get_transform_archetype(selected_archetype);
+        if (!transform_archetype) return;
+
+        ImGuizmo::SetOrthographic(false);
+        ImGuizmo::SetDrawlist();
+        ImVec2 viewport_min = ImGui::GetItemRectMin();
+        ImVec2 viewport_max = ImGui::GetItemRectMax();
+        ImGuizmo::SetRect(viewport_min.x, viewport_min.y, viewport_max.x - viewport_min.x, viewport_max.y - viewport_min.y);
+
+        const glm::mat4& camera_view = camera->get_view_matrix();
+        const glm::mat4& camera_projection = camera->get_projection_matrix();
+
+        // 1. READ data from the YAML::Node
+        Vector3 position = transform_archetype->data["position"].as<Vector3>();
+        Vector3 rotation = transform_archetype->data["rotation"].as<Vector3>();
+        Vector3 scale = transform_archetype->data["scale"].as<Vector3>();
+
+        // 2. CONSTRUCT the matrix for ImGuizmo
+        glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), position.to_glm());
+        glm::mat4 rotation_matrix = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z), {0, 0, 1}) *
+                                    glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y), {0, 1, 0}) *
+                                    glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), {1, 0, 0});
+        glm::mat4 scale_matrix = glm::scale(glm::mat4(1.0f), scale.to_glm());
+        glm::mat4 entity_matrix = translation_matrix * rotation_matrix * scale_matrix;
+
+        // 3. MANIPULATE the matrix
+        if (ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection), CurrentGizmoOperation, ImGuizmo::LOCAL, glm::value_ptr(entity_matrix))) {
+            // 4. DECOMPOSE 
+            glm::vec3 new_translation, new_rotation_deg, new_scale;
+            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(entity_matrix), glm::value_ptr(new_translation), glm::value_ptr(new_rotation_deg), glm::value_ptr(new_scale));
+
+            Vector3 new_position_vector(new_translation.x, new_translation.y, new_translation.z);
+            Vector3 new_rotation_vector(new_rotation_deg.x, new_rotation_deg.y, new_rotation_deg.z);
+            Vector3 new_scale_vector(new_scale.x, new_scale.y, new_scale.z);
+
+            // WRITE the new data back to the YAML::Node
+            transform_archetype->data["position"] = new_position_vector;
+            transform_archetype->data["rotation"] = new_rotation_vector;
+            transform_archetype->data["scale"]    = new_scale_vector;
+
+            // 5. FIRE EVENTS to notify other systems of the change
+            context->event_manager->dispatch(PropertyValueChangedEvent(selected_archetype->id, "Transform", "position", new_position_vector));
+            context->event_manager->dispatch(PropertyValueChangedEvent(selected_archetype->id, "Transform", "rotation", new_rotation_vector));
+            context->event_manager->dispatch(PropertyValueChangedEvent(selected_archetype->id, "Transform", "scale",    new_scale_vector));
+
+        }
+
+        EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+        if (ImGuizmo::IsOver()) { ImGui::SetMouseCursor(ImGuiMouseCursor_Hand); }
+    }
 
 
 
@@ -765,10 +617,7 @@ namespace Salix {
             Transform* transform = nullptr;
             Sprite2D* sprite = nullptr;
             if (entity->get_element<Transform>()) { transform = entity->get_element<Transform>(); }
-            if (entity->get_element<Sprite2D>()) {sprite = entity->get_element<Sprite2D>(); 
-                std::cout << "sprite texture path: " << sprite->get_texture_path() << std::endl;
-            }
-            entity->report_ids();
+            if (entity->get_element<Sprite2D>()) {sprite = entity->get_element<Sprite2D>(); }
             
 
             if (transform && sprite && sprite->get_texture()) {
@@ -797,7 +646,40 @@ namespace Salix {
         }
     }
 
-    void RealmDesignerPanel::on_event(IEvent& event) { (void)event; }
+    void RealmDesignerPanel::on_event(IEvent& event) { 
+        if (event.get_event_type() == EventType::EditorPropertyValueChanged) {
+            // We only care about this event if we are in YAML mode and have a preview scene
+            if (pimpl->context->data_mode != EditorDataMode::Yaml || !pimpl->preview_scene) {
+                return;
+            }
+
+            PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
+
+            // Find the live entity in our preview scene that corresponds to the changed archetype
+            Entity* entity_to_update = pimpl->preview_scene->get_entity_by_id(e.entity_id);
+            if (!entity_to_update) {
+                return;
+            }
+
+            // Find the correct component and update the correct property
+            if (e.element_type_name == "Transform") {
+                Transform* transform = entity_to_update->get_transform();
+                if (transform) {
+                    if (e.property_name == "position") {
+                        transform->set_position(std::get<Vector3>(e.new_value));
+                    } else if (e.property_name == "rotation") {
+                        transform->set_rotation(std::get<Vector3>(e.new_value));
+                    } else if (e.property_name == "scale") {
+                        transform->set_scale(std::get<Vector3>(e.new_value));
+                    }
+                }
+            }
+            // You can add 'else if' blocks here for other components (e.g., Sprite2D) later
+        }
+    } 
+        
+        
+        
 
 
     void RealmDesignerPanel::set_visibility(bool visibility) {
