@@ -163,9 +163,8 @@ namespace Salix {
 
 
 
-    void Salix::TypeDrawer::draw_property(PropertyHandle& handle) {
+    void Salix::TypeDrawer::draw_property(const char* label, PropertyHandle& handle) {
         // Use the property's name as the label for the ImGui widget
-        const char* label = handle.get_name().c_str();
 
         switch (handle.get_type())
         {
