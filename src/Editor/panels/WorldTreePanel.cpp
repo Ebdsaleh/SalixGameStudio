@@ -104,9 +104,29 @@ namespace Salix {
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) {
                 context->selected_entity_id = archetype.id;
                 context->selected_element_id = SimpleGuid::invalid();
+                // ADD THIS LINE FOR DEBUGGING
+                std::cout << "[DEBUG:] [WorldTreePanel] SENDING event for Archetype ID: " << archetype.id.get_value() << std::endl;
+
                 EntitySelectedEvent event(context->selected_entity_id , nullptr);
                 context->event_manager->dispatch(event);
+
+                if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+                    // Find the transform data within the archetype
+                    Transform focus_transform;
+                    for (const auto& element : archetype.elements) {
+                        if (element.type_name == "Transform") {
+                            // Read the position directly from the YAML data
+                            focus_transform.set_position(element.data["position"].as<Salix::Vector3>());
+                            focus_transform.set_rotation(element.data["rotation"].as<Salix::Vector3>());
+                            focus_transform.set_scale(element.data["scale"].as<Salix::Vector3>());
+                            context->editor_camera->focus_on(&focus_transform, 3.0f);
+                            break; // Stop searching once we've found it
+                        }
+                    }
+                    
+                }
             }
+            
 
             show_entity_context_menu_ARCHETYPE(archetype);
 
@@ -609,7 +629,7 @@ namespace Salix {
                     // --- The New, Data-Driven System (Additions) ---
                     pimpl->context->selected_entity_id = entity->get_id();
                     pimpl->context->selected_element_id = SimpleGuid::invalid();
-
+                    
                     if (ImGui::IsMouseDoubleClicked(0)) {
                         if (auto transform = entity->get_transform()) {
                             pimpl->context->editor_camera->focus_on(transform, 3.0f);
