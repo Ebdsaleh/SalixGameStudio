@@ -8,10 +8,11 @@
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/BoxCollider.h>
 #include <Salix/reflection/ByteMirror.h>
+#include <Salix/core/InitContext.h>
 
 namespace Salix {
 
-    void ArchetypeInstantiator::instantiate(const Salix::EntityArchetype& archetype, Salix::Scene* scene) {
+    void ArchetypeInstantiator::instantiate(const Salix::EntityArchetype& archetype, Salix::Scene* scene, const Salix::InitContext& context) {
         if (!scene) return;
 
         // 1. Create the base live entity
@@ -75,6 +76,8 @@ namespace Salix {
                     // Add cases for all other reflected property types...
                 }
             }
+            live_element->on_load(context);
         }
+        
     }
 } // namespace Salix
