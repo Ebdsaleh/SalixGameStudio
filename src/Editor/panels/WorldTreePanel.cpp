@@ -50,7 +50,7 @@ namespace Salix {
         Entity* entity_to_rename = nullptr;
         SimpleGuid entity_to_rename_id = SimpleGuid::invalid();
         char rename_buffer[256]; // <-- Add a buffer for the text field
-
+        float child_indent = 22.0f;
         // --- YAML PATHWAY HELPERS ---
         // Using Archetypes
         void render_entity_tree_ARCHETYPE(EntityArchetype& archetype);
@@ -74,12 +74,36 @@ namespace Salix {
 
         // 1. Drop zone above entity
         handle_inter_entity_drop_target_ARCHETYPE(archetype);
-
-        // 2. Node setup - CORRECTED TreeNodeEx usage
-        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+        const bool has_elements = !archetype.elements.empty();
+        const bool is_child = archetype.parent_id.is_valid();
+        const bool has_children = !archetype.child_ids.empty();
+        const bool is_populated = has_children || has_elements;
+        ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_Framed;
+         
         if (context->selected_entity_id == archetype.id) {
             flags |= ImGuiTreeNodeFlags_Selected;
         }
+
+        if (!is_populated) {
+            flags |=  ImGuiTreeNodeFlags_None | ImGuiTreeNodeFlags_Bullet;
+        } else {
+           flags |= ImGuiTreeNodeFlags_None | ImGuiTreeNodeFlags_OpenOnArrow;
+        }
+
+        // 2. Node setup - CORRECTED TreeNodeEx usage
+        
+        if (is_child) {
+            
+            if (is_populated) {
+                // This flag draws a visible border around the tree node, visually grouping it.
+                flags |=  ImGuiTreeNodeFlags_None | ImGuiTableColumnFlags_IndentEnable;
+                
+            } else {
+                
+                flags |=  ImGuiTreeNodeFlags_None | ImGuiTreeNodeFlags_Bullet | ImGuiTreeNodeFlags_Leaf;
+            }
+        }
+        
 
         // Renaming logic
         bool is_renaming = (entity_to_rename_id == archetype.id);
@@ -97,7 +121,8 @@ namespace Salix {
         } else {
             // CORRECTED: Use string format for TreeNodeEx
             bool node_open = ImGui::TreeNodeEx(archetype.name.c_str(), flags);
-
+            // --- NEW: We must pop the style variable if we pushed it ---
+            
             setup_entity_drag_source_ARCHETYPE(archetype);
             handle_entity_drop_target_ARCHETYPE(archetype);
 
@@ -151,10 +176,26 @@ namespace Salix {
                     }
                     
                 }
+                // --- NEW: Recursively render child entities ---
+                for (const auto& child_id : archetype.child_ids) {
+                    // Find the child archetype in the main realm vector
+                    auto child_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                        [&](const EntityArchetype& e) { return e.id == child_id; });
+                    
+                    if (child_it != context->current_realm.end()) {
+                        ImGui::Indent(child_indent);
+                        // Call this function again for the child
+                        render_entity_tree_ARCHETYPE(*child_it);
+                        ImGui::Unindent(child_indent);
+                    }
+                }
+                
                 ImGui::TreePop();
+                
             }
         }
         ImGui::PopID();
+       
     }
     
 
@@ -412,8 +453,18 @@ namespace Salix {
             }
 
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
-                // Remove from parent's child_ids if exists
-                if (archetype.parent_id.get_value() != 0) {
+                // --- FIX 1: Release all children before purging the parent ---
+                for (const auto& child_id : archetype.child_ids) {
+                    auto child_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                        [&](const EntityArchetype& e) { return e.id == child_id; });
+                    
+                    if (child_it != context->current_realm.end()) {
+                        // Set the child's parent to invalid, making it a root entity.
+                        child_it->parent_id = SimpleGuid::invalid();
+                    }
+                }
+                // Remove from old parent's child list (if it has a parent)
+                if (archetype.parent_id.is_valid()) {
                     auto parent_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
                         [&](const EntityArchetype& e) { return e.id == archetype.parent_id; });
                     if (parent_it != context->current_realm.end()) {
@@ -423,13 +474,16 @@ namespace Salix {
                     }
                 }
                 
-                // Remove from current_realm
+                // Remove the entity itself from the realm
                 context->current_realm.erase(
                     std::remove_if(context->current_realm.begin(), context->current_realm.end(),
                         [&](const EntityArchetype& e) { return e.id == archetype.id; }),
                     context->current_realm.end());
+
+                // --- FIX 2: Signal the RealmDesignerPanel to update ---
+                context->realm_is_dirty = true;
                 
-                // Clear selection
+                // Clear selection and notify other panels
                 context->selected_entity_id = SimpleGuid::invalid();
                 EntitySelectedEvent event(context->selected_entity_id, nullptr);
                 context->event_manager->dispatch(event);
@@ -543,7 +597,9 @@ namespace Salix {
                 if (pimpl->context->current_realm.size() != 0) {
                     for (auto& entity_archetype : pimpl->context->current_realm) {
                         // We now call our new, cleaner function!
-                        pimpl->render_entity_tree_ARCHETYPE(entity_archetype);
+                        if (!entity_archetype.parent_id.is_valid()) {
+                            pimpl->render_entity_tree_ARCHETYPE(entity_archetype);
+                        }
                     }
                 }
                 pimpl->show_empty_space_context_menu_ARCHETYPE();
