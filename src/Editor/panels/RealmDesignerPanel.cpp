@@ -205,12 +205,39 @@ namespace Salix {
             }
             else if (context->data_mode == EditorDataMode::Yaml) {
                 // In YAML mode, we don't need to pass an entity pointer.
-                handle_gizmos_for_archetype(context->editor_camera);
+                handle_gizmos_for_archetype(context->editor_camera);                
             }
         }
 
         if (ImGui::IsItemHovered() && !EntitySelectedEvent::block_selection && !is_locked) {
             handle_mouse_picking(min_bound, max_bound);
+        }
+        
+        // --- NEW: Handle the 'F' to Focus keyboard shortcut ---
+        // We check if the window is focused so this shortcut only applies to this panel.
+        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) {
+            if (ImGui::IsKeyPressed(ImGuiKey_F)) {
+                // Check if there is a selected entity
+                if (context->selected_entity_id.is_valid()) {
+                    Entity* selected_entity = nullptr;
+
+                    // Find the selected entity in the correct scene (Preview or Live)
+                    if (context->data_mode == EditorDataMode::Yaml) {
+                        selected_entity = preview_scene->get_entity_by_id(context->selected_entity_id);
+                    }
+                    else if (context->data_mode == EditorDataMode::Live) {
+                        if (context->active_scene) {
+                            selected_entity = context->active_scene->get_entity_by_id(context->selected_entity_id);
+                        }
+                    }
+
+                    if (selected_entity) {
+                        if (Transform* transform = selected_entity->get_transform()) {
+                            context->editor_camera->focus_on(transform, 3.0f);
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -578,6 +605,17 @@ namespace Salix {
                 // Dispatch the event. In YAML mode, the pointer will correctly be nullptr.
                 context->event_manager->dispatch(event);
             }
+            // 2. NEW: Check for a double-click on the entity that was just selected.
+            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && closest_hit_id.is_valid()) {
+                Entity* entity_to_focus = preview_scene->get_entity_by_id(closest_hit_id);
+                if (entity_to_focus) {
+                    Transform* transform = entity_to_focus->get_transform();
+                    if (transform) {
+                        // Call the focus_on method, just like in the WorldTreePanel.
+                        context->editor_camera->focus_on(transform, 3.0f);
+                    }
+                }
+            }
         }
     }
 
@@ -707,25 +745,42 @@ namespace Salix {
                 return;
             }
 
-            // Find the correct component and update the correct property
-            if (e.element_type_name == "Transform") {
-                Transform* transform = entity_to_update->get_transform();
-                if (transform) {
-                    if (e.property_name == "position") {
-                        transform->set_position(std::get<Vector3>(e.new_value));
-                    } else if (e.property_name == "rotation") {
-                        transform->set_rotation(std::get<Vector3>(e.new_value));
-                    } else if (e.property_name == "scale") {
-                        transform->set_scale(std::get<Vector3>(e.new_value));
-                    }
+             // --- NEW ROBUST LOGIC ---
+
+            // 1. Find the live element instance on the entity by its class name.
+            Element* element_to_update = nullptr;
+            for (auto* element : entity_to_update->get_all_elements()) {
+                // We use the virtual get_class_name() for a reliable string comparison.
+                if (std::string(element->get_class_name()) == e.element_type_name) {
+                    element_to_update = element;
+                    break;
                 }
             }
-            // You can add 'else if' blocks here for other components (e.g., Sprite2D) later
+            if (!element_to_update) return;
+
+            // 2. Get the reflection data for that element.
+            const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
+            if (!type_info) return;
+
+            // 3. Find the specific property that changed.
+            const Property* property_info = nullptr;
+            for (const auto& prop : type_info->properties) {
+                if (prop.name == e.property_name) {
+                    property_info = &prop;
+                    break;
+                }
+            }
+            if (!property_info) return;
+
+            // 4. Use std::visit to call the property's generic setter.
+            std::visit([&](auto&& arg) {
+                property_info->set_data(element_to_update, &arg);
+            }, e.new_value);
+
+            
         }
-    } 
         
-        
-        
+    }
 
 
     void RealmDesignerPanel::set_visibility(bool visibility) {
