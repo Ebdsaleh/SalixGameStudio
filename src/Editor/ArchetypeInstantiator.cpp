@@ -8,6 +8,7 @@
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/BoxCollider.h>
 #include <Salix/reflection/ByteMirror.h>
+#include <Salix/reflection/EnumRegistry.h>
 #include <Salix/core/InitContext.h>
 
 namespace Salix {
@@ -73,6 +74,43 @@ namespace Salix {
                         prop.set_data(live_element, &value);
                         break;
                     }
+                    case Salix::PropertyType::Enum: {
+                        auto value = property_node.as<int>();
+                        prop.set_data(live_element, &value);
+                        break;
+                    }
+                    case Salix::PropertyType::EnumClass: {
+                        // THIS IS THE FIX: Use the EnumRegistry to convert the string to an int.
+                        if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
+                            const EnumRegistry::EnumData* enum_data = EnumRegistry::get_enum_data_as_ptr(*prop.contained_type_info->type_index);
+                            if (enum_data) {
+                                // 1. Read the value from YAML as a string.
+                                std::string string_value = property_node.as<std::string>();
+                                // 2. Use the registry to find the corresponding integer value.
+                                int int_value = enum_data->get_value(string_value);
+                                // 3. Set the integer value on the live component.
+                                prop.set_data(live_element, &int_value);
+                            }
+                        }
+                        break;
+                    }
+                    case Salix::PropertyType::UInt64: {
+                        auto value = property_node.as<uint64_t>();
+                        prop.set_data(live_element, &value);
+                        break;
+                    }
+                    case Salix::PropertyType::Point: {
+                        auto value = property_node.as<Salix::Point>();
+                        prop.set_data(live_element, &value);
+                        break;
+                    }
+                    case Salix::PropertyType::Rect: {
+                        auto value = property_node.as<Salix::Rect>();
+                        prop.set_data(live_element, &value);
+                        break;
+                    }
+                    
+
                     // Add cases for all other reflected property types...
                 }
             }
