@@ -9,14 +9,14 @@
 namespace Salix {
 
     // Concrete implementation of PropertyHandle for YAML data nodes.
-    // This class wraps a pointer to a YAML::Node that represents a component
+    // This class wraps a pointer to a YAML::Node that represents a element
     // (e.g., the 'Transform' node) and reads/writes property values
     // directly to and from that node.
     class SALIX_API PropertyHandleYaml : public PropertyHandle {
         public:
 
         // Constructor: Takes the reflection info and a pointer to the YAML node.
-        PropertyHandleYaml(const Property* property_info, YAML::Node* component_node);
+        PropertyHandleYaml(const Property* property_info, YAML::Node* element_node);
 
         // Default the virtual destructor.
         ~PropertyHandleYaml() override = default;
@@ -27,7 +27,7 @@ namespace Salix {
 
     private:
         // A pointer to the YAML node that this handle operates on.
-        YAML::Node* component_node;
+        YAML::Node* element_node;
 
     };
-}
+} // namespace Salix
