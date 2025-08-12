@@ -3,6 +3,7 @@
 #include <Editor/panels/ScryingMirrorPanel.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>
+#include <Editor/events/PropertyValueChangedEvent.h>
 #include <Editor/Archetypes.h>
 #include <Editor/reflection/PropertyHandleFactory.h>
 #include <Salix/events/EventManager.h>
@@ -133,7 +134,7 @@ namespace Salix {
                             ImGui::Text("%s", display_name.c_str());
                             ImGui::TableSetColumnIndex(1); ImGui::PushItemWidth(-FLT_MIN);
                             std::string widget_id = "##" + handle->get_name();
-                            TypeDrawer::draw_property(widget_id.c_str(), *handle);
+                            TypeDrawerLive::draw_property(widget_id.c_str(), *handle);
                             ImGui::PopItemWidth();
                         }
                         ImGui::EndTable();
@@ -175,7 +176,16 @@ namespace Salix {
                             ImGui::Text("%s", display_name.c_str());
                             ImGui::TableSetColumnIndex(1); ImGui::PushItemWidth(-FLT_MIN);
                             std::string widget_id = "##" + handle->get_name();
-                            TypeDrawer::draw_property(widget_id.c_str(), *handle);
+                            if(TypeDrawer::draw_property(widget_id.c_str(), *handle)) {
+                                // If it returns true, a value was changed. FIRE THE EVENT!
+                                PropertyValueChangedEvent event(
+                                    pimpl->selected_entity_id,      // The ID of the entity archetype
+                                    type_info->name,                // The name of the element ("Camera")
+                                    handle->get_name(),             // The name of the property ("projection_mode")
+                                    handle->get_value()             // The new value
+                                );
+                                pimpl->context->event_manager->dispatch(event);
+                            }
                             ImGui::PopItemWidth();
                         }
                         ImGui::EndTable();
@@ -233,6 +243,8 @@ namespace Salix {
             // Store the live pointer for Live Mode
             pimpl->selected_element = e.element;
         }
+
+        
     }
 
 }  // namespace Salix
