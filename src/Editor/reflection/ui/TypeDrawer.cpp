@@ -163,15 +163,16 @@ namespace Salix {
 
 
 
-    void Salix::TypeDrawer::draw_property(const char* label, PropertyHandle& handle) {
+    bool Salix::TypeDrawer::draw_property(const char* label, PropertyHandle& handle) {
         // Use the property's name as the label for the ImGui widget
-
+        bool value_changed = false;
         switch (handle.get_type())
         {
             case PropertyType::Int: {
                 int value = std::get<int>(handle.get_value());
                 if (ImGui::DragInt(label, &value)) {
                     handle.set_value(value);
+                    value_changed = true;
                 }
                 break;
             }
@@ -180,6 +181,7 @@ namespace Salix {
                 float value = std::get<float>(handle.get_value());
                 if (ImGui::DragFloat(label, &value, 0.1f)) {
                     handle.set_value(value);
+                    value_changed = true;
                 }
                 break;
             }
@@ -188,6 +190,7 @@ namespace Salix {
                 bool value = std::get<bool>(handle.get_value());
                 if (ImGui::Checkbox(label, &value)) {
                     handle.set_value(value);
+                    value_changed = true;
                 }
                 break;
             }
@@ -199,6 +202,7 @@ namespace Salix {
                 strncpy_s(buffer, sizeof(buffer), value.c_str(), sizeof(buffer) - 1);
                 if (ImGui::InputText(label, buffer, sizeof(buffer))) {
                     handle.set_value(std::string(buffer));
+                    value_changed = true;
                 }
                 break;
             }
@@ -207,6 +211,7 @@ namespace Salix {
                 Vector2 value = std::get<Vector2>(handle.get_value());
                 if (ImGui::DragFloat2(label, &value.x, 0.1f)) {
                     handle.set_value(value);
+                    value_changed = true;
                 }
                 break;
             }
@@ -215,21 +220,27 @@ namespace Salix {
                 Vector3 value = std::get<Vector3>(handle.get_value());
                 if (ImGui::DragFloat3(label, &value.x, 0.1f)) {
                     handle.set_value(value);
+                    value_changed = true;
                 }
                 break;
             }
 
             case PropertyType::Color: {
-                Color value = std::get<Color>(handle.get_value());
-                // Convert 8-bit color to float array for ImGui
-                float color_floats[] = { value.r / 255.0f, value.g / 255.0f, value.b / 255.0f, value.a / 255.0f };
-                if (ImGui::ColorEdit4(label, color_floats)) {
-                    // If changed, convert back to 8-bit and set the value
-                    value.r = static_cast<uint8_t>(color_floats[0] * 255.0f);
-                    value.g = static_cast<uint8_t>(color_floats[1] * 255.0f);
-                    value.b = static_cast<uint8_t>(color_floats[2] * 255.0f);
-                    value.a = static_cast<uint8_t>(color_floats[3] * 255.0f);
-                    handle.set_value(value);
+                // 1. Get the current color value from the handle.
+                Color current_color = std::get<Color>(handle.get_value());
+
+                // 2. Use your helper function to convert it to an ImVec4 for ImGui.
+                ImVec4 im_color = current_color.to_imvec4();
+
+                // 3. Pass a pointer to the ImVec4's data to the color editor.
+                if (ImGui::ColorEdit4(label, &im_color.x)) {
+                    
+                    // 4. If the user changed the color, create a new Salix::Color from the result.
+                    Color new_color(im_color.x, im_color.y, im_color.z, im_color.w);
+                    
+                    // 5. Set the new value.
+                    handle.set_value(new_color);
+                    value_changed = true;
                 }
                 break;
             }
@@ -246,6 +257,7 @@ namespace Salix {
                             bool is_selected = (current_item_name == name);
                             if (ImGui::Selectable(name.c_str(), is_selected)) {
                                 handle.set_value(enum_data->get_value(name));
+                                value_changed = true;
                             }
                             if (is_selected) {
                                 ImGui::SetItemDefaultFocus();
@@ -270,6 +282,7 @@ namespace Salix {
                 ImGui::Text("%s: (UI not implemented for this type)", label);
                 break;
         }
+        return value_changed; // Return the flag
     }
 
     void TypeDrawer::draw_yaml_property(const Property& prop, YAML::Node& data_node) {
