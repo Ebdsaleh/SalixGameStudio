@@ -22,11 +22,11 @@ namespace Salix {
             YAML::Node* properties_node = &element_archetype.data;
 
             // For every property this element type has...
-            for (const auto& prop : type_info->properties) {
+            for (const auto& prop : Salix::ByteMirror::get_all_properties_for_type(type_info)) {
                 // ...if the property exists in the YAML data...
                 if ((*properties_node)[prop.name]) {
                     // ...create a PropertyHandleYaml for it.
-                    handles.push_back(std::make_unique<Salix::PropertyHandleYaml>(&prop, properties_node));
+                    handles.push_back(std::make_unique<Salix::PropertyHandleYaml>(prop, properties_node));
                 }
             }
         }
@@ -46,9 +46,9 @@ namespace Salix {
 
         YAML::Node* properties_node = &element_archetype->data;
 
-        for (const auto& prop : type_info->properties) {
+        for (const auto& prop : Salix::ByteMirror::get_all_properties_for_type(type_info)) {
             if ((*properties_node)[prop.name]) {
-                handles.push_back(std::make_unique<Salix::PropertyHandleYaml>(&prop, properties_node));
+                handles.push_back(std::make_unique<Salix::PropertyHandleYaml>(prop, properties_node));
             }
         }
         return handles;
