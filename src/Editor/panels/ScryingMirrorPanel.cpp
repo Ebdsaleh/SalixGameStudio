@@ -146,11 +146,14 @@ namespace Salix {
             // --- YAML MODE DRAWING ---
             std::vector<ElementArchetype*> elements_to_display;
 
+            std::string header_name = "Entity: " + selected_archetype->name;
             // NEW LOGIC: Check if a specific element archetype is selected.
             if (pimpl->selected_element_id.is_valid()) {
                 for (auto& element_archetype : selected_archetype->elements) {
                     if (element_archetype.id == pimpl->selected_element_id) {
                         elements_to_display.push_back(&element_archetype);
+                        // If a specific element is selected, update the header.
+                        header_name = "Element: " + element_archetype.name;
                         break;
                     }
                 }
@@ -159,9 +162,11 @@ namespace Salix {
                 for (auto& element_archetype : selected_archetype->elements) {
                     elements_to_display.push_back(&element_archetype);
                 }
-                ImGui::Text("Entity: %s", selected_archetype->name.c_str());
-                ImGui::Separator();
+                
             }
+            // --- NEW: Draw the header outside the loop ---
+            ImGui::Text("%s", header_name.c_str());
+            ImGui::Separator();
 
             for (auto* element_archetype : elements_to_display) {
                 const TypeInfo* type_info = ByteMirror::get_type_info_by_name(element_archetype->type_name);
@@ -184,6 +189,7 @@ namespace Salix {
                                     handle->get_name(),             // The name of the property ("projection_mode")
                                     handle->get_value()             // The new value
                                 );
+                                
                                 pimpl->context->event_manager->dispatch(event);
                             }
                             ImGui::PopItemWidth();
