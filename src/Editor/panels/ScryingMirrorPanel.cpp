@@ -189,8 +189,11 @@ namespace Salix {
                                     handle->get_name(),             // The name of the property ("projection_mode")
                                     handle->get_value()             // The new value
                                 );
-                                
+                                if (ImGui::IsItemActive()) {
+                                    pimpl->context->is_editing_property = true;
+                                }
                                 pimpl->context->event_manager->dispatch(event);
+                                                                
                             }
                             ImGui::PopItemWidth();
                         }
