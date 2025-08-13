@@ -19,6 +19,8 @@ namespace Salix {
             // Every concrete element (Transform, Camera, etc.) MUST implement this.
             virtual const char* get_class_name() const = 0;
 
+            const std::string& get_name() const { return name; }
+            void set_name(const std::string& new_name) { name = new_name; }
             // These are the lifecycle methods that the Entity will call.
             // They are virtual so that concrete elements can override them.
             virtual void on_load(const InitContext& context) {(void) context.asset_manager;}  // Useful for RenderableElement - types.
@@ -50,5 +52,6 @@ namespace Salix {
         private:
             // The Entity class that will need to be able to set the owner.
             friend class Entity;
+            std::string name;
     };
 } // namespace Salix 
