@@ -28,8 +28,12 @@ namespace Salix {
         archetype.type_name = type_name;
         archetype.id = SimpleGuid::generate();
 
+        archetype.name = type_name;                 // Set the struct member for the UI
+        archetype.data["name"] = type_name;         // Set the data node for the reflection system
+
+
         // 3. Iterate through all reflected properties to get their default values.
-        for (const auto& prop : type_info->properties) {
+        for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
             void* data_ptr = prop.get_data(temp_element);
             
             // 4. Read the default value from the temporary object and write it to the archetype's data.
