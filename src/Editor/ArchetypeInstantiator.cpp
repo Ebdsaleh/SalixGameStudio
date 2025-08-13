@@ -30,7 +30,7 @@ namespace Salix {
             const Salix::TypeInfo* type_info = Salix::ByteMirror::get_type_info_by_name(element_archetype.type_name);
             if (!type_info) continue;
 
-            for (const auto& prop : type_info->properties) {
+            for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
                 const YAML::Node& property_node = element_archetype.data[prop.name];
                 if (!property_node) continue; // Skip properties not in the YAML file
 
