@@ -16,7 +16,7 @@ namespace Salix {
         public:
 
         // Constructor: Takes the reflection info and a pointer to the YAML node.
-        PropertyHandleYaml(const Property* property_info, YAML::Node* element_node);
+        PropertyHandleYaml(const Property& property_info, YAML::Node* element_node);
 
         // Default the virtual destructor.
         ~PropertyHandleYaml() override = default;
