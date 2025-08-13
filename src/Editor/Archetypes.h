@@ -15,6 +15,7 @@ namespace Salix {
     struct EDITOR_API ElementArchetype {
         // The type of the element, e.g., "Transform", "Sprite2D".
         std::string type_name;
+        std::string name;
         SimpleGuid id = SimpleGuid::invalid();
         // The raw YAML data for this element's properties.
         YAML::Node data;
