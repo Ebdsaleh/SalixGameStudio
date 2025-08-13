@@ -281,8 +281,13 @@ namespace Salix {
 
 
     void EditorState::update(float delta_time ) {
+        
+        // Reset the input lock at the start of every frame.
+        pimpl->editor_context->is_editing_property = false;
+
         // Update animation timer
         pimpl->total_time += delta_time;
+
         pimpl->handle_first_frame_setup();
         pimpl->process_input();
 
