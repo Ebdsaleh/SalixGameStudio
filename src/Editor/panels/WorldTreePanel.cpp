@@ -6,6 +6,7 @@
 
 #include <Salix/serialization/YamlConverters.h>
 #include <Editor/panels/WorldTreePanel.h>
+#include <Editor/ArchetypeFactory.h>
 #include <imgui/imgui.h>
 #include <Salix/math/Color.h>
 #include <Editor/events/EntitySelectedEvent.h>
@@ -18,6 +19,8 @@
 #include <Salix/ecs/RenderableElement.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/ScriptElement.h>
+#include <Salix/ecs/CppScript.h>
+#include <Salix/ecs/BoxCollider.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/math/Vector2.h>
@@ -347,6 +350,7 @@ namespace Salix {
                 
                 EntitySelectedEvent event(context->selected_entity_id, nullptr);
                 context->event_manager->dispatch(event);
+                context->realm_is_dirty = true;
             }
 
             ImGui::Separator();
@@ -370,38 +374,73 @@ namespace Salix {
 
             // Element Creation Submenu
             if (ImGui::BeginMenu("Add Element##AddElementMenu")) {
-                if (ImGui::MenuItem("Sprite2D##AddSprite2D")) {
+                if (ImGui::MenuItem("Transform##AddTransform")) {
+                    ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Transform");
+                    if (new_element.id.is_valid()) {
+                        archetype.elements.push_back(new_element);
+                        context->realm_is_dirty = true;
+                        context->selected_entity_id = archetype.id;
+                        EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                        context->event_manager->dispatch(event);
+                    }
+                }
+                if (ImGui::BeginMenu("Collider##AddColliderMenu")) {
                     ElementArchetype new_element;
-                    new_element.type_name = "Sprite2D";
-                    new_element.id = SimpleGuid::generate();
-                    archetype.elements.push_back(new_element);
-                    
-                    // Mirror Live mode selection
-                    context->selected_entity_id = archetype.id;
-                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                    context->event_manager->dispatch(event);
+                    if(ImGui::MenuItem("Box Collider##AddBoxCollider")) {
+                        new_element = ArchetypeFactory::create_element_archetype("BoxCollider");
+                    }
+                    if (new_element.id.is_valid()) {
+                        archetype.elements.push_back(new_element);
+                        context->realm_is_dirty = true;
+                        // Mirror Live mode selection
+                        context->selected_entity_id = archetype.id;
+                        EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                        context->event_manager->dispatch(event);
+                    }
+                    ImGui::EndMenu();
+                }
+                if (ImGui::MenuItem("Sprite2D##AddSprite2D")) {
+                    ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Sprite2D");
+                    if (new_element.id.is_valid()) { // Check if the factory was successful
+                        archetype.elements.push_back(new_element);
+                        context->realm_is_dirty = true;
+                        // Mirror Live mode selection
+                        context->selected_entity_id = archetype.id;
+                        EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                        context->event_manager->dispatch(event);
+                    }
                 }
                 
-                if (ImGui::MenuItem("Script##AddScript")) {
+                if (ImGui::BeginMenu("Script##AddScriptMenu")) {
                     ElementArchetype new_element;
-                    new_element.type_name = "ScriptElement";
-                    new_element.id = SimpleGuid::generate();
-                    archetype.elements.push_back(new_element);
-                    
-                    context->selected_entity_id = archetype.id;
-                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                    context->event_manager->dispatch(event);
+                    if (ImGui::MenuItem("C++ Script##AddCPPScript")) {
+                        new_element = ArchetypeFactory::create_element_archetype("CppScript");
+                    }
+                    if (ImGui::MenuItem("Python Script##AddPythonScript")) {
+                        new_element = ArchetypeFactory::create_element_archetype("PythonScript");
+                    }
+                    if (new_element.id.is_valid()) { // Check if the factory was successful
+                        archetype.elements.push_back(new_element);
+                        context->realm_is_dirty = true;
+                        // Mirror Live mode selection
+                        context->selected_entity_id = archetype.id;
+                        EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                        context->event_manager->dispatch(event);
+                    }
+                   ImGui::EndMenu(); 
                 }
+                
                 
                 if (ImGui::MenuItem("Camera##AddCamera")) {
-                    ElementArchetype new_element;
-                    new_element.type_name = "Camera";
-                    new_element.id = SimpleGuid::generate();
-                    archetype.elements.push_back(new_element);
-                    
-                    context->selected_entity_id = archetype.id;
-                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                    context->event_manager->dispatch(event);
+                    ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Camera");
+                    if (new_element.id.is_valid()) { // Check if the factory was successful
+                        archetype.elements.push_back(new_element);
+                        context->realm_is_dirty = true;
+                        // Mirror Live mode selection
+                        context->selected_entity_id = archetype.id;
+                        EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                        context->event_manager->dispatch(event);
+                    }
                 }
                 ImGui::EndMenu();
             }
