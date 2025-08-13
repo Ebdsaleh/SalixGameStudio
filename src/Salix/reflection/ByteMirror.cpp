@@ -67,6 +67,21 @@ namespace Salix {
 
                 // Setter: This lambda is empty, making the ID read-only in the editor.
                 [](void* instance, void* data) {(void) data; (void) instance;}
+            },
+            {
+                "name",
+                PropertyType::String,
+                nullptr,
+                // Getter
+                [](void* instance) {
+                    return static_cast<void*>(const_cast<std::string*>(
+                        &static_cast<Element*>(instance)->get_name()));
+                },
+
+                // Setter
+                [](void* instance, void* data) {
+                    static_cast<Element*>(instance)->set_name(*static_cast<std::string*>(data));
+                }
             }
         };
         
