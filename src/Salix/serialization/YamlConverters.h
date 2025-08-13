@@ -7,6 +7,8 @@
 #include <Salix/math/Color.h>
 #include <Salix/math/Point.h>
 #include <Salix/math/Rect.h>
+#include <Salix/rendering/ICamera.h>
+#include <Salix/reflection/EnumRegistry.h>
 #include <glm/glm.hpp>
 #include <yaml-cpp/yaml.h>
 
@@ -149,5 +151,7 @@ namespace YAML {
             return true;
         }
     };
+
+    
 
 } // namespace YAML
