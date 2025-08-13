@@ -11,6 +11,7 @@ namespace Salix {
         Perspective,
         Orthographic
     };  
+    
 
     // An abstract interface that defines what the renderer needs from any camera.
     class SALIX_API ICamera {
