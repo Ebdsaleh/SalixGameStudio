@@ -73,6 +73,7 @@ namespace Salix {
         EditorDataMode data_mode = EditorDataMode::Yaml;
         std::vector<EntityArchetype> current_realm;
         bool realm_is_dirty = true; 
+        bool is_editing_property = false;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
     };
     
