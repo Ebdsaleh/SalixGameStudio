@@ -217,7 +217,7 @@ namespace Salix {
         // --- NEW: Handle the 'F' to Focus keyboard shortcut ---
         // We check if the window is focused so this shortcut only applies to this panel.
         if (ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) {
-            if (ImGui::IsKeyPressed(ImGuiKey_F)) {
+            if (!context->is_editing_property && ImGui::IsKeyPressed(ImGuiKey_F)) {
                 // Check if there is a selected entity
                 if (context->selected_entity_id.is_valid()) {
                     Entity* selected_entity = nullptr;
