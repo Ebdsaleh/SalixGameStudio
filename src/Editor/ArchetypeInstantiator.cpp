@@ -3,10 +3,7 @@
 #include <Editor/ArchetypeInstantiator.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Entity.h>
-#include <Salix/ecs/Transform.h>
-#include <Salix/ecs/Sprite2D.h>
-#include <Salix/ecs/Camera.h>
-#include <Salix/ecs/BoxCollider.h>
+#include <Salix/ecs/Element.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <Salix/core/InitContext.h>
@@ -80,7 +77,7 @@ namespace Salix {
                         break;
                     }
                     case Salix::PropertyType::EnumClass: {
-                        // THIS IS THE FIX: Use the EnumRegistry to convert the string to an int.
+                        // Use the EnumRegistry to convert the string to an int.
                         if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
                             const EnumRegistry::EnumData* enum_data = EnumRegistry::get_enum_data_as_ptr(*prop.contained_type_info->type_index);
                             if (enum_data) {
