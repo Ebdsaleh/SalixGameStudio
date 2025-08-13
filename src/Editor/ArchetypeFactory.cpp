@@ -1,4 +1,5 @@
 // Editor/ArchetypeFactory.cpp
+#include <Salix/serialization/YamlConverters.h>
 #include <Editor/ArchetypeFactory.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
@@ -9,7 +10,7 @@
 
 namespace Salix {
 
-    ElementArchetype ArchetypeFactory::CreateElementArchetype(const std::string& type_name) {
+    ElementArchetype ArchetypeFactory::create_element_archetype(const std::string& type_name) {
         // 1. Create a temporary live instance using the ByteMirror component factory.
         Element* temp_element = ByteMirror::create_element_by_name(type_name);
         if (!temp_element) {
@@ -58,14 +59,14 @@ namespace Salix {
         return archetype;
     }
 
-    EntityArchetype ArchetypeFactory::CreateEntityArchetype(const std::string& name) {
+    EntityArchetype ArchetypeFactory::create_entity_archetype(const std::string& name) {
         EntityArchetype archetype;
         archetype.id = SimpleGuid::generate();
         archetype.name = name;
         
         // All new entities should have a Transform component by default.
-        archetype.elements.push_back(CreateElementArchetype("Transform"));
-
+        archetype.elements.push_back(create_element_archetype("Transform"));
+        archetype.elements.push_back(create_element_archetype("BoxCollider"));
         return archetype;
     }
 }

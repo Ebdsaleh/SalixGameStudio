@@ -9,10 +9,10 @@ namespace Salix {
     class EDITOR_API ArchetypeFactory {
     public:
         // Creates an ElementArchetype (e.g., a Transform) with default values.
-        static ElementArchetype CreateElementArchetype(const std::string& type_name);
+        static ElementArchetype create_element_archetype(const std::string& type_name);
 
         // Creates an EntityArchetype with a default name and a Transform component.
-        static EntityArchetype CreateEntityArchetype(const std::string& name = "Entity");
+        static EntityArchetype create_entity_archetype(const std::string& name = "Entity");
     };
 
 } // namespace Salix
