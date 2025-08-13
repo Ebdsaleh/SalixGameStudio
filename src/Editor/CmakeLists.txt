@@ -9,6 +9,7 @@
 add_library(SalixEditor SHARED
     EditorFactory.cpp
     ArchetypeInstantiator.cpp
+    ArchetypeFactory.cpp
     states/EditorState.cpp
     panels/PanelManager.cpp
     panels/LockablePanel.cpp
