@@ -104,6 +104,10 @@ namespace Salix {
             // NEW: Factory functions to create elements from a string name.
             static void register_constructor(const std::string& name, constructor_func func);
             static Element* create_element_by_name(const std::string& name);
+            
+            // Recursively collects all properties from a type and its ancestors.
+            static std::vector<Property> get_all_properties_for_type(const TypeInfo* type_info);
+
         private:
             // The static registry mapping a type_index to its reflection data.
             static std::unordered_map<std::type_index, TypeInfo> type_registry;

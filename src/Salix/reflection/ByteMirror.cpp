@@ -34,6 +34,22 @@ namespace Salix {
         constructor_registry[name] = func;
     }
 
+    std::vector<Property> ByteMirror::get_all_properties_for_type(const TypeInfo* type_info) {
+        std::vector<Property> all_properties;
+        const TypeInfo* current_type = type_info;
+
+        // Keep walking up the ancestor chain until we hit the top (nullptr)
+        while (current_type) {
+            // Add the properties from the current type to our list
+            all_properties.insert(all_properties.end(),
+                                current_type->properties.begin(),
+                                current_type->properties.end());
+            // Move to the parent
+            current_type = current_type->ancestor;
+        }
+        return all_properties;
+    }
+
 
     Element* ByteMirror::create_element_by_name(const std::string& name) {
         if (constructor_registry.count(name)) {
@@ -183,7 +199,16 @@ namespace Salix {
         type_registry[typeid(RenderableElement)] = type_info;
     }
 
-    
+    // RenderableElement2D
+    template<>
+    void ByteMirror::register_type<RenderableElement2D>() {
+        TypeInfo type_info;
+        type_info.name = "RenderableElement2D";
+        // Its ancestor is RenderableElement.
+        type_info.ancestor = get_type_info(typeid(RenderableElement));
+        type_info.type_index = typeid(RenderableElement2D);
+        type_registry[typeid(RenderableElement2D)] = type_info;
+    } 
 
 
     // ScriptElement
@@ -352,14 +377,23 @@ namespace Salix {
             {
                 "projection_mode", PropertyType::EnumClass,
                 ByteMirror::get_type_info(typeid(Salix::ProjectionMode)),
-                [](void* instance) { 
-                    return static_cast<void*>(
-                        const_cast<Salix::ProjectionMode*>(
-                            &static_cast<Camera*>(instance)->get_projection_mode()));
-                    },
-
+                // getter_func
+                [](void* instance) {
+                    // Create a stable memory location to hold our integer.
+                    thread_local static int value;
+                    // Get the enum, cast its value to an int, and store it.
+                    value = static_cast<int>(static_cast<Camera*>(instance)->get_projection_mode());
+                    // Return a stable pointer to our copied integer value.
+                    return &value;
+                },
+                // setter_func
                 [](void* instance, void* data) {
-                    static_cast<Camera*>(instance)->set_projection_mode(*static_cast<Salix::ProjectionMode*>(data));
+                    // 1. Get the integer value from the UI's void pointer.
+                    int value_as_int = *static_cast<int*>(data);
+                    // 2. Safely cast the integer to the proper enum type.
+                    Salix::ProjectionMode mode = static_cast<Salix::ProjectionMode>(value_as_int);
+                    // 3. Call the original, type-safe setter function.
+                    static_cast<Camera*>(instance)->set_projection_mode(mode);
                 }
             },
 
@@ -452,6 +486,7 @@ namespace Salix {
 
         ByteMirror::register_type<Element>();
         ByteMirror::register_type<RenderableElement>();
+        ByteMirror::register_type<RenderableElement2D>();
         ByteMirror::register_type<ScriptElement>();
         ByteMirror::register_type<Transform>();
         ByteMirror::register_type<ProjectionMode>();
@@ -480,10 +515,9 @@ namespace Salix {
         }
 
         // For every property this type has...
-        for (const auto& prop : type_info->properties)
-        {
+        for (const auto& prop : get_all_properties_for_type(type_info)) {
             // ...create a new PropertyHandle_Live, wrap it in a unique_ptr, and add it to our list.
-            handles.push_back(std::make_unique<PropertyHandleLive>(&prop, element));
+            handles.push_back(std::make_unique<PropertyHandleLive>(prop, element));
         }
 
         return handles;
@@ -531,13 +565,13 @@ namespace Salix {
             YAML::Node properties_node = element_node.begin()->second;
 
             // For every property this element type has...
-            for (const auto& prop : type_info->properties)
+            for (const auto& prop : get_all_properties_for_type(type_info))
             {
                 // ...if the property exists in the YAML file...
                 if (properties_node[prop.name])
                 {
                     // ...create a new PropertyHandle_YAML and add it to our list.
-                    handles.push_back(std::make_unique<PropertyHandleYaml>(&prop, &properties_node));
+                    handles.push_back(std::make_unique<PropertyHandleYaml>(prop, &properties_node));
                 }
             }
         }
