@@ -69,6 +69,16 @@ namespace Salix {
                                 element.data = YAML::Clone(element_data);
                                 element.data.remove("id");
 
+                                if (element.data["name"]) {
+                                    // If a 'name' property exists in the YAML, use it.
+                                    element.name = element.data["name"].as<std::string>();
+                                } else {
+                                    // Otherwise (for older files), default the name to the type_name
+                                    // and add it to the data node for future saves.
+                                    element.name = element.type_name;
+                                    element.data["name"] = element.type_name;
+                                }
+
                                 entity.elements.push_back(element);
                             } catch (const YAML::Exception& e) {
                                 std::cerr << "    [Element] Error parsing element '" << type_name 
