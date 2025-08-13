@@ -19,7 +19,7 @@ namespace Salix {
     class SALIX_API PropertyHandleLive : public PropertyHandle {
         public:
             // Constructor: Takes the reflection info for the property and a pointer to the live object instance.
-            PropertyHandleLive(const Property* property_info, Element* instance);
+            PropertyHandleLive(const Property& property_info, Element* instance);
 
             // Explicitly default the virtual destructor. Good practice.
             ~PropertyHandleLive() override = default;
