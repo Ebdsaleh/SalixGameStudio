@@ -4,6 +4,7 @@
 #include <Salix/core/InitContext.h>
 #include <Salix/core/SimpleGuid.h>
 #include <cereal/cereal.hpp>
+#include <iostream>
 
 namespace Salix {
     // Forward declares Entity to avoid circular dependencies
@@ -18,9 +19,14 @@ namespace Salix {
             // NEW: Add a pure virtual function to get the element's type name.
             // Every concrete element (Transform, Camera, etc.) MUST implement this.
             virtual const char* get_class_name() const = 0;
+            std::string name = "Element";
 
-            const std::string& get_name() const { return name; }
-            void set_name(const std::string& new_name) { name = new_name; }
+            virtual const std::string& get_name() const { return name; }
+            virtual void set_name(const std::string& new_name) { 
+                std::cout << "Renaming: " << get_class_name() <<  " from '" << name << "' to '" << new_name <<"'" << std::endl;
+                name = new_name;
+                std::cout << "name is now: '" << name << "'." << std::endl;
+            }
             // These are the lifecycle methods that the Entity will call.
             // They are virtual so that concrete elements can override them.
             virtual void on_load(const InitContext& context) {(void) context.asset_manager;}  // Useful for RenderableElement - types.
@@ -52,6 +58,6 @@ namespace Salix {
         private:
             // The Entity class that will need to be able to set the owner.
             friend class Entity;
-            std::string name;
+            
     };
 } // namespace Salix 

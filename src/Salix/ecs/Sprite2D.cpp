@@ -36,6 +36,7 @@ namespace Salix {
         pivot = { 0.5f, 0.5f };
         texture_path = "";
         color = White;
+        set_name(get_class_name());
     }
         
 

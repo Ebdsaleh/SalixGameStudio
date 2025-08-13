@@ -4,6 +4,7 @@
 #include <Salix/ecs/Transform.h>
 #include <glm/gtc/matrix_transform.hpp>
 #include <memory>
+#include <cassert>
 
 namespace Salix {
 
@@ -35,7 +36,10 @@ namespace Salix {
 
 
      
-    Camera::Camera() : pimpl(std::make_unique<Pimpl>()) {}
+    Camera::Camera() : pimpl(std::make_unique<Pimpl>()) { 
+        set_name(get_class_name()); 
+        
+    }
     
     Camera::~Camera() = default;
 
@@ -57,7 +61,9 @@ namespace Salix {
         pimpl->projection_dirty = true;
     }
 
+
     const ProjectionMode& Camera::get_projection_mode() const {
+        std::cout << "[Camera::Getter] READING value: " << static_cast<int>(pimpl->projection_mode) << std::endl;
         return pimpl->projection_mode;
     }
 

@@ -8,6 +8,7 @@
 
 namespace Salix {
 
+    CppScript::CppScript() {set_name(get_name()); }
     const std::string& CppScript::get_script_name() const {
         return script_name;
     }

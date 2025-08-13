@@ -12,7 +12,9 @@ namespace Salix {
         const char* class_name = "BoxCollider";
     };
 
-    BoxCollider::BoxCollider() :pimpl(std::make_unique<Pimpl>()) {}
+    BoxCollider::BoxCollider() :pimpl(std::make_unique<Pimpl>()) {
+        set_name(get_class_name());
+    }
     BoxCollider::~BoxCollider() = default;
 
     void BoxCollider::initialize() {}

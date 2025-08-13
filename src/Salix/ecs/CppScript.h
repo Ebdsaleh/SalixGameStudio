@@ -10,6 +10,7 @@
 namespace Salix {
     class SALIX_API CppScript : public ScriptElement {
     public:
+        CppScript();
         // We need a virtual destructor for polymorphic types
         virtual ~CppScript() = default;
         const char* get_class_name() const override { return "CppScript"; }
