@@ -66,7 +66,7 @@ namespace Salix {
                 },
 
                 // Setter: This lambda is empty, making the ID read-only in the editor.
-                [](void* instance, void* data) {}
+                [](void* instance, void* data) {(void) data; (void) instance;}
             }
         };
         
@@ -443,12 +443,14 @@ namespace Salix {
         ByteMirror::register_type<Camera>();
         ByteMirror::register_type<Sprite2D>();
         ByteMirror::register_type<BoxCollider>();
+        ByteMirror::register_type<CppScript>();
 
         // REGISTER CONSTRUCTORS
         ByteMirror::register_constructor("Transform",   []() -> Element* { return new Transform(); });
         ByteMirror::register_constructor("Sprite2D",    []() -> Element* { return new Sprite2D(); });
         ByteMirror::register_constructor("Camera",      []() -> Element* { return new Camera(); });
         ByteMirror::register_constructor("BoxCollider", []() -> Element* { return new BoxCollider(); });
+        ByteMirror::register_constructor("CppScript",   []() -> Element* { return new CppScript();});
     } 
 
     std::vector<std::unique_ptr<PropertyHandle>> ByteMirror::create_handles_for(Element* element) {
