@@ -23,9 +23,7 @@ namespace Salix {
 
             virtual const std::string& get_name() const { return name; }
             virtual void set_name(const std::string& new_name) { 
-                std::cout << "Renaming: " << get_class_name() <<  " from '" << name << "' to '" << new_name <<"'" << std::endl;
                 name = new_name;
-                std::cout << "name is now: '" << name << "'." << std::endl;
             }
             // These are the lifecycle methods that the Entity will call.
             // They are virtual so that concrete elements can override them.
