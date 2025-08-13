@@ -5,6 +5,7 @@
 #include <cereal/access.hpp>
 #include <glad/glad.h>
 #include <imgui/imgui.h>
+#include <ostream>
 #include <yaml-cpp/yaml.h> 
 
 namespace Salix {
@@ -56,6 +57,11 @@ namespace Salix {
         friend class cereal::access;
     };
 
+    // --- OSTREASM HELPER FUNCTION ---
+    inline std::ostream& operator<<(std::ostream& os, const Color& c) {
+        os << "{ r: " << c.r << ", g: " << c.g << ", b: " << c.b << ", a: " << c.a << " }";
+        return os;
+    }
     // Predefined colors
     inline constexpr Color White   = Color(1.0f, 1.0f, 1.0f);
     inline constexpr Color Black   = Color(0.0f, 0.0f, 0.0f);

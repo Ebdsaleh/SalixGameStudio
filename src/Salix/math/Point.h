@@ -2,6 +2,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <cereal/cereal.hpp>
+#include <ostream>
 
 namespace Salix {
 
@@ -19,5 +20,9 @@ namespace Salix {
         }
         
     };
-   
+
+    inline std::ostream& operator<<(std::ostream& os, const Point& p) {
+        os << "{ x: " << p.x << ", y: " << p.y << " }";
+        return os; 
+    }
 } // namespace Salix

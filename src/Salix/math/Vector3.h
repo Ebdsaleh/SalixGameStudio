@@ -1,13 +1,26 @@
 // Salix/math/Vector3
 #pragma once
-
+#define GLM_ENABLE_EXPERIMENTAL
 #include <Salix/core/Core.h>
 #include <cmath>  // For the sqrtf function.
 #include <cereal/cereal.hpp>
 #include <vector>
+#include <ostream>
 #include <glm/glm.hpp>
+#include <glm/gtx/string_cast.hpp>
 #include <yaml-cpp/yaml.h> 
 
+// to update glm
+
+
+// You may need to wrap this in your Salix namespace depending on your structure,
+// but putting it in the glm namespace is a common practice.
+namespace glm {
+    inline std::ostream& operator<<(std::ostream& os, const mat4& m) {
+        os << glm::to_string(m);
+        return os;
+    }
+}
 namespace Salix {
 
     struct SALIX_API Vector3 {
@@ -102,7 +115,11 @@ namespace Salix {
         }
     };
 
-   
+    // This teaches std::ostream (like std::cout) how to handle a Vector3
+    inline std::ostream& operator<<(std::ostream& os, const Vector3& v) {
+        os << "{ x: " << v.x << ", y: " << v.y << ", z: " << v.z << " }";
+        return os;
+    }
     
     // Operator overloads
     // Adding Vector3's.

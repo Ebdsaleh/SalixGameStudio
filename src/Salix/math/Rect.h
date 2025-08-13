@@ -2,6 +2,7 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <cereal/cereal.hpp>
+#include <ostream>
 #include <type_traits> // ✨ Required for std::is_arithmetic and std::enable_if
 
 namespace Salix {
@@ -49,6 +50,13 @@ namespace Salix {
         }
     };
 
+    // --- OSTREAM TEMPLATED HELPER FUNCTION ---
+    // This teaches std::ostream how to handle any kind of Rect_<T>
+    template<typename T>
+    inline std::ostream& operator<<(std::ostream& os, const Rect_<T>& r) {
+        os << "{ x: " << r.x << ", y: " << r.y << ", w: " << r.w << ", h: " << r.h << " }";
+        return os;
+    }
     // --- Aliases ---
     using Rect  = Rect_<int>;
     using RectI = Rect_<int>;

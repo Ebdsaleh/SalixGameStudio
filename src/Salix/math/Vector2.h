@@ -4,6 +4,7 @@
 #include <cmath>  // For sqrtf function.
 #include <cereal/cereal.hpp>
 #include <imgui/imgui.h>
+#include <ostream>
 #include <yaml-cpp/yaml.h> 
 
 namespace Salix {
@@ -73,6 +74,11 @@ namespace Salix {
 
     };
 
+    // This teaches std::ostream (like std::cout) how to handle a Vector2
+    inline std::ostream& operator<<(std::ostream& os, const Vector2& v) {
+        os << "{ x: " << v.x << ", y: " << v.y << " }";
+        return os;
+    }
     SALIX_API YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Vector2& v);
     
     SALIX_API void operator>>(const YAML::Node& node, Salix::Vector2& v);
