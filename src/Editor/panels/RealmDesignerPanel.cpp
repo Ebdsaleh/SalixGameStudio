@@ -24,8 +24,8 @@
 #include <Salix/math/Color.h>
 #include <Salix/math/Vector2.h>
 #include <Salix/math/Vector3.h>
-#include <imgui.h>
-#include <ImGuizmo.h>
+#include <imgui/imgui.h>
+#include <ImGuizmo/ImGuizmo.h>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
@@ -39,6 +39,7 @@
 #include <Editor/events/PropertyValueChangedEvent.h>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <thread>
 #include <cassert>
 #include <SDL.h>
@@ -730,56 +731,58 @@ namespace Salix {
         }
     }
 
-    void RealmDesignerPanel::on_event(IEvent& event) { 
-        if (event.get_event_type() == EventType::EditorPropertyValueChanged) {
-            // We only care about this event if we are in YAML mode and have a preview scene
-            if (pimpl->context->data_mode != EditorDataMode::Yaml || !pimpl->preview_scene) {
-                return;
-            }
-
-            PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
-
-            // Find the live entity in our preview scene that corresponds to the changed archetype
-            Entity* entity_to_update = pimpl->preview_scene->get_entity_by_id(e.entity_id);
-            if (!entity_to_update) {
-                return;
-            }
-
-             // --- NEW ROBUST LOGIC ---
-
-            // 1. Find the live element instance on the entity by its class name.
-            Element* element_to_update = nullptr;
-            for (auto* element : entity_to_update->get_all_elements()) {
-                // We use the virtual get_class_name() for a reliable string comparison.
-                if (std::string(element->get_class_name()) == e.element_type_name) {
-                    element_to_update = element;
-                    break;
-                }
-            }
-            if (!element_to_update) return;
-
-            // 2. Get the reflection data for that element.
-            const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
-            if (!type_info) return;
-
-            // 3. Find the specific property that changed.
-            const Property* property_info = nullptr;
-            for (const auto& prop : type_info->properties) {
-                if (prop.name == e.property_name) {
-                    property_info = &prop;
-                    break;
-                }
-            }
-            if (!property_info) return;
-
-            // 4. Use std::visit to call the property's generic setter.
-            std::visit([&](auto&& arg) {
-                property_info->set_data(element_to_update, &arg);
-            }, e.new_value);
-
-            
+    void RealmDesignerPanel::on_event(IEvent& event) {
+        if (event.get_event_type() != EventType::EditorPropertyValueChanged) {
+            return;
         }
+        if (pimpl->context->data_mode != EditorDataMode::Yaml || !pimpl->preview_scene) {
+            return;
+        }
+
+        PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
         
+        // --- NEW DEBUG LOGGING ---
+        std::cout << "[RealmDesignerPanel::RECEIVED_EVENT] Property: '" << e.property_name
+                  << "', New Value: ";
+        std::visit([](const auto& val) { std::cout << val; }, e.new_value);
+        std::cout << std::endl;
+        // --- END DEBUG LOGGING ---
+
+        Entity* entity_to_update = pimpl->preview_scene->get_entity_by_id(e.entity_id);
+        if (!entity_to_update) {
+            return;
+        }
+
+        Element* element_to_update = nullptr;
+        for (auto* element : entity_to_update->get_all_elements()) {
+            if (std::string(element->get_class_name()) == e.element_type_name) {
+                element_to_update = element;
+                break;
+            }
+        }
+        if (!element_to_update) return;
+
+        const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
+        if (!type_info) return;
+
+        // 1. Find the correct property and store a SAFE COPY of it.
+        std::optional<Property> found_property;
+        for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
+            if (prop.name == e.property_name) {
+                found_property = prop; // Make a copy
+                break;
+            }
+        }
+
+        // 2. Check if we successfully found and copied the property.
+        if (!found_property.has_value()) {
+            return;
+        }
+
+        // 3. Use the safe copy to update the live element.
+        std::visit([&](auto&& arg) {
+            found_property->set_data(element_to_update, &arg);
+        }, e.new_value);
     }
 
 
