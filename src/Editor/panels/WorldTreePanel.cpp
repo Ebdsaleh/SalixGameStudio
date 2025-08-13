@@ -11,6 +11,7 @@
 #include <Salix/math/Color.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>
+#include <Editor/events/PropertyValueChangedEvent.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/core/SimpleGuid.h>
 #include <Salix/ecs/Entity.h>
@@ -52,13 +53,15 @@ namespace Salix {
         EditorContext* context = nullptr;
         Entity* entity_to_rename = nullptr;
         SimpleGuid entity_to_rename_id = SimpleGuid::invalid();
-        char rename_buffer[256]; // <-- Add a buffer for the text field
+        SimpleGuid element_to_rename_id = SimpleGuid::invalid();
+        char rename_buffer[256];
         float child_indent = 22.0f;
         // --- YAML PATHWAY HELPERS ---
         // Using Archetypes
         void render_entity_tree_ARCHETYPE(EntityArchetype& archetype);
         void show_empty_space_context_menu_ARCHETYPE();
         void show_entity_context_menu_ARCHETYPE(EntityArchetype& archetype);
+        void show_element_context_menu_ARCHETYPE(EntityArchetype& parent_archetype, ElementArchetype& element_archtype);
         void setup_entity_drag_source_ARCHETYPE(EntityArchetype& archetype);
         void process_entity_drop_ARCHETYPE(SimpleGuid dragged_id, SimpleGuid target_id);
         void handle_entity_drop_target_ARCHETYPE(EntityArchetype& archetype);
@@ -160,24 +163,50 @@ namespace Salix {
 
             if (node_open) {
                 for (auto& element : archetype.elements) {
-                    ImGuiTreeNodeFlags element_flags = ImGuiTreeNodeFlags_Leaf | 
-                                                    ImGuiTreeNodeFlags_NoTreePushOnOpen |
-                                                    ImGuiTreeNodeFlags_SpanAvailWidth;
-                    
-                    if (context->selected_element_id == element.id) {
-                        element_flags |= ImGuiTreeNodeFlags_Selected;
-                    }
+                    ImGui::PushID(static_cast<int>(element.id.get_value())); // Push a unique ID for the element
 
-                    // CORRECTED: Use string format for element TreeNodeEx
-                    ImGui::TreeNodeEx(element.type_name.c_str(), element_flags);
-                    
-                    if (ImGui::IsItemClicked()) {
-                        context->selected_element_id = element.id;
-                        context->selected_entity_id = archetype.id;
-                        ElementSelectedEvent event(context->selected_element_id, context->selected_entity_id, nullptr);
-                        context->event_manager->dispatch(event);
+                    // Element Renaming Section
+                    bool is_renaming_element = (element_to_rename_id == element.id);
+                    if (is_renaming_element) {
+                        // If we are renaming this element, draw an input text box
+                        ImGui::SetKeyboardFocusHere(0);
+                        if (ImGui::InputText("##RenameBox", rename_buffer, sizeof(rename_buffer),
+                            ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll)) {
+                            std::string new_name = rename_buffer;
+                            element.name = new_name;
+                            element.data["name"] = new_name;  
+                            element_to_rename_id = SimpleGuid::invalid(); // End renaming
+                            context->realm_is_dirty = true;
+                            
+                        }
+                        if (ImGui::IsItemDeactivatedAfterEdit()) {
+                            element_to_rename_id = SimpleGuid::invalid(); // End renaming if user clicks away
+                        }
+                    } else {
+                        // Otherwise, draw the element's name as a leaf node
+                        ImGuiTreeNodeFlags element_flags = ImGuiTreeNodeFlags_Leaf | 
+                                                        ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                                                        ImGuiTreeNodeFlags_SpanAvailWidth;
+                        
+                        if (context->selected_element_id == element.id) {
+                            element_flags |= ImGuiTreeNodeFlags_Selected;
+                        }
+
+                        // CORRECTED: Use string format for element TreeNodeEx
+                        ImGui::TreeNodeEx(element.name.c_str(), element_flags);
+                        
+                        if (ImGui::IsItemClicked()) {
+                            context->selected_element_id = element.id;
+                            context->selected_entity_id = archetype.id;
+                            ElementSelectedEvent event(context->selected_element_id, context->selected_entity_id, nullptr);
+                            context->event_manager->dispatch(event);
+                        }
+                        
                     }
-                    
+                    // Call the new context menu function for the element
+                    show_element_context_menu_ARCHETYPE(archetype, element);
+
+                    ImGui::PopID(); // Pop the element's unique ID
                 }
                 // --- NEW: Recursively render child entities ---
                 for (const auto& child_id : archetype.child_ids) {
@@ -364,6 +393,39 @@ namespace Salix {
     }
 
 
+    
+
+
+
+    //  --- show_element_context_menu_ARCHETYPE ---
+    void WorldTreePanel::Pimpl::show_element_context_menu_ARCHETYPE(EntityArchetype& parent_archetype, ElementArchetype& element_archetype) {
+        if (ImGui::BeginPopupContextItem("ElementContextMenu")) {
+            // Header with entity name
+            ImGui::TextDisabled("%s", element_archetype.name.c_str());
+            ImGui::Separator();
+            
+            if(ImGui::MenuItem("Rename##RenameElement", "F2")) {
+                element_to_rename_id = element_archetype.id;
+                strncpy_s(rename_buffer, sizeof(rename_buffer), 
+                        element_archetype.name.c_str(), sizeof(rename_buffer) - 1);
+            }
+
+            if (ImGui::MenuItem("Duplicate##DuplicateElement", "Ctrl+D")) {
+
+            }
+            if (ImGui::MenuItem("Purge##PurgeElement", "Del")) {
+                 // Use erase-remove_if to find and delete the element from the parent's list
+                parent_archetype.elements.erase(
+                std::remove_if(parent_archetype.elements.begin(), parent_archetype.elements.end(),
+                    [&](const ElementArchetype& e) { return e.id == element_archetype.id; }),
+                parent_archetype.elements.end());
+            
+                // Signal the 3D preview to update
+                context->realm_is_dirty = true;
+            }
+            ImGui::EndPopup();
+        }
+    }
 
     //  --- show_entity_context_menu_ARCHETYPE ---
     void WorldTreePanel::Pimpl::show_entity_context_menu_ARCHETYPE(EntityArchetype& archetype) {
@@ -464,19 +526,18 @@ namespace Salix {
             }
 
             if (ImGui::MenuItem("Add Child Entity##AddChildEntity")) {
-                EntityArchetype new_entity;
-                new_entity.id = SimpleGuid::generate();
-                new_entity.name = archetype.name + "_Child";
+                EntityArchetype new_entity = ArchetypeFactory::create_entity_archetype(archetype.name + "_Child");
+
                 new_entity.parent_id = archetype.id;
-                
-                // Add to hierarchy
-                archetype.child_ids.push_back(new_entity.id);
-                context->current_realm.push_back(new_entity);
-                
-                // Mirror Live selection
-                context->selected_entity_id = new_entity.id;
-                EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                context->event_manager->dispatch(event);
+                if (new_entity.id.is_valid()){
+                    archetype.child_ids.push_back(new_entity.id);
+                    context->current_realm.push_back(new_entity);
+                    context->realm_is_dirty = true;
+                    // Mirror Live selection
+                    context->selected_entity_id = new_entity.id;
+                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                    context->event_manager->dispatch(event);
+                }
             }
 
             ImGui::Separator();
@@ -556,6 +617,7 @@ namespace Salix {
         set_locked_state_tint_color(ImVec4(0.5f, 0.0f, 0.0f, 1.0f));
         set_unlocked_state_tint_color(ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
         set_lock_icon("Panel Unlocked");
+        pimpl->context->event_manager->subscribe(EventCategory::Editor, this);
     }
 
 
@@ -1283,6 +1345,32 @@ namespace Salix {
             }
 
             ImGui::EndDragDropTarget();
+        }
+    }
+
+
+
+    void WorldTreePanel::on_event(IEvent& event) {
+        if (event.get_event_type() == EventType::EditorPropertyValueChanged) {
+            PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
+
+            // We only care about changes to the "name" property for this sync issue.
+            if (e.property_name == "name") {
+                // Find the entity archetype that was changed.
+                auto entity_it = std::find_if(pimpl->context->current_realm.begin(), pimpl->context->current_realm.end(),
+                    [&](const EntityArchetype& archetype) { return archetype.id == e.entity_id; });
+
+                if (entity_it != pimpl->context->current_realm.end()) {
+                    // Find the specific element within that entity by its type name.
+                    for (auto& element : entity_it->elements) {
+                        if (element.type_name == e.element_type_name) {
+                            // Found it. Update the name member from the event's data.
+                            element.name = std::get<std::string>(e.new_value);
+                            break; // Assume only one element of this type per entity
+                        }
+                    }
+                }
+            }
         }
     }
 
