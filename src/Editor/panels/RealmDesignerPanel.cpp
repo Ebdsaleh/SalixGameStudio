@@ -319,9 +319,9 @@ namespace Salix {
             CurrentGizmoOperation = ImGuizmo::SCALE;
 
         if (!is_locked) {
-            if (ImGui::IsKeyPressed(ImGuiKey_W)) CurrentGizmoOperation = ImGuizmo::TRANSLATE;
-            if (ImGui::IsKeyPressed(ImGuiKey_E)) CurrentGizmoOperation = ImGuizmo::ROTATE;
-            if (ImGui::IsKeyPressed(ImGuiKey_R)) CurrentGizmoOperation = ImGuizmo::SCALE;
+            if (ImGui::IsKeyPressed(ImGuiKey_W) && ImGui::IsWindowHovered()) CurrentGizmoOperation = ImGuizmo::TRANSLATE;
+            if (ImGui::IsKeyPressed(ImGuiKey_E) && ImGui::IsWindowHovered()) CurrentGizmoOperation = ImGuizmo::ROTATE;
+            if (ImGui::IsKeyPressed(ImGuiKey_R) && ImGui::IsWindowHovered()) CurrentGizmoOperation = ImGuizmo::SCALE;
         }
     }
 
