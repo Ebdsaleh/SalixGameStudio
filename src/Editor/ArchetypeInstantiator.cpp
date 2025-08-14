@@ -4,8 +4,6 @@
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
-#include <Salix/ecs/BoxCollider.h>
-#include <Salix/ecs/Transform.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <Salix/core/InitContext.h>
@@ -25,10 +23,10 @@ namespace Salix {
 
             // For mandatory components, get the one created by the constructor.
             if (element_archetype.type_name == "Transform") {
-                live_element = live_entity->get_transform();
+                live_element = live_entity->get_element_by_type_name("Transform");
             } 
             else if (element_archetype.type_name == "BoxCollider") {
-                live_element = live_entity->get_element<Salix::BoxCollider>();
+                live_element = live_entity->get_element_by_type_name("BoxCollider");
             } 
             else {
                 // For all other optional components, create them new using the factory.
