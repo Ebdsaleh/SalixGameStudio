@@ -4,6 +4,8 @@
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
+#include <Salix/ecs/BoxCollider.h>
+#include <Salix/ecs/Transform.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <Salix/core/InitContext.h>
@@ -13,26 +15,39 @@ namespace Salix {
     void ArchetypeInstantiator::instantiate(const Salix::EntityArchetype& archetype, Salix::Scene* scene, const Salix::InitContext& context) {
         if (!scene) return;
 
-        // 1. Create the base live entity
+        // 1. Create the base live entity. Its constructor gives it a default Transform and BoxCollider.
         Salix::Entity* live_entity = scene->create_entity(archetype.id, archetype.name);
 
-        // 2. Loop through the element archetypes
+        // 2. Loop through the element archetypes from the YAML data.
         for (const auto& element_archetype : archetype.elements) {
             
-            // 3. Use the ByteMirror factory to create a live element instance
-            Salix::Element* live_element = Salix::ByteMirror::create_element_by_name(element_archetype.type_name);
-            if (!live_element) continue; // Skip unknown elements
+            Salix::Element* live_element = nullptr;
 
-            // 4. Add the element to the entity
-            live_entity->add_element(live_element);
+            // For mandatory components, get the one created by the constructor.
+            if (element_archetype.type_name == "Transform") {
+                live_element = live_entity->get_transform();
+            } 
+            else if (element_archetype.type_name == "BoxCollider") {
+                live_element = live_entity->get_element<Salix::BoxCollider>();
+            } 
+            else {
+                // For all other optional components, create them new using the factory.
+                live_element = Salix::ByteMirror::create_element_by_name(element_archetype.type_name);
+                if (live_element) {
+                    // IMPORTANT: Only add the element to the entity if it's a new one.
+                    live_entity->add_element(live_element);
+                }
+            }
 
-            // 5. Use reflection to set the properties from the YAML data
+            if (!live_element) continue; // Skip if element couldn't be found or created.
+            
+            // 3. Use reflection to set the properties on the correct live_element.
             const Salix::TypeInfo* type_info = Salix::ByteMirror::get_type_info_by_name(element_archetype.type_name);
             if (!type_info) continue;
 
             for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
                 const YAML::Node& property_node = element_archetype.data[prop.name];
-                if (!property_node) continue; // Skip properties not in the YAML file
+                if (!property_node) continue; 
 
                 // This switch uses reflection-driven setters to apply the data
                 switch (prop.type) {
@@ -77,15 +92,11 @@ namespace Salix {
                         break;
                     }
                     case Salix::PropertyType::EnumClass: {
-                        // Use the EnumRegistry to convert the string to an int.
                         if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
                             const EnumRegistry::EnumData* enum_data = EnumRegistry::get_enum_data_as_ptr(*prop.contained_type_info->type_index);
                             if (enum_data) {
-                                // 1. Read the value from YAML as a string.
                                 std::string string_value = property_node.as<std::string>();
-                                // 2. Use the registry to find the corresponding integer value.
                                 int int_value = enum_data->get_value(string_value);
-                                // 3. Set the integer value on the live component.
                                 prop.set_data(live_element, &int_value);
                             }
                         }
@@ -106,13 +117,13 @@ namespace Salix {
                         prop.set_data(live_element, &value);
                         break;
                     }
-                    
-
                     // Add cases for all other reflected property types...
                 }
             }
+            
             live_element->on_load(context);
         }
         
+        live_entity->on_load(context);
     }
 } // namespace Salix
