@@ -4,11 +4,13 @@
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <Salix/ecs/Element.h>
+#include <vector>
 #include <Salix/math/Vector3.h>
 #include <Salix/math/Color.h>
 // Add other property type includes as needed...
 
 namespace Salix {
+
 
     ElementArchetype ArchetypeFactory::create_element_archetype(const std::string& type_name) {
         // 1. Create a temporary live instance using the ByteMirror component factory.
@@ -130,4 +132,161 @@ namespace Salix {
         return new_archetype;
         
     }
+
+
+    // This is the private recursive helper function's implementation.
+    void ArchetypeFactory::duplicate_recursive_helper(
+        const SimpleGuid& source_id,
+        const std::vector<EntityArchetype>& all_archetypes,
+        std::vector<EntityArchetype>& new_family,
+        std::map<SimpleGuid, SimpleGuid>& id_map) 
+    {
+        auto it = std::find_if(all_archetypes.begin(), all_archetypes.end(),
+            [&](const EntityArchetype& e) { return e.id == source_id; });
+        if (it == all_archetypes.end()) return;
+
+        const EntityArchetype& source_archetype = *it;
+
+        EntityArchetype new_archetype;
+        new_archetype.name = source_archetype.name;
+        new_archetype.id = SimpleGuid::generate();
+        id_map[source_archetype.id] = new_archetype.id;
+
+        for (const auto& source_element : source_archetype.elements) {
+            ElementArchetype new_element;
+            new_element.type_name = source_element.type_name;
+            new_element.name = source_element.name;
+            new_element.id = SimpleGuid::generate();
+            new_element.data = YAML::Clone(source_element.data);
+            new_archetype.elements.push_back(new_element);
+        }
+
+        new_family.push_back(new_archetype);
+
+        for (const auto& child_id : source_archetype.child_ids) {
+            duplicate_recursive_helper(child_id, all_archetypes, new_family, id_map);
+        }
+    }
+
+    std::vector<EntityArchetype> ArchetypeFactory::duplicate_entity_archetype_and_children(
+    const EntityArchetype& source,
+    const std::vector<EntityArchetype>& all_archetypes)
+{
+    std::vector<EntityArchetype> new_family;
+    std::map<SimpleGuid, SimpleGuid> id_map;
+    duplicate_recursive_helper(source.id, all_archetypes, new_family, id_map);
+
+    for (auto& new_archetype : new_family) {
+        SimpleGuid original_id;
+        for (const auto& pair : id_map) { if (pair.second == new_archetype.id) { original_id = pair.first; break; } }
+        
+        auto it = std::find_if(all_archetypes.begin(), all_archetypes.end(),
+            [&](const EntityArchetype& e) { return e.id == original_id; });
+        if (it == all_archetypes.end()) continue;
+        const EntityArchetype& original_archetype = *it;
+
+        if (id_map.count(original_archetype.parent_id)) {
+            new_archetype.parent_id = id_map.at(original_archetype.parent_id);
+        } else {
+            new_archetype.parent_id = SimpleGuid::invalid();
+        }
+
+        new_archetype.child_ids.clear();
+        for (const auto& old_child_id : original_archetype.child_ids) {
+            if (id_map.count(old_child_id)) {
+                new_archetype.child_ids.push_back(id_map.at(old_child_id));
+            }
+        }
+    }
+
+    if (!new_family.empty()) {
+        std::string base_name = new_family[0].name;
+        size_t copy_pos = base_name.find(" (Copy");
+        if (copy_pos != std::string::npos) {
+            base_name = base_name.substr(0, copy_pos);
+        }
+        
+        std::string potential_name = base_name + " (Copy)";
+        int copy_number = 2;
+        bool name_is_unique = false;
+        while (!name_is_unique) {
+            bool name_found = false;
+            for (const auto& existing_archetype : all_archetypes) {
+                if (existing_archetype.name == potential_name) {
+                    name_found = true;
+                    break;
+                }
+            }
+            if (name_found) {
+                potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
+            } else {
+                name_is_unique = true;
+            }
+        }
+        new_family[0].name = potential_name;
+    }
+    
+    return new_family;
 }
+
+std::vector<EntityArchetype> ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(
+    const EntityArchetype& source,
+    const std::vector<EntityArchetype>& all_archetypes)
+{
+    std::vector<EntityArchetype> new_family;
+    std::map<SimpleGuid, SimpleGuid> id_map;
+    duplicate_recursive_helper(source.id, all_archetypes, new_family, id_map);
+
+    for (auto& new_archetype : new_family) {
+        SimpleGuid original_id;
+        for (const auto& pair : id_map) { if (pair.second == new_archetype.id) { original_id = pair.first; break; } }
+        
+        auto it = std::find_if(all_archetypes.begin(), all_archetypes.end(),
+            [&](const EntityArchetype& e) { return e.id == original_id; });
+        if (it == all_archetypes.end()) continue;
+        const EntityArchetype& original_archetype = *it;
+
+        if (id_map.count(original_archetype.parent_id)) {
+            new_archetype.parent_id = id_map.at(original_archetype.parent_id);
+        } else {
+            new_archetype.parent_id = source.parent_id;
+        }
+
+        new_archetype.child_ids.clear();
+        for (const auto& old_child_id : original_archetype.child_ids) {
+            if (id_map.count(old_child_id)) {
+                new_archetype.child_ids.push_back(id_map.at(old_child_id));
+            }
+        }
+    }
+
+    if (!new_family.empty()) {
+        std::string base_name = new_family[0].name;
+        size_t copy_pos = base_name.find(" (Copy");
+        if (copy_pos != std::string::npos) {
+            base_name = base_name.substr(0, copy_pos);
+        }
+        
+        std::string potential_name = base_name + " (Copy)";
+        int copy_number = 2;
+        bool name_is_unique = false;
+        while (!name_is_unique) {
+            bool name_found = false;
+            for (const auto& existing_archetype : all_archetypes) {
+                if (existing_archetype.name == potential_name) {
+                    name_found = true;
+                    break;
+                }
+            }
+            if (name_found) {
+                potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
+            } else {
+                name_is_unique = true;
+            }
+        }
+        new_family[0].name = potential_name;
+    }
+    
+    return new_family;
+}
+} // namespace Salix
