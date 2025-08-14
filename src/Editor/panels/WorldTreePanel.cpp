@@ -543,6 +543,7 @@ namespace Salix {
             ImGui::Separator();
 
             if (ImGui::MenuItem("Rename##RenameEntity", "F2")) {
+                context->is_editing_property = true;
                 entity_to_rename_id = archetype.id;
                 strncpy_s(rename_buffer, sizeof(rename_buffer), 
                         archetype.name.c_str(), sizeof(rename_buffer) - 1);
@@ -565,6 +566,99 @@ namespace Salix {
 
                 // Mark the realm as dirty to trigger a preview refresh.
                 context->realm_is_dirty = true;
+            }
+
+            if (ImGui::MenuItem("Duplicate As Sibling##DuplicateEntityAsSibling", "Ctrl+Alt+D")) {
+                // Use the simple duplicate method. It correctly creates a single copy.
+                EntityArchetype duplicated_archetype = ArchetypeFactory::duplicate_entity_archetype(
+                    archetype, 
+                    context->current_realm
+                );
+
+                // FIX 1: Set the parent to the SOURCE's parent to make it a sibling.
+                duplicated_archetype.parent_id = archetype.parent_id;
+
+                // Add the new archetype to the realm first, so the parent can find it.
+                context->current_realm.push_back(duplicated_archetype);
+
+                // FIX 2: Find the parent and add this new entity to its child_ids list.
+                SimpleGuid parent_id = duplicated_archetype.parent_id;
+                if (parent_id.is_valid()) {
+                    auto parent_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                        [&](EntityArchetype& e) { return e.id == parent_id; });
+                    
+                    if (parent_it != context->current_realm.end()) {
+                        parent_it->child_ids.push_back(duplicated_archetype.id);
+                    }
+                }
+                
+                // Select the new entity to give the user immediate feedback.
+                context->selected_entity_id = duplicated_archetype.id;
+                EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                context->event_manager->dispatch(event);
+
+                // Mark the realm as dirty to trigger a preview refresh.
+                context->realm_is_dirty = true;
+            }
+            if (ImGui::MenuItem("Duplicate With Children##DuplicateEntityWithChildren", "Ctrl+Shift+D")) {
+                // This calls your new function that returns the entire family.
+                std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_and_children(
+                    archetype, 
+                    context->current_realm
+                );
+
+                // Add all the newly created entities (parent and children) to the realm.
+                for (const auto& new_member : new_family) {
+                    context->current_realm.push_back(new_member);
+                }
+                
+                // Select the top-level parent of the new family.
+                if (!new_family.empty()) {
+                    context->selected_entity_id = new_family[0].id;
+                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                    context->event_manager->dispatch(event);
+                }
+
+                context->realm_is_dirty = true;
+            }
+
+            if (ImGui::MenuItem("Duplicate Family As Sibling##DuplicateFamilyAsSibling", "Ctrl+Alt+Shift+D")) {
+
+                // This calls your new function that returns the entire family and adds it as a sibling to the source Entity.
+                std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(
+                    archetype, 
+                    context->current_realm
+                );
+
+                // Safety check in case duplication fails
+                if (new_family.empty()) {
+                    
+                } else {
+                    // This part is also correct.
+                    for (const auto& new_member : new_family) {
+                        context->current_realm.push_back(new_member);
+                    }
+                    
+                   
+                    // Find the parent entity and add the new sibling to its child list.
+                    SimpleGuid parent_id = new_family[0].parent_id;
+                    if (parent_id.is_valid()) {
+                        // Find the parent in the main realm list. Note: it must be mutable to change its child_ids.
+                        auto parent_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                            [&](EntityArchetype& e) { return e.id == parent_id; });
+                        
+                        if (parent_it != context->current_realm.end()) {
+                            // Add the new entity's ID to its parent's list of children.
+                            parent_it->child_ids.push_back(new_family[0].id);
+                        }
+                    }
+                    
+                    // This part is correct.
+                    context->selected_entity_id = new_family[0].id;
+                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                    context->event_manager->dispatch(event);
+                    context->realm_is_dirty = true;
+                }
             }
 
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
