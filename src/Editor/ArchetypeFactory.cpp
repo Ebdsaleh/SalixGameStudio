@@ -73,4 +73,61 @@ namespace Salix {
         archetype.elements.push_back(create_element_archetype("BoxCollider"));
         return archetype;
     }
+
+
+
+    EntityArchetype ArchetypeFactory::duplicate_entity_archetype(const EntityArchetype& source, 
+        const std::vector<EntityArchetype>& all_archetypes) {
+    
+        EntityArchetype new_archetype;
+
+        // 1. Determine the base name for the copy.
+        // This finds the root name if we are copying an existing copy (e.g., "Player" from "Player (Copy)").
+        std::string base_name = source.name;
+        size_t copy_pos = base_name.find(" (Copy");
+        if (copy_pos != std::string::npos) {
+            base_name = base_name.substr(0, copy_pos);
+        }
+        
+        // 2. Generate and check for a unique name.
+        std::string potential_name = base_name + " (Copy)";
+        int copy_number = 1;
+
+        // This loop continues until a unique name is found.
+        bool name_is_unique = false;
+        while (!name_is_unique) {
+            bool name_found = false;
+            // Check against all existing archetypes.
+            for (const auto& existing_archetype : all_archetypes) {
+                if (existing_archetype.name == potential_name) {
+                    name_found = true;
+                    break;
+                }
+            }
+
+            if (name_found) {
+                // If the name exists, append the next number and try again.
+                potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
+            } else {
+                // If we looped through all entities and didn't find the name, it's unique.
+                name_is_unique = true;
+            }
+        }
+        
+        new_archetype.name = potential_name;
+        new_archetype.id = SimpleGuid::generate();
+
+        // 3. Perform a deep copy of all elements, giving each a new ID.
+        for (const auto& source_element : source.elements) {
+            ElementArchetype new_element;
+            new_element.type_name = source_element.type_name;
+            new_element.name = source_element.name;
+            new_element.id = SimpleGuid::generate();
+            new_element.data = YAML::Clone(source_element.data);
+            new_archetype.elements.push_back(new_element);
+        }
+
+        return new_archetype;
+        
+    }
 }

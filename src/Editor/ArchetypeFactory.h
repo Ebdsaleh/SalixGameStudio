@@ -13,6 +13,9 @@ namespace Salix {
 
         // Creates an EntityArchetype with a default name and a Transform component.
         static EntityArchetype create_entity_archetype(const std::string& name = "Entity");
+
+        // Creates a deep copy of an entity archetype with new, unique IDs.
+        static EntityArchetype duplicate_entity_archetype(const EntityArchetype& source, const std::vector<EntityArchetype>& all_archetypes);
     };
 
 } // namespace Salix
