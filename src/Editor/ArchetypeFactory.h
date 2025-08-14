@@ -19,11 +19,14 @@ namespace Salix {
         // Creates a shallow copy of an entity archetype with new, unique IDs.
         static EntityArchetype duplicate_entity_archetype(const EntityArchetype& source, const std::vector<EntityArchetype>& all_archetypes);
 
-        //  Duplicates an entity AND its entire hierarchy of children, performing deep copy.
+        // Duplicates an entity AND its entire hierarchy of children, performing deep copy.
         static std::vector<EntityArchetype> duplicate_entity_archetype_and_children(const EntityArchetype& source, const std::vector<EntityArchetype>& all_archetypes);
 
         // Duplicates and entity and its entire hierarchy of child, and makes it a sibling of the source Entity, sharing the same parent_id.
         static std::vector<EntityArchetype> duplicate_entity_archetype_family_as_sibling(const EntityArchetype& source, const std::vector<EntityArchetype>& all_archetypes);
+
+        // Creates a deep copy of a single element archetype with a new ID.
+        static ElementArchetype duplicate_element_archetype(const ElementArchetype& source);
 
         private:
         // Private helper function to handle the recursion for the second function.
