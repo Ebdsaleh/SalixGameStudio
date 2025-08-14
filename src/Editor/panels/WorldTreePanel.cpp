@@ -549,7 +549,22 @@ namespace Salix {
             }
 
             if (ImGui::MenuItem("Duplicate##DuplicateEntity", "Ctrl+D")) {
-                // TODO: Implement archetype duplication
+                // Use the factory to create a clean, deep copy with new IDs.
+                EntityArchetype duplicated_archetype = ArchetypeFactory::duplicate_entity_archetype(archetype, context->current_realm);
+
+                                
+                // Add the new archetype to the realm.
+                context->current_realm.push_back(duplicated_archetype);
+
+                
+                
+                // Select the new entity to give the user immediate feedback.
+                context->selected_entity_id = duplicated_archetype.id;
+                EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                context->event_manager->dispatch(event);
+
+                // Mark the realm as dirty to trigger a preview refresh.
+                context->realm_is_dirty = true;
             }
 
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
