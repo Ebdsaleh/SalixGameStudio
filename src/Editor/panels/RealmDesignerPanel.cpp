@@ -780,9 +780,23 @@ namespace Salix {
         }
 
         // 3. Use the safe copy to update the live element.
+        // This now mimics the safer pattern from PropertyHandleLive.
         std::visit([&](auto&& arg) {
-            found_property->set_data(element_to_update, &arg);
+        // Create a local copy of the value from the event.
+        auto value_copy = arg;
+        // Pass the address of the stable, local copy to the setter.
+        found_property->set_data(element_to_update, &value_copy);
         }, e.new_value);
+
+        // After setting the data, call on_load() on the element.
+        // Finalize the property change by calling on_load(). This is crucial for Elements
+        // that manage file-based assets. It allows them to act on the new data, such as
+        // a Sprite2D loading a new texture after its 'texture_path' is changed, or an
+        // AudioSource loading a new sound clip.
+        element_to_update->on_load(*pimpl->context->init_context);
+        
+
+        
     }
 
 
