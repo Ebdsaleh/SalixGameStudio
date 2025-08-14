@@ -57,3 +57,8 @@ Thumbs.db # Windows
 
 # SalixGameStudio configuration binary file cache.
 config.cache
+editor_notes.txt
+game_notes.txt
+launcher_notes.txt
+salix_notes.txt
+sandbox_notes.txt
