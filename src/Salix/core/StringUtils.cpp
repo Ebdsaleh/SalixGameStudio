@@ -117,4 +117,56 @@ namespace Salix {
         }
         return result;
     }
+
+
+    // --- Pascal Case Utilities ---
+    
+    bool StringUtils::is_pascal_case(const std::string& str) {
+        if (str.empty() || !std::isupper(str[0])) {
+            return false; // Must not be empty and must start with an uppercase letter.
+        }
+        // Check that all other characters are alphanumeric.
+        for (char c : str) {
+            if (!std::isalnum(c)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
+
+    bool StringUtils::contains_pascal_case(const std::string& str) {
+        if (str.length() < 2) {
+            return false;
+        }
+        // Look for the pattern of a lowercase letter followed by an uppercase letter.
+        for (size_t i = 1; i < str.length(); ++i) {
+            if (std::islower(str[i - 1]) && std::isupper(str[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    std::string StringUtils::convert_from_pascal_case(std::string str) {
+        if (str.empty()) {
+            return "";
+        }
+
+        std::string result;
+        result += str[0]; // Start with the first character.
+
+        // Iterate from the second character.
+        for (size_t i = 1; i < str.length(); ++i) {
+            // If we encounter an uppercase letter, insert a space before it.
+            if (std::isupper(str[i])) {
+                result += ' ';
+            }
+            result += str[i];
+        }
+        return result;
+    }
+
 } // namespace Salix

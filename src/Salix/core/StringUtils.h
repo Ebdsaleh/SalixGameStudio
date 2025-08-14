@@ -34,6 +34,16 @@ namespace Salix {
         static bool contains_snake_case(const std::string& str);
         // Replaces valid underscores between alphanumeric characters with spaces.
         static std::string convert_from_snake_case(std::string str);
+    
+        // --- Pascal Case Utilities ---
+        // Returns true only if the string is valid PascalCase (e.g., "BoxCollider").
+        static bool is_pascal_case(const std::string& str);
+
+        // Returns true if a PascalCase segment is found (e.g., an uppercase letter following a lowercase one).
+        static bool contains_pascal_case(const std::string& str);
+
+        // Converts a PascalCase string to a space-separated one (e.g., "BoxCollider" -> "Box Collider").
+        static std::string convert_from_pascal_case(std::string str);
     };
 
 } // namespace Salix
