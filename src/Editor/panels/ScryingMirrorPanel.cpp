@@ -170,7 +170,7 @@ namespace Salix {
 
             for (auto* element_archetype : elements_to_display) {
                 const TypeInfo* type_info = ByteMirror::get_type_info_by_name(element_archetype->type_name);
-                if (ImGui::CollapsingHeader(type_info->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                if (ImGui::CollapsingHeader(StringUtils::convert_from_pascal_case(type_info->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
                     auto handles = PropertyHandleFactory::create_handles_for_element_archetype(element_archetype);
                     if (!handles.empty() && ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
                         ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
