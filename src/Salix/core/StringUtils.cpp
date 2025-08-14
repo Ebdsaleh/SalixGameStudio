@@ -165,22 +165,22 @@ namespace Salix {
             char previous = str[i - 1];
 
             // Case 1: An uppercase letter follows a lowercase letter (e.g., the 'C' in "BoxCollider")
-            bool isTransition_LowerToUpper = std::islower(previous) && std::isupper(current);
+            bool is_transition_lower_to_upper = std::islower(previous) && std::isupper(current);
 
             // Case 2: A number follows a letter (e.g., the '2' in "Sprite2D")
-            bool isTransition_AlphaToDigit = std::isalpha(previous) && std::isdigit(current);
+            bool is_transition_alpha_to_digit = std::isalpha(previous) && std::isdigit(current);
 
             // Case 3: An uppercase letter follows a number... but only if it's the start of a new word.
             // This is how we handle "Version2Alpha" correctly, but not "Sprite2D".
-            bool isTransition_DigitToWord = false;
+            bool is_transition_digit_to_word = false;
             if (std::isdigit(previous) && std::isupper(current)) {
                 // Look ahead: if the character after this one is lowercase, then it's a new word.
                 if ((i + 1) < str.length() && std::islower(str[i + 1])) {
-                    isTransition_DigitToWord = true; // e.g., the 'A' in "Version2Alpha"
+                    is_transition_digit_to_word = true; // e.g., the 'A' in "Version2Alpha"
                 }
             }
             
-            if (isTransition_LowerToUpper || isTransition_AlphaToDigit || isTransition_DigitToWord) {
+            if (is_transition_lower_to_upper || is_transition_alpha_to_digit || is_transition_digit_to_word) {
                 result += ' ';
             }
 
