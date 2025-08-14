@@ -150,21 +150,41 @@ namespace Salix {
     }
 
 
+    
+
     std::string StringUtils::convert_from_pascal_case(std::string str) {
         if (str.empty()) {
             return "";
         }
 
         std::string result;
-        result += str[0]; // Start with the first character.
+        result += str[0]; // Start with the first character
 
-        // Iterate from the second character.
         for (size_t i = 1; i < str.length(); ++i) {
-            // If we encounter an uppercase letter, insert a space before it.
-            if (std::isupper(str[i])) {
+            char current = str[i];
+            char previous = str[i - 1];
+
+            // Case 1: An uppercase letter follows a lowercase letter (e.g., the 'C' in "BoxCollider")
+            bool isTransition_LowerToUpper = std::islower(previous) && std::isupper(current);
+
+            // Case 2: A number follows a letter (e.g., the '2' in "Sprite2D")
+            bool isTransition_AlphaToDigit = std::isalpha(previous) && std::isdigit(current);
+
+            // Case 3: An uppercase letter follows a number... but only if it's the start of a new word.
+            // This is how we handle "Version2Alpha" correctly, but not "Sprite2D".
+            bool isTransition_DigitToWord = false;
+            if (std::isdigit(previous) && std::isupper(current)) {
+                // Look ahead: if the character after this one is lowercase, then it's a new word.
+                if ((i + 1) < str.length() && std::islower(str[i + 1])) {
+                    isTransition_DigitToWord = true; // e.g., the 'A' in "Version2Alpha"
+                }
+            }
+            
+            if (isTransition_LowerToUpper || isTransition_AlphaToDigit || isTransition_DigitToWord) {
                 result += ' ';
             }
-            result += str[i];
+
+            result += current;
         }
         return result;
     }
