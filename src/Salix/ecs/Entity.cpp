@@ -140,6 +140,44 @@ namespace Salix {
         }
     }
 
+    Element* Entity::get_element_by_name(const std::string& element_name) {
+        if (element_name.empty()) return;
+        if (pimpl->is_purged_flag) return;
+        for (auto& element : pimpl->all_elements) {
+            if (element_name == element->get_name()) {
+                 return element.get();
+                }
+        }
+        return nullptr;  // No Element found by that name.
+    }
+
+
+    Element* Entity::get_element_by_type_name(const std::string& element_type_name) {
+        if (element_type_name.empty()) return;
+        if (pimpl->is_purged_flag) return;
+        for (auto& element : pimpl->all_elements) {
+            if (element_type_name == element->get_class_name()) {
+                 return element.get();
+                }
+        }
+        return nullptr;  // No Element found by that class name.
+    }
+
+
+    std::vector<Element*> Entity::get_elements_by_type_name(const std::string& type_name) {
+        std::vector<Element*> found_elements;
+        if (type_name.empty()) return found_elements;
+        if (pimpl->is_purged_flag) return found_elements;
+        for (auto& element : pimpl->all_elements) {
+            if (element && std::string(element->get_class_name()) == type_name) {
+                found_elements.push_back(element.get());
+            }
+        }
+        return found_elements;
+    }
+        
+    
+
     Element* Entity::get_element_by_id(SimpleGuid id) {
         if (id == SimpleGuid::invalid()) return nullptr;
 
