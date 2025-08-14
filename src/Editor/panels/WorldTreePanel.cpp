@@ -413,7 +413,30 @@ namespace Salix {
 
             if (ImGui::MenuItem("Duplicate##DuplicateElement", "Ctrl+D")) {
 
+                // Safety Check: Prevent duplicating unique components like Transform.
+                if (element_archetype.type_name == "Transform") {
+                    // Might show a popup or log a message here later.
+                    // For now, we just silently do nothing.
+                } 
+                else {
+                    // 1. Use the factory to create a clean copy of the element.
+                    ElementArchetype duplicated_element = ArchetypeFactory::duplicate_element_archetype(element_archetype);
+                    
+                    // 2. Add the new element to its parent entity's list.
+                    parent_archetype.elements.push_back(duplicated_element);
+
+                    // 3. Select the new element for immediate user feedback.
+                    context->selected_element_id = duplicated_element.id;
+                    
+                    // 4. Dispatch an event so other panels (like the Inspector) can update.
+                    ElementSelectedEvent event(context->selected_element_id, context->selected_entity_id, nullptr);
+                    context->event_manager->dispatch(event);
+
+                    // 5. Mark the realm as dirty to trigger a preview refresh.
+                    context->realm_is_dirty = true;
+                }
             }
+
             if (ImGui::MenuItem("Purge##PurgeElement", "Del")) {
                  // Use erase-remove_if to find and delete the element from the parent's list
                 parent_archetype.elements.erase(
