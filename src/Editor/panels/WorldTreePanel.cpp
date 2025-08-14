@@ -366,20 +366,20 @@ namespace Salix {
             ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverExistingPopup)) {
             
             if (ImGui::MenuItem("Add Entity##AddRootEntity")) {
-                EntityArchetype new_entity;
-                new_entity.id = SimpleGuid::generate(); // Auto-generate new GUID
-                new_entity.name = "Entity";
+                EntityArchetype new_entity = ArchetypeFactory::create_entity_archetype("Entity");
                 
-                // Add to current realm
-                context->current_realm.push_back(new_entity);
-                
-                // Mirror Live mode selection behavior
-                context->selected_entity_id = new_entity.id;
-                context->selected_element_id = SimpleGuid::invalid();
-                
-                EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                context->event_manager->dispatch(event);
-                context->realm_is_dirty = true;
+                if (new_entity.id.is_valid()) {
+                    // Add to current realm
+                    context->current_realm.push_back(new_entity);
+                    
+                    // Mirror Live mode selection behavior
+                    context->selected_entity_id = new_entity.id;
+                    context->selected_element_id = SimpleGuid::invalid();
+                    
+                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                    context->event_manager->dispatch(event);
+                    context->realm_is_dirty = true;
+                }
             }
 
             ImGui::Separator();
