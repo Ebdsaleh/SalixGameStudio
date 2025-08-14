@@ -35,6 +35,7 @@ namespace Salix {
             void set_owner(Entity* owner_entity) {
                 owner = owner_entity;
             }
+           
             
             const SimpleGuid&  get_id() const {return id;}
             // This helper returns a direct pointer to the ID's raw value,
