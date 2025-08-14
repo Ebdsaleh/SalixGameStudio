@@ -405,6 +405,7 @@ namespace Salix {
             ImGui::Separator();
             
             if(ImGui::MenuItem("Rename##RenameElement", "F2")) {
+                context->is_editing_property = true;
                 element_to_rename_id = element_archetype.id;
                 strncpy_s(rename_buffer, sizeof(rename_buffer), 
                         element_archetype.name.c_str(), sizeof(rename_buffer) - 1);
