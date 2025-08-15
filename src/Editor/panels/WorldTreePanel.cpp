@@ -74,7 +74,8 @@ namespace Salix {
                 ImGui::OpenPopup("WorldTreeContextMenu");
             }
             if (!pimpl->context->current_realm.empty()) {
-                for (auto& entity_archetype : pimpl->context->current_realm) {
+                for (size_t i = 0; i < pimpl->context->current_realm.size(); ++i) {
+                    auto& entity_archetype = pimpl->context->current_realm[i];
                     if (!entity_archetype.parent_id.is_valid()) {
                         pimpl->render_entity_tree(entity_archetype);
                     }
@@ -117,11 +118,24 @@ namespace Salix {
             bool rename_deactivated = ImGui::IsItemDeactivatedAfterEdit();
 
             if (rename_confirmed || rename_deactivated) {
+                if (archetype.state == ArchetypeState::Unmodified) {
+                    archetype.state = ArchetypeState::Modified;
+                }
                 archetype.name = rename_buffer;
                 entity_to_rename_id = SimpleGuid::invalid(); // End renaming
             }
         } else {
-            bool node_open = ImGui::TreeNodeEx(archetype.name.c_str(), flags);
+            // --- NEW: Color Logic ---
+            ImVec4 text_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to White
+            switch (archetype.state) {
+                case ArchetypeState::New:      text_color = ImVec4(0.4f, 1.0f, 0.4f, 1.0f); break; // Green
+                case ArchetypeState::Modified: text_color = ImVec4(1.0f, 0.7f, 0.3f, 1.0f); break; // Orange
+            }
+            ImGui::PushStyleColor(ImGuiCol_Text, text_color);
+            // --- END NEW ---
+            bool node_open = ImGui::TreeNodeEx((void*)archetype.id.get_value(), flags, "%s", archetype.name.c_str());
+            ImGui::PopStyleColor();
+
             setup_entity_drag_source(archetype);
             handle_entity_drop_target(archetype);
 
@@ -181,7 +195,18 @@ namespace Salix {
                     if (context->selected_element_id == element.id) {
                         element_flags |= ImGuiTreeNodeFlags_Selected;
                     }
-                    ImGui::TreeNodeEx(element.name.c_str(), element_flags);
+
+                    // --- NEW: Color Logic ---
+                    ImVec4 element_text_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to White
+                    switch (element.state) {
+                        case ArchetypeState::New:      element_text_color = ImVec4(0.4f, 1.0f, 0.4f, 1.0f); break; // Green
+                        case ArchetypeState::Modified: element_text_color = ImVec4(1.0f, 0.7f, 0.3f, 1.0f); break; // Orange
+                    }
+                    ImGui::PushStyleColor(ImGuiCol_Text, element_text_color);
+                    // --- END NEW ---
+                    ImGui::TreeNodeEx((void*)element.id.get_value(), element_flags, "%s", element.name.c_str());
+                    ImGui::PopStyleColor();
+
                     if (ImGui::IsItemClicked()) {
                         context->selected_element_id = element.id;
                         context->selected_entity_id = archetype.id;
@@ -203,6 +228,7 @@ namespace Salix {
                 ImGui::TreePop();
             }
         }
+        //ImGui::PopStyleColor();
         ImGui::PopID();
     }
 
@@ -239,6 +265,9 @@ namespace Salix {
                         archetype.elements.push_back(new_element);
                         context->realm_is_dirty = true;
                         context->selected_entity_id = archetype.id;
+                        if (archetype.state == ArchetypeState::Unmodified) {
+                            archetype.state = ArchetypeState::Modified;
+                        }
                         EntitySelectedEvent event(context->selected_entity_id, nullptr);
                         context->event_manager->dispatch(event);
                     }
@@ -253,6 +282,9 @@ namespace Salix {
                         context->realm_is_dirty = true;
                         // Mirror Live mode selection
                         context->selected_entity_id = archetype.id;
+                        if (archetype.state == ArchetypeState::Unmodified) {
+                            archetype.state = ArchetypeState::Modified;
+                        }
                         EntitySelectedEvent event(context->selected_entity_id, nullptr);
                         context->event_manager->dispatch(event);
                     }
@@ -265,6 +297,9 @@ namespace Salix {
                         context->realm_is_dirty = true;
                         // Mirror Live mode selection
                         context->selected_entity_id = archetype.id;
+                        if (archetype.state == ArchetypeState::Unmodified) {
+                            archetype.state = ArchetypeState::Modified;
+                        }
                         EntitySelectedEvent event(context->selected_entity_id, nullptr);
                         context->event_manager->dispatch(event);
                     }
@@ -283,6 +318,9 @@ namespace Salix {
                         context->realm_is_dirty = true;
                         // Mirror Live mode selection
                         context->selected_entity_id = archetype.id;
+                        if (archetype.state == ArchetypeState::Unmodified) {
+                            archetype.state = ArchetypeState::Modified;
+                        }
                         EntitySelectedEvent event(context->selected_entity_id, nullptr);
                         context->event_manager->dispatch(event);
                     }
@@ -297,6 +335,9 @@ namespace Salix {
                         context->realm_is_dirty = true;
                         // Mirror Live mode selection
                         context->selected_entity_id = archetype.id;
+                        if (archetype.state == ArchetypeState::Unmodified) {
+                            archetype.state = ArchetypeState::Modified;
+                        }
                         EntitySelectedEvent event(context->selected_entity_id, nullptr);
                         context->event_manager->dispatch(event);
                     }
@@ -318,6 +359,10 @@ namespace Salix {
                         
                         // Clear our parent reference
                         archetype.parent_id = SimpleGuid::invalid();
+                        // Later will check their state from the yaml file so it's more accurate.
+                        if (archetype.state == ArchetypeState::Unmodified) {
+                            archetype.state = ArchetypeState::Modified;
+                        }
                     }
                 }
             }
@@ -331,6 +376,9 @@ namespace Salix {
                     context->current_realm.push_back(new_entity);
                     context->realm_is_dirty = true;
                     // Mirror Live selection
+                    if (archetype.state == ArchetypeState::Unmodified) {
+                        archetype.state = ArchetypeState::Modified;
+                    }
                     context->selected_entity_id = new_entity.id;
                     EntitySelectedEvent event(context->selected_entity_id, nullptr);
                     context->event_manager->dispatch(event);
@@ -620,6 +668,9 @@ namespace Salix {
             if (target_it != context->current_realm.end()) {
                 target_it->child_ids.push_back(dragged_id);
             }
+            if (dragged_it->state == ArchetypeState::Unmodified) {
+                dragged_it->state = ArchetypeState::Modified;
+            }
         }
         
         context->selected_entity_id = dragged_id;
@@ -630,27 +681,51 @@ namespace Salix {
     }
 
 
+    
+
     void WorldTreePanel::on_event(IEvent& event) {
-        if (event.get_event_type() == EventType::EditorPropertyValueChanged) {
-            PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
+        if (event.get_event_type() != EventType::EditorPropertyValueChanged) {
+            return;
+        }
 
-            // We only care about changes to the "name" property for this sync issue.
-            if (e.property_name == "name") {
-                // Find the entity archetype that was changed.
-                auto entity_it = std::find_if(pimpl->context->current_realm.begin(), pimpl->context->current_realm.end(),
-                    [&](const EntityArchetype& archetype) { return archetype.id == e.entity_id; });
+        PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
 
-                if (entity_it != pimpl->context->current_realm.end()) {
-                    // Find the specific element within that entity by its type name.
-                    for (auto& element : entity_it->elements) {
-                        if (element.type_name == e.element_type_name) {
-                            // Found it. Update the name member from the event's data.
-                            element.name = std::get<std::string>(e.new_value);
-                            break; // Assume only one element of this type per entity
-                        }
+        // Find the entity archetype that was changed.
+        auto entity_it = std::find_if(pimpl->context->current_realm.begin(), pimpl->context->current_realm.end(),
+            [&](const EntityArchetype& archetype) { return archetype.id == e.entity_id; });
+
+        if (entity_it == pimpl->context->current_realm.end()) {
+            return; // Entity not found
+        }
+
+        // --- THIS IS THE CORRECTED LOGIC ---
+
+        // First, check if the entity's own "name" property was the one that changed.
+        if (e.property_name == "name" && e.element_type_name == "Entity") {
+            entity_it->name = std::get<std::string>(e.new_value);
+            if (entity_it->state == ArchetypeState::Unmodified) {
+                entity_it->state = ArchetypeState::Modified;
+            }
+        } else {
+            // Otherwise, loop through the elements to find the one that was changed.
+            for (auto& element : entity_it->elements) {
+                if (element.type_name == e.element_type_name) {
+                    // Check if this element's "name" property changed
+                    if (e.property_name == "name") {
+                        element.name = std::get<std::string>(e.new_value);
                     }
+
+                    // Any property change on an element should mark both the element
+                    // AND its parent entity as modified.
+                    if (element.state == ArchetypeState::Unmodified) {
+                        element.state = ArchetypeState::Modified;
+                    }
+                    if (entity_it->state == ArchetypeState::Unmodified) {
+                        entity_it->state = ArchetypeState::Modified;
+                    }
+                    break; 
                 }
             }
         }
     }
-}
+}  // namespace Salix
