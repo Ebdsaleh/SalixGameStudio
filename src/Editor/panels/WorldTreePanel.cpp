@@ -410,15 +410,10 @@ namespace Salix {
                 strncpy_s(rename_buffer, sizeof(rename_buffer), 
                         element_archetype.name.c_str(), sizeof(rename_buffer) - 1);
             }
+            
+            if (element_archetype.allows_duplication) {
+                if (ImGui::MenuItem("Duplicate##DuplicateElement", "Ctrl+D")) {
 
-            if (ImGui::MenuItem("Duplicate##DuplicateElement", "Ctrl+D")) {
-
-                // Safety Check: Prevent duplicating unique components like Transform.
-                if (element_archetype.type_name == "Transform") {
-                    // Might show a popup or log a message here later.
-                    // For now, we just silently do nothing.
-                } 
-                else {
                     // 1. Use the factory to create a clean copy of the element.
                     ElementArchetype duplicated_element = ArchetypeFactory::duplicate_element_archetype(element_archetype);
                     
