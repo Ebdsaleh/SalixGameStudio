@@ -29,7 +29,6 @@ namespace Salix {
         ElementArchetype archetype;
         archetype.type_name = type_name;
         archetype.id = SimpleGuid::generate();
-
         archetype.name = type_name;                 // Set the struct member for the UI
         archetype.data["name"] = type_name;         // Set the data node for the reflection system
 
@@ -69,10 +68,13 @@ namespace Salix {
         EntityArchetype archetype;
         archetype.id = SimpleGuid::generate();
         archetype.name = name;
-        
+        ElementArchetype transform_archetype = create_element_archetype("Transform");
+        ElementArchetype box_collider_archetype = create_element_archetype("BoxCollider"); 
+        transform_archetype.allows_duplication = false;
+        box_collider_archetype.allows_duplication = false;
         // All new entities should have a Transform component by default.
-        archetype.elements.push_back(create_element_archetype("Transform"));
-        archetype.elements.push_back(create_element_archetype("BoxCollider"));
+        archetype.elements.push_back(transform_archetype);
+        archetype.elements.push_back(box_collider_archetype);
         return archetype;
     }
 
@@ -126,6 +128,7 @@ namespace Salix {
             new_element.name = source_element.name;
             new_element.id = SimpleGuid::generate();
             new_element.data = YAML::Clone(source_element.data);
+            new_element.allows_duplication = source_element.allows_duplication;
             new_archetype.elements.push_back(new_element);
         }
 
