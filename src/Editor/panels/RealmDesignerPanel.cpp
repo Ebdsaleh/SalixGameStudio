@@ -123,9 +123,7 @@ namespace Salix {
          // The preview scene also needs a context to function properly
 
         if (pimpl->preview_scene) {
-
             pimpl->preview_scene->set_context(*pimpl->context->init_context);
-
         }
         
         pimpl->context->event_manager->subscribe(EventCategory::Editor, this);
