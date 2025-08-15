@@ -13,39 +13,47 @@ namespace Salix {
     void ArchetypeInstantiator::instantiate(const Salix::EntityArchetype& archetype, Salix::Scene* scene, const Salix::InitContext& context) {
         if (!scene) return;
 
-        // 1. Create the base live entity. Its constructor gives it a default Transform and BoxCollider.
+        // 1. Create the live entity. Its constructor adds the default Transform and BoxCollider.
         Salix::Entity* live_entity = scene->create_entity(archetype.id, archetype.name);
 
-        // 2. Loop through the element archetypes from the YAML data.
-        for (const auto& element_archetype : archetype.elements) {
-            
-            Salix::Element* live_element = nullptr;
+        // Get the default elements that were just created.
+        Element* default_transform = live_entity->get_element_by_type_name("Transform");
+        Element* default_box_collider = live_entity->get_element_by_type_name("BoxCollider");
 
-            // For mandatory components, get the one created by the constructor.
-            if (element_archetype.type_name == "Transform") {
-                live_element = live_entity->get_element_by_type_name("Transform");
-            } 
-            else if (element_archetype.type_name == "BoxCollider") {
-                live_element = live_entity->get_element_by_type_name("BoxCollider");
-            } 
+        bool has_applied_default_transform = false;
+        bool has_applied_default_collider = false;
+
+        // 2. Loop through all element archetypes to instantiate them.
+        for (const auto& element_archetype : archetype.elements) {
+            Element* live_element = nullptr;
+
+            // --- CORRECTED LOGIC ---
+            // Check if this archetype is for a default element that we haven't processed yet.
+            if (element_archetype.type_name == "Transform" && !has_applied_default_transform) {
+                live_element = default_transform;
+                has_applied_default_transform = true; // Mark as processed
+            }
+            else if (element_archetype.type_name == "BoxCollider" && !has_applied_default_collider) {
+                live_element = default_box_collider;
+                has_applied_default_collider = true; // Mark as processed
+            }
             else {
-                // For all other optional components, create them new using the factory.
+                // For ALL other elements (including duplicate BoxColliders or Sprite2Ds), create them new.
                 live_element = Salix::ByteMirror::create_element_by_name(element_archetype.type_name);
                 if (live_element) {
-                    // IMPORTANT: Only add the element to the entity if it's a new one.
                     live_entity->add_element(live_element);
                 }
             }
 
             if (!live_element) continue; // Skip if element couldn't be found or created.
-            
-            // 3. Use reflection to set the properties on the correct live_element.
+
+            // 3. Use reflection to set the properties on the live_element.
             const Salix::TypeInfo* type_info = Salix::ByteMirror::get_type_info_by_name(element_archetype.type_name);
             if (!type_info) continue;
 
             for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
                 const YAML::Node& property_node = element_archetype.data[prop.name];
-                if (!property_node) continue; 
+                if (!property_node) continue;
 
                 // This switch uses reflection-driven setters to apply the data
                 switch (prop.type) {
@@ -124,4 +132,4 @@ namespace Salix {
         
         live_entity->on_load(context);
     }
-} // namespace Salix
+}  // namespace Salix
