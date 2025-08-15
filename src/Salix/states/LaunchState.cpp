@@ -128,46 +128,44 @@ namespace Salix {
         should_quit_engine = false;
     }
 
+    
+
     void LaunchState::Pimpl::present_launcher() {
-        int window_width, window_height;
-        context.window->query_dimensions(window_width, window_height);
+        // --- REMOVED: All code that created the "LauncherHostWindow" and the "LauncherDockspace" ---
 
-        // --- Create a full-screen host window, just like in EditorState ---
-        ImGui::SetNextWindowPos(ImVec2(0, 0));
-        ImGui::SetNextWindowSize(ImVec2((float)window_width, (float)window_height));
-        ImGuiWindowFlags host_flags = ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBackground;
-        ImGui::Begin("LauncherHostWindow", nullptr, host_flags);
+        // --- NEW: Center the launcher window on the screen ---
+        const ImGuiViewport* viewport = ImGui::GetMainViewport();
+        // Define a fixed size for your launcher window
+        ImVec2 window_size(450, 220); 
+        // Calculate the position to center it
+        ImVec2 window_pos = viewport->GetCenter();
+        window_pos.x -= window_size.x * 0.5f;
+        window_pos.y -= window_size.y * 0.5f;
+        ImGui::SetNextWindowPos(window_pos);
+        ImGui::SetNextWindowSize(window_size);
 
-        // --- Create a dockspace inside it ---
-        ImGuiID dockspace_id = ImGui::GetID("LauncherDockspace");
-        ImGuiDockNodeFlags dock_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dock_flags);
+        // Create a simple, non-dockable window with resizing and collapsing disabled
+        ImGui::Begin("Welcome to Salix Game Studio!", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
 
-        ImGui::End(); // End LauncherHostWindow
-
-        // --- Now, create your actual launcher window as a separate window ---
-        // It will appear centered and floating on top of the main view.
-        ImGui::Begin("Welcome to Salix Game Studio!");
-
-        if (ImGui::Button("New Project")) {
+        // --- Your existing button logic remains the same ---
+        if (ImGui::Button("New Project", ImVec2(-1, 0))) { // -1 width makes button span the window
             context.gui->show_dialog_by_key(new_project_key);
         }
-        if (ImGui::Button("Open Project")) {
+        if (ImGui::Button("Open Project", ImVec2(-1, 0))) {
             context.gui->show_dialog_by_key(open_project_key);
         }
-        if (ImGui::Button("Run Project")) {
+        if (ImGui::Button("Run Project", ImVec2(-1, 0))) {
             context.gui->show_dialog_by_key(run_project_key);
         }
-        if (ImGui::Button("Options")) {
+        if (ImGui::Button("Options", ImVec2(-1, 0))) {
             should_switch_to_options = true;
         }
-        if (ImGui::Button("Quit")) {
+        if (ImGui::Button("Quit", ImVec2(-1, 0))) {
             should_quit_engine = true;
         }
 
-        ImGui::End(); // End "Welcome to Salix Game Studio!"
+        ImGui::End();
     }
-
     
 
     void LaunchState::Pimpl::handle_transitions() {
