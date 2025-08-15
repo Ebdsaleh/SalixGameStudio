@@ -17,6 +17,7 @@ namespace Salix {
         std::string type_name;
         std::string name;
         SimpleGuid id = SimpleGuid::invalid();
+        bool allows_duplication = true;
         // The raw YAML data for this element's properties.
         YAML::Node data;
         // Empty default constructor
@@ -31,7 +32,7 @@ namespace Salix {
         // We replace raw pointers with IDs for hierarchy
         SimpleGuid parent_id = SimpleGuid::invalid();
         std::vector<SimpleGuid> child_ids;
-
+       
         // A list of its element archetypes instead of live elements
         std::vector<ElementArchetype> elements;
         
