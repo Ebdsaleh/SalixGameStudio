@@ -66,8 +66,15 @@ namespace Salix {
                                 ElementArchetype element;
                                 element.type_name = type_name;
                                 element.id = element_data["id"].as<SimpleGuid>();
+                                // If the flag exists in the file, load it. Otherwise, the C++
+                                // default of 'true' will be used. This makes it backwards-compatible.
+                                if (element_data["allows_duplication"]) {
+                                    element.allows_duplication = element_data["allows_duplication"].as<bool>();
+                                }
+
                                 element.data = YAML::Clone(element_data);
                                 element.data.remove("id");
+                                element.data.remove("allows_duplication");
 
                                 if (element.data["name"]) {
                                     // If a 'name' property exists in the YAML, use it.
