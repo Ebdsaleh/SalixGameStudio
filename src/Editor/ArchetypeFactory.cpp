@@ -31,7 +31,7 @@ namespace Salix {
         archetype.id = SimpleGuid::generate();
         archetype.name = type_name;                 // Set the struct member for the UI
         archetype.data["name"] = type_name;         // Set the data node for the reflection system
-
+        archetype.state = ArchetypeState::New;
 
         // 3. Iterate through all reflected properties to get their default values.
         for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
@@ -68,6 +68,7 @@ namespace Salix {
         EntityArchetype archetype;
         archetype.id = SimpleGuid::generate();
         archetype.name = name;
+        archetype.state = ArchetypeState::New;
         ElementArchetype transform_archetype = create_element_archetype("Transform");
         ElementArchetype box_collider_archetype = create_element_archetype("BoxCollider"); 
         transform_archetype.allows_duplication = false;
@@ -120,7 +121,7 @@ namespace Salix {
         
         new_archetype.name = potential_name;
         new_archetype.id = SimpleGuid::generate();
-
+        new_archetype.state = ArchetypeState::New;
         // 3. Perform a deep copy of all elements, giving each a new ID.
         for (const auto& source_element : source.elements) {
             ElementArchetype new_element;
@@ -129,6 +130,7 @@ namespace Salix {
             new_element.id = SimpleGuid::generate();
             new_element.data = YAML::Clone(source_element.data);
             new_element.allows_duplication = source_element.allows_duplication;
+            new_element.state = ArchetypeState::New;
             new_archetype.elements.push_back(new_element);
         }
 
@@ -153,6 +155,7 @@ namespace Salix {
         EntityArchetype new_archetype;
         new_archetype.name = source_archetype.name;
         new_archetype.id = SimpleGuid::generate();
+        new_archetype.state = ArchetypeState::New;
         id_map[source_archetype.id] = new_archetype.id;
 
         for (const auto& source_element : source_archetype.elements) {
@@ -161,6 +164,7 @@ namespace Salix {
             new_element.name = source_element.name;
             new_element.id = SimpleGuid::generate();
             new_element.data = YAML::Clone(source_element.data);
+            new_element.state = ArchetypeState::New;
             new_archetype.elements.push_back(new_element);
         }
 
@@ -300,7 +304,7 @@ namespace Salix {
         // 1. Copy the type name and generate a new, unique ID.
         new_element.type_name = source.type_name;
         new_element.id = SimpleGuid::generate();
-
+        new_element.state = ArchetypeState::New;
         // 2. Give the new element a unique instance name.
         new_element.name = source.name + " (Copy)"; // You can implement a more robust unique naming system later if needed.
 
