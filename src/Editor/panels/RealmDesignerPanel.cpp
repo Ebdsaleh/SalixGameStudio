@@ -483,9 +483,9 @@ namespace Salix {
             transform_archetype->data["scale"]    = new_scale_vector;
 
             // 5. FIRE EVENTS to notify other systems of the change
-            PropertyValueChangedEvent position_changed_event(selected_archetype->id, "Transform", "position", new_position_vector);
-            PropertyValueChangedEvent rotation_changed_event(selected_archetype->id, "Transform", "rotation", new_rotation_vector);
-            PropertyValueChangedEvent scale_changed_event(selected_archetype->id, "Transform", "scale",    new_scale_vector);
+            PropertyValueChangedEvent position_changed_event(selected_archetype->id, transform_archetype->id, "Transform", "position", new_position_vector);
+            PropertyValueChangedEvent rotation_changed_event(selected_archetype->id, transform_archetype->id, "Transform", "rotation", new_rotation_vector);
+            PropertyValueChangedEvent scale_changed_event(selected_archetype->id, transform_archetype->id, "Transform", "scale",    new_scale_vector);
             context->event_manager->dispatch(position_changed_event);
             context->event_manager->dispatch(rotation_changed_event);
             context->event_manager->dispatch(scale_changed_event);
