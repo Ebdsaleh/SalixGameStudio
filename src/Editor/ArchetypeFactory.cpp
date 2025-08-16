@@ -316,5 +316,20 @@ namespace Salix {
 
         return new_element;
     }
+
+
+
+    // Returns true if the entity is found, false otherwise
+    bool ArchetypeFactory::entity_exists_in_realm(const std::vector<EntityArchetype>& realm,
+                                       const EntityArchetype& entity) {
+        auto it = std::find_if(realm.begin(), realm.end(),
+                               [&](const EntityArchetype& e) { return e.id == entity.id; });
+        if (it == realm.end()) {
+            std::cerr << "[ArchetypeFactory:] ERROR: Just added child "
+                      << entity.id.get_value() << " but cannot find it in current_realm!\n";
+            return false;
+        }
+        return true;
+    }
     
 } // namespace Salix

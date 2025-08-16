@@ -28,6 +28,8 @@ namespace Salix {
         // Creates a deep copy of a single element archetype with a new ID.
         static ElementArchetype duplicate_element_archetype(const ElementArchetype& source);
 
+        static bool entity_exists_in_realm(const std::vector<EntityArchetype>& realm, const EntityArchetype& entity);
+
         private:
         // Private helper function to handle the recursion for the second function.
         static void duplicate_recursive_helper(
