@@ -10,9 +10,12 @@
 #include <Editor/EditorAPI.h>
 #include <Editor/GridSettings.h>
 #include <Salix/core/SimpleGuid.h>
+#include <Editor/panels/WorldTreeNode.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <vector>
+#include <unordered_map>
 #include <Editor/Archetypes.h>
+#include <Editor/management/RealmSnapshot.h>
 
 namespace Salix {
 
@@ -35,6 +38,7 @@ namespace Salix {
     class PanelManager;
     class ProjectManager;
     struct SceneSettings;
+    struct EntityArchetype;
     // Game World Data
     class Project;
     class Scene;
@@ -72,6 +76,9 @@ namespace Salix {
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         EditorDataMode data_mode = EditorDataMode::Yaml;
         std::vector<EntityArchetype> current_realm;
+        std::vector<std::shared_ptr<WorldTreeNode>> world_tree_hierarchy;
+        std::vector<EntityArchetype*> world_tree_render_order; // Can be used later for better performance.
+        RealmSnapshot loaded_realm_snapshot;  // used to check against changes to the current realm.
         bool realm_is_dirty = true; 
         bool is_editing_property = false;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
