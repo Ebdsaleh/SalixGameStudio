@@ -9,6 +9,9 @@
 #include <cstdint>
 #include <cereal/access.hpp>
 #include <cereal/cereal.hpp>
+#include <functional> // for std::hash
+
+
 
 namespace Salix {
     class Element;
@@ -49,5 +52,14 @@ namespace Salix {
         void serialize(Archive& archive);
 
         uint64_t id;
+    };
+}
+
+namespace std {
+    template<>
+    struct hash<Salix::SimpleGuid> {
+        std::size_t operator()(const Salix::SimpleGuid& guid) const noexcept {
+            return std::hash<uint64_t>{}(guid.get_value());
+        }
     };
 }

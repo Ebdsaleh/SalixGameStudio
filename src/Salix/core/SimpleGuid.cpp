@@ -11,8 +11,6 @@
 #include <cereal/cereal.hpp>
 
 
-
-
 namespace Salix {
 
     // --- The static counter lives here, safely hidden in the .cpp file. ---
