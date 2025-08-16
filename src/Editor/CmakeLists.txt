@@ -24,6 +24,7 @@ add_library(SalixEditor SHARED
     reflection/PropertyHandleFactory.cpp
     reflection/ui/TypeDrawer.cpp
     management/RealmLoader.cpp
+    management/RealmSnapshot.cpp
     # Add any other .cpp files specific to SalixEditor.dll here
 )
 
