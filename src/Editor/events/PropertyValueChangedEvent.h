@@ -28,10 +28,10 @@ class PropertyValueChangedEvent : public IEvent {
 
         // The ID of the entity that was changed.
         SimpleGuid entity_id;
-        // The string name of the element that was changed (e.g., "Transform").
-        std::string element_type_name;
         // The ID of the element that was changed, this is required to compare against snapshots.
         SimpleGuid element_id;
+        // The string name of the element that was changed (e.g., "Transform").
+        std::string element_type_name;
         // The string name of the property that was changed (e.g., "position").
         std::string property_name;
         // The new value for the property, stored in our std::variant.
