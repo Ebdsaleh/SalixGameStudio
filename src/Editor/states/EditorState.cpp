@@ -29,6 +29,7 @@
 #include <Salix/management/Project.h>
 #include <Salix/management/SceneManager.h>
 #include <Editor/management/RealmLoader.h>
+#include <Editor/management/RealmSnapshot.h>
 // Editor-specific systems
 #include <Editor/EditorContext.h>
 #include <Editor/panels/PanelManager.h>
@@ -257,7 +258,14 @@ namespace Salix {
                 }
             }
 
-            std::cout << "DEBUG: All archetype data validated successfully" << std::endl;
+            std::cout << "DEBUG: All archetype data validated successfully." << std::endl;
+            pimpl->editor_context->loaded_realm_snapshot = RealmSnapshot::load_from_entity_archetype_vector(pimpl->editor_context->current_realm);
+            if (!pimpl->editor_context->loaded_realm_snapshot.entity_archetype_map.empty()) {
+                std::cout << "DEBUG: Realm Snapshot instantiated..." << std::endl;
+            }
+            else {
+                std::cerr << "DEBUG ERROR: Realm Snapshot Failed To Instantiate From The Loaded Realm!" << std::endl;
+            }
         }
         else if (pimpl->editor_context->data_mode == EditorDataMode::Live) { pimpl->create_mock_scene(); }
 
