@@ -43,7 +43,18 @@ namespace Salix {
 
                     // Optional parent
                     if (entity_node["parent"] && !entity_node["parent"].IsNull()) {
-                        entity.parent_id = entity_node["parent"].as<SimpleGuid>();
+                        // Convert parent to uint64_t first
+                        uint64_t parent_value = entity_node["parent"].as<uint64_t>(0); // default to 0 if missing
+                        entity.parent_id = (parent_value != 0) ? SimpleGuid::from_value(parent_value) : SimpleGuid::invalid();
+
+                        // Safety check: prevent self-parenting
+                        if (entity.parent_id == entity.id) {
+                            std::cerr << "[RealmLoader] WARNING: Entity " << entity.id.get_value()
+                                    << " cannot be its own parent! Setting as root." << std::endl;
+                            entity.parent_id = SimpleGuid::invalid();
+                        }
+                    } else {
+                        entity.parent_id = SimpleGuid::invalid(); // root entity
                     }
 
                     // Parse elements if they exist
