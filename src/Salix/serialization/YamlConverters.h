@@ -1,6 +1,6 @@
 // Salix/serialization/YamlConverters.h
 #pragma once
-
+#include <Salix/reflection/PropertyHandle.h>
 #include <Salix/core/SimpleGuid.h>
 #include <Salix/math/Vector2.h>
 #include <Salix/math/Vector3.h>
@@ -151,6 +151,47 @@ namespace YAML {
             return true;
         }
     };
+
+    inline Node property_value_to_node(const Salix::PropertyValue& value) {
+        using namespace Salix;
+
+        if (std::holds_alternative<int>(value)) {
+            return Node(std::get<int>(value));
+        }
+        if (std::holds_alternative<uint64_t>(value)) {
+            return Node(std::get<uint64_t>(value));
+        }
+        if (std::holds_alternative<float>(value)) {
+            return Node(std::get<float>(value));
+        }
+        if (std::holds_alternative<bool>(value)) {
+            return Node(std::get<bool>(value));
+        }
+        if (std::holds_alternative<std::string>(value)) {
+            return Node(std::get<std::string>(value));
+        }
+        if (std::holds_alternative<Vector2>(value)) {
+            return convert<Vector2>::encode(std::get<Vector2>(value));
+        }
+        if (std::holds_alternative<Vector3>(value)) {
+            return convert<Vector3>::encode(std::get<Vector3>(value));
+        }
+        if (std::holds_alternative<Color>(value)) {
+            return convert<Color>::encode(std::get<Color>(value));
+        }
+        if (std::holds_alternative<Point>(value)) {
+            return convert<Point>::encode(std::get<Point>(value));
+        }
+        if (std::holds_alternative<Rect>(value)) {
+            return convert<Rect>::encode(std::get<Rect>(value));
+        }
+        if (std::holds_alternative<glm::mat4>(value)) {
+            return convert<glm::mat4>::encode(std::get<glm::mat4>(value));
+        }
+
+        // Fallback: empty node if type not recognized
+        return Node();
+    }
 
     
 
