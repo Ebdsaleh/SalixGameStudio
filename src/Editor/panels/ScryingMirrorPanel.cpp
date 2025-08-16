@@ -185,6 +185,7 @@ namespace Salix {
                                 // If it returns true, a value was changed. FIRE THE EVENT!
                                 PropertyValueChangedEvent event(
                                     pimpl->selected_entity_id,      // The ID of the entity archetype
+                                    element_archetype->id,          // The ID of the element archetype
                                     type_info->name,                // The name of the element ("Camera")
                                     handle->get_name(),             // The name of the property ("projection_mode")
                                     handle->get_value()             // The new value
