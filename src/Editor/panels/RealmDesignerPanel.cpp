@@ -316,7 +316,7 @@ namespace Salix {
         if (ImGui::RadioButton("Scale", CurrentGizmoOperation == ImGuizmo::SCALE))
             CurrentGizmoOperation = ImGuizmo::SCALE;
 
-        if (!is_locked) {
+        if (!is_locked && !context->is_editing_property) {
             if (ImGui::IsKeyPressed(ImGuiKey_W) && ImGui::IsWindowHovered()) CurrentGizmoOperation = ImGuizmo::TRANSLATE;
             if (ImGui::IsKeyPressed(ImGuiKey_E) && ImGui::IsWindowHovered()) CurrentGizmoOperation = ImGuizmo::ROTATE;
             if (ImGui::IsKeyPressed(ImGuiKey_R) && ImGui::IsWindowHovered()) CurrentGizmoOperation = ImGuizmo::SCALE;
