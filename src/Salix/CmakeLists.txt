@@ -7,6 +7,7 @@ add_library(SalixEngine SHARED
     core/ChronoTimer.cpp
     core/Engine.cpp
     core/EngineInfo.cpp
+    core/Logging.cpp
     core/SDLTimer.cpp
     core/SimpleGuid.cpp
     core/StringUtils.cpp
