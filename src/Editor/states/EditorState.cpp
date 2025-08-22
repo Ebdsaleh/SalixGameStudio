@@ -229,50 +229,67 @@ namespace Salix {
             engine_context.app_config->window_config.width,
             engine_context.app_config->window_config.height
         );
-        // load the scene/realm based on the EditorDataMode set during the Engine initialization.
-        if (pimpl->editor_context->data_mode == EditorDataMode::Yaml) {
-            std::cout << "DEBUG: Starting YAML load..." << std::endl;
-            pimpl->editor_context->current_realm = load_archetypes_from_file("default_realm.yaml");
-            std::cout << "DEBUG: Load completed. Vector size: " 
-                    << pimpl->editor_context->current_realm.size() << std::endl;
+        if (pimpl->editor_context->current_realm.empty()) {
+            // load the scene/realm based on the EditorDataMode set during the Engine initialization.
+            if (pimpl->editor_context->data_mode == EditorDataMode::Yaml) {
+                std::cout << "DEBUG: Starting YAML load..." << std::endl;
+                pimpl->editor_context->current_realm = load_archetypes_from_file("default_realm.yaml");
+                std::cout << "DEBUG: Load completed. Vector size: " 
+                        << pimpl->editor_context->current_realm.size() << std::endl;
 
-            // Debug check #1 - Verify vector contents
-            for (const auto& archetype : pimpl->editor_context->current_realm) {
-                assert(!archetype.name.empty() && "Entity archetype has empty name");
-                assert(archetype.id.is_valid() && "Entity archetype has invalid ID");
-                std::cout << "  - " << archetype.name.c_str() << " (ID: " << archetype.id.get_value() << ") with "
-                        << archetype.elements.size() << " elements" << std::endl;
-                
-                for (const auto& element : archetype.elements) {
-                    assert(!element.type_name.empty() && "Element has empty type name");
-                    assert(element.id.is_valid() && "Element has invalid ID");
-                    std::cout << "    * " << element.type_name.c_str() << " (ID: " << element.id.get_value() << ")" << std::endl;
+                // Debug check #1 - Verify vector contents
+                for (const auto& archetype : pimpl->editor_context->current_realm) {
+                    assert(!archetype.name.empty() && "Entity archetype has empty name");
+                    assert(archetype.id.is_valid() && "Entity archetype has invalid ID");
+                    std::cout << "  - " << archetype.name.c_str() << " (ID: " << archetype.id.get_value() << ") with "
+                            << archetype.elements.size() << " elements" << std::endl;
+                    
+                    for (const auto& element : archetype.elements) {
+                        assert(!element.type_name.empty() && "Element has empty type name");
+                        assert(element.id.is_valid() && "Element has invalid ID");
+                        std::cout << "    * " << element.type_name.c_str() << " (ID: " << element.id.get_value() << ")" << std::endl;
+                    }
+                }
+
+                // Debug check #2 - Verify YAML node validity
+                for (const auto& archetype : pimpl->editor_context->current_realm) {
+                    for (const auto& element : archetype.elements) {
+                        assert(element.data.IsDefined() && "Element data node is invalid");
+                        assert(element.data.IsMap() && "Element data is not a map");
+                    }
+                }
+                // Populate the current_realm_map for fast retrieval and EntityArchetype manipulation.
+                std::cout << "DEBUG: All archetype data validated successfully." << std::endl;
+                // Now that the realm is loaded, get the WorldTreePanel and tell it to build its map.
+                IPanel* panel = pimpl->panel_manager->get_panel("World Tree Panel");
+                if (WorldTreePanel* world_tree = dynamic_cast<WorldTreePanel*>(panel)) {
+                    world_tree->rebuild_current_realm_map(); // Assuming you make this public
+                    std::cout << "DEBUG: Initialized the WorldTreePanel's realm map." << std::endl;
+                }
+
+
+                pimpl->editor_context->loaded_realm_snapshot = RealmSnapshot::load_from_entity_archetype_vector(pimpl->editor_context->current_realm);
+                // CORRECTED: Call get_entity_map() to access the map, then check if it's empty.
+                if (!pimpl->editor_context->loaded_realm_snapshot.get_entity_map().empty()) {
+                    std::cout << "DEBUG: Realm Snapshot instantiated..." << std::endl;
+                }
+                else {
+                    std::cerr << "DEBUG ERROR: Realm Snapshot Failed To Instantiate From The Loaded Realm!" << std::endl;
+                }
+                if (pimpl->editor_context->loaded_realm_snapshot.validate_snapshot(pimpl->editor_context->current_realm)) {
+                    std::cout << "DEBUG: Realm Snapshot Is Valid..." << std::endl;
+                }
+                else {
+                    std::cerr << "DEBUG: Realm Snapshot Failed Validation" << std::endl;
                 }
             }
+        
+            else if (pimpl->editor_context->data_mode == EditorDataMode::Live) { pimpl->create_mock_scene(); }
 
-            // Debug check #2 - Verify YAML node validity
-            for (const auto& archetype : pimpl->editor_context->current_realm) {
-                for (const auto& element : archetype.elements) {
-                    assert(element.data.IsDefined() && "Element data node is invalid");
-                    assert(element.data.IsMap() && "Element data is not a map");
-                }
-            }
-
-            std::cout << "DEBUG: All archetype data validated successfully." << std::endl;
-            pimpl->editor_context->loaded_realm_snapshot = RealmSnapshot::load_from_entity_archetype_vector(pimpl->editor_context->current_realm);
-            if (!pimpl->editor_context->loaded_realm_snapshot.entity_archetype_map.empty()) {
-                std::cout << "DEBUG: Realm Snapshot instantiated..." << std::endl;
-            }
             else {
-                std::cerr << "DEBUG ERROR: Realm Snapshot Failed To Instantiate From The Loaded Realm!" << std::endl;
+                std::cerr << "EditorState::initialize - Invalid EditorDataMode detected!" << std::endl;
             }
         }
-        else if (pimpl->editor_context->data_mode == EditorDataMode::Live) { pimpl->create_mock_scene(); }
-
-        else {
-            std::cerr << "EditorState::initialize - Invalid EditorDataMode detected!" << std::endl;
-        }
-
     }
 
 
