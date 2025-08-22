@@ -23,7 +23,7 @@ namespace Salix {
         RealmSnapshot& operator=(RealmSnapshot&& other) noexcept; // Move Assignment.
         RealmSnapshot(const RealmSnapshot&) = delete; // Explicitly delete copy constructor.
         RealmSnapshot& operator=(const RealmSnapshot&) = delete; // Explicitly delete copy assign.
-
+ 
         // These static "factory" functions create and return a new snapshot object.
         static RealmSnapshot load_from_file(const std::string& file_path);
         static RealmSnapshot load_from_entity_archetype_vector(const std::vector<EntityArchetype>& archetype_vector);
