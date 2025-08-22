@@ -39,10 +39,11 @@ add_library(SalixEngine SHARED
     management/SceneManager.cpp
     management/SettingsManager.cpp
     math/Color.cpp
+    math/Rect.cpp
+    math/MathUtils.cpp
+    math/RayCasting.cpp
     math/Vector2.cpp
     math/Vector3.cpp
-    math/RayCasting.cpp
-    math/MathUtils.cpp
     reflection/ByteMirror.cpp
     reflection/EnumRegistry.cpp
     reflection/ui/TypeDrawerLive.cpp
