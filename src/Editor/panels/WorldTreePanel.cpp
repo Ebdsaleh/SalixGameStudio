@@ -998,34 +998,57 @@ namespace Salix {
             
             if (element_archetype.allows_duplication) {
                 if (ImGui::MenuItem("Duplicate##DuplicateElement", "Ctrl+D")) {
+                    // Defer the duplication action.
+                    // We capture the IDs by value to ensure they are safe to use later.
+                    deferred_commands.push_back([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
+                        // 1. Find the parent archetype again using the fast map to ensure the pointer is valid.
+                        auto parent_it = context->current_realm_map.find(parent_id);
+                        if (parent_it == context->current_realm_map.end()) return;
+                        EntityArchetype* parent = parent_it->second;
 
-                    // Use the factory to create a clean copy of the element.
-                    ElementArchetype duplicated_element = ArchetypeFactory::duplicate_element_archetype(element_archetype);
-                    
-                    // Add the new element to its parent entity's list.
-                    parent_archetype.elements.push_back(duplicated_element);
+                        // 2. Find the original element to be duplicated within the parent.
+                        ElementArchetype* source_element = nullptr;
+                        for (auto& elem : parent->elements) {
+                            if (elem.id == element_id) {
+                                source_element = &elem;
+                                break;
+                            }
+                        }
+                        if (!source_element) return; // Original element not found.
 
-                    // Select the new element for immediate user feedback.
-                    context->selected_element_id = duplicated_element.id;
-                    
-                    // Dispatch an event so other panels (like the Inspector) can update.
-                    ElementSelectedEvent event(context->selected_element_id, context->selected_entity_id, nullptr);
-                    context->event_manager->dispatch(event);
+                        // 3. Create and add the new element using the upgraded factory method.
+                        // This version passes the parent so the factory can check for unique names among siblings.
+                        ElementArchetype duplicated_element = ArchetypeFactory::duplicate_element_archetype(*source_element, *parent);
+                        parent->elements.push_back(duplicated_element);
 
-                    // Mark the realm as dirty to trigger a preview refresh.
-                    context->realm_is_dirty = true;
+                        // 4. Select the new element for immediate user feedback.
+                        context->selected_element_id = duplicated_element.id;
+                        ElementSelectedEvent event(context->selected_element_id, parent->id, nullptr);
+                        context->event_manager->dispatch(event);
+
+                        // 5. Mark the realm as dirty.
+                        context->realm_is_dirty = true;
+                    });
                 }
             }
 
             if (ImGui::MenuItem("Purge##PurgeElement", "Del")) {
-                 // Use erase-remove_if to find and delete the element from the parent's list
-                parent_archetype.elements.erase(
-                std::remove_if(parent_archetype.elements.begin(), parent_archetype.elements.end(),
-                    [&](const ElementArchetype& e) { return e.id == element_archetype.id; }),
-                parent_archetype.elements.end());
-            
-                // Signal the 3D preview to update
-                context->realm_is_dirty = true;
+                // Defer the purge action.
+                deferred_commands.push_back([this, &parent_archetype, element_id = element_archetype.id]() {
+                    // Find the parent again to ensure the pointer is valid.
+                    auto parent_it = context->current_realm_map.find(parent_archetype.id);
+                    if (parent_it == context->current_realm_map.end()) return;
+                    
+                    // Use erase-remove_if to find and delete the element from the parent's list.
+                    parent_it->second->elements.erase(
+                        std::remove_if(parent_it->second->elements.begin(), parent_it->second->elements.end(),
+                            [&](const ElementArchetype& e) { return e.id == element_id; }),
+                        parent_it->second->elements.end()
+                    );
+                
+                    // Signal the 3D preview to update.
+                    context->realm_is_dirty = true;
+                });
             }
             ImGui::EndPopup();
         }
