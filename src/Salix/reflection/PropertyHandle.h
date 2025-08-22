@@ -12,6 +12,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 #include <string>
+#include <ostream>
 #include <variant>
 #include <Salix/rendering/ICamera.h> 
 
@@ -23,6 +24,14 @@ namespace Salix {
         int, uint64_t, float, bool, std::string, Vector2, Vector3, Color, Point, Rect, glm::mat4
         // Note: You must add every type from your PropertyType enum here
     >;
+    inline std::ostream& operator<<(std::ostream& os, const Salix::PropertyValue& value) {
+        // std::visit calls the correct lambda based on the type currently held by the variant.
+        std::visit([&os](const auto& val) {
+            os << val;
+        }, value);
+        // Return the stream to allow for chaining (e.g., std::cout << val1 << val2;)
+        return os;
+    }
 
     // Abstract base class for a generic property handle.
     class SALIX_API PropertyHandle {
