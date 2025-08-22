@@ -83,7 +83,8 @@ namespace Salix {
                                     element.allows_duplication = element_data["allows_duplication"].as<bool>();
                                 }
 
-                                element.data = YAML::Clone(element_data);
+                                // new implementation with a deep copy
+                                element.data = YAML::Load(YAML::Dump(element_data)); // deep copy
                                 element.data.remove("id");
                                 element.data.remove("allows_duplication");
 
