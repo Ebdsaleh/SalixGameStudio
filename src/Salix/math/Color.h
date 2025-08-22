@@ -53,6 +53,13 @@ namespace Salix {
                    cereal::make_nvp("b", b), cereal::make_nvp("a", a));
         }
 
+        // In Salix/math/Color.h, inside the struct
+        bool operator==(const Color& other) const {
+            return r == other.r && g == other.g && b == other.b && a == other.a;
+        }
+        bool operator!=(const Color& other) const {
+            return !(*this == other);
+        }
     private:
         friend class cereal::access;
     };
@@ -62,6 +69,8 @@ namespace Salix {
         os << "{ r: " << c.r << ", g: " << c.g << ", b: " << c.b << ", a: " << c.a << " }";
         return os;
     }
+
+
     // Predefined colors
     inline constexpr Color White   = Color(1.0f, 1.0f, 1.0f);
     inline constexpr Color Black   = Color(0.0f, 0.0f, 0.0f);
