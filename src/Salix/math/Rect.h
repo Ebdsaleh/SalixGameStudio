@@ -48,6 +48,14 @@ namespace Salix {
                 cereal::make_nvp("w", w), cereal::make_nvp("h", h)
             );
         }
+
+        // In Salix/math/Rect.h, inside the struct
+        inline bool operator==(const Rect_& other) const {
+            return x == other.x && y == other.y && w == other.w && h == other.h;
+        }
+        inline bool operator!=(const Rect_& other) const {
+            return !(*this == other);
+        }
     };
 
     // --- OSTREAM TEMPLATED HELPER FUNCTION ---
