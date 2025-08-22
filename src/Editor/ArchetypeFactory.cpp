@@ -73,6 +73,8 @@ namespace Salix {
         ElementArchetype box_collider_archetype = create_element_archetype("BoxCollider"); 
         transform_archetype.allows_duplication = false;
         box_collider_archetype.allows_duplication = false;
+        transform_archetype.owner_id = archetype.id;
+        box_collider_archetype.owner_id = archetype.id;
         // All new entities should have a Transform component by default.
         archetype.elements.push_back(transform_archetype);
         archetype.elements.push_back(box_collider_archetype);
@@ -163,6 +165,7 @@ namespace Salix {
             new_element.type_name = source_element.type_name;
             new_element.name = source_element.name;
             new_element.id = SimpleGuid::generate();
+            new_element.owner_id = new_archetype.id;
             new_element.data = YAML::Clone(source_element.data);
             new_element.state = ArchetypeState::New;
             new_archetype.elements.push_back(new_element);
