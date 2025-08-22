@@ -79,6 +79,8 @@ namespace Salix {
         std::vector<std::shared_ptr<WorldTreeNode>> world_tree_hierarchy;
         std::vector<EntityArchetype*> world_tree_render_order; // Can be used later for better performance.
         RealmSnapshot loaded_realm_snapshot;  // used to check against changes to the current realm.
+        std::unordered_map<SimpleGuid, EntityArchetype*> current_realm_map;
+
         bool realm_is_dirty = true; 
         bool is_editing_property = false;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
