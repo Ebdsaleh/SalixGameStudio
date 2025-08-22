@@ -193,6 +193,187 @@ namespace YAML {
         return Node();
     }
 
-    
+    inline Salix::PropertyValue node_to_property_value(const YAML::Node& node, const Salix::Property& prop) {
+        using namespace Salix;
+        if (!node) return {}; // Return empty if the node doesn't exist
+
+        switch (prop.type) {
+            case PropertyType::Int:       return node.as<int>();
+            case PropertyType::UInt64:    return node.as<uint64_t>();
+            case PropertyType::Float:     return node.as<float>();
+            case PropertyType::Bool:      return node.as<bool>();
+            case PropertyType::String:    return node.as<std::string>();
+            case PropertyType::Vector2:   return node.as<Vector2>();
+            case PropertyType::Vector3:   return node.as<Vector3>();
+            case PropertyType::Color:     return node.as<Color>();
+            case PropertyType::Point:     return node.as<Point>();
+            case PropertyType::Rect:      return node.as<Rect>();
+            case PropertyType::GlmMat4:   return node.as<glm::mat4>();
+            case PropertyType::EnumClass: {
+                if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
+                    const EnumRegistry::EnumData* enum_data = EnumRegistry::get_enum_data_as_ptr(*prop.contained_type_info->type_index);
+                    if (enum_data) {
+                        return enum_data->get_value(node.as<std::string>());
+                    }
+                }
+                return {};
+            }
+            default: 
+                return {};
+        }
+    }
+
+
+    // YAML::Node comparitors
+    inline bool nodes_are_equal(const Node& a, const Node& b) {
+        if (a.Type() != b.Type()) return false;
+
+        switch (a.Type()) {
+            case NodeType::Scalar:
+                return a.as<std::string>() == b.as<std::string>();
+            case NodeType::Map:
+                if (a.size() != b.size()) return false;
+                for (auto it : a) {
+                    auto key = it.first.as<std::string>();
+                    if (!b[key] || !nodes_are_equal(it.second, b[key])) return false;
+                }
+                return true;
+            case NodeType::Sequence:
+                if (a.size() != b.size()) return false;
+                for (size_t i = 0; i < a.size(); ++i)
+                    if (!nodes_are_equal(a[i], b[i])) return false;
+                return true;
+            case NodeType::Null:
+                return true;
+        }
+        return false;
+    }
+
+    // Deep comparison.
+    inline bool deep_compare_yaml(const YAML::Node& a, const YAML::Node& b) {
+        if (!a && !b) return true;
+        if (!a || !b) return false;
+        if (a.Type() != b.Type()) return false;
+
+        switch (a.Type()) {
+            case YAML::NodeType::Scalar:
+                return a.Scalar() == b.Scalar();
+            case YAML::NodeType::Sequence:
+                if (a.size() != b.size()) return false;
+                for (std::size_t i = 0; i < a.size(); ++i) {
+                    if (!deep_compare_yaml(a[i], b[i])) return false;
+                }
+                return true;
+            case YAML::NodeType::Map:
+                if (a.size() != b.size()) return false;
+                for (auto it = a.begin(); it != a.end(); ++it) {
+                    auto key = it->first.as<std::string>();
+                    if (!b[key]) return false;
+                    if (!deep_compare_yaml(it->second, b[key])) return false;
+                }
+                return true;
+            default:
+                return true;
+        }
+    }
+
+ 
+    // Debugging deep comparison of YAML nodes
+    inline bool debug_compare_yaml(const YAML::Node& a, const YAML::Node& b, const std::string& path = "") {
+        if (!a && !b) return true;
+        if (!a || !b) {
+            std::cout << "  [DIFF] One node missing at path: " << path << std::endl;
+            return false;
+        }
+
+        if (a.Type() != b.Type()) {
+            std::cout << "  [DIFF] Type mismatch at path: " << path
+                    << " (" << a.Type() << " vs " << b.Type() << ")" << std::endl;
+            return false;
+        }
+
+        switch (a.Type()) {
+            case YAML::NodeType::Scalar: {
+                std::string aVal = a.Scalar();
+                std::string bVal = b.Scalar();
+                if (aVal != bVal) {
+                    std::cout << "  [DIFF] Scalar mismatch at " << path
+                            << " ('" << aVal << "' vs '" << bVal << "')" << std::endl;
+                    return false;
+                }
+                std::cout << "  [OK] " << path << " = '" << aVal << "'" << std::endl;
+                return true;
+            }
+            case YAML::NodeType::Sequence: {
+                if (a.size() != b.size()) {
+                    std::cout << "  [DIFF] Sequence size mismatch at " << path
+                            << " (" << a.size() << " vs " << b.size() << ")" << std::endl;
+                    return false;
+                }
+                for (std::size_t i = 0; i < a.size(); ++i) {
+                    if (!debug_compare_yaml(a[i], b[i], path + "[" + std::to_string(i) + "]")) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            case YAML::NodeType::Map: {
+                if (a.size() != b.size()) {
+                    std::cout << "  [DIFF] Map size mismatch at " << path
+                            << " (" << a.size() << " vs " << b.size() << ")" << std::endl;
+                    return false;
+                }
+                for (auto it = a.begin(); it != a.end(); ++it) {
+                    std::string key = it->first.as<std::string>();
+                    if (!b[key]) {
+                        std::cout << "  [DIFF] Missing key '" << key
+                                << "' in other node at path: " << path << std::endl;
+                        return false;
+                    }
+                    if (!debug_compare_yaml(it->second, b[key], path.empty() ? key : path + "." + key)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+            default:
+                std::cout << "  [OK] " << path << " is Null/Undefined" << std::endl;
+                return true;
+        }
+    }
+
+    // instanced cloning.
+    inline YAML::Node deep_clone_yaml(const YAML::Node& node) {
+        if (!node) return YAML::Node();
+
+        YAML::Node clone;
+
+        switch (node.Type()) {
+            case YAML::NodeType::Scalar:
+                clone = YAML::Node(node.Scalar());
+                break;
+
+            case YAML::NodeType::Sequence:
+                for (std::size_t i = 0; i < node.size(); ++i) {
+                    clone.push_back(deep_clone_yaml(node[i]));
+                }
+                break;
+
+            case YAML::NodeType::Map:
+                for (auto it = node.begin(); it != node.end(); ++it) {
+                    // Force key as string to avoid dangling references
+                    std::string key = it->first.as<std::string>();
+                    clone[key] = deep_clone_yaml(it->second);
+                }
+                break;
+
+            case YAML::NodeType::Null:
+            default:
+                clone = YAML::Node(); // empty node
+                break;
+        }
+
+        return clone;
+    }
 
 } // namespace YAML
