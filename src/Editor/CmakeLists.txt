@@ -8,6 +8,7 @@
 # Paths are relative to this CMakeLists.txt file's location (src/Editor/).
 add_library(SalixEditor SHARED
     EditorFactory.cpp
+    Archetypes.cpp
     ArchetypeInstantiator.cpp
     ArchetypeFactory.cpp
     states/EditorState.cpp
