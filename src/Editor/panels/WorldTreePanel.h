@@ -23,6 +23,7 @@ namespace Salix {
         void initialize(EditorContext* context) override;
         bool is_panel_derived() const override { return true; }
         void on_event(IEvent& event) override;
+        void rebuild_current_realm_map();
     protected:
         void on_panel_gui_update() override; // Main content
         ImGuiWindowFlags get_window_flags() const override;
