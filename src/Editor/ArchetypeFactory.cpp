@@ -140,7 +140,6 @@ namespace Salix {
         
     }
 
-
     // This is the private recursive helper function's implementation.
     void ArchetypeFactory::duplicate_recursive_helper(
         const SimpleGuid& source_id,
@@ -301,20 +300,45 @@ namespace Salix {
 
 
 
-    ElementArchetype ArchetypeFactory::duplicate_element_archetype(const ElementArchetype& source) {
-        ElementArchetype new_element;
 
-        // 1. Copy the type name and generate a new, unique ID.
+    ElementArchetype ArchetypeFactory::duplicate_element_archetype(const ElementArchetype& source, const EntityArchetype& parent) {
+        ElementArchetype new_element;
         new_element.type_name = source.type_name;
         new_element.id = SimpleGuid::generate();
         new_element.state = ArchetypeState::New;
-        // 2. Give the new element a unique instance name.
-        new_element.name = source.name + " (Copy)"; // You can implement a more robust unique naming system later if needed.
+        new_element.allows_duplication = source.allows_duplication;
 
-        // 3. Create a deep copy of the YAML data.
+        // --- START: Robust Name Generation Logic ---
+        std::string base_name = source.name;
+        size_t copy_pos = base_name.find(" (Copy");
+        if (copy_pos != std::string::npos) {
+            base_name = base_name.substr(0, copy_pos);
+        }
+
+        std::string potential_name = base_name + " (Copy)";
+        int copy_number = 2; // Start numbering at 2 for "(Copy 2)"
+
+        bool name_is_unique = false;
+        while (!name_is_unique) {
+            bool name_found = false;
+            // Check against all SIBLING elements on the parent.
+            for (const auto& existing_element : parent.elements) {
+                if (existing_element.name == potential_name) {
+                    name_found = true;
+                    break;
+                }
+            }
+
+            if (name_found) {
+                potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
+            } else {
+                name_is_unique = true;
+            }
+        }
+        new_element.name = potential_name;
+        // --- END: Robust Name Generation Logic ---
+
         new_element.data = YAML::Clone(source.data);
-        
-        // 4. Update the name in the YAML data as well.
         new_element.data["name"] = new_element.name;
 
         return new_element;

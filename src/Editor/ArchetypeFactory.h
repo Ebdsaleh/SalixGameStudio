@@ -26,7 +26,7 @@ namespace Salix {
         static std::vector<EntityArchetype> duplicate_entity_archetype_family_as_sibling(const EntityArchetype& source, const std::vector<EntityArchetype>& all_archetypes);
 
         // Creates a deep copy of a single element archetype with a new ID.
-        static ElementArchetype duplicate_element_archetype(const ElementArchetype& source);
+        static ElementArchetype duplicate_element_archetype(const ElementArchetype& source, const EntityArchetype& parent);
 
         static bool entity_exists_in_realm(const std::vector<EntityArchetype>& realm, const EntityArchetype& entity);
 
