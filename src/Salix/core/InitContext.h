@@ -17,6 +17,7 @@ namespace Salix {
     class IGui;
     class IEventPoller;
     class EventManager;
+    class ProjectManager;
     class IThemeManager;
     class IFontManager;
     struct ApplicationConfig;
@@ -36,12 +37,11 @@ namespace Salix {
         IWindow* window = nullptr;
         IEventPoller* event_poller;
         EventManager* event_manager;
+        ProjectManager* project_manager = nullptr;
         IThemeManager* theme_manager;
         IFontManager* font_manager;
         IIconManager* icon_manager;
         EngineMode engine_mode = EngineMode::None;
-        std::string project_file_path;
-        std::string project_root_path;
         std::string  project_dll_path;
         float dpi_scale;
     };
