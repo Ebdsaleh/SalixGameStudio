@@ -1,0 +1,21 @@
+# Salix Game Studio Project File
+
+# Defines core project properties and file locations.
+project_data:
+  project_name: "TestProject"
+  # The root directory for this project. Paths inside are relative to this.
+  project_path: "C:/Users/nadir/repos/CPP/SalixGameStudio/src/Sandbox/TestProject"
+  # List of all scenes included in the project.
+  scenes:
+    - name: "Default"
+      path: "Assets/Scenes/default_realm.yaml"
+    # - name: "Level_01"
+    #   path: "Assets/Scenes/Level_01.scene"
+  
+  # The name of the scene to load when the game starts.
+  starting_scene: "Default"
+
+# Defines build-specific information for the project.
+build_settings:
+  engine_version: "0.1.0-Alpha"
+  game_dll_name: "TestProject.dll"
