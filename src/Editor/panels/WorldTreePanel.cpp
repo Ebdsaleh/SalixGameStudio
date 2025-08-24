@@ -1534,6 +1534,9 @@ namespace Salix {
         }
         
         
+        // A. Apply the new value from the event to the archetype's YAML data node.
+        element_it->data[e.property_name] = YAML::property_value_to_node(e.new_value);
+        
         // B. Re-evaluate the modified element against the snapshot.
         // The is_element_modified function performs the full, correct comparison.
         if (context->loaded_realm_snapshot.is_element_modified(*element_it)) {
