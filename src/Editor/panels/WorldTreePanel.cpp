@@ -1552,7 +1552,7 @@ namespace Salix {
         }
         
         // D. Mark the realm as dirty to trigger a 3D preview refresh.
-        //context->realm_is_dirty = true;
+        context->realm_is_dirty = true;
     }
 
     // This is fine, I think..
