@@ -243,62 +243,8 @@ namespace Salix {
                     std::string element_type_name = type_info ? type_info->name : "";
 
                     // 5. Draw the button and set up its callback.
-                    if (ImGui::Button(("...##" + std::string(label)).c_str()))
-                    {
-                        std::string dialog_key, filters;
-                        switch(hint) {
-                            case UIHint::ImageFile:
-                                dialog_key = "SelectImageFile";
-                                filters = "Image Files (*.png, *.jpg, *.jpeg){.png,.jpg,.jpeg},All Files (*.*){.*}";
-                                break;
-                            case UIHint::AudioFile:
-                                dialog_key = "SelectAudioFile";
-                                filters = "Audio Files (*.wav, *.mp3, *.ogg){.wav,.mp3,.ogg},All Files (*.*){.*}";
-                                break;
-                            case UIHint::SourceFile:
-                                dialog_key = "SelectSourceFile";
-                                filters = "Source Files (*.h, *.cpp){.h,.cpp},All Files (*.*){.*}";
-                                break;
-                            default:
-                                dialog_key = "SelectFile";
-                                filters = "All Files (*.*){.*}";
-                                break;
-                        }
-                        
-                        if (DialogBox* dialog = context->gui->get_dialog(dialog_key)) {
-                            // Set the dialog's starting location to the global project root.
-                            dialog->set_default_path(Salix::g_project_root_path.string());
-                            dialog->set_filters(filters);
-                            
-                            // 6. The lambda now captures all data BY VALUE, which is safe.
-                            dialog->set_callback([property_name, entity_id, element_id, element_type_name, context](const FileDialogResult& result) {
-                            if (result.is_ok) {
-                                // This is the command we want to execute later.
-                                // It captures the result and all the context it needs.
-                                std::function<void()> command = [=]() {
-                                    // 1. Convert to relative path.
-                                    std::string relative_path = FileManager::convert_to_relative(
-                                        Salix::g_project_root_path.string(),
-                                        result.file_path_name
-                                    );
-
-                                    // 2. Dispatch the event. This is now done safely inside the command.
-                                    PropertyValueChangedEvent event(
-                                        entity_id,
-                                        element_id,
-                                        element_type_name,
-                                        property_name,
-                                        relative_path
-                                    );
-                                    context->event_manager->dispatch(event);
-                                };
-
-                                // 3. Add the command to the queue to be run at the end of the frame.
-                                context->deferred_type_drawer_commands.push_back(command);
-                            }
-                        });
-                            context->gui->show_dialog_by_key(dialog_key);
-                        }
+                    if (ImGui::Button(("...##" + std::string(label)).c_str())) {
+                        value_changed = true; 
                     }
                 }
                 else if (hint == UIHint::MultilineText)
