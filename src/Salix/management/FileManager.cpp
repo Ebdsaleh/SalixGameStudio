@@ -176,4 +176,25 @@ namespace Salix {
         return absolute_path;
     }
 
+    std::string FileManager::convert_to_relative_path(const std::string& project_root, const std::string& absolute_path) {
+    try {
+        // 1. Create filesystem::path objects from the strings.
+        const std::filesystem::path root_p(project_root);
+        const std::filesystem::path abs_p(absolute_path);
+        
+        // 2. Use the standard library function to get the relative path.
+        //    This function is designed to handle all edge cases correctly.
+        std::filesystem::path relative_p = std::filesystem::relative(abs_p, root_p);
+        
+        // 3. Return the path as a standardized string with forward slashes.
+        return relative_p.generic_string();
+    }
+    catch (const std::filesystem::filesystem_error& e) {
+        // This can happen if the paths are on different drives.
+        // We fall back to the absolute path in case of an error.
+        std::cerr << "FileManager Error: Could not make path relative. " << e.what() << std::endl;
+        return absolute_path;
+    }
+}
+
 } // namespace Salix

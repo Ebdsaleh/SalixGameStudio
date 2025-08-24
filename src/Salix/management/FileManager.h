@@ -30,7 +30,7 @@ namespace Salix {
         // Converts a full, absolute path to a path relative to the project root.
         // Returns the original absolute path if it's not within the project root.
         static std::string convert_to_relative(const std::string& project_root, const std::string& absolute_path);
-
+        static std::string convert_to_relative_path(const std::string& project_root, const std::string& absolute_path);
         // Copies a file from a source path to a destination path.
         // Returns true on success.
         static bool copy_file(const std::string& source, const std::string& destination);
