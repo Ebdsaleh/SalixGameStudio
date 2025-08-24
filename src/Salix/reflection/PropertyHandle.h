@@ -48,6 +48,7 @@ namespace Salix {
             // Safely return the contained_type_info from the internal property struct
             return property_info.contained_type_info;
         }
+        UIHint get_hint() const { return property_info.hint; } // UIHint getter.
     protected:
         PropertyHandle(const Property& property_info) : property_info(property_info) {}
         const Property property_info;
