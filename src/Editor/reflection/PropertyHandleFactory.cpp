@@ -3,7 +3,7 @@
 #include <Editor/reflection/PropertyHandleFactory.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/PropertyHandleYaml.h>
-
+#include <memory>
 namespace Salix {
     std::vector<std::unique_ptr<Salix::PropertyHandle>> PropertyHandleFactory::create_handles_for_archetype(Salix::EntityArchetype* entity_archetype) {
         std::vector<std::unique_ptr<Salix::PropertyHandle>> handles;
@@ -48,6 +48,7 @@ namespace Salix {
 
         for (const auto& prop : Salix::ByteMirror::get_all_properties_for_type(type_info)) {
             if ((*properties_node)[prop.name]) {
+                
                 handles.push_back(std::make_unique<Salix::PropertyHandleYaml>(prop, properties_node));
             }
         }
