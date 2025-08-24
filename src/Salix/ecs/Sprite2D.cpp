@@ -47,28 +47,11 @@ namespace Salix {
         pimpl->context = new_context;
         if (texture_path.empty()) { return; }
         load_texture(pimpl->context.asset_manager, texture_path);
-        if (pimpl->texture && owner) {
-            // 1. Try to find a sibling BoxCollider component.
-            BoxCollider* box_collider = owner->get_element<BoxCollider>();
-
-            // 2. If a BoxCollider exists, we'll update its size.
-            if (box_collider) {
-                // 3. Get the renderer's Pixels Per Unit (PPU) to convert pixel dimensions to world units.
-                float ppu = pimpl->context.renderer->get_pixels_per_unit();
-                if (ppu <= 0.0f) ppu = 100.0f; // Safety fallback
-
-                // 4. Calculate the new size in world units.
-                Vector3 new_size = Vector3(
-                    (float)pimpl->texture->get_width() / ppu,
-                    (float)pimpl->texture->get_height() / ppu,
-                    box_collider->get_size().z // Keep the original Z-depth
-                );
-
-                // 5. Update the collider's size.
-                box_collider->set_size(new_size);
-            }
-        }
     }
+    
+    int Sprite2D::get_texture_width() const { return pimpl->width; }
+
+    int Sprite2D::get_texture_height() const { return pimpl->height; }
 
     ITexture* Sprite2D::get_texture() const {
         return pimpl->texture;
@@ -76,7 +59,10 @@ namespace Salix {
 
     void Sprite2D::load_texture(AssetManager* asset_manager, const std::string& relative_file_path) {
         if (relative_file_path.empty()) {
-            std::cerr << "Warning: Sprite2D::load_texture called with an empty path.\n";
+            std::cerr << "Warning: Sprite2D::load_texture called with an empty path." << std::endl;
+            pimpl->texture = nullptr; // Explicitly nullify
+            pimpl->width = 0;         // Reset dimensions
+            pimpl->height = 0;        // Reset dimensions
             return;
         }
 

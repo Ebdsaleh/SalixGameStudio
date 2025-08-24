@@ -71,6 +71,8 @@ namespace Salix {
             const std::string& get_texture_path() const;
             void set_texture_path(const std::string& new_texture_path) { texture_path = new_texture_path; }
 
+            int get_texture_width() const;
+            int get_texture_height() const;
 
             ITexture* get_texture() const;
 
