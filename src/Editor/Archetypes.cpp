@@ -100,6 +100,8 @@ namespace Salix {
     }
 
 
+    
+
     // --- Implementation for EntityArchetype ---
 
     bool EntityArchetype::is_different_from(const EntityArchetype& other) const {
@@ -141,4 +143,28 @@ namespace Salix {
         return false;
     }
 
+    const std::vector<ElementArchetype*> EntityArchetype::get_elements_by_type_name(const std::string& type_name)  {
+        std::vector<ElementArchetype*> found_elements;
+        if (type_name.empty()) { return found_elements; }
+        for (auto& element_it : this->elements) {
+            if (element_it.type_name == type_name) {
+                found_elements.push_back(&element_it);
+            }
+        }
+        return found_elements;
+    }
+
+    ElementArchetype* EntityArchetype::get_element_by_id(const SimpleGuid& element_id) {
+        ElementArchetype* found_element = nullptr;
+        for (auto& element_it : this->elements) {
+            if (element_it.id == element_id) {
+                found_element = &element_it;
+                break;
+            }
+        }
+        return found_element;
+    }
+
+
+    
 }  // namespace Salix

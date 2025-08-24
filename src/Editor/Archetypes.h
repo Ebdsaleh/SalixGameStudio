@@ -51,6 +51,9 @@ namespace Salix {
         // Empty default constructor
         EntityArchetype() : id(SimpleGuid::invalid()){}
         bool is_different_from(const EntityArchetype& other) const;
+        ElementArchetype* get_element_by_id(const SimpleGuid& element_id);
+        const std::vector<ElementArchetype*> get_elements_by_type_name(const std::string& type_name);
+        
         
     };
 
