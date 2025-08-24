@@ -15,6 +15,7 @@
 #include <filesystem>  
 #include <fstream>     
 #include <iostream>
+#include <string>
 #include <iomanip>     
 // For std::setw if you want formatted JSON output
 // Cereal headers required for ProjectConfig and SceneData manifest
@@ -33,6 +34,8 @@ namespace Salix {
     struct ProjectManager::Pimpl {
         std::unique_ptr<Project> active_project;
         InitContext context;
+        std::string project_to_load;
+        std::string loaded_project_directory;
     };
 
     // --- Constructor and Destructor ---
@@ -45,6 +48,22 @@ namespace Salix {
         pimpl->context = new_context;
         std::cout << "ProjectManager Initialized." << std::endl;
        
+    }
+
+    const std::string ProjectManager::get_project_to_load() const {
+        return pimpl->project_to_load;
+    }
+
+    void ProjectManager::set_project_to_load(const std::string full_project_file_path) {
+        pimpl->project_to_load = full_project_file_path;
+    }
+
+    const std::string ProjectManager::get_loaded_project_directory() const {
+        return pimpl->loaded_project_directory;
+    }
+
+    void ProjectManager::set_loaded_project_directory(const std::string loaded_project_directory) {
+        pimpl->loaded_project_directory = loaded_project_directory;
     }
 
     void ProjectManager::shutdown() {

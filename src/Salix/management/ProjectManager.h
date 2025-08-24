@@ -43,7 +43,10 @@ namespace Salix {
             Project* load_project_from_file(const std::string& project_path);
             Project* get_active_project();
             void set_active_project(const std::string& project_name);
-            
+            const std::string get_project_to_load() const;
+            void set_project_to_load(const std::string full_project_file_path);
+            const std::string get_loaded_project_directory() const;
+            void set_loaded_project_directory(const std::string loaded_project_directory); // Pass in just the directory path, not the filename.
             
 
         private:
