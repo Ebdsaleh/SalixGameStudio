@@ -1,10 +1,20 @@
 // Editor/reflection/ui/TypeDrawer.cpp
 #include <Salix/serialization/YamlConverters.h>
 #include <Editor/reflection/ui/TypeDrawer.h>
+#include <Editor/EditorContext.h>
+#include <Editor/events/PropertyValueChangedEvent.h>
+#include <Salix/reflection/PropertyHandleYaml.h>
 #include <Salix/reflection/PropertyHandle.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <unordered_map>
+#include <Salix/gui/DialogBox.h>
+#include <Salix/gui/IGui.h>
+#include <Salix/gui/imgui/opengl/OpenGLImGui.h> // For the dynamic_cast
+#include <Salix/gui/imgui/sdl/SDLImGui.h>   // For the dynamic_cast
 #include <imgui/imgui.h>
+#include <Salix/events/EventManager.h>
+#include <Salix/management/FileManager.h>
+#include <Salix/management/ProjectManager.h>
 #include <Salix/math/Color.h>
 #include <Salix/math/Vector2.h>
 #include <Salix/math/Vector3.h>
@@ -13,6 +23,7 @@
 #include <Salix/rendering/ICamera.h>
 #include <glm/glm.hpp>
 #include <string>
+#include <cassert>
 
 
 namespace Salix {
@@ -163,7 +174,7 @@ namespace Salix {
 
 
 
-    bool Salix::TypeDrawer::draw_property(const char* label, PropertyHandle& handle) {
+    bool Salix::TypeDrawer::draw_property(const char* label, PropertyHandle& handle, EditorContext* context) {
         // Use the property's name as the label for the ImGui widget
         bool value_changed = false;
         switch (handle.get_type())
@@ -195,14 +206,114 @@ namespace Salix {
                 break;
             }
 
+            
+            
             case PropertyType::String: {
+                UIHint hint = handle.get_hint();
                 std::string value = std::get<std::string>(handle.get_value());
-                // ImGui's InputText works with char buffers, so we need this boilerplate
-                char buffer[256];
+                char buffer[512];
                 strncpy_s(buffer, sizeof(buffer), value.c_str(), sizeof(buffer) - 1);
-                if (ImGui::InputText(label, buffer, sizeof(buffer))) {
-                    handle.set_value(std::string(buffer));
-                    value_changed = true;
+
+                if (hint == UIHint::ImageFile || hint == UIHint::AudioFile || hint == UIHint::TextFile || 
+                    hint == UIHint::SourceFile || hint == UIHint::FilePath)
+                {
+                    // --- Layout, Tooltip, and Callback Logic ---
+
+                    // 1. Calculate widget widths to prevent the text box from consuming all space.
+                    float button_width = ImGui::GetFrameHeight();
+                    float text_box_width = ImGui::GetContentRegionAvail().x - button_width - ImGui::GetStyle().ItemSpacing.x;
+
+                    // 2. Draw the read-only text box with a calculated width.
+                    ImGui::PushItemWidth(text_box_width);
+                    ImGui::InputText(label, buffer, sizeof(buffer), ImGuiInputTextFlags_ReadOnly);
+                    ImGui::PopItemWidth();
+
+                    // 3. Add a tooltip to show the full path on hover.
+                    if (ImGui::IsItemHovered() && !value.empty()) {
+                        ImGui::SetTooltip("%s", value.c_str());
+                    }
+
+                    ImGui::SameLine();
+
+                    // 4. Safely copy all necessary data BEFORE creating the callback lambda.
+                    std::string property_name = handle.get_name();
+                    SimpleGuid entity_id = context->selected_entity_id;
+                    SimpleGuid element_id = context->selected_element_id;
+                    const TypeInfo* type_info = handle.get_contained_type_info();
+                    std::string element_type_name = type_info ? type_info->name : "";
+
+                    // 5. Draw the button and set up its callback.
+                    if (ImGui::Button(("...##" + std::string(label)).c_str()))
+                    {
+                        std::string dialog_key, filters;
+                        switch(hint) {
+                            case UIHint::ImageFile:
+                                dialog_key = "SelectImageFile";
+                                filters = "Image Files (*.png, *.jpg, *.jpeg){.png,.jpg,.jpeg},All Files (*.*){.*}";
+                                break;
+                            case UIHint::AudioFile:
+                                dialog_key = "SelectAudioFile";
+                                filters = "Audio Files (*.wav, *.mp3, *.ogg){.wav,.mp3,.ogg},All Files (*.*){.*}";
+                                break;
+                            case UIHint::SourceFile:
+                                dialog_key = "SelectSourceFile";
+                                filters = "Source Files (*.h, *.cpp){.h,.cpp},All Files (*.*){.*}";
+                                break;
+                            default:
+                                dialog_key = "SelectFile";
+                                filters = "All Files (*.*){.*}";
+                                break;
+                        }
+                        
+                        if (DialogBox* dialog = context->gui->get_dialog(dialog_key)) {
+                            // Set the dialog's starting location to the global project root.
+                            dialog->set_default_path(Salix::g_project_root_path.string());
+                            dialog->set_filters(filters);
+                            
+                            // 6. The lambda now captures all data BY VALUE, which is safe.
+                            dialog->set_callback([property_name, entity_id, element_id, element_type_name, context](const FileDialogResult& result) {
+                            if (result.is_ok) {
+                                // This is the command we want to execute later.
+                                // It captures the result and all the context it needs.
+                                std::function<void()> command = [=]() {
+                                    // 1. Convert to relative path.
+                                    std::string relative_path = FileManager::convert_to_relative(
+                                        Salix::g_project_root_path.string(),
+                                        result.file_path_name
+                                    );
+
+                                    // 2. Dispatch the event. This is now done safely inside the command.
+                                    PropertyValueChangedEvent event(
+                                        entity_id,
+                                        element_id,
+                                        element_type_name,
+                                        property_name,
+                                        relative_path
+                                    );
+                                    context->event_manager->dispatch(event);
+                                };
+
+                                // 3. Add the command to the queue to be run at the end of the frame.
+                                context->deferred_type_drawer_commands.push_back(command);
+                            }
+                        });
+                            context->gui->show_dialog_by_key(dialog_key);
+                        }
+                    }
+                }
+                else if (hint == UIHint::MultilineText)
+                {
+                    if (ImGui::InputTextMultiline(label, buffer, sizeof(buffer))) {
+                        handle.set_value(std::string(buffer));
+                        value_changed = true;
+                    }
+                }
+                else // This covers UIHint::None and is the default
+                {
+                    if (ImGui::InputText(label, buffer, sizeof(buffer))) {
+                        handle.set_value(std::string(buffer));
+                        value_changed = true;
+                    }
                 }
                 break;
             }

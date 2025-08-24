@@ -10,7 +10,7 @@
 namespace Salix {
     class Element;
     class PropertyHandle;
-
+    struct EditorContext;
     using DrawFunc = std::function<void(const Property& prop, Element* element)>;
 
     
@@ -28,7 +28,7 @@ namespace Salix {
         static void register_all_type_drawers();
 
         // Draws the appropriate UI for any given property handle.
-        static bool draw_property(const char* label,PropertyHandle& handle);
+        static bool draw_property(const char* label, PropertyHandle& handle, EditorContext* context);
         static void draw_yaml_property(const Property& prop, YAML::Node& data_node);
     private:
         static std::unordered_map<PropertyType, DrawFunc> type_drawer_registry;
