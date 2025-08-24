@@ -9,8 +9,10 @@
 #include <Salix/events/EventManager.h>
 #include <imgui/imgui.h>
 #include <Salix/gui/IGui.h>
+#include <Salix/gui/DialogBox.h>
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/IconInfo.h>
+#include <Salix/management/FileManager.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/PropertyHandleLive.h>
@@ -38,10 +40,9 @@ namespace Salix {
         bool is_visible = true;
         bool is_locked = false;
         ImGuiIconManager* icon_manager = nullptr;
-        Entity* selected_entity = nullptr;
-        Element* selected_element = nullptr;
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
+        void handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info);
     };
 
     ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
@@ -73,6 +74,59 @@ namespace Salix {
    
 
 
+    void ScryingMirrorPanel::Pimpl::handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info) {
+        UIHint hint = handle.get_hint();
+        std::string dialog_key, filters;
+
+        switch (hint) {
+            case UIHint::ImageFile:
+                dialog_key = "SelectImageFile";
+                filters = "Image Files (*.png, *.jpg, *.jpeg){.png,.jpg,.jpeg},All Files (*.*){.*}";
+                break;
+            case UIHint::AudioFile:
+                dialog_key = "SelectAudioFile";
+                filters = "Audio Files (*.wav, *.mp3, *.ogg){.wav,.mp3,.ogg},All Files (*.*){.*}";
+                break;
+            case UIHint::SourceFile:
+                dialog_key = "SelectSourceFile";
+                filters = "Source Files (*.h, *.cpp){.h,.cpp},All Files (*.*){.*}";
+                break;
+            default:
+                dialog_key = "SelectFile";
+                filters = "All Files (*.*){.*}";
+                break;
+        }
+
+        if (DialogBox* dialog = context->gui->get_dialog(dialog_key)) {
+            dialog->set_default_path(Salix::g_project_root_path.string());
+            dialog->set_filters(filters);
+
+            std::string property_name = handle.get_name();
+
+            dialog->set_callback([this, element_archetype, type_info, property_name](const FileDialogResult& result) {
+                if (result.is_ok) {
+                    std::function<void()> command = [=]() {
+                        std::string relative_path = FileManager::convert_to_relative_path(
+                            Salix::g_project_root_path.string(),
+                            result.file_path_name
+                        );
+
+                        PropertyValueChangedEvent event(
+                            this->selected_entity_id, // 'this' now refers to the Pimpl struct
+                            element_archetype->id,
+                            type_info->name,
+                            property_name,
+                            relative_path
+                        );
+                        this->context->event_manager->dispatch(event); // 'this' now refers to the Pimpl struct
+                    };
+                    this->context->deferred_type_drawer_commands.push_back(command); // 'this' now refers to the Pimpl struct
+                }
+            });
+            context->gui->show_dialog_by_key(dialog_key);
+        }
+    }
+    
  
 
     void ScryingMirrorPanel::on_panel_gui_update() {
@@ -83,16 +137,10 @@ namespace Salix {
         ImGui::Text("Properties:");
         ImGui::Separator();
 
-        // First, find the selected entity (live or archetype) based on the stored ID.
-        Entity* selected_entity_live = nullptr;
-        EntityArchetype* selected_archetype = nullptr;
-
-        if (pimpl->selected_entity_id.is_valid()) {
-            if (pimpl->context->data_mode == EditorDataMode::Live) {
-                if (pimpl->context->active_scene) {
-                    selected_entity_live = pimpl->context->active_scene->get_entity_by_id(pimpl->selected_entity_id);
-                }
-            } else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+        // The main logic is now nested inside this check for the data mode.
+        if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+            EntityArchetype* selected_archetype = nullptr;
+            if (pimpl->selected_entity_id.is_valid()) {
                 for (auto& archetype : pimpl->context->current_realm) {
                     if (archetype.id == pimpl->selected_entity_id) {
                         selected_archetype = &archetype;
@@ -100,112 +148,78 @@ namespace Salix {
                     }
                 }
             }
-        }
 
-        // --- DRAWING LOGIC STARTS HERE ---
+            if (selected_archetype) {
+                // YAML/Archetype drawing logic.
+                // It correctly handles displaying either a whole entity or a single selected element.
+                std::vector<ElementArchetype*> elements_to_display;
+                std::string header_name = "Entity: " + selected_archetype->name;
 
-        if (selected_entity_live) {
-            // --- LIVE MODE DRAWING ---
-            std::vector<Element*> elements_to_display;
-            
-            // NEW LOGIC: Check if a specific element is selected.
-            if (pimpl->selected_element_id.is_valid()) {
-                Element* selected_element = selected_entity_live->get_element_by_id(pimpl->selected_element_id);
-                if (selected_element) {
-                    elements_to_display.push_back(selected_element);
-                }
-            } else {
-                // Otherwise, display all elements for the entity.
-                elements_to_display = selected_entity_live->get_all_elements();
-                ImGui::Text("Entity: %s", selected_entity_live->get_name().c_str());
-                ImGui::Separator();
-            }
-
-            for (auto* element : elements_to_display) {
-                const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element));
-                if (ImGui::CollapsingHeader(type_info->name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                    auto handles = ByteMirror::create_handles_for(element);
-                    if (!handles.empty() && ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
-                        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-                        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-                        for (const auto& handle : handles) {
-                            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); 
-                            std::string display_name = StringUtils::to_title_case(handle->get_name(), true);
-                            ImGui::Text("%s", display_name.c_str());
-                            ImGui::TableSetColumnIndex(1); ImGui::PushItemWidth(-FLT_MIN);
-                            std::string widget_id = "##" + handle->get_name();
-                            TypeDrawerLive::draw_property(widget_id.c_str(), *handle);
-                            ImGui::PopItemWidth();
+                if (pimpl->selected_element_id.is_valid()) {
+                    for (auto& element_archetype : selected_archetype->elements) {
+                        if (element_archetype.id == pimpl->selected_element_id) {
+                            elements_to_display.push_back(&element_archetype);
+                            header_name = "Element: " + element_archetype.name;
+                            break;
                         }
-                        ImGui::EndTable();
                     }
-                }
-            }
-
-        } else if (selected_archetype) {
-            // --- YAML MODE DRAWING ---
-            std::vector<ElementArchetype*> elements_to_display;
-
-            std::string header_name = "Entity: " + selected_archetype->name;
-            // NEW LOGIC: Check if a specific element archetype is selected.
-            if (pimpl->selected_element_id.is_valid()) {
-                for (auto& element_archetype : selected_archetype->elements) {
-                    if (element_archetype.id == pimpl->selected_element_id) {
+                } else {
+                    for (auto& element_archetype : selected_archetype->elements) {
                         elements_to_display.push_back(&element_archetype);
-                        // If a specific element is selected, update the header.
-                        header_name = "Element: " + element_archetype.name;
-                        break;
                     }
-                }
-            } else {
-                // Otherwise, display all element archetypes for the entity archetype.
-                for (auto& element_archetype : selected_archetype->elements) {
-                    elements_to_display.push_back(&element_archetype);
                 }
                 
-            }
-            // --- NEW: Draw the header outside the loop ---
-            ImGui::Text("%s", header_name.c_str());
-            ImGui::Separator();
+                ImGui::Text("%s", header_name.c_str());
+                ImGui::Separator();
 
-            for (auto* element_archetype : elements_to_display) {
-                const TypeInfo* type_info = ByteMirror::get_type_info_by_name(element_archetype->type_name);
-                if (ImGui::CollapsingHeader(StringUtils::convert_from_pascal_case(type_info->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-                    auto handles = PropertyHandleFactory::create_handles_for_element_archetype(element_archetype);
-                    if (!handles.empty() && ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
-                        ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
-                        ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
-                        for (const auto& handle : handles) {
-                            ImGui::TableNextRow(); ImGui::TableSetColumnIndex(0); 
-                            std::string display_name = StringUtils::to_title_case(handle->get_name(), true);
-                            ImGui::Text("%s", display_name.c_str());
-                            ImGui::TableSetColumnIndex(1); ImGui::PushItemWidth(-FLT_MIN);
-                            std::string widget_id = "##" + handle->get_name();
-                            if(TypeDrawer::draw_property(widget_id.c_str(), *handle, pimpl->context)) {
-                                // If it returns true, a value was changed. FIRE THE EVENT!
-                                PropertyValueChangedEvent event(
-                                    pimpl->selected_entity_id,      // The ID of the entity archetype
-                                    element_archetype->id,          // The ID of the element archetype
-                                    type_info->name,                // The name of the element ("Camera")
-                                    handle->get_name(),             // The name of the property ("projection_mode")
-                                    handle->get_value()             // The new value
-                                );
-                                if (ImGui::IsItemActive()) {
-                                    pimpl->context->is_editing_property = true;
+                for (auto* element_archetype : elements_to_display) {
+                    const TypeInfo* type_info = ByteMirror::get_type_info_by_name(element_archetype->type_name);
+                    if (ImGui::CollapsingHeader(StringUtils::convert_from_pascal_case(type_info->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
+                        auto handles = PropertyHandleFactory::create_handles_for_element_archetype(element_archetype);
+                        if (!handles.empty() && ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
+                            ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
+                            ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
+                            for (const auto& handle : handles) {
+                                ImGui::TableNextRow();
+                                ImGui::TableSetColumnIndex(0); 
+                                std::string display_name = StringUtils::to_title_case(handle->get_name(), true);
+                                ImGui::Text("%s", display_name.c_str());
+                                ImGui::TableSetColumnIndex(1); ImGui::PushItemWidth(-FLT_MIN);
+                                std::string widget_id = "##" + handle->get_name();
+                                if(TypeDrawer::draw_property(widget_id.c_str(), *handle, pimpl->context)) {
+                                    if (handle->get_hint() != UIHint::None) {
+                                        // do the DialogBox stuff
+                                        std::cout << "We got a button click!" << std::endl;
+                                        pimpl->handle_media_file_selection(*handle, element_archetype, type_info);
+                                        
+                                    } else {
+                                        // If it returns true, a value was changed. FIRE THE EVENT!
+                                        PropertyValueChangedEvent event(
+                                            pimpl->selected_entity_id,
+                                            element_archetype->id,
+                                            type_info->name,
+                                            handle->get_name(),
+                                            handle->get_value()
+                                        );
+                                        if (ImGui::IsItemActive()) {
+                                            pimpl->context->is_editing_property = true;
+                                        }
+                                        pimpl->context->event_manager->dispatch(event);
+                                    }
                                 }
-                                pimpl->context->event_manager->dispatch(event);
-                                                                
+                                ImGui::PopItemWidth();
                             }
-                            ImGui::PopItemWidth();
+                            ImGui::EndTable();
                         }
-                        ImGui::EndTable();
                     }
                 }
-            }
 
-        } else {
-            ImGui::Text("No object selected.");
+            } else {
+                ImGui::Text("No object selected.");
+            }
         }
+        // Might add 'else if' blocks here later for other data modes
+        // else if (pimpl->context->data_mode == EditorDataMode::Json) { ... }
     }
 
 
@@ -230,9 +244,7 @@ namespace Salix {
                 std::cout << "Scrying Mirror received deselection event" << std::endl;
             }
 
-            // We can still store the live pointer for Live Mode's convenience
-            pimpl->selected_entity = e.entity;
-            pimpl->selected_element = nullptr;
+            
         }
         else if (event.get_event_type() == EventType::EditorElementSelected) {
             ElementSelectedEvent& e = static_cast<ElementSelectedEvent&>(event);
@@ -250,8 +262,7 @@ namespace Salix {
                 std::cout << "Scrying Mirror received deselection event" << std::endl;
             }
 
-            // Store the live pointer for Live Mode
-            pimpl->selected_element = e.element;
+           
         }
 
         
