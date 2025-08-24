@@ -181,7 +181,7 @@ namespace Salix {
                             ImGui::Text("%s", display_name.c_str());
                             ImGui::TableSetColumnIndex(1); ImGui::PushItemWidth(-FLT_MIN);
                             std::string widget_id = "##" + handle->get_name();
-                            if(TypeDrawer::draw_property(widget_id.c_str(), *handle)) {
+                            if(TypeDrawer::draw_property(widget_id.c_str(), *handle, pimpl->context)) {
                                 // If it returns true, a value was changed. FIRE THE EVENT!
                                 PropertyValueChangedEvent event(
                                     pimpl->selected_entity_id,      // The ID of the entity archetype
