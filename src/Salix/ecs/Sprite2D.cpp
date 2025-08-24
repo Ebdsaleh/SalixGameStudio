@@ -1,6 +1,7 @@
 // Salix/ecs/Sprite2D.cpp
 #include <Salix/core/InitContext.h>
 #include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/BoxCollider.h>
 #include <Salix/ecs/Entity.h> // We need this to get the owner's Transform.
 #include <Salix/ecs/Transform.h>
 #include <Salix/assets/AssetManager.h>
@@ -44,8 +45,29 @@ namespace Salix {
 
     void Sprite2D::on_load(const InitContext& new_context) {
         pimpl->context = new_context;
-        if(texture_path.empty()) { return; }
+        if (texture_path.empty()) { return; }
         load_texture(pimpl->context.asset_manager, texture_path);
+        if (pimpl->texture && owner) {
+            // 1. Try to find a sibling BoxCollider component.
+            BoxCollider* box_collider = owner->get_element<BoxCollider>();
+
+            // 2. If a BoxCollider exists, we'll update its size.
+            if (box_collider) {
+                // 3. Get the renderer's Pixels Per Unit (PPU) to convert pixel dimensions to world units.
+                float ppu = pimpl->context.renderer->get_pixels_per_unit();
+                if (ppu <= 0.0f) ppu = 100.0f; // Safety fallback
+
+                // 4. Calculate the new size in world units.
+                Vector3 new_size = Vector3(
+                    (float)pimpl->texture->get_width() / ppu,
+                    (float)pimpl->texture->get_height() / ppu,
+                    box_collider->get_size().z // Keep the original Z-depth
+                );
+
+                // 5. Update the collider's size.
+                box_collider->set_size(new_size);
+            }
+        }
     }
 
     ITexture* Sprite2D::get_texture() const {
