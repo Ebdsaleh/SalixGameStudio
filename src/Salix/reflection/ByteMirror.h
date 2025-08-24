@@ -52,6 +52,18 @@ namespace Salix {
     // A type definition for a function that constructs an Element.
     using constructor_func = std::function<Element*()>;
 
+    // Used for telling the TypeDrawer what to draw the property as, 
+    // ie. does it need a dialog box to find a file or can it just draw it's values...
+    enum class UIHint {
+    None,
+    FilePath,
+    ImageFile,
+    MultilineText,
+    ColorEdit,
+    AudioFile,
+    TextFile,
+    SourceFile
+    };
     // Describes a single editable property of a element.
     struct Property
     {
@@ -60,6 +72,8 @@ namespace Salix {
         const TypeInfo* contained_type_info = nullptr;
         getter_func get_data;
         setter_func set_data;
+        UIHint hint = UIHint::None;
+        
     };
 
     // Contains all the reflection information for a given element type.

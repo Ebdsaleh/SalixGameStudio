@@ -359,7 +359,8 @@ namespace Salix {
                 // setter_func
                 [](void* instance, void* data) {
                     static_cast<Sprite2D*>(instance)->set_texture_path(*static_cast<std::string*>(data)); 
-                }
+                },
+                UIHint::ImageFile
             }
         };
         type_info.type_index = typeid(Sprite2D);
