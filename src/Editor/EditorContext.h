@@ -14,6 +14,9 @@
 #include <Salix/reflection/EditorDataMode.h>
 #include <vector>
 #include <unordered_map>
+#include <map>
+#include <memory>
+#include <functional>
 #include <Editor/Archetypes.h>
 #include <Editor/management/RealmSnapshot.h>
 
@@ -39,6 +42,7 @@ namespace Salix {
     class ProjectManager;
     struct SceneSettings;
     struct EntityArchetype;
+    
     // Game World Data
     class Project;
     class Scene;
@@ -80,7 +84,8 @@ namespace Salix {
         std::vector<EntityArchetype*> world_tree_render_order; // Can be used later for better performance.
         RealmSnapshot loaded_realm_snapshot;  // used to check against changes to the current realm.
         std::unordered_map<SimpleGuid, EntityArchetype*> current_realm_map;
-
+        //A queue for commands to be run at the end of the frame.
+        std::vector<std::function<void()>> deferred_type_drawer_commands;
         bool realm_is_dirty = true; 
         bool is_editing_property = false;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
