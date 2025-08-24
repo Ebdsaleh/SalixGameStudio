@@ -45,7 +45,7 @@
 
 // Asset management includes
 #include <Salix/assets/AssetManager.h>
-
+#include <Salix/management/ProjectManager.h>
 // Events includes
 #include <Salix/events/IEventPoller.h>
 #include <Salix/events/sdl/SDLEventPoller.h>
@@ -88,6 +88,7 @@ namespace Salix {
         std::unique_ptr<ITimer> timer;
         std::unique_ptr<IEventPoller> event_poller;
         std::unique_ptr<EventManager> event_manager;
+        std::unique_ptr<ProjectManager> project_manager;
         std::unique_ptr<IThemeManager> theme_manager;
         std::unique_ptr<IFontManager> font_manager;
         std::unique_ptr<ApplicationEventListener> app_event_listener;       
@@ -133,7 +134,7 @@ namespace Salix {
         
         pimpl->event_poller.reset(); // Poller before manager
         pimpl->event_manager.reset(); // Event manager last of these core systems
-
+        pimpl->project_manager.reset(); // delete the project manager.
         pimpl->gui_system.reset(); // GUI system might depend on renderer
         pimpl->timer.reset();
         pimpl->asset_manager.reset();
@@ -248,6 +249,8 @@ namespace Salix {
         // --- INITIALIZE EVENT MANAGER ---
         pimpl->event_manager = std::make_unique<EventManager>();
 
+        // --- INITIALIZE PROJECT MANAGER ---
+        pimpl->project_manager = std::make_unique<ProjectManager>();
 
         // --- INITIALIZE EVENT POLLER ---
         pimpl->event_poller = std::make_unique<SDLEventPoller>();
@@ -708,7 +711,7 @@ namespace Salix {
     float Engine::get_time_scale() const { return pimpl->time_scale; }
     void Engine::set_time_scale(float new_time_scale) { pimpl->time_scale = new_time_scale; }
     // NEW: Provide a fully populated InitContext on demand
-        InitContext Engine::make_context() const {
+    InitContext Engine::make_context() const {
         InitContext ctx;
         ctx.dpi_scale       = pimpl->dpi_scale;
         ctx.app_config      = pimpl->app_config.get();
@@ -723,6 +726,7 @@ namespace Salix {
         ctx.gui_type        = pimpl->gui_type;
         ctx.gui = pimpl->gui_system.get();
         ctx.event_manager = pimpl->event_manager.get();
+        ctx.project_manager = pimpl->project_manager.get();
 
         if (ctx.engine_mode == EngineMode::Game) {
             std::cout << "Engine::make_context - InputManager = 'game_input_manager'." << std::endl;
