@@ -25,6 +25,7 @@
 #include <Salix/ecs/BoxCollider.h>
 #include <Salix/events/BeforeEntityPurgedEvent.h>
 #include <Salix/events/EventManager.h>
+#include <Salix/management/FileManager.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
 #include <Salix/management/SceneManager.h>
@@ -112,6 +113,7 @@ namespace Salix {
         if (!engine_context.renderer) { log_file << "[FATAL] engine_context.renderer is NULL!" << std::endl; return; }
         if (!engine_context.asset_manager) { log_file << "[FATAL] engine_context.asset_manager is NULL!" << std::endl; return; }
         if (!engine_context.event_manager) { log_file << "[FATAL] engine_context.event_manager is NULL!" << std::endl; return; }
+        if (!engine_context.project_manager) { log_file << "[FATAL] engine_context.project_manager is NULL!" << std::endl; return; }
         if (!engine_context.theme_manager) { log_file << "[FATAL] engine_context.theme_manager is NULL!" << std::endl; return; }
         if (!engine_context.font_manager) { log_file << "[FATAL] engine_context.font_manager is NULL!" << std::endl; return; }
         
@@ -131,6 +133,7 @@ namespace Salix {
         pimpl->editor_context->renderer = engine_context.renderer;
         pimpl->editor_context->asset_manager = engine_context.asset_manager;
         pimpl->editor_context->event_manager = engine_context.event_manager;
+        pimpl->editor_context->project_manager = engine_context.project_manager;
         pimpl->editor_context->panel_manager = pimpl->panel_manager.get();
         pimpl->editor_context->theme_manager = engine_context.theme_manager;
         pimpl->editor_context->font_manager = engine_context.font_manager;
@@ -212,6 +215,40 @@ namespace Salix {
         pimpl->panel_manager->register_panel(std::move(project_settings_panel), project_settings_name);
         log_file << "[DEBUG] ProjectSettingsPanel registered." << std::endl;
         
+        
+        // --- Register Dialog Boxes ---
+        log_file << "[DEBUG] Creating and registering utility dialog boxes..." << std::endl;
+        if (auto* gui = pimpl->editor_context->gui) {
+            // The concrete GUI instance is needed to register the dialogs
+            if (auto* concrete_gui = dynamic_cast<OpenGLImGui*>(gui)) {
+                std::string key;
+                std::string title;
+                
+                // --- Create and REGISTER a dialog for each file type ---
+                key = "SelectImageFile";
+                title = "Select Image File";
+                concrete_gui->register_dialog(std::make_unique<DialogBox>(key, title, DialogType::File, false));
+
+                key = "SelectAudioFile";
+                title = "Select Audio Clip";
+                concrete_gui->register_dialog(std::make_unique<DialogBox>(key, title, DialogType::File, false));
+
+                key = "SelectSourceFile";
+                title = "Select Source File";
+                concrete_gui->register_dialog(std::make_unique<DialogBox>(key, title, DialogType::File, false));
+                
+                key = "SelectFile";
+                title = "Select File";
+                concrete_gui->register_dialog(std::make_unique<DialogBox>(key, title, DialogType::File, false));
+                
+                log_file << "[DEBUG] Utility dialogs registered." << std::endl;
+            } 
+            // Add an 'else if' for SDLImGui if you plan to use it in the editor
+            else {
+                log_file << "[ERROR] Could not cast IGui to concrete type to register dialogs." << std::endl;
+            }
+        }
+
         log_file << "[DEBUG] EditorState::on_enter FINISHED successfully." << std::endl;
 
         pimpl->camera = std::make_unique<EditorCamera>();
@@ -233,7 +270,14 @@ namespace Salix {
             // load the scene/realm based on the EditorDataMode set during the Engine initialization.
             if (pimpl->editor_context->data_mode == EditorDataMode::Yaml) {
                 std::cout << "DEBUG: Starting YAML load..." << std::endl;
-                pimpl->editor_context->current_realm = load_archetypes_from_file("default_realm.yaml");
+                std::cout << "[Editor] Setting path to the realm from Project Manager..." << std::endl;
+                std::filesystem::path full_project_file_path = std::filesystem::absolute(pimpl->editor_context->project_manager->get_project_to_load());
+                std::filesystem::path project_directory_path = std::filesystem::absolute(pimpl->editor_context->project_manager->get_loaded_project_directory());
+                std::filesystem::path relative_path_to_realm =  "Assets/Scenes/default_realm.yaml";
+                std::filesystem::path path_to_realm = std::filesystem::absolute(project_directory_path / relative_path_to_realm);
+                
+                std::cout << "REALM TO LOAD: " << path_to_realm<< std::endl;
+                pimpl->editor_context->current_realm = load_archetypes_from_file(path_to_realm.string());
                 std::cout << "DEBUG: Load completed. Vector size: " 
                         << pimpl->editor_context->current_realm.size() << std::endl;
 
@@ -349,6 +393,14 @@ namespace Salix {
             ImGui::PopFont();
         }
         
+        // Process any commands that were deferred during this frame.
+        if (!pimpl->editor_context->deferred_type_drawer_commands.empty()) {
+            for (const auto& command : pimpl->editor_context->deferred_type_drawer_commands) {
+                command(); // Execute the command
+            }
+            // Clear the queue for the next frame.
+            pimpl->editor_context->deferred_type_drawer_commands.clear();
+        }
     }
 
 
