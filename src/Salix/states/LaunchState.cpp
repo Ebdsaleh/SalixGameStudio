@@ -6,6 +6,7 @@
 #include <Salix/gui/IGui.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <Salix/management/ProjectManager.h>
 #include <Salix/window/IWindow.h>
 #include <Salix/gui/ITheme.h>
 #include <Salix/gui/IThemeManager.h>
@@ -207,7 +208,6 @@ namespace Salix {
             if (result.is_ok) {
                 // will add new project creation method later
                 this->should_switch_to_editor = true;
-                std::cout << "Action: New Project selected (via callback)." << std::endl; // Add a debug message
             } else {
                 std::cout << "Action: New Project dialog canceled (via callback)." << std::endl;
             }
@@ -228,6 +228,19 @@ namespace Salix {
             
             if (result.is_ok) {
                 // will add new project creation method later
+                std::cout << "Action: New Project selected (via callback)." << std::endl; // Add a debug message
+                std::cout << "Selected Folder: " << result.folder_path << std::endl;
+                std::cout << "Selected File: " << result.file_name << std::endl;
+                std::cout << "File's Full Path Locaton: " << result.file_path_name << std::endl;
+                std::cout << "Assigning Project Root directory to: " << result.folder_path << std::endl;
+                Salix::g_project_root_path = result.folder_path;
+                std::cout << "Global Project Root Path Assigned to :" << Salix::g_project_root_path << std::endl;
+                
+                std::cout << "Setting Project To Load in Project Manager..." << std::endl;
+                context.project_manager->set_project_to_load(result.file_path_name);
+                context.project_manager->set_loaded_project_directory(result.folder_path);
+                std::cout << "[LaunchState] Project Directory: " << context.project_manager->get_loaded_project_directory() << std::endl;
+                std::cout << "[LaunchState] Get Project to Load result: " << context.project_manager->get_project_to_load() << std::endl;
                 this->should_switch_to_editor = true;
                 std::cout << "Action: Open Project selected (via callback)." << std::endl; // Add a debug message
             } else {
