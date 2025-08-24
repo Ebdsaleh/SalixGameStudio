@@ -361,6 +361,30 @@ namespace Salix {
                     static_cast<Sprite2D*>(instance)->set_texture_path(*static_cast<std::string*>(data)); 
                 },
                 UIHint::ImageFile
+            },
+            {
+                "width", PropertyType::Int, nullptr,
+                // Getter for the texture width
+                [](void* instance) {
+                    // Use a stable memory location for the return value
+                    thread_local static int value; 
+                    value = static_cast<Sprite2D*>(instance)->get_texture_width();
+                    return &value;
+                },
+                // Empty setter makes this property read-only in the UI
+                [](void*, void*) {}
+            },
+            {
+                "height", PropertyType::Int, nullptr,
+                // Getter for the texture height
+                [](void* instance) {
+                    // Use a stable memory location for the return value
+                    thread_local static int value; 
+                    value = static_cast<Sprite2D*>(instance)->get_texture_height();
+                    return &value;
+                },
+                // Empty setter makes this property read-only in the UI
+                [](void*, void*) {}
             }
         };
         type_info.type_index = typeid(Sprite2D);
