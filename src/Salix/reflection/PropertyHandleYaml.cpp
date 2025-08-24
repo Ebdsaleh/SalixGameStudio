@@ -11,6 +11,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <yaml-cpp/yaml.h>
+#include <memory>
 
 
 namespace Salix {

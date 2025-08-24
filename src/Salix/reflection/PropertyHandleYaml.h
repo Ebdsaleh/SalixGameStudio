@@ -2,6 +2,7 @@
 #pragma once
 #include <Salix/serialization/YamlConverters.h>
 #include <Salix/core/Core.h>
+#include <Salix/core/SimpleGuid.h>
 #include <Salix/reflection/PropertyHandle.h>
 #include <yaml-cpp/yaml.h>
 
@@ -25,9 +26,12 @@ namespace Salix {
         PropertyValue get_value() const override;
         void set_value(const PropertyValue& value) override;
 
+        
+
+
     private:
         // A pointer to the YAML node that this handle operates on.
         YAML::Node* element_node;
-
+        
     };
 } // namespace Salix
