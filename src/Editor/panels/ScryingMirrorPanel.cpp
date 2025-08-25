@@ -132,57 +132,70 @@ namespace Salix {
     }
     
  
+    
     void ScryingMirrorPanel::Pimpl::handle_box_collider_resize_button(ElementArchetype* box_collider_archetype) {
-        if (!box_collider_archetype) {
+        if (!box_collider_archetype || !context) {
             return;
         }
 
-        // 1. Get the ID of the owner entity from the collider archetype.
+        // 1. Find the owner EntityArchetype using the fast map lookup.
         const SimpleGuid& owner_id = box_collider_archetype->owner_id;
-
-        // 2. Use the map's .find() method for a fast lookup.
         auto entity_iterator = context->current_realm_map.find(owner_id);
+        if (entity_iterator == context->current_realm_map.end()) {
+            return; // Owner entity not found in the map.
+        }
+        EntityArchetype* owner_entity = entity_iterator->second;
 
-        // 3. Check if the entity was found in the map.
-        if (entity_iterator != context->current_realm_map.end()) {
-            // 4. If found, get the pointer to the entity archetype from the iterator.
-            EntityArchetype* owner_entity = entity_iterator->second;
-
-            // 5. Use your helper to find any sibling Sprite2D components.
-            std::vector<ElementArchetype*> sprite_archetypes = owner_entity->get_elements_by_type_name("Sprite2D");
-
-            // 6. If we found at least one Sprite2D, use the first one.
-            if (!sprite_archetypes.empty()) {
-                ElementArchetype* sprite_archetype = sprite_archetypes[0];
-
-                int tex_width = sprite_archetype->data["width"] ? sprite_archetype->data["width"].as<int>() : 0;
-                int tex_height = sprite_archetype->data["height"] ? sprite_archetype->data["height"].as<int>() : 0;
-
-                if (tex_width > 0 && tex_height > 0) {
-                    float ppu = context->renderer->get_pixels_per_unit();
-                    if (ppu <= 0.0f) ppu = 100.0f;
-
-                    // 7. Calculate the new size.
-                    Vector3 new_size = Vector3(
-                        (float)tex_width / ppu,
-                        (float)tex_height / ppu,
-                        std::max(1.0f, box_collider_archetype->data["size"].as<Vector3>().z) // Ensures Z is at least 1.0
-                    );
-
-                    // 8. Fire the event to update the BoxCollider's size property.
-                    PropertyValueChangedEvent event(
-                        owner_entity->id,
-                        box_collider_archetype->id,
-                        "BoxCollider",
-                        "size",
-                        new_size
-                    );
-                    context->event_manager->dispatch(event);
+        // 2. Find a sibling element that we can get texture dimensions from.
+        ElementArchetype* source_renderable = nullptr;
+        for (auto& sibling_element : owner_entity->elements) {
+            // Use the reflection system to check the inheritance chain.
+            const TypeInfo* type_info = ByteMirror::get_type_info_by_name(sibling_element.type_name);
+            bool is_renderable2d = false;
+            while (type_info) {
+                if (type_info->name == "RenderableElement2D") {
+                    is_renderable2d = true;
+                    break;
                 }
+                type_info = type_info->ancestor;
+            }
+
+            // If it's a renderable, check if it's a type we know how to get dimensions from.
+            // For now, this is just Sprite2D, but you can easily add more here later.
+            if (is_renderable2d && sibling_element.type_name == "Sprite2D") {
+                source_renderable = &sibling_element;
+                break; // Use the first suitable one we find.
+            }
+        }
+
+        // 3. If we found a suitable sibling, calculate and dispatch the update event.
+        if (source_renderable) {
+            int tex_width = source_renderable->data["width"] ? source_renderable->data["width"].as<int>() : 0;
+            int tex_height = source_renderable->data["height"] ? source_renderable->data["height"].as<int>() : 0;
+
+            if (tex_width > 0 && tex_height > 0) {
+                float ppu = context->renderer->get_pixels_per_unit();
+                if (ppu <= 0.0f) ppu = 100.0f; // Safety fallback
+
+                // Calculate the new size, preserving the original Z-depth.
+                Vector3 new_size = Vector3(
+                    (float)tex_width / ppu,
+                    (float)tex_height / ppu,
+                    std::max(0.1f, box_collider_archetype->data["size"].as<Vector3>().z) // Ensures Z is at least a small positive value
+                );
+
+                // Fire the event to update the BoxCollider's size property in the archetype.
+                PropertyValueChangedEvent event(
+                    owner_entity->id,
+                    box_collider_archetype->id,
+                    "BoxCollider",
+                    "size",
+                    new_size
+                );
+                context->event_manager->dispatch(event);
             }
         }
     }
-
     void ScryingMirrorPanel::on_panel_gui_update() {
         if (!pimpl->is_visible || !pimpl->context) {
             return;
@@ -265,21 +278,29 @@ namespace Salix {
                             }
                             ImGui::EndTable();
                         }
-                        // If the element we just drew was a BoxCollider, add our special button.
+                        // If the element we just drew was a BoxCollider...
                         if (element_archetype->type_name == "BoxCollider") {
-                            if (ImGui::Button("Fit Texture", ImVec2(-1, 0))) {
-                                // Create a command to be executed at the end of the frame.
-                                std::function<void()> command = [this, element_archetype]() {
-                                    // The command calls our existing helper method.
-                                    pimpl->handle_box_collider_resize_button(element_archetype);
-                                };
-                                // Add the command to the queue.
-                                pimpl->context->deferred_type_drawer_commands.push_back(command);
+                            
+                            // Find the owner entity archetype.
+                            EntityArchetype* owner_entity = nullptr;
+                            auto entity_it = pimpl->context->current_realm_map.find(element_archetype->owner_id);
+                            if (entity_it != pimpl->context->current_realm_map.end()) {
+                                owner_entity = entity_it->second;
                             }
+
+                            // Directly check if the owner has a Sprite2D component.
+                            if (owner_entity && !owner_entity->get_elements_by_type_name("Sprite2D").empty()) {
+                                // If a Sprite2D sibling exists, draw the button.
+                                if (ImGui::Button("Fit Texture", ImVec2(-1, 0))) {
+                                    std::function<void()> command = [this, element_archetype]() {
+                                        pimpl->handle_box_collider_resize_button(element_archetype);
+                                    };
+                                    pimpl->context->deferred_type_drawer_commands.push_back(command);
+                                }
+                            } 
                         }
                     }
                 }
-
             } else {
                 ImGui::Text("No object selected.");
             }
@@ -315,8 +336,8 @@ namespace Salix {
         else if (event.get_event_type() == EventType::EditorElementSelected) {
             ElementSelectedEvent& e = static_cast<ElementSelectedEvent&>(event);
 
-            // --- CORRECTED LOGIC ---
-            // Check the ID, not the pointer.
+            
+            // Check the ID.
             if (e.selected_id.is_valid()) {
                 pimpl->selected_entity_id = e.owner_id;
                 pimpl->selected_element_id = e.selected_id;
