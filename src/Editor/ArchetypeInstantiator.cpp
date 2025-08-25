@@ -4,6 +4,7 @@
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
+#include <Salix/ecs/Sprite2D.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <Salix/core/InitContext.h>
@@ -15,6 +16,9 @@ namespace Salix {
 
         // 1. Create the live entity. Its constructor adds the default Transform and BoxCollider.
         Salix::Entity* live_entity = scene->create_entity(archetype.id, archetype.name);
+        // Debug prints
+        std::cout << "[DEBUG] --- Instantiating Archetype: " << archetype.name << " (Archetype ID: " << archetype.id.get_value() << ") ---" << std::endl;
+        std::cout << "[DEBUG] >>> Live Entity created with ID: " << live_entity->get_id().get_value() << std::endl;
 
         // Get the default elements that were just created.
         Element* default_transform = live_entity->get_element_by_type_name("Transform");
@@ -27,6 +31,11 @@ namespace Salix {
         for (const auto& element_archetype : archetype.elements) {
             Element* live_element = nullptr;
 
+            // DEBUG PRINTS
+            if (live_element) {
+                std::cout << "[DEBUG]  - Archetype Element '" << element_archetype.name << "' (Archetype ID: " << element_archetype.id.get_value() << ")" << std::endl;
+                std::cout << "[DEBUG]    >>> Live Element '" << live_element->get_class_name() << "' created with ID: " << live_element->get_id().get_value() << std::endl;
+            }
             // --- CORRECTED LOGIC ---
             // Check if this archetype is for a default element that we haven't processed yet.
             if (element_archetype.type_name == "Transform" && !has_applied_default_transform) {
@@ -42,6 +51,9 @@ namespace Salix {
                 live_element = Salix::ByteMirror::create_element_by_name(element_archetype.type_name);
                 if (live_element) {
                     live_entity->add_element(live_element);
+
+                    // This synchronizes the live element's ID with its archetype's ID.
+                    live_element->set_id(element_archetype.id);
                 }
             }
 
@@ -128,8 +140,16 @@ namespace Salix {
             }
             
             live_element->on_load(context);
+            // --- NEW: Write derived data back to the archetype ---
+                if (auto* live_sprite = dynamic_cast<Sprite2D*>(live_element)) {
+                // If the element is a Sprite2D, update its archetype's data node
+                // with the actual dimensions from the loaded texture.
+                element_archetype.data["width"].as<int>(live_sprite->get_texture_width());
+                element_archetype.data["height"].as<int>(live_sprite->get_texture_height());
+            }
         }
         
         live_entity->on_load(context);
+        
     }
 }  // namespace Salix
