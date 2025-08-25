@@ -16,6 +16,8 @@
 #include <Salix/core/SimpleGuid.h>
 #include <Editor/EditorContext.h>
 #include <Editor/camera/EditorCamera.h>
+#include <Editor/ArchetypeInstantiator.h>
+#include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Transform.h> // Needed for focus_on
 #include <memory>
 #include <vector>
@@ -1554,8 +1556,30 @@ namespace Salix {
             entity_it->state = ArchetypeState::UnModified;
         }
         
-        // D. Mark the realm as dirty to trigger a 3D preview refresh.
-        context->realm_is_dirty = true;
+        // Create a command to re-instantiate only the affected entity.
+        std::function<void()> sync_command = [this, entity_id = e.entity_id]() {
+            // Use context->preview_scene, which is now accessible and correct.
+            if (!context || !context->preview_scene) return;
+
+            // 1. Find the live entity in the PREVIEW scene.
+            Entity* old_entity = context->preview_scene->get_entity_by_id(entity_id);
+            if (old_entity) {
+                old_entity->purge(); // Mark for deletion
+                context->preview_scene->maintain(); // Process the purge immediately
+            }
+            
+            // 2. Find the updated archetype from the main realm data.
+            auto entity_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                [&](EntityArchetype& archetype) { return archetype.id == entity_id; });
+
+            if (entity_it != context->current_realm.end()) {
+                // 3. Instantiate a new live entity into the PREVIEW scene.
+                ArchetypeInstantiator::instantiate(*entity_it, context->preview_scene.get(), *context->init_context);
+            }
+        };
+
+        // Add the command to the queue.
+        context->sync_queue.push_back(sync_command);
     }
 
     // This is fine, I think..
