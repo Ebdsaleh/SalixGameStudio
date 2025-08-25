@@ -280,17 +280,33 @@ namespace Salix {
                         }
                         // If the element we just drew was a BoxCollider...
                         if (element_archetype->type_name == "BoxCollider") {
-                            
-                            // Find the owner entity archetype.
-                            EntityArchetype* owner_entity = nullptr;
-                            auto entity_it = pimpl->context->current_realm_map.find(element_archetype->owner_id);
-                            if (entity_it != pimpl->context->current_realm_map.end()) {
-                                owner_entity = entity_it->second;
+    
+                            // --- START OF CORRECTED LOGIC ---
+                            bool has_renderable_sibling = false;
+
+                            // 1. Get the owner entity's ID from the archetype.
+                            const SimpleGuid& owner_id = element_archetype->owner_id;
+
+                            if (pimpl->context && pimpl->context->preview_scene) {
+                                // 2. Find the corresponding LIVE ENTITY in the preview scene.
+                                Entity* live_owner_entity = pimpl->context->preview_scene->get_entity_by_id(owner_id);
+
+                                if (live_owner_entity) {
+                                    // 3. Iterate through the LIVE ELEMENTS on that entity.
+                                    for (Element* sibling_element : live_owner_entity->get_all_elements()) {
+                                        // 4. Use dynamic_cast to check for C++ inheritance.
+                                        if (dynamic_cast<RenderableElement2D*>(sibling_element)) {
+                                            has_renderable_sibling = true;
+                                            break; // Found one, no need to check further.
+                                        }
+                                    }
+                                }
                             }
 
-                            // Directly check if the owner has a Sprite2D component.
-                            if (owner_entity && !owner_entity->get_elements_by_type_name("Sprite2D").empty()) {
-                                // If a Sprite2D sibling exists, draw the button.
+                            // 5. Only draw the button if a renderable sibling was found.
+                            if (has_renderable_sibling) {
+                            // --- END OF CORRECTED LOGIC ---
+
                                 if (ImGui::Button("Fit Texture", ImVec2(-1, 0))) {
                                     std::function<void()> command = [this, element_archetype]() {
                                         pimpl->handle_box_collider_resize_button(element_archetype);
