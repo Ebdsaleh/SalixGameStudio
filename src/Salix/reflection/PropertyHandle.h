@@ -49,6 +49,7 @@ namespace Salix {
             return property_info.contained_type_info;
         }
         UIHint get_hint() const { return property_info.hint; } // UIHint getter.
+        bool is_read_only() const { return property_info.is_read_only; } 
     protected:
         PropertyHandle(const Property& property_info) : property_info(property_info) {}
         const Property property_info;
