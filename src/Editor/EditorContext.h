@@ -10,6 +10,7 @@
 #include <Editor/EditorAPI.h>
 #include <Editor/GridSettings.h>
 #include <Salix/core/SimpleGuid.h>
+#include <Salix/ecs/Scene.h>
 #include <Editor/panels/WorldTreeNode.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <vector>
@@ -45,7 +46,6 @@ namespace Salix {
     
     // Game World Data
     class Project;
-    class Scene;
     class Entity;
     class Element;
     class EditorCamera;
@@ -70,7 +70,8 @@ namespace Salix {
         EditorCamera* editor_camera = nullptr;
         // Pointers to the active game world data
         Project* active_project = nullptr;
-        Scene* active_scene = nullptr;
+        Scene* active_scene = nullptr; // used for RealmPortalPanel for future play in editor functionality.
+        std::unique_ptr<Scene> preview_scene;
         Camera* main_camera = nullptr;
         Element* selected_element = nullptr;
         Entity* selected_entity = nullptr;
@@ -86,6 +87,7 @@ namespace Salix {
         std::unordered_map<SimpleGuid, EntityArchetype*> current_realm_map;
         //A queue for commands to be run at the end of the frame.
         std::vector<std::function<void()>> deferred_type_drawer_commands;
+        std::vector<std::function<void()>> sync_queue;
         bool realm_is_dirty = true; 
         bool is_editing_property = false;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
