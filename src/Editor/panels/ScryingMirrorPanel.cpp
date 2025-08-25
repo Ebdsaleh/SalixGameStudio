@@ -13,6 +13,7 @@
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/IconInfo.h>
 #include <Salix/management/FileManager.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/PropertyHandleLive.h>
@@ -26,6 +27,7 @@
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/core/StringUtils.h>
+#include <algorithm>
 #include <map>
 #include <string>
 #include <iostream>
@@ -43,6 +45,7 @@ namespace Salix {
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         void handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info);
+        void handle_box_collider_resize_button(ElementArchetype* box_collider_archetype);
     };
 
     ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
@@ -110,13 +113,14 @@ namespace Salix {
                             Salix::g_project_root_path.string(),
                             result.file_path_name
                         );
-
+                        
                         PropertyValueChangedEvent event(
                             this->selected_entity_id, // 'this' now refers to the Pimpl struct
                             element_archetype->id,
                             type_info->name,
                             property_name,
-                            relative_path
+                            relative_path,
+                            true
                         );
                         this->context->event_manager->dispatch(event); // 'this' now refers to the Pimpl struct
                     };
@@ -128,6 +132,56 @@ namespace Salix {
     }
     
  
+    void ScryingMirrorPanel::Pimpl::handle_box_collider_resize_button(ElementArchetype* box_collider_archetype) {
+        if (!box_collider_archetype) {
+            return;
+        }
+
+        // 1. Get the ID of the owner entity from the collider archetype.
+        const SimpleGuid& owner_id = box_collider_archetype->owner_id;
+
+        // 2. Use the map's .find() method for a fast lookup.
+        auto entity_iterator = context->current_realm_map.find(owner_id);
+
+        // 3. Check if the entity was found in the map.
+        if (entity_iterator != context->current_realm_map.end()) {
+            // 4. If found, get the pointer to the entity archetype from the iterator.
+            EntityArchetype* owner_entity = entity_iterator->second;
+
+            // 5. Use your helper to find any sibling Sprite2D components.
+            std::vector<ElementArchetype*> sprite_archetypes = owner_entity->get_elements_by_type_name("Sprite2D");
+
+            // 6. If we found at least one Sprite2D, use the first one.
+            if (!sprite_archetypes.empty()) {
+                ElementArchetype* sprite_archetype = sprite_archetypes[0];
+
+                int tex_width = sprite_archetype->data["width"] ? sprite_archetype->data["width"].as<int>() : 0;
+                int tex_height = sprite_archetype->data["height"] ? sprite_archetype->data["height"].as<int>() : 0;
+
+                if (tex_width > 0 && tex_height > 0) {
+                    float ppu = context->renderer->get_pixels_per_unit();
+                    if (ppu <= 0.0f) ppu = 100.0f;
+
+                    // 7. Calculate the new size.
+                    Vector3 new_size = Vector3(
+                        (float)tex_width / ppu,
+                        (float)tex_height / ppu,
+                        std::max(1.0f, box_collider_archetype->data["size"].as<Vector3>().z) // Ensures Z is at least 1.0
+                    );
+
+                    // 8. Fire the event to update the BoxCollider's size property.
+                    PropertyValueChangedEvent event(
+                        owner_entity->id,
+                        box_collider_archetype->id,
+                        "BoxCollider",
+                        "size",
+                        new_size
+                    );
+                    context->event_manager->dispatch(event);
+                }
+            }
+        }
+    }
 
     void ScryingMirrorPanel::on_panel_gui_update() {
         if (!pimpl->is_visible || !pimpl->context) {
@@ -210,6 +264,18 @@ namespace Salix {
                                 ImGui::PopItemWidth();
                             }
                             ImGui::EndTable();
+                        }
+                        // If the element we just drew was a BoxCollider, add our special button.
+                        if (element_archetype->type_name == "BoxCollider") {
+                            if (ImGui::Button("Fit Texture", ImVec2(-1, 0))) {
+                                // Create a command to be executed at the end of the frame.
+                                std::function<void()> command = [this, element_archetype]() {
+                                    // The command calls our existing helper method.
+                                    pimpl->handle_box_collider_resize_button(element_archetype);
+                                };
+                                // Add the command to the queue.
+                                pimpl->context->deferred_type_drawer_commands.push_back(command);
+                            }
                         }
                     }
                 }
