@@ -281,6 +281,21 @@ namespace Salix {
                 std::cout << "DEBUG: Load completed. Vector size: " 
                         << pimpl->editor_context->current_realm.size() << std::endl;
 
+                
+                // --- Sync the ID counter ---
+                uint64_t max_id = 0;
+                for (const auto& entity_archetype : pimpl->editor_context->current_realm) {
+                    if (entity_archetype.id.get_value() > max_id) {
+                        max_id = entity_archetype.id.get_value();
+                    }
+                    for (const auto& element_archetype : entity_archetype.elements) {
+                        if (element_archetype.id.get_value() > max_id) {
+                            max_id = element_archetype.id.get_value();
+                        }
+                    }
+                }
+                SimpleGuid::update_next_id(max_id);
+                
                 // Debug check #1 - Verify vector contents
                 for (const auto& archetype : pimpl->editor_context->current_realm) {
                     assert(!archetype.name.empty() && "Entity archetype has empty name");
@@ -439,6 +454,7 @@ namespace Salix {
 
 
     void EditorState::on_event(IEvent& event) {
+
         // Check if the event is the one we care about
         if (event.get_event_type() == EventType::BeforeEntityPurged)
         {
