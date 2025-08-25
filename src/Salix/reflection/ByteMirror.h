@@ -73,6 +73,7 @@ namespace Salix {
         getter_func get_data;
         setter_func set_data;
         UIHint hint = UIHint::None;
+        bool is_read_only = false;
         
     };
 

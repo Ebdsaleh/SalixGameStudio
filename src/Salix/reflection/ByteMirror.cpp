@@ -372,7 +372,9 @@ namespace Salix {
                     return &value;
                 },
                 // Empty setter makes this property read-only in the UI
-                [](void*, void*) {}
+                [](void*, void*) {},
+                UIHint::None,       
+                true 
             },
             {
                 "height", PropertyType::Int, nullptr,
@@ -384,7 +386,9 @@ namespace Salix {
                     return &value;
                 },
                 // Empty setter makes this property read-only in the UI
-                [](void*, void*) {}
+                [](void*, void*) {},
+                UIHint::None,       
+                true
             }
         };
         type_info.type_index = typeid(Sprite2D);
