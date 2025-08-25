@@ -20,8 +20,10 @@ namespace Salix {
 class PropertyValueChangedEvent : public IEvent {
     public:
         // Constructor to initialize all the event data
-        PropertyValueChangedEvent(SimpleGuid in_entity_id, SimpleGuid in_element_id, const std::string& in_element_type, const std::string& in_property_name, const PropertyValue& in_new_value)
-            : entity_id(in_entity_id), element_id(in_element_id), element_type_name(in_element_type), property_name(in_property_name), new_value(in_new_value) {}
+        PropertyValueChangedEvent(SimpleGuid in_entity_id, SimpleGuid in_element_id, const std::string& in_element_type,
+             const std::string& in_property_name, const PropertyValue& in_new_value, bool reload_element = false)
+            : entity_id(in_entity_id), element_id(in_element_id), element_type_name(in_element_type),
+             property_name(in_property_name), new_value(in_new_value), requires_reload(reload_element) {}
 
         EVENT_CLASS_TYPE(EditorPropertyValueChanged) 
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
@@ -36,6 +38,8 @@ class PropertyValueChangedEvent : public IEvent {
         std::string property_name;
         // The new value for the property, stored in our std::variant.
         PropertyValue new_value;
+        // Flag if the Element will require to be reloaded for the change to take effect.
+        bool requires_reload;
     };
 
 } // namespace Salix
