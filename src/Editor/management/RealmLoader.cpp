@@ -79,6 +79,10 @@ namespace Salix {
                                 element.id = element_data["id"].as<SimpleGuid>();
                                 // If the flag exists in the file, load it. Otherwise, the C++
                                 // default of 'true' will be used. This makes it backwards-compatible.
+
+                                // Assign the parent entity's ID to the element archetype
+                                element.owner_id = entity.id;
+
                                 if (element_data["allows_duplication"]) {
                                     element.allows_duplication = element_data["allows_duplication"].as<bool>();
                                 }
