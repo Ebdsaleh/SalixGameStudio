@@ -42,6 +42,8 @@ Entities:
         size: { x: 1.0, y: 1.0, z: 1.0 }
       Sprite2D:
         id: 9
+        width: 116
+        height: 124
         texture_path: "Assets/Images/test.png"
         color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
         flip_h: false
