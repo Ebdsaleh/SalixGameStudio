@@ -55,7 +55,6 @@ namespace Salix {
         std::string name = "Realm Designer";
         uint32_t framebuffer_id = 0;
         ImVec2 viewport_size = { 1280, 720 };
-        std::unique_ptr<Scene> preview_scene = std::make_unique<Scene>("Preview");
         bool is_panel_focused_this_frame = false;
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         Ray last_picking_ray;
@@ -122,8 +121,10 @@ namespace Salix {
         }
          // The preview scene also needs a context to function properly
 
-        if (pimpl->preview_scene) {
-            pimpl->preview_scene->set_context(*pimpl->context->init_context);
+        // --- Create the scene and give it to the context ---
+        pimpl->context->preview_scene = std::make_unique<Scene>("Preview");
+        if (pimpl->context->preview_scene) {
+            pimpl->context->preview_scene->set_context(*pimpl->context->init_context);
         }
         
         pimpl->context->event_manager->subscribe(EventCategory::Editor, this);
@@ -222,7 +223,7 @@ namespace Salix {
 
                     // Find the selected entity in the correct scene (Preview or Live)
                     if (context->data_mode == EditorDataMode::Yaml) {
-                        selected_entity = preview_scene->get_entity_by_id(context->selected_entity_id);
+                        selected_entity = context->preview_scene->get_entity_by_id(context->selected_entity_id);
                     }
                     else if (context->data_mode == EditorDataMode::Live) {
                         if (context->active_scene) {
@@ -258,9 +259,16 @@ namespace Salix {
 
             // --- Scene Preparation (This logic is now correct) ---
             if (pimpl->context->data_mode == EditorDataMode::Yaml) {
+                // --- ADD THIS BLOCK to process the sync queue ---
+                if (!pimpl->context->sync_queue.empty()) {
+                    for (const auto& command : pimpl->context->sync_queue) {
+                        command(); // Execute the re-instantiation command
+                    }
+                    pimpl->context->sync_queue.clear();
+                }
                 // 1. Check if the realm data has changed.
                 if (pimpl->context->realm_is_dirty) {
-                    Scene* preview_scene = pimpl->preview_scene.get();
+                    Scene* preview_scene = pimpl->context->preview_scene.get();
                     auto& realm_archetypes = pimpl->context->current_realm;
                     preview_scene->clear_all_entities();
                     if (!realm_archetypes.empty()) {
@@ -599,14 +607,14 @@ namespace Salix {
 
                 // Update the context with the new selection (or deselection if invalid)
                 context->selected_entity_id = closest_hit_id;
-                context->selected_entity = preview_scene->get_entity_by_id(context->selected_entity_id);
+                context->selected_entity = context->preview_scene->get_entity_by_id(context->selected_entity_id);
                 EntitySelectedEvent event(closest_hit_id, context->selected_entity);
                 // Dispatch the event. In YAML mode, the pointer will correctly be nullptr.
                 context->event_manager->dispatch(event);
             }
-            // 2. NEW: Check for a double-click on the entity that was just selected.
+            // 2. Check for a double-click on the entity that was just selected.
             if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && closest_hit_id.is_valid()) {
-                Entity* entity_to_focus = preview_scene->get_entity_by_id(closest_hit_id);
+                Entity* entity_to_focus = context->preview_scene->get_entity_by_id(closest_hit_id);
                 if (entity_to_focus) {
                     Transform* transform = entity_to_focus->get_transform();
                     if (transform) {
@@ -633,7 +641,7 @@ namespace Salix {
             if (!pimpl->context->active_scene) return;
         }
         else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            assert(pimpl->preview_scene != nullptr && "Cannot render, preview_scene is nullptr");
+            assert(pimpl->context->preview_scene != nullptr && "Cannot render, preview_scene is nullptr");
             
         }
         
@@ -684,10 +692,10 @@ namespace Salix {
     void RealmDesignerPanel::Pimpl::draw_scene() {
         Scene* active_scene = nullptr;
         // LIVE PATHWAY
-        if (context->data_mode == EditorDataMode::Live) { active_scene = context->active_scene; }
+        if (context->data_mode == EditorDataMode::Live) { active_scene = context->active_scene; } // This will be deprecated soon.
         // YAML PATHWAY
         else if (context->data_mode == EditorDataMode::Yaml) { 
-            active_scene = preview_scene.get();
+            active_scene = context->preview_scene.get();
                 
         }
 
@@ -729,75 +737,73 @@ namespace Salix {
         }
     }
 
+ 
+
     void RealmDesignerPanel::on_event(IEvent& event) {
         if (event.get_event_type() != EventType::EditorPropertyValueChanged) {
             return;
         }
-        if (pimpl->context->data_mode != EditorDataMode::Yaml || !pimpl->preview_scene) {
+        if (pimpl->context->data_mode != EditorDataMode::Yaml || !pimpl->context->preview_scene) {
             return;
         }
 
         PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
-        
-        // --- NEW DEBUG LOGGING ---
-        std::cout << "[RealmDesignerPanel::RECEIVED_EVENT] Property: '" << e.property_name
-                  << "', New Value: ";
-        std::visit([](const auto& val) { std::cout << val; }, e.new_value);
-        std::cout << std::endl;
-        // --- END DEBUG LOGGING ---
 
-        Entity* entity_to_update = pimpl->preview_scene->get_entity_by_id(e.entity_id);
+        Entity* entity_to_update = pimpl->context->preview_scene->get_entity_by_id(e.entity_id);
         if (!entity_to_update) {
             return;
         }
 
+        // --- Find the specific element using its unique ID from the event ---
         Element* element_to_update = nullptr;
         for (auto* element : entity_to_update->get_all_elements()) {
-            if (std::string(element->get_class_name()) == e.element_type_name) {
+            if (element->get_id() == e.element_id) {
                 element_to_update = element;
                 break;
             }
         }
+
         if (!element_to_update) return;
 
+        // This is the part that updates the LIVE object in the preview
         const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
         if (!type_info) return;
 
-        // 1. Find the correct property and store a SAFE COPY of it.
         std::optional<Property> found_property;
         for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
             if (prop.name == e.property_name) {
-                found_property = prop; // Make a copy
+                found_property = prop;
                 break;
             }
         }
 
-        // 2. Check if we successfully found and copied the property.
         if (!found_property.has_value()) {
             return;
         }
 
-        // 3. Use the safe copy to update the live element.
-        // This now mimics the safer pattern from PropertyHandleLive.
         std::visit([&](auto&& arg) {
-        // Create a local copy of the value from the event.
-        auto value_copy = arg;
-        // Pass the address of the stable, local copy to the setter.
-        found_property->set_data(element_to_update, &value_copy);
+            auto value_copy = arg;
+            found_property->set_data(element_to_update, &value_copy);
         }, e.new_value);
-
-        // After setting the data, call on_load() on the element.
-        // Finalize the property change by calling on_load(). This is crucial for Elements
-        // that manage file-based assets. It allows them to act on the new data, such as
-        // a Sprite2D loading a new texture after its 'texture_path' is changed, or an
-        // AudioSource loading a new sound clip.
+        
         element_to_update->on_load(*pimpl->context->init_context);
-        
 
-        
+        // ---Write derived data (width/height) back to the archetype ---
+        if (auto* live_sprite = dynamic_cast<Sprite2D*>(element_to_update)) {
+            auto entity_it = std::find_if(pimpl->context->current_realm.begin(), pimpl->context->current_realm.end(),
+                [&](EntityArchetype& archetype) { return archetype.id == e.entity_id; });
+
+            if (entity_it != pimpl->context->current_realm.end()) {
+                auto element_it = std::find_if(entity_it->elements.begin(), entity_it->elements.end(),
+                    [&](ElementArchetype& element) { return element.id == e.element_id; });
+
+                if (element_it != entity_it->elements.end()) {
+                    element_it->data["width"] = live_sprite->get_texture_width();
+                    element_it->data["height"] = live_sprite->get_texture_height();
+                }
+            }
+        }
     }
-
-
     void RealmDesignerPanel::set_visibility(bool visibility) {
          pimpl->is_visible = visibility; 
     }
@@ -902,7 +908,7 @@ namespace Salix {
             active_scene = context->active_scene;
         }
         else if (context->data_mode == EditorDataMode::Yaml) {
-            active_scene = preview_scene.get();
+            active_scene = context->preview_scene.get();
         }
 
         for (Entity* entity : active_scene->get_entities()) {
