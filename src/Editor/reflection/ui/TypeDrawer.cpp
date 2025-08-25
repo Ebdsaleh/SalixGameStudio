@@ -180,13 +180,20 @@ namespace Salix {
         switch (handle.get_type())
         {
             case PropertyType::Int: {
+            // NEW: Use a helper function on the handle to check the flag
+            // (We will add this helper to PropertyHandle in a moment)
+            if (handle.is_read_only()) {
+                int value = std::get<int>(handle.get_value());
+                ImGui::Text("%d", value); // Display as simple text
+            } else {
                 int value = std::get<int>(handle.get_value());
                 if (ImGui::DragInt(label, &value)) {
                     handle.set_value(value);
                     value_changed = true;
                 }
-                break;
             }
+            break;
+        }
 
             case PropertyType::Float: {
                 float value = std::get<float>(handle.get_value());
