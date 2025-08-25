@@ -31,6 +31,12 @@ namespace Salix {
 
     bool SimpleGuid::is_valid() const { return id != 0; }
 
+    void SimpleGuid::update_next_id(uint64_t highest_known_id) {
+         if (highest_known_id >= next_id_counter) {
+            next_id_counter = highest_known_id + 1;
+        }
+    }
+
     // --- Constructor Implementations ---
     SimpleGuid::SimpleGuid() : id(0) {} // this is now public, thanks to YAML-CPP being weird.
     SimpleGuid::SimpleGuid(uint64_t guid) : id(guid) {}

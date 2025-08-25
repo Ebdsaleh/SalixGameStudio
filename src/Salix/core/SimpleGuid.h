@@ -32,9 +32,12 @@ namespace Salix {
 
         uint64_t get_value() const { return id; }
         bool is_valid() const;
+
+        static void update_next_id(uint64_t highest_known_id);
+
         // Constructors are made private to ensure IDs are only made via generate().
     private:
-        
+
         explicit SimpleGuid(uint64_t guid);
 
     public: // Public operators for comparison and use in maps.
