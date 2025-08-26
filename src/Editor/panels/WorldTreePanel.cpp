@@ -821,6 +821,7 @@ namespace Salix {
                     });
                 }
             }
+            /*
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
                 // Defer the entire purge operation.
                 deferred_commands.push_back([this, archetype_id = archetype.id]() {
@@ -879,7 +880,68 @@ namespace Salix {
                     build_world_tree_hierarchy();
                 });
             }
-            
+            */
+            // ---TEST CODE---
+            if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
+    deferred_commands.push_back([this, archetype_id = archetype.id]() {
+        auto archetype_to_purge_it = context->current_realm_map.find(archetype_id);
+        if (archetype_to_purge_it == context->current_realm_map.end()) return;
+
+        // --- 1. Orphan All Children (in both live scene and archetypes) ---
+        std::vector<SimpleGuid> child_ids_copy = archetype_to_purge_it->second->child_ids;
+        for (const auto& child_id : child_ids_copy) {
+            // Update the archetype data to orphan the child
+            auto child_archetype_it = context->current_realm_map.find(child_id);
+            if (child_archetype_it != context->current_realm_map.end()) {
+                child_archetype_it->second->parent_id = SimpleGuid::invalid();
+            }
+            // Update the live scene by orphaning the live child
+            Entity* live_child_entity = context->preview_scene->get_entity_by_id(child_id);
+            if (live_child_entity) {
+                live_child_entity->set_parent(nullptr);
+            }
+        }
+
+        // --- 2. Remove From Parent's Archetype ---
+        SimpleGuid parent_id = archetype_to_purge_it->second->parent_id;
+        if (parent_id.is_valid()) {
+            auto parent_it = context->current_realm_map.find(parent_id);
+            if (parent_it != context->current_realm_map.end()) {
+                EntityArchetype* parent_archetype = parent_it->second;
+                parent_archetype->child_ids.erase(
+                    std::remove(parent_archetype->child_ids.begin(), parent_archetype->child_ids.end(), archetype_id),
+                    parent_archetype->child_ids.end()
+                );
+                if (parent_archetype->state != ArchetypeState::New) parent_archetype->state = ArchetypeState::Modified;
+            }
+        }
+
+        // --- 3. Purge the Live Entity ---
+        Entity* live_entity_to_purge = context->preview_scene->get_entity_by_id(archetype_id);
+        if (live_entity_to_purge) {
+            live_entity_to_purge->purge(); // Mark for removal from scene
+        }
+
+        // --- 4. Remove the Archetype from the Realm Data ---
+        context->current_realm.erase(
+            std::remove_if(context->current_realm.begin(), context->current_realm.end(),
+                [&](const EntityArchetype& e) { return e.id == archetype_id; }),
+            context->current_realm.end()
+        );
+
+        // --- 5. Update All Systems ---
+        rebuild_current_realm_map_internal();
+        context->selected_entity_id = SimpleGuid::invalid();
+        EntitySelectedEvent event(context->selected_entity_id, nullptr);
+        context->event_manager->dispatch(event);
+        build_world_tree_hierarchy();
+
+        // For a purge, a full rebuild is still the cleanest way to ensure
+        // the preview scene is perfectly in sync with the removed object.
+        context->realm_is_dirty = true;
+    });
+}
+            // ---END TEST CODE---
             if (ImGui::MenuItem("Purge Entity Children##PurgeEntityChildren", "Ctrl+Del")) {
                 // Defer the entire purge operation.
                 deferred_commands.push_back([this, archetype_id = archetype.id]() {
@@ -1238,7 +1300,10 @@ namespace Salix {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DND_GUID")) {
                 SimpleGuid dragged_id = *(const SimpleGuid*)payload->Data;
                 if (dragged_id != target.id) {
-                    process_entity_drop(dragged_id, target.id);
+                    deferred_commands.push_back([this, dragged_id, target_id = target.id]() {
+                        // Use the captured 'target_id' instead of 'target.id'
+                        process_entity_drop(dragged_id, target_id);
+                    });
                 }
             }
             ImGui::EndDragDropTarget();
@@ -1255,13 +1320,17 @@ namespace Salix {
                 draw_list->AddLine(ImVec2(rect_min.x, rect_min.y), ImVec2(rect_max.x, rect_min.y), ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
                 if (ImGui::IsMouseReleased(0)) {
                     SimpleGuid dragged_id = *(SimpleGuid*)payload->Data;
-                    process_entity_drop(dragged_id, anchor.parent_id);
+                    deferred_commands.push_back([this, dragged_id, parent_id = anchor.parent_id]() {
+                        // Use the captured 'parent_id' instead of 'anchor.parent_id'
+                        process_entity_drop(dragged_id, parent_id);
+                    });
                 }
             }
             ImGui::EndDragDropTarget();
         }
     }
 
+    /*
     void WorldTreePanel::Pimpl::process_entity_drop(SimpleGuid dragged_id, SimpleGuid target_id) {
         // Find the dragged archetype
         auto dragged_it = context->current_realm_map.find(dragged_id);
@@ -1341,8 +1410,71 @@ namespace Salix {
         context->realm_is_dirty = true;
         build_world_tree_hierarchy(); // Rebuild hierarchy after reparenting
     }
+    */
 
+    // ---TEST CODE---
+    void WorldTreePanel::Pimpl::process_entity_drop(SimpleGuid dragged_id, SimpleGuid target_id) {
+        auto dragged_it = context->current_realm_map.find(dragged_id);
+        if (dragged_it == context->current_realm_map.end()) return;
+        EntityArchetype* dragged_archetype = dragged_it->second;
 
+        // Circular parenting check
+        if (target_id.is_valid()) {
+            auto current_id = target_id;
+            while (current_id.is_valid()) {
+                if (current_id == dragged_id) return; // Exit if circular
+                auto current_it = context->current_realm_map.find(current_id);
+                current_id = (current_it != context->current_realm_map.end()) ? current_it->second->parent_id : SimpleGuid::invalid();
+            }
+        }
+
+        // --- START OF FIX ---
+        // 1. Update the LIVE SCENE hierarchy first
+        Entity* dragged_live_entity = context->preview_scene->get_entity_by_id(dragged_id);
+        // target_live_entity will be nullptr if target_id is invalid (dropping to root), which is correct
+        Entity* target_live_entity = context->preview_scene->get_entity_by_id(target_id); 
+        
+        if (dragged_live_entity) {
+            dragged_live_entity->set_parent(target_live_entity);
+        }
+
+        // 2. Now, update the ARCHETYPE DATA to match the new state
+        // Remove from old parent's archetype child list
+        if (dragged_archetype->parent_id.is_valid()) {
+            auto old_parent_it = context->current_realm_map.find(dragged_archetype->parent_id);
+            if (old_parent_it != context->current_realm_map.end()) {
+                EntityArchetype* old_parent = old_parent_it->second;
+                old_parent->child_ids.erase(
+                    std::remove(old_parent->child_ids.begin(), old_parent->child_ids.end(), dragged_id),
+                    old_parent->child_ids.end());
+                // Mark old parent as modified
+                if (old_parent->state != ArchetypeState::New) old_parent->state = ArchetypeState::Modified;
+            }
+        }
+
+        // Set the new parent ID in the archetype
+        dragged_archetype->parent_id = target_id;
+        
+        // Add to new parent's archetype child list
+        if (target_id.is_valid()) {
+            auto target_it = context->current_realm_map.find(target_id);
+            if (target_it != context->current_realm_map.end()) {
+                EntityArchetype* target_archetype = target_it->second;
+                target_archetype->child_ids.push_back(dragged_id);
+                // Mark new parent as modified
+                if (target_archetype->state != ArchetypeState::New) target_archetype->state = ArchetypeState::Modified;
+            }
+        }
+        
+        // Mark dragged entity archetype as modified
+        if (dragged_archetype->state != ArchetypeState::New) dragged_archetype->state = ArchetypeState::Modified;
+
+        // 3. Rebuild the UI tree. A full scene rebuild is no longer needed for this operation.
+        build_world_tree_hierarchy();
+        context->realm_is_dirty = false; // Ensure we don't trigger an unnecessary rebuild
+        // --- END OF FIX ---
+    }
+    // --- END TEST CODE ---
 
 
     void WorldTreePanel::Pimpl::build_world_tree_hierarchy() {
@@ -1509,7 +1641,7 @@ namespace Salix {
         return;
     }
 
-    // GREAT IDEA BUT NEEDS ATTENTION!
+
     
     void WorldTreePanel::Pimpl::handle_property_value_change(const PropertyValueChangedEvent& e) {
         // 1. Find the parent EntityArchetype that was changed.
