@@ -1517,69 +1517,32 @@ namespace Salix {
             [&](EntityArchetype& archetype) { return archetype.id == e.entity_id; });
 
         if (entity_it == context->current_realm.end()) {
-            std::cout << "[PropertyValueChangedEvent] 'entity_id' not found in 'current_realm'." << std::endl;
             return; // Entity not found
         }
 
         // 2. Find the specific ElementArchetype that was changed within the entity.
         auto element_it = std::find_if(entity_it->elements.begin(), entity_it->elements.end(),
-        [&](ElementArchetype& element) { return element.id == e.element_id; });
+            [&](ElementArchetype& element) { return element.id == e.element_id; });
 
         if (element_it == entity_it->elements.end()) {
-            std::cout << "[PropertyValueChangedEvent] 'element_id' not found in entity '" << entity_it->name << "'." << std::endl;
             return;
         }
-
-        // Check if the property is 'name' to synchronize the name values.
-        if (e.property_name == "name") {
-            element_it->name = element_it->data["name"].as<std::string>();
-        }
         
-        
-        // A. Apply the new value from the event to the archetype's YAML data node.
+        // 3. Apply the new value from the event to the archetype's YAML data node.
         element_it->data[e.property_name] = YAML::property_value_to_node(e.new_value);
         
-        // B. Re-evaluate the modified element against the snapshot.
-        // The is_element_modified function performs the full, correct comparison.
+        // 4. Re-evaluate the modified element and entity against the snapshot to update their UI state.
         if (context->loaded_realm_snapshot.is_element_modified(*element_it)) {
-            std::cout << "[PropertyValueChangedEvent] element ID: "<< element_it->id.get_value()<< " [Modified]" << std::endl;
             element_it->state = ArchetypeState::Modified;
         } else {
-            std::cout << "[PropertyValueChangedEvent] element ID: "<< element_it->id.get_value()<< " [UnModified]" << std::endl;
             element_it->state = ArchetypeState::UnModified;
         }
 
-        // C. "Roll up" the state to the parent entity using the robust snapshot function.
         if (context->loaded_realm_snapshot.is_entity_modified(*entity_it)) {
             entity_it->state = ArchetypeState::Modified;
         } else {
             entity_it->state = ArchetypeState::UnModified;
         }
-        
-        // Create a command to re-instantiate only the affected entity.
-        std::function<void()> sync_command = [this, entity_id = e.entity_id]() {
-            // Use context->preview_scene, which is now accessible and correct.
-            if (!context || !context->preview_scene) return;
-
-            // 1. Find the live entity in the PREVIEW scene.
-            Entity* old_entity = context->preview_scene->get_entity_by_id(entity_id);
-            if (old_entity) {
-                old_entity->purge(); // Mark for deletion
-                context->preview_scene->maintain(); // Process the purge immediately
-            }
-            
-            // 2. Find the updated archetype from the main realm data.
-            auto entity_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
-                [&](EntityArchetype& archetype) { return archetype.id == entity_id; });
-
-            if (entity_it != context->current_realm.end()) {
-                // 3. Instantiate a new live entity into the PREVIEW scene.
-                ArchetypeInstantiator::instantiate(*entity_it, context->preview_scene.get(), *context->init_context);
-            }
-        };
-
-        // Add the command to the queue.
-        context->sync_queue.push_back(sync_command);
     }
 
     // This is fine, I think..
