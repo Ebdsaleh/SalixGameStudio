@@ -11,6 +11,7 @@ Entities:
     elements:
       Transform:
         id: 3
+        parent_id: 0
         allows_duplication: false
         position: { x: 0.0, y: 0.0, z: 4.0 }
         rotation: { x: 0.0, y: 0.0, z: 0.0 }
@@ -32,6 +33,7 @@ Entities:
     elements:
       Transform:
         id: 7
+        parent_id: 0  # These need to be added
         allows_duplication: false
         position: { x: 0.0, y: 0.0, z: 0.0 }
         rotation: { x: 0.0, y: 0.0, z: 0.0 }
@@ -39,7 +41,7 @@ Entities:
       BoxCollider:
         id: 8
         allows_duplication: false
-        size: { x: 1.0, y: 1.0, z: 1.0 }
+        size: { x: 1.160, y: 1.240, z: 1.0 }
       Sprite2D:
         id: 9
         width: 116
