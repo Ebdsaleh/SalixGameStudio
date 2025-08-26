@@ -18,6 +18,7 @@ namespace Salix {
             virtual ~Transform();
 
             const char* get_class_name() const override { return "Transform"; }
+            void update(float delta_time) override;
             // Calculate World Transform
             Vector3 get_world_position();
             Vector3 get_world_rotation();
@@ -68,23 +69,16 @@ namespace Salix {
             struct Pimpl;
             std::unique_ptr<Pimpl>pimpl;
             friend class cereal::access;
-            template<class Archive>
-            void serialize(Archive& archive);
-            /* Explore this later when we get serialize to work.
             template <class Archive>
             void save(Archive& archive) const; // For writing data
 
             template <class Archive>
             void load(Archive& archive);      // For reading data
-            */
             // Private methods called by set_parent and the destructor
             void add_child(Transform* child);
             void remove_child(Transform* child);
             // These members are now private.
-            // Local transform properties (relative to its parent)
-            Vector3 position;
-            Vector3 rotation;
-            Vector3 scale;
+            
     };
     
 } // namespace Salix
