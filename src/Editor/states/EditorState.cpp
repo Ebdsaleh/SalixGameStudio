@@ -376,6 +376,15 @@ namespace Salix {
         pimpl->process_input();
 
 
+        if (pimpl->editor_context->data_mode == EditorDataMode::Yaml) {
+            if (pimpl->editor_context->preview_scene) {
+                pimpl->editor_context->preview_scene->maintain();
+                if (pimpl->editor_context->init_context->engine_mode == EngineMode::Game) {
+                    pimpl->editor_context->preview_scene->update(delta_time);
+                }
+            }
+            
+        } 
         if (pimpl->editor_context->active_scene) {
             pimpl->editor_context->active_scene->maintain();
         }
