@@ -8,12 +8,13 @@
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <Salix/core/InitContext.h>
+#include <vector>
 
 namespace Salix {
 
     void ArchetypeInstantiator::instantiate(const Salix::EntityArchetype& archetype, Salix::Scene* scene, const Salix::InitContext& context) {
         if (!scene) return;
-
+        
         // 1. Create the live entity. Its constructor adds the default Transform and BoxCollider.
         Salix::Entity* live_entity = scene->create_entity(archetype.id, archetype.name);
         // Debug prints
@@ -40,10 +41,12 @@ namespace Salix {
             // Check if this archetype is for a default element that we haven't processed yet.
             if (element_archetype.type_name == "Transform" && !has_applied_default_transform) {
                 live_element = default_transform;
+                live_element->set_id(element_archetype.id);
                 has_applied_default_transform = true; // Mark as processed
             }
             else if (element_archetype.type_name == "BoxCollider" && !has_applied_default_collider) {
                 live_element = default_box_collider;
+                live_element->set_id(element_archetype.id);
                 has_applied_default_collider = true; // Mark as processed
             }
             else {
@@ -150,6 +153,94 @@ namespace Salix {
         }
         
         live_entity->on_load(context);
+
         
+        
+    }
+
+    void ArchetypeInstantiator::print_all_entity_ids(Salix::Scene* scene, const std::string& context_message) {
+        if (!scene) {
+            std::cout << "DEBUG [" << context_message << "]: Scene is nullptr." << std::endl;
+            return;
+        }
+
+        std::vector<Entity*> entities = scene->get_entities();
+        std::cout << "DEBUG [" << context_message << "]: Scene contains " << entities.size() << " entities." << std::endl;
+
+        for (const auto* entity : entities) {
+            if (entity) {
+                std::cout << "  - Entity: '" << entity->get_name() << "' (ID: " << entity->get_id().get_value() << ")" << std::endl;
+            }
+        }
+    }
+
+    // Replace your old 'instantiate' method with this new 'instantiate_realm' method.
+
+    void ArchetypeInstantiator::instantiate_realm(const std::vector<Salix::EntityArchetype>& realm, Salix::Scene* scene, const Salix::InitContext& context) {
+        if (!scene) return;
+        
+        // A map for fast lookup of live entities by their archetype ID
+        std::map<SimpleGuid, Entity*> live_entity_map;
+
+        // --- PASS 1: Instantiate all entities and their elements ---
+        for (const auto& archetype : realm) {
+            Entity* live_entity = scene->create_entity(archetype.id, archetype.name);
+            live_entity_map[archetype.id] = live_entity;
+
+            Element* default_transform = live_entity->get_element_by_type_name("Transform");
+            Element* default_box_collider = live_entity->get_element_by_type_name("BoxCollider");
+            bool has_applied_default_transform = false;
+            bool has_applied_default_collider = false;
+
+            for (const auto& element_archetype : archetype.elements) {
+                Element* live_element = nullptr;
+                if (element_archetype.type_name == "Transform" && !has_applied_default_transform) {
+                    live_element = default_transform;
+                    live_element->set_id(element_archetype.id);
+                    has_applied_default_transform = true;
+                }
+                else if (element_archetype.type_name == "BoxCollider" && !has_applied_default_collider) {
+                    live_element = default_box_collider;
+                    live_element->set_id(element_archetype.id);
+                    has_applied_default_collider = true;
+                }
+                else {
+                    live_element = Salix::ByteMirror::create_element_by_name(element_archetype.type_name);
+                    if (live_element) {
+                        live_entity->add_element(live_element);
+                        live_element->set_id(element_archetype.id);
+                    }
+                }
+
+                if (!live_element) continue;
+
+                const Salix::TypeInfo* type_info = Salix::ByteMirror::get_type_info_by_name(element_archetype.type_name);
+                if (!type_info) continue;
+
+                for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
+                    const YAML::Node& property_node = element_archetype.data[prop.name];
+                    if (!property_node) continue;
+                    // This is a simplified version of the property setting logic from your on_event handler
+                    std::visit([&](auto&& arg) {
+                        auto value_copy = arg;
+                        prop.set_data(live_element, &value_copy);
+                    }, YAML::node_to_property_value(property_node, prop));
+                }
+                live_element->on_load(context);
+            }
+            live_entity->on_load(context);
+        }
+
+        // --- PASS 2: Set up the parent-child hierarchy ---
+        for (const auto& archetype : realm) {
+            if (archetype.parent_id.is_valid()) {
+                Entity* child_entity = live_entity_map.count(archetype.id) ? live_entity_map.at(archetype.id) : nullptr;
+                Entity* parent_entity = live_entity_map.count(archetype.parent_id) ? live_entity_map.at(archetype.parent_id) : nullptr;
+
+                if (child_entity && parent_entity) {
+                    child_entity->set_parent(parent_entity);
+                }
+            }
+        }
     }
 }  // namespace Salix
