@@ -68,7 +68,7 @@ namespace Salix {
         EntityArchetype* get_selected_archetype();
         ElementArchetype* get_transform_archetype(EntityArchetype* entity_archetype);
         void handle_gizmos_for_archetype(EditorCamera* camera);
-
+        glm::mat4 get_world_matrix(const EntityArchetype* archetype);
         void draw_scene();
         void draw_test_cube();
         void draw_test_cube_only();
@@ -134,6 +134,32 @@ namespace Salix {
     // YAML PATHWAY Update helpers
 
 
+    glm::mat4 RealmDesignerPanel::Pimpl::get_world_matrix(const EntityArchetype* archetype) {
+        if (!archetype) {
+            return glm::mat4(1.0f);
+        }
+
+        ElementArchetype* transform_archetype = get_transform_archetype(const_cast<EntityArchetype*>(archetype));
+        if (!transform_archetype) {
+            return glm::mat4(1.0f);
+        }
+
+        Vector3 p = transform_archetype->data["position"].as<Vector3>();
+        Vector3 r = transform_archetype->data["rotation"].as<Vector3>();
+        Vector3 s = transform_archetype->data["scale"].as<Vector3>();
+
+        glm::mat4 local_matrix;
+        ImGuizmo::RecomposeMatrixFromComponents(glm::value_ptr(p.to_glm()), glm::value_ptr(r.to_glm()), glm::value_ptr(s.to_glm()), glm::value_ptr(local_matrix));
+
+        if (archetype->parent_id.is_valid()) {
+            auto parent_it = context->current_realm_map.find(archetype->parent_id);
+            if (parent_it != context->current_realm_map.end()) {
+                return get_world_matrix(parent_it->second) * local_matrix;
+            }
+        }
+
+        return local_matrix;
+    }
 
     // --- Implementation of Archetype Helper Functions ---
     EntityArchetype* RealmDesignerPanel::Pimpl::get_selected_archetype() {
@@ -259,7 +285,7 @@ namespace Salix {
 
             // --- Scene Preparation (This logic is now correct) ---
             if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-                // --- ADD THIS BLOCK to process the sync queue ---
+                // --- Process the sync queue ---
                 if (!pimpl->context->sync_queue.empty()) {
                     for (const auto& command : pimpl->context->sync_queue) {
                         command(); // Execute the re-instantiation command
@@ -272,9 +298,12 @@ namespace Salix {
                     auto& realm_archetypes = pimpl->context->current_realm;
                     preview_scene->clear_all_entities();
                     if (!realm_archetypes.empty()) {
+                        /*
                         for (const auto& entity_archetype : realm_archetypes) {
                             ArchetypeInstantiator::instantiate(entity_archetype, preview_scene, *pimpl->context->init_context);
                         }
+                        */
+                        ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_scene, *pimpl->context->init_context);
                     }
                     // 3. Clear the flag so this doesn't run again.
                     pimpl->context->realm_is_dirty = false;
@@ -462,30 +491,32 @@ namespace Salix {
         const glm::mat4& camera_view = camera->get_view_matrix();
         const glm::mat4& camera_projection = camera->get_projection_matrix();
 
-        // 1. READ data from the YAML::Node
-        Vector3 position = transform_archetype->data["position"].as<Vector3>();
-        Vector3 rotation = transform_archetype->data["rotation"].as<Vector3>();
-        Vector3 scale = transform_archetype->data["scale"].as<Vector3>();
+        // 1. GET WORLD MATRIX: Calculate the entity's full world matrix
+        glm::mat4 entity_world_matrix = get_world_matrix(selected_archetype);
 
-        // 2. CONSTRUCT the matrix for ImGuizmo
-        glm::mat4 translation_matrix = glm::translate(glm::mat4(1.0f), position.to_glm());
-        glm::mat4 rotation_matrix = glm::rotate(glm::mat4(1.0f), glm::radians(rotation.z), {0, 0, 1}) *
-                                    glm::rotate(glm::mat4(1.0f), glm::radians(rotation.y), {0, 1, 0}) *
-                                    glm::rotate(glm::mat4(1.0f), glm::radians(rotation.x), {1, 0, 0});
-        glm::mat4 scale_matrix = glm::scale(glm::mat4(1.0f), scale.to_glm());
-        glm::mat4 entity_matrix = translation_matrix * rotation_matrix * scale_matrix;
+        // 2. MANIPULATE the world matrix
+        if (ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection), CurrentGizmoOperation, ImGuizmo::LOCAL, glm::value_ptr(entity_world_matrix))) {
+            
+            glm::mat4 new_local_matrix = entity_world_matrix;
 
-        // 3. MANIPULATE the matrix
-        if (ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection), CurrentGizmoOperation, ImGuizmo::LOCAL, glm::value_ptr(entity_matrix))) {
-            // 4. DECOMPOSE 
+            // 3. CONVERT BACK TO LOCAL SPACE if the entity has a parent
+            if (selected_archetype->parent_id.is_valid()) {
+                auto parent_it = context->current_realm_map.find(selected_archetype->parent_id);
+                if (parent_it != context->current_realm_map.end()) {
+                    glm::mat4 parent_world_matrix = get_world_matrix(parent_it->second);
+                    new_local_matrix = glm::inverse(parent_world_matrix) * entity_world_matrix;
+                }
+            }
+
+            // 4. DECOMPOSE the final local matrix and save the values
             glm::vec3 new_translation, new_rotation_deg, new_scale;
-            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(entity_matrix), glm::value_ptr(new_translation), glm::value_ptr(new_rotation_deg), glm::value_ptr(new_scale));
+            ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(new_local_matrix), glm::value_ptr(new_translation), glm::value_ptr(new_rotation_deg), glm::value_ptr(new_scale));
 
             Vector3 new_position_vector(new_translation.x, new_translation.y, new_translation.z);
             Vector3 new_rotation_vector(new_rotation_deg.x, new_rotation_deg.y, new_rotation_deg.z);
             Vector3 new_scale_vector(new_scale.x, new_scale.y, new_scale.z);
 
-            // WRITE the new data back to the YAML::Node
+            // WRITE the new local data back to the YAML::Node
             transform_archetype->data["position"] = new_position_vector;
             transform_archetype->data["rotation"] = new_rotation_vector;
             transform_archetype->data["scale"]    = new_scale_vector;
@@ -497,7 +528,6 @@ namespace Salix {
             context->event_manager->dispatch(position_changed_event);
             context->event_manager->dispatch(rotation_changed_event);
             context->event_manager->dispatch(scale_changed_event);
-
         }
 
         EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
@@ -570,8 +600,7 @@ namespace Salix {
                 context->selected_entity_id = selected_entity_id;
                 
             }
-        } else if (context->data_mode == EditorDataMode::Yaml)
-        {
+        } else if (context->data_mode == EditorDataMode::Yaml) {
             SimpleGuid temp_selected_archetype_id = SimpleGuid::invalid();
             for (auto& archetype : context->current_realm) {
                 // Find the transform and collider data for this archetype
@@ -583,6 +612,7 @@ namespace Salix {
                 }
                 if (transform_archetype && collider_archetype) {
                     // Read the data from the YAML nodes
+                    /*
                     Vector3 pos = transform_archetype->data["position"].as<Vector3>();
                     Vector3 rot = transform_archetype->data["rotation"].as<Vector3>();
                     Vector3 scl = transform_archetype->data["scale"].as<Vector3>();
@@ -591,6 +621,9 @@ namespace Salix {
                     // Construct the model matrix (same as gizmo logic)
                     glm::mat4 model_matrix;
                     ImGuizmo::RecomposeMatrixFromComponents(glm::value_ptr(pos.to_glm()), glm::value_ptr(rot.to_glm()), glm::value_ptr(scl.to_glm()), glm::value_ptr(model_matrix));
+                    */
+                    Vector3 size = collider_archetype->data["size"].as<Vector3>();
+                    glm::mat4 model_matrix = get_world_matrix(&archetype);
                     glm::vec3 half_extents = size.to_glm() * 0.5f;
                     float distance = 0.0f;
                     if (Raycast::IntersectsOBB(world_ray, model_matrix, half_extents, distance)) {
@@ -740,51 +773,70 @@ namespace Salix {
  
 
     void RealmDesignerPanel::on_event(IEvent& event) {
-        if (event.get_event_type() != EventType::EditorPropertyValueChanged) {
-            return;
+    if (event.get_event_type() != EventType::EditorPropertyValueChanged) {
+        return;
+    }
+    if (pimpl->context->data_mode != EditorDataMode::Yaml || !pimpl->context->preview_scene) {
+        return;
+    }
+
+    PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
+
+    // --- SANITY CHECK: Print every property change event received ---
+    std::cout << "\n--- Received PropertyValueChangedEvent ---" << std::endl;
+    std::cout << "  Entity ID: " << e.entity_id.get_value() << ", Element ID: " << e.element_id.get_value() << std::endl;
+    std::cout << "  Property: '" << e.property_name << "', New Value: " << e.new_value << std::endl;
+
+    Entity* entity_to_update = pimpl->context->preview_scene->get_entity_by_id(e.entity_id);
+    if (!entity_to_update) {
+        std::cout << "  [FAIL] Sanity Check: Live entity NOT found in preview_scene." << std::endl;
+        return;
+    }
+
+    Element* element_to_update = nullptr;
+    for (auto* element : entity_to_update->get_all_elements()) {
+        if (element->get_id() == e.element_id) {
+            element_to_update = element;
+            break;
         }
-        if (pimpl->context->data_mode != EditorDataMode::Yaml || !pimpl->context->preview_scene) {
-            return;
+    }
+
+    if (!element_to_update) {
+        std::cout << "  [FAIL] Sanity Check: Live element NOT found on entity." << std::endl;
+        return;
+    }
+
+    // Attempt to cast to Transform to check if this is the component we're interested in
+    Transform* live_transform = dynamic_cast<Transform*>(element_to_update);
+    if (!live_transform) {
+        std::cout << "  [INFO] Sanity Check: Event was for a non-Transform element (" << element_to_update->get_class_name() << "). Skipping position check." << std::endl;
+    } else {
+        std::cout << "  ✅ [BEFORE]: Live Transform Position: " << live_transform->get_position() << std::endl;
+    }
+
+    // --- This is your original, correct update logic ---
+    const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
+    if (!type_info) return;
+
+    std::optional<Property> found_property;
+    for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
+        if (prop.name == e.property_name) {
+            found_property = prop;
+            break;
         }
+    }
 
-        PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
+    if (!found_property.has_value()) return;
 
-        Entity* entity_to_update = pimpl->context->preview_scene->get_entity_by_id(e.entity_id);
-        if (!entity_to_update) {
-            return;
-        }
-
-        // --- Find the specific element using its unique ID from the event ---
-        Element* element_to_update = nullptr;
-        for (auto* element : entity_to_update->get_all_elements()) {
-            if (element->get_id() == e.element_id) {
-                element_to_update = element;
-                break;
-            }
-        }
-
-        if (!element_to_update) return;
-
-        // This is the part that updates the LIVE object in the preview
-        const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
-        if (!type_info) return;
-
-        std::optional<Property> found_property;
-        for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
-            if (prop.name == e.property_name) {
-                found_property = prop;
-                break;
-            }
-        }
-
-        if (!found_property.has_value()) {
-            return;
-        }
-
-        std::visit([&](auto&& arg) {
-            auto value_copy = arg;
-            found_property->set_data(element_to_update, &value_copy);
-        }, e.new_value);
+    std::visit([&](auto&& arg) {
+        auto value_copy = arg;
+        found_property->set_data(element_to_update, &value_copy);
+    }, e.new_value);
+    
+    // --- Final check after update ---
+    if (live_transform) {
+        std::cout << "  ✅  [AFTER]: Live Transform Position: " << live_transform->get_position() << std::endl;
+    }
         
         element_to_update->on_load(*pimpl->context->init_context);
 
