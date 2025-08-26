@@ -165,6 +165,31 @@ namespace Salix {
         return found_element;
     }
 
+    SimpleGuid EntityArchetype::get_primary_transform_id() {
+        ElementArchetype* primary_transform = nullptr;
 
+        // Find the first transform that is marked as non-duplicable.
+        for (auto& element : elements) {
+            if (element.type_name == "Transform" && !element.allows_duplication) {
+                primary_transform = &element;
+                break; // Found the primary, no need to search further.
+            }
+        }
+
+        // If we found a primary one, return its ID.
+        if (primary_transform) {
+            return primary_transform->id;
+        }
+
+        // If no primary was found, fall back to returning the ID of the very first transform in the list.
+        for (auto& element : elements) {
+            if (element.type_name == "Transform") {
+                return element.id; // Return the first one we find.
+            }
+        }
+
+        // If no transforms were found at all, return invalid.
+        return SimpleGuid::invalid();
+    }
     
 }  // namespace Salix
