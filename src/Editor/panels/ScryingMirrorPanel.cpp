@@ -45,7 +45,7 @@ namespace Salix {
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         void handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info);
-        void handle_box_collider_resize_button(ElementArchetype* box_collider_archetype);
+        void handle_box_collider_resize_button(ElementArchetype* box_collider_archetype, const ElementArchetype* source_renderable);
     };
 
     ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
@@ -133,69 +133,38 @@ namespace Salix {
     
  
     
-    void ScryingMirrorPanel::Pimpl::handle_box_collider_resize_button(ElementArchetype* box_collider_archetype) {
-        if (!box_collider_archetype || !context) {
+    void ScryingMirrorPanel::Pimpl::handle_box_collider_resize_button(ElementArchetype* box_collider_archetype, const ElementArchetype* source_renderable) {
+        if (!box_collider_archetype || !source_renderable || !context) {
             return;
         }
 
-        // 1. Find the owner EntityArchetype using the fast map lookup.
-        const SimpleGuid& owner_id = box_collider_archetype->owner_id;
-        auto entity_iterator = context->current_realm_map.find(owner_id);
-        if (entity_iterator == context->current_realm_map.end()) {
-            return; // Owner entity not found in the map.
-        }
-        EntityArchetype* owner_entity = entity_iterator->second;
+        // 1. Get texture dimensions directly from the source renderable.
+        int tex_width = source_renderable->data["width"] ? source_renderable->data["width"].as<int>() : 0;
+        int tex_height = source_renderable->data["height"] ? source_renderable->data["height"].as<int>() : 0;
 
-        // 2. Find a sibling element that we can get texture dimensions from.
-        ElementArchetype* source_renderable = nullptr;
-        for (auto& sibling_element : owner_entity->elements) {
-            // Use the reflection system to check the inheritance chain.
-            const TypeInfo* type_info = ByteMirror::get_type_info_by_name(sibling_element.type_name);
-            bool is_renderable2d = false;
-            while (type_info) {
-                if (type_info->name == "RenderableElement2D") {
-                    is_renderable2d = true;
-                    break;
-                }
-                type_info = type_info->ancestor;
-            }
+        if (tex_width > 0 && tex_height > 0) {
+            float ppu = context->renderer->get_pixels_per_unit();
+            if (ppu <= 0.0f) ppu = 100.0f; // Safety fallback
 
-            // If it's a renderable, check if it's a type we know how to get dimensions from.
-            // For now, this is just Sprite2D, but you can easily add more here later.
-            if (is_renderable2d && sibling_element.type_name == "Sprite2D") {
-                source_renderable = &sibling_element;
-                break; // Use the first suitable one we find.
-            }
-        }
+            // 2. Calculate the new size, preserving the original Z-depth.
+            Vector3 new_size = Vector3(
+                (float)tex_width / ppu,
+                (float)tex_height / ppu,
+                std::max(0.1f, box_collider_archetype->data["size"].as<Vector3>().z) 
+            );
 
-        // 3. If we found a suitable sibling, calculate and dispatch the update event.
-        if (source_renderable) {
-            int tex_width = source_renderable->data["width"] ? source_renderable->data["width"].as<int>() : 0;
-            int tex_height = source_renderable->data["height"] ? source_renderable->data["height"].as<int>() : 0;
-
-            if (tex_width > 0 && tex_height > 0) {
-                float ppu = context->renderer->get_pixels_per_unit();
-                if (ppu <= 0.0f) ppu = 100.0f; // Safety fallback
-
-                // Calculate the new size, preserving the original Z-depth.
-                Vector3 new_size = Vector3(
-                    (float)tex_width / ppu,
-                    (float)tex_height / ppu,
-                    std::max(0.1f, box_collider_archetype->data["size"].as<Vector3>().z) // Ensures Z is at least a small positive value
-                );
-
-                // Fire the event to update the BoxCollider's size property in the archetype.
-                PropertyValueChangedEvent event(
-                    owner_entity->id,
-                    box_collider_archetype->id,
-                    "BoxCollider",
-                    "size",
-                    new_size
-                );
-                context->event_manager->dispatch(event);
-            }
+            // 3. Fire the event to update the BoxCollider's size property.
+            PropertyValueChangedEvent event(
+                box_collider_archetype->owner_id,
+                box_collider_archetype->id,
+                "BoxCollider",
+                "size",
+                new_size
+            );
+            context->event_manager->dispatch(event);
         }
     }
+
     void ScryingMirrorPanel::on_panel_gui_update() {
         if (!pimpl->is_visible || !pimpl->context) {
             return;
@@ -278,42 +247,64 @@ namespace Salix {
                             }
                             ImGui::EndTable();
                         }
-                        // If the element we just drew was a BoxCollider...
+                        // --- FIT TO TEXTURE ---
+                        // If the element drawn is a BoxCollider...
                         if (element_archetype->type_name == "BoxCollider") {
     
-                            // --- START OF CORRECTED LOGIC ---
-                            bool has_renderable_sibling = false;
+                                std::vector<const ElementArchetype*> suitable_siblings;
+                                const SimpleGuid& owner_id = element_archetype->owner_id;
+                                auto entity_it = pimpl->context->current_realm_map.find(owner_id);
 
-                            // 1. Get the owner entity's ID from the archetype.
-                            const SimpleGuid& owner_id = element_archetype->owner_id;
+                                if (entity_it != pimpl->context->current_realm_map.end()) {
+                                    EntityArchetype* owner_entity = entity_it->second;
+                                    for (const auto& sibling_element : owner_entity->elements) {
+                                        const TypeInfo* sibling_type_info = ByteMirror::get_type_info_by_name(sibling_element.type_name);
+                                        bool is_renderable2d = false;
+                                        
+                                        // This corrected loop now uses the correct variable, fixing the bug with duplicates
+                                        while (sibling_type_info) {
+                                            if (sibling_type_info->name == "RenderableElement2D") {
+                                                is_renderable2d = true;
+                                                break;
+                                            }
+                                            sibling_type_info = sibling_type_info->ancestor;
+                                        }
 
-                            if (pimpl->context && pimpl->context->preview_scene) {
-                                // 2. Find the corresponding LIVE ENTITY in the preview scene.
-                                Entity* live_owner_entity = pimpl->context->preview_scene->get_entity_by_id(owner_id);
-
-                                if (live_owner_entity) {
-                                    // 3. Iterate through the LIVE ELEMENTS on that entity.
-                                    for (Element* sibling_element : live_owner_entity->get_all_elements()) {
-                                        // 4. Use dynamic_cast to check for C++ inheritance.
-                                        if (dynamic_cast<RenderableElement2D*>(sibling_element)) {
-                                            has_renderable_sibling = true;
-                                            break; // Found one, no need to check further.
+                                        if (is_renderable2d && sibling_element.data["width"] && sibling_element.data["height"]) {
+                                            suitable_siblings.push_back(&sibling_element);
                                         }
                                     }
                                 }
+
+                                if (!suitable_siblings.empty()) {
+                                    ImGui::Separator();
+                                    ImGui::Text("Resize To Texture");
+                                    // Push a unique ID scope for this specific BoxCollider's UI
+                                    ImGui::PushID(static_cast<int>(element_archetype->id.get_value()));
+                                    
+                                    static int selected_sibling_index = 0;
+                                    std::vector<const char*> sibling_names;
+                                    for (const auto* sibling : suitable_siblings) {
+                                        sibling_names.push_back(sibling->name.c_str());
+                                    }
+                                    
+                                    if (selected_sibling_index >= suitable_siblings.size()) {
+                                        selected_sibling_index = 0;
+                                    }
+
+                                    ImGui::PushItemWidth(-120.0f); // Leave space for the button
+                                    ImGui::Combo("Select Texture", &selected_sibling_index, sibling_names.data(), (int)sibling_names.size());
+                                    ImGui::PopItemWidth();
+
+                                    if (ImGui::Button("Apply Resize", ImVec2(-1, 0))) {
+                                        pimpl->context->deferred_type_drawer_commands.push_back([this, element_archetype, selected_sibling = suitable_siblings[selected_sibling_index]]() {
+                                            pimpl->handle_box_collider_resize_button(element_archetype, selected_sibling);
+                                        });
+                                    }
+
+                                    // Pop the unique ID scope
+                                    ImGui::PopID();
                             }
-
-                            // 5. Only draw the button if a renderable sibling was found.
-                            if (has_renderable_sibling) {
-                            // --- END OF CORRECTED LOGIC ---
-
-                                if (ImGui::Button("Fit Texture", ImVec2(-1, 0))) {
-                                    std::function<void()> command = [this, element_archetype]() {
-                                        pimpl->handle_box_collider_resize_button(element_archetype);
-                                    };
-                                    pimpl->context->deferred_type_drawer_commands.push_back(command);
-                                }
-                            } 
                         }
                     }
                 }
