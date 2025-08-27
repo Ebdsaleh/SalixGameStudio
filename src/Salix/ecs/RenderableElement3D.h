@@ -11,6 +11,9 @@ namespace Salix {
     // to provide their own implementations for the render() and on_load() methods.
     class SALIX_API RenderableElement3D : public RenderableElement {
     public:
+
+        virtual bool is_visible() override {return visibility_flag; }
+        virtual void set_visibility(bool visibility) override {visibility_flag = visibility; }
         // --- Serialization ---
         // This ensures that when a child class (like a future MeshRenderer) is serialized,
         // the data from this part of the inheritance chain is also saved correctly.

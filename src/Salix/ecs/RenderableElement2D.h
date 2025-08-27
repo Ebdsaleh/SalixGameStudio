@@ -15,6 +15,8 @@ namespace Salix {
         // They are automatically inherited from RenderableElement. Any class that inherits
         // from this class (like Sprite2D) will still be required to implement them.
 
+        virtual bool is_visible() override {return visibility_flag; }
+        virtual void set_visibility(bool visibility) override {visibility_flag = visibility; }
         // --- Serialization ---
         // This is necessary to ensure that when a child class (like Sprite2D) is serialized,
         // the data from this part of the inheritance chain is also saved.

@@ -17,6 +17,8 @@ namespace Salix {
         // implementation of the render method.
         virtual void render(IRenderer* renderer) = 0;
         virtual void on_load(const InitContext& new_context) override = 0;
+        virtual bool is_visible() override {return visibility_flag; }
+        virtual void set_visibility(bool visibility) override {visibility_flag = visibility; }
         template <class Archive>
         void serialize(Archive& archive) {
             // This is the crucial part. It tells Cereal to first serialize
