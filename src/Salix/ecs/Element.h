@@ -35,8 +35,9 @@ namespace Salix {
             void set_owner(Entity* owner_entity) {
                 owner = owner_entity;
             }
-           
             
+            virtual bool is_visible() { return visibility_flag; }
+            virtual void set_visibility(bool visibility) { visibility_flag = visibility; }
             const SimpleGuid&  get_id() const {return id;}
             // This helper returns a direct pointer to the ID's raw value,
             // which is exactly what the reflection system needs.
@@ -52,9 +53,10 @@ namespace Salix {
             }
         protected:
             // A pointer to the Entity that owns this element.
-            // This allowse elements to communicate with each other.
+            // This allows elements to communicate with each other.
             Entity* owner = nullptr;
             SimpleGuid id;
+            bool visibility_flag = true;
         private:
             // The Entity class that will need to be able to set the owner.
             friend class Entity;
