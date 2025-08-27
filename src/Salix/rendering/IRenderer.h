@@ -83,6 +83,9 @@ namespace Salix {
         virtual void draw_texture(ITexture* texture, const Rect& dest_rect) = 0;
 
         virtual void draw_sprite(ITexture* texture, const Transform* transform, const Color& color, SpriteFlip flip) = 0;
+        virtual void draw_sprite(ITexture* texture, const glm::mat4& model_matrix, const Color& color, SpriteFlip flip) {
+            (void)texture; (void)model_matrix; (void)color; (void)flip;
+        }
         virtual void draw_wire_box(const glm::mat4& model_matrix, const Color& color) = 0;
         virtual void draw_line(const glm::vec3& start, const glm::vec3& end, const Color& color) = 0; 
         virtual const float get_line_width() const { return 1.0f; }
