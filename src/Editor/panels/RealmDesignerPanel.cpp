@@ -47,6 +47,13 @@
 
 namespace Salix {
 
+    // A small struct to hold all the info needed for a single draw call
+    struct RenderJob {
+        const Sprite2D* sprite;
+        const Transform* transform;
+        int sorting_layer;
+    };
+
     struct RealmDesignerPanel::Pimpl { 
         EditorContext* context = nullptr;
         ImGuiIconManager* icon_manager = nullptr;
@@ -728,52 +735,63 @@ namespace Salix {
 
     void RealmDesignerPanel::Pimpl::draw_scene() {
         Scene* active_scene = nullptr;
-        
-        // YAML PATHWAY
+        // YAML Pathway
         if (context->data_mode == EditorDataMode::Yaml) { 
             active_scene = context->preview_scene.get();
-                
         }
-
-        IRenderer* renderer = context->renderer; // Use the interface
-        if (!renderer || !active_scene) return;
         
-        // Loop through all entities in the scene and draw them
+
+        IRenderer* renderer = context->renderer;
+        if (!renderer || !active_scene) return;
+
+        // --- STEP 1: COLLECT ---
+        std::vector<RenderJob> render_queue;
         for (Entity* entity : active_scene->get_entities()) {
-            if (!entity || entity->is_purged()) continue;
-            if (!entity->is_visible()) continue;
-            Transform* transform = nullptr;
-            std::vector<Element*> sprites;
-            if (entity->get_element<Transform>()) { transform = entity->get_element<Transform>(); }
-            if (entity->get_element<Sprite2D>()) { sprites = entity->get_elements_by_type_name("Sprite2D"); }
-            for (auto sprite : sprites) {
-                Sprite2D* sprite_to_render = dynamic_cast<Sprite2D*>(sprite);
-                if (!sprite_to_render) continue;
+            if (!entity || entity->is_purged() || !entity->is_visible()) continue;
 
-                if (transform && sprite_to_render && sprite_to_render->is_visible() && sprite_to_render->get_texture() ) {
-                    assert(sprite_to_render->get_texture() != nullptr && "Cannot Draw scene because sprite texture is nullptr.");
-                    // 1. Determine the correct flip state from the element's data
-                    SpriteFlip flip_state = SpriteFlip::None;
-                    if (sprite_to_render->flip_h && sprite_to_render->flip_v) {
-                        flip_state = SpriteFlip::Both;
-                    } else if (sprite_to_render->flip_h) {
-                        flip_state = SpriteFlip::Horizontal;
-                    } else if (sprite_to_render->flip_v) {
-                        flip_state = SpriteFlip::Vertical;
-                    }
-                    
+            Transform* transform = entity->get_transform();
+            if (!transform) continue;
 
-
-                    // 2. Make the clean draw call
-                    //    The old, redundant Rect creation has been removed.
-                    renderer->draw_sprite(
-                        sprite_to_render->get_texture(),
-                        transform,
-                        sprite_to_render->get_color(),
-                        flip_state // Use the calculated flip state
-                    );
+            // Get ALL Sprite2D components from the entity 
+            std::vector<Element*> sprites = entity->get_elements_by_type_name("Sprite2D");
+            for (auto* element : sprites) {
+                Sprite2D* sprite_to_render = dynamic_cast<Sprite2D*>(element);
+                if (sprite_to_render && sprite_to_render->is_visible() && sprite_to_render->get_texture()) {
+                    // Add this sprite to the render queue
+                    render_queue.push_back({sprite_to_render, transform, sprite_to_render->get_sorting_layer()});
                 }
             }
+        }
+
+        // --- STEP 2: SORT ---
+        // Sort the queue. The lambda function tells std::sort to order jobs by their sorting_layer.
+        std::sort(render_queue.begin(), render_queue.end(), [](const RenderJob& a, const RenderJob& b) {
+            return a.sorting_layer < b.sorting_layer;
+        });
+
+        // --- STEP 3: RENDER ---
+        // Now, loop through the sorted queue and draw everything in the correct order.
+        for (const auto& job : render_queue) {
+            const Sprite2D* sprite = job.sprite;
+            const Transform* transform = job.transform;
+
+            // Determine the flip state from the element's data 
+            SpriteFlip flip_state = SpriteFlip::None;
+            if (sprite->flip_h && sprite->flip_v) {
+                flip_state = SpriteFlip::Both;
+            } else if (sprite->flip_h) {
+                flip_state = SpriteFlip::Horizontal;
+            } else if (sprite->flip_v) {
+                flip_state = SpriteFlip::Vertical;
+            }
+            
+            // Make the clean draw call
+            renderer->draw_sprite(
+                sprite->get_texture(),
+                transform,
+                sprite->color,
+                flip_state
+            );
         }
     }
 

@@ -9,6 +9,7 @@ namespace Salix {
     struct EditorContext;
     class IRenderer;
 
+    
 
     class EDITOR_API RealmDesignerPanel : public IPanel {
         public:
