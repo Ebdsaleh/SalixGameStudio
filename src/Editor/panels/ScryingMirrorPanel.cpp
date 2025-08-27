@@ -165,6 +165,11 @@ namespace Salix {
         }
     }
 
+
+
+
+
+
     void ScryingMirrorPanel::on_panel_gui_update() {
         if (!pimpl->is_visible || !pimpl->context) {
             return;
@@ -207,6 +212,26 @@ namespace Salix {
                 
                 ImGui::Text("%s", header_name.c_str());
                 ImGui::Separator();
+
+                // If we have an entity selected (but not a specific element), show the visibility checkbox.
+                if (!pimpl->selected_element_id.is_valid()) {
+                    bool is_visible = selected_archetype->is_visible;
+                    if (ImGui::Checkbox("Visible", &is_visible)) {
+                        // Defer the change to happen at a safe time
+                        pimpl->context->deferred_type_drawer_commands.push_back([this, selected_archetype, is_visible]() {
+                            // Update the archetype's data
+                            selected_archetype->is_visible = is_visible;
+
+                            // Also update the live entity in the preview scene for immediate feedback
+                            Entity* live_entity = pimpl->context->preview_scene->get_entity_by_id(selected_archetype->id);
+                            if (live_entity) {
+                                live_entity->set_visible(is_visible);
+                            }
+                        });
+                    }
+
+                    ImGui::Separator();
+                }
 
                 for (auto* element_archetype : elements_to_display) {
                     const TypeInfo* type_info = ByteMirror::get_type_info_by_name(element_archetype->type_name);
