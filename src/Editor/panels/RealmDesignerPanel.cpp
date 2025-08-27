@@ -785,6 +785,7 @@ namespace Salix {
             // Get sprite's local properties
             Vector2 offset = sprite->offset;
             Vector2 pivot = sprite->pivot;
+            float local_rotation_deg = sprite->get_local_rotation();
             const float PIXELS_PER_UNIT = renderer->get_pixels_per_unit();
             float world_width = (float)sprite->get_texture_width() / PIXELS_PER_UNIT;
             float world_height = (float)sprite->get_texture_height() / PIXELS_PER_UNIT;
@@ -799,7 +800,9 @@ namespace Salix {
             // The order is important: Pivot Correction -> Scale -> Final Offset
             glm::mat4 local_sprite_matrix = glm::mat4(1.0f);
             local_sprite_matrix = glm::translate(local_sprite_matrix, glm::vec3(offset.x, offset.y, 0.0f));
+            local_sprite_matrix = glm::rotate(local_sprite_matrix, glm::radians(local_rotation_deg), glm::vec3(0.0f, 0.0f, 1.0f));
             local_sprite_matrix = glm::scale(local_sprite_matrix, glm::vec3(scale_x, scale_y, 1.0f));
+            
             // The pivot correction shifts the quad so the pivot point is at the origin before scaling
             local_sprite_matrix = local_sprite_matrix * glm::translate(glm::mat4(1.0f), glm::vec3(0.5f - pivot.x, 0.5f - pivot.y, 0.0f));
 
