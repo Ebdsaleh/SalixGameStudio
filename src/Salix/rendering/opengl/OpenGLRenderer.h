@@ -61,6 +61,7 @@ namespace Salix {
         ITexture* load_texture(const char* file_path) override;
         void draw_texture(ITexture* texture, const Rect& dest_rect) override;
         void draw_sprite(ITexture* texture, const Transform* transform, const Color& color, SpriteFlip flip) override;
+        virtual void draw_sprite(ITexture* texture, const glm::mat4& model_matrix, const Color& color) override;
         void set_clear_color(const Color& color);
         Color get_clear_color() const override;
         void draw_rectangle(const Rect& rect, const Color& color, bool filled);

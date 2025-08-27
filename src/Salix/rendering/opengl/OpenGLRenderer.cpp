@@ -947,7 +947,7 @@ namespace Salix {
         
         local_model = glm::scale(local_model, glm::vec3(scale_x, scale_y, 1.0f));
 
-        // --- THIS IS THE FIX ---
+        
         // 3. Get the final world matrix by applying the parent's transform
         glm::mat4 final_world_model = local_model;
         const Transform* parent = transform->get_parent();
@@ -955,7 +955,6 @@ namespace Salix {
             // If there is a parent, multiply our local matrix by the parent's full world matrix
             final_world_model = parent->get_model_matrix() * local_model;
         }
-        // --- END OF FIX ---
 
         pimpl->texture_shader->setMat4("model", final_world_model);
 
@@ -969,6 +968,35 @@ namespace Salix {
         glad_glDepthMask(GL_TRUE);
     }
      
+    void OpenGLRenderer::draw_sprite(ITexture* texture, const glm::mat4& model_matrix, const Color& color) {
+    if (!texture) return;
+    OpenGLTexture* opengl_texture = dynamic_cast<OpenGLTexture*>(texture);
+    if (!opengl_texture || !pimpl->active_camera) return;
+
+    // Set OpenGL state for 2D rendering (transparency, no depth writing)
+    glad_glEnable(GL_BLEND);
+    glad_glDepthMask(GL_FALSE); 
+
+    pimpl->texture_shader->use();
+
+    // Set camera matrices and the final model matrix for the sprite
+    pimpl->texture_shader->setMat4("view", pimpl->active_camera->get_view_matrix());
+    pimpl->texture_shader->setMat4("projection", pimpl->active_camera->get_projection_matrix());
+    pimpl->texture_shader->setMat4("model", model_matrix);
+    pimpl->texture_shader->setVec4("tint_color", glm::vec4(color.r, color.g, color.b, color.a));
+
+    // Bind texture and draw the quad
+    glad_glActiveTexture(GL_TEXTURE0);
+    glad_glBindTexture(GL_TEXTURE_2D, opengl_texture->get_id());
+    glad_glBindVertexArray(pimpl->quad_vao);
+    glad_glDrawArrays(GL_TRIANGLES, 0, 6);
+
+    // Clean up and restore OpenGL state
+    glad_glBindVertexArray(0);
+    glad_glDepthMask(GL_TRUE);
+    glad_glDisable(GL_BLEND);
+    glad_glUseProgram(0);
+}
        
 
 
