@@ -98,6 +98,22 @@ namespace Salix {
                 [](void* instance, void* data) {
                     static_cast<Element*>(instance)->set_name(*static_cast<std::string*>(data));
                 }
+            },
+            {
+                "visible",
+                PropertyType::Bool,
+                nullptr,
+                // Getter
+                [](void* instance) {
+                    // Use a special static variable here to give ImGui a stable pointer for its checkbox.
+                    thread_local static bool value;
+                    value = static_cast<Element*>(instance)->is_visible();
+                    return &value;
+                },
+                // Setter
+                [](void* instance, void* data) {
+                    static_cast<Element*>(instance)->set_visibility(*static_cast<bool*>(data));
+                }
             }
         };
         
