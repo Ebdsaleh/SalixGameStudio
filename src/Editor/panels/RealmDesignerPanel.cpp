@@ -773,6 +773,15 @@ namespace Salix {
             // Get the entity's base world matrix
             glm::mat4 entity_model_matrix = transform->get_model_matrix();
 
+            if (sprite->use_entity_rotation) {
+                // If TRUE, use the entity's full world matrix, including its rotation and scale.
+                entity_model_matrix = transform->get_model_matrix();
+            } else {
+                // If FALSE, create a matrix from ONLY the entity's world position.
+                // This makes the sprite a "billboard" that ignores the parent's rotation.
+                entity_model_matrix = glm::translate(glm::mat4(1.0f), transform->get_world_position().to_glm());
+            }
+
             // Get sprite's local properties
             Vector2 offset = sprite->offset;
             Vector2 pivot = sprite->pivot;
