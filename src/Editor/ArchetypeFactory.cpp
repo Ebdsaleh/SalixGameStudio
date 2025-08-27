@@ -32,6 +32,7 @@ namespace Salix {
         archetype.name = type_name;                 // Set the struct member for the UI
         archetype.is_visible = true;
         archetype.data["name"] = type_name;         // Set the data node for the reflection system
+        archetype.data["visible"] = true;
         archetype.state = ArchetypeState::New;
 
         // 3. Iterate through all reflected properties to get their default values.
@@ -135,6 +136,7 @@ namespace Salix {
             new_element.id = SimpleGuid::generate();
             new_element.owner_id = new_archetype.id;
             new_element.is_visible = source_element.is_visible;
+            new_element.data["visible"] = source_element.is_visible;
             new_element.data = YAML::Clone(source_element.data);
             new_element.allows_duplication = source_element.allows_duplication;
             new_element.state = ArchetypeState::New;
