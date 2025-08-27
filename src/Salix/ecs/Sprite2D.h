@@ -35,6 +35,7 @@ namespace Salix {
 
             // --- Properties ---
             bool use_entity_rotation = false;  // For use with hybrid rendering pipeline, set to true when camera is in 'perspective' mode.
+            float local_rotation = 0.0f;  // For 2D rotation in degrees.
             Color color;                // Color property for color tinting.
             Vector2 offset;             // A local offset from the Transform's position
             Vector2 pivot;              // Normalized pivot point (0,0 = top-left, 1,1 = bottom-right).
@@ -43,29 +44,47 @@ namespace Salix {
             int sorting_layer = 0;      // For future use in the Scene.
             std::string texture_path;   // The path to the image used as the texture.
 
-            // Getters and Setters for use with our ByteMirror reflection system.
+            // Getters for MODIFICATION (non-const, return by reference)
             bool& get_use_entity_rotation() { return use_entity_rotation; }
+            Color& get_color() { return color; }
+            Vector2& get_offset() { return offset; }
+            Vector2& get_pivot() { return pivot; }
+            float& get_local_rotation() { return local_rotation; }
+            bool& get_flip_h() { return flip_h; }
+            bool& get_flip_v() { return flip_v; }
+            int& get_sorting_layer() { return sorting_layer; }
 
+            // Getters for READING (const, return by value or const reference)
+            bool get_use_entity_rotation() const { return use_entity_rotation; }
+            const Color& get_color() const { return color; }
+            const Vector2& get_offset() const { return offset; }
+            const Vector2& get_pivot() const { return pivot; }
+            float get_local_rotation() const { return local_rotation; }
+            bool get_flip_h() const { return flip_h; }
+            bool get_flip_v() const { return flip_v; }
+            int get_sorting_layer() const { return sorting_layer; }
+            
+            // Getters and Setters for use with our ByteMirror reflection system
             void set_use_entity_rotation(bool should_use_entity_rotation) {
                 use_entity_rotation = should_use_entity_rotation; 
             }
+            void set_local_rotation(const float& new_rotation) { local_rotation = new_rotation; }
 
-            Color& get_color() { return color; }
+           
             void set_color(const Color& new_color) { color = new_color; }
 
-            Vector2& get_offset() { return offset; }
+            
             void set_offset(const Vector2& new_offset) { offset = new_offset; }
 
-            Vector2& get_pivot() { return pivot; }
             void set_pivot(const Vector2& new_pivot) { pivot = new_pivot; }
 
-            bool& get_flip_h() { return flip_h; }
+            
             void set_flip_h(bool should_flip) { flip_h = should_flip; }
 
-            bool& get_flip_v() { return flip_v; }
+            
             void set_flip_v(bool should_flip) { flip_v = should_flip; }
 
-            int& get_sorting_layer() { return sorting_layer; }
+            
             void set_sorting_layer(const int& new_sorting_layer) { sorting_layer = new_sorting_layer; }
 
             const std::string& get_texture_path() const;

@@ -120,6 +120,7 @@ namespace Salix {
         // The serialize function now accesses the public member directly.
         archive(
             cereal::make_nvp("use_entity_rotation", use_entity_rotation),
+            cereal::make_nvp("local_rotation", local_rotation),
             cereal::make_nvp("color", color),
             cereal::make_nvp("offset", offset),
             cereal::make_nvp("pivot", pivot),
