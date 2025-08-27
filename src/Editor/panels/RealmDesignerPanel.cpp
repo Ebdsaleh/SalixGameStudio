@@ -744,13 +744,14 @@ namespace Salix {
         // Loop through all entities in the scene and draw them
         for (Entity* entity : active_scene->get_entities()) {
             if (!entity || entity->is_purged()) continue;
+            if (!entity->is_visible()) continue;
             Transform* transform = nullptr;
             Sprite2D* sprite = nullptr;
             if (entity->get_element<Transform>()) { transform = entity->get_element<Transform>(); }
             if (entity->get_element<Sprite2D>()) {sprite = entity->get_element<Sprite2D>(); }
             
 
-            if (transform && sprite && sprite->get_texture()) {
+            if (transform && sprite && sprite->is_visible() && sprite->get_texture() ) {
                 assert(sprite->get_texture() != nullptr && "Cannot Draw scene because sprite texture is nullptr.");
                 // 1. Determine the correct flip state from the element's data
                 SpriteFlip flip_state = SpriteFlip::None;
