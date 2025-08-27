@@ -234,9 +234,16 @@ namespace Salix {
                 }
 
                 for (auto* element_archetype : elements_to_display) {
+                    ImGui::PushID(element_archetype);
                     const TypeInfo* type_info = ByteMirror::get_type_info_by_name(element_archetype->type_name);
                     if (ImGui::CollapsingHeader(StringUtils::convert_from_pascal_case(type_info->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
                         auto handles = PropertyHandleFactory::create_handles_for_element_archetype(element_archetype);
+                        
+                        // Sort the handles based on the display_order of their underlying property
+                        std::sort(handles.begin(), handles.end(), [](const auto& a, const auto& b) {
+                            return a->get_display_order() < b->get_display_order();
+                        });
+                        
                         if (!handles.empty() && ImGui::BeginTable(type_info->name.c_str(), 2, ImGuiTableFlags_SizingFixedFit)) {
                             ImGui::TableSetupColumn("Property", ImGuiTableColumnFlags_WidthFixed, 130.0f);
                             ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthStretch);
@@ -249,8 +256,7 @@ namespace Salix {
                                 std::string widget_id = "##" + handle->get_name();
                                 if(TypeDrawer::draw_property(widget_id.c_str(), *handle, pimpl->context)) {
                                     if (handle->get_hint() != UIHint::None) {
-                                        // do the DialogBox stuff
-                                        std::cout << "We got a button click!" << std::endl;
+                                        
                                         pimpl->handle_media_file_selection(*handle, element_archetype, type_info);
                                         
                                     } else {
@@ -268,9 +274,11 @@ namespace Salix {
                                         pimpl->context->event_manager->dispatch(event);
                                     }
                                 }
+                                
                                 ImGui::PopItemWidth();
                             }
                             ImGui::EndTable();
+                            ImGui::PopID();
                         }
                         // --- FIT TO TEXTURE ---
                         // If the element drawn is a BoxCollider...
@@ -330,6 +338,7 @@ namespace Salix {
                                     // Pop the unique ID scope
                                     ImGui::PopID();
                             }
+                            
                         }
                     }
                 }
