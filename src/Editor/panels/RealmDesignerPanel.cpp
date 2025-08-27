@@ -735,7 +735,6 @@ namespace Salix {
 
     void RealmDesignerPanel::Pimpl::draw_scene() {
         Scene* active_scene = nullptr;
-        // YAML Pathway
         if (context->data_mode == EditorDataMode::Yaml) { 
             active_scene = context->preview_scene.get();
         }
@@ -744,57 +743,68 @@ namespace Salix {
         IRenderer* renderer = context->renderer;
         if (!renderer || !active_scene) return;
 
-        // --- STEP 1: COLLECT ---
+        // --- STEP 1: COLLECT all visible sprites into a render queue ---
         std::vector<RenderJob> render_queue;
         for (Entity* entity : active_scene->get_entities()) {
             if (!entity || entity->is_purged() || !entity->is_visible()) continue;
-
+            
             Transform* transform = entity->get_transform();
             if (!transform) continue;
 
-            // Get ALL Sprite2D components from the entity 
             std::vector<Element*> sprites = entity->get_elements_by_type_name("Sprite2D");
             for (auto* element : sprites) {
-                Sprite2D* sprite_to_render = dynamic_cast<Sprite2D*>(element);
-                if (sprite_to_render && sprite_to_render->is_visible() && sprite_to_render->get_texture()) {
-                    // Add this sprite to the render queue
-                    render_queue.push_back({sprite_to_render, transform, sprite_to_render->get_sorting_layer()});
+                Sprite2D* sprite = dynamic_cast<Sprite2D*>(element);
+                if (sprite && sprite->is_visible() && sprite->get_texture()) {
+                    render_queue.push_back({sprite, transform, sprite->get_sorting_layer()});
                 }
             }
         }
 
-        // --- STEP 2: SORT ---
-        // Sort the queue. The lambda function tells std::sort to order jobs by their sorting_layer.
+        // --- STEP 2: SORT the render queue by sorting_layer ---
         std::sort(render_queue.begin(), render_queue.end(), [](const RenderJob& a, const RenderJob& b) {
             return a.sorting_layer < b.sorting_layer;
         });
 
-        // --- STEP 3: RENDER ---
-        // Now, loop through the sorted queue and draw everything in the correct order.
+        // --- STEP 3: RENDER the sorted queue ---
         for (const auto& job : render_queue) {
             const Sprite2D* sprite = job.sprite;
             const Transform* transform = job.transform;
 
-            // Determine the flip state from the element's data 
-            SpriteFlip flip_state = SpriteFlip::None;
-            if (sprite->flip_h && sprite->flip_v) {
-                flip_state = SpriteFlip::Both;
-            } else if (sprite->flip_h) {
-                flip_state = SpriteFlip::Horizontal;
-            } else if (sprite->flip_v) {
-                flip_state = SpriteFlip::Vertical;
-            }
+            // Get the entity's base world matrix
+            glm::mat4 entity_model_matrix = transform->get_model_matrix();
+
+            // Get sprite's local properties
+            Vector2 offset = sprite->offset;
+            Vector2 pivot = sprite->pivot;
+            const float PIXELS_PER_UNIT = renderer->get_pixels_per_unit();
+            float world_width = (float)sprite->get_texture_width() / PIXELS_PER_UNIT;
+            float world_height = (float)sprite->get_texture_height() / PIXELS_PER_UNIT;
+
+            // Apply flip logic to the scale
+            float scale_x = world_width;
+            float scale_y = world_height;
+            if (sprite->flip_h) scale_x *= -1.0f;
+            if (sprite->flip_v) scale_y *= -1.0f;
+
+            // Build the sprite's complete local transformation matrix
+            // The order is important: Pivot Correction -> Scale -> Final Offset
+            glm::mat4 local_sprite_matrix = glm::mat4(1.0f);
+            local_sprite_matrix = glm::translate(local_sprite_matrix, glm::vec3(offset.x, offset.y, 0.0f));
+            local_sprite_matrix = glm::scale(local_sprite_matrix, glm::vec3(scale_x, scale_y, 1.0f));
+            // The pivot correction shifts the quad so the pivot point is at the origin before scaling
+            local_sprite_matrix = local_sprite_matrix * glm::translate(glm::mat4(1.0f), glm::vec3(0.5f - pivot.x, 0.5f - pivot.y, 0.0f));
+
+            // Combine with the entity's world matrix to get the final matrix for this sprite
+            glm::mat4 final_model_matrix = entity_model_matrix * local_sprite_matrix;
             
-            // Make the clean draw call
+            // Make the clean draw call with the FINAL calculated matrix
             renderer->draw_sprite(
                 sprite->get_texture(),
-                transform,
-                sprite->color,
-                flip_state
+                final_model_matrix,
+                sprite->color
             );
         }
     }
-
  
 
     void RealmDesignerPanel::on_event(IEvent& event) {
