@@ -25,6 +25,7 @@ namespace Salix {
         std::string name;
         SimpleGuid owner_id = SimpleGuid::invalid();
         SimpleGuid id = SimpleGuid::invalid();
+        bool is_visible = true;
         bool allows_duplication = true;
         ArchetypeState state = ArchetypeState::UnModified;
         // The raw YAML data for this element's properties.
@@ -40,7 +41,7 @@ namespace Salix {
         // Data from your Entity class
         std::string name;
         SimpleGuid id;
-        
+        bool is_visible = true;
         // We replace raw pointers with IDs for hierarchy
         SimpleGuid parent_id = SimpleGuid::invalid();
         std::vector<SimpleGuid> child_ids;
