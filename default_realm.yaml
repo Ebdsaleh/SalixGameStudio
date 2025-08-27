@@ -58,7 +58,8 @@ Entities:
         color: { r: 1.0, g: 1.0, b: 1.0, a: 1.0 }
         flip_h: false
         flip_v: false
-        use_entity_rotation: false
+        local_rotation: 0.0
+        use_entity_rotation: true
         offset: { x: 0.0, y: 0.0 }
         pivot: { x: 0.5, y: 0.5 }
         sorting_layer: 0
