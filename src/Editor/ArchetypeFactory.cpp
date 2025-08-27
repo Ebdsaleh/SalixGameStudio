@@ -30,6 +30,7 @@ namespace Salix {
         archetype.type_name = type_name;
         archetype.id = SimpleGuid::generate();
         archetype.name = type_name;                 // Set the struct member for the UI
+        archetype.is_visible = true;
         archetype.data["name"] = type_name;         // Set the data node for the reflection system
         archetype.state = ArchetypeState::New;
 
@@ -68,6 +69,7 @@ namespace Salix {
         EntityArchetype archetype;
         archetype.id = SimpleGuid::generate();
         archetype.name = name;
+        archetype.is_visible = true;
         archetype.state = ArchetypeState::New;
         ElementArchetype transform_archetype = create_element_archetype("Transform");
         ElementArchetype box_collider_archetype = create_element_archetype("BoxCollider"); 
@@ -132,6 +134,7 @@ namespace Salix {
             new_element.name = source_element.name;
             new_element.id = SimpleGuid::generate();
             new_element.owner_id = new_archetype.id;
+            new_element.is_visible = source_element.is_visible;
             new_element.data = YAML::Clone(source_element.data);
             new_element.allows_duplication = source_element.allows_duplication;
             new_element.state = ArchetypeState::New;
