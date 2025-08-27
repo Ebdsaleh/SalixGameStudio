@@ -334,7 +334,25 @@ namespace Salix {
                     static_cast<Sprite2D*>(instance)->set_pivot(*static_cast<Vector2*>(data)); 
                 }
             },
-
+            {
+                "local_rotation",
+                PropertyType::Float,
+                nullptr,
+                // Getter
+                [](void* instance) {
+                    // Use a stable memory location for the return value
+                    thread_local static float value; 
+                    value = static_cast<Sprite2D*>(instance)->get_local_rotation();
+                    return &value;
+                },
+                // Setter
+                [](void* instance, void* data) {
+                    static_cast<Sprite2D*>(instance)->set_local_rotation(*static_cast<float*>(data));
+                },
+                UIHint::None,
+                false,
+                3
+            },
             {
                 "flip_h", PropertyType::Bool, nullptr,
                 // getter_func
