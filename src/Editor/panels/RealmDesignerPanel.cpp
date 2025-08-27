@@ -75,7 +75,7 @@ namespace Salix {
         void draw_lock_button();
         void draw_gizmo_toolbar();
         void update_viewport(IRenderer* renderer);
-        void handle_gizmos_for_live_entity(EditorCamera* camera, Entity* selected_entity);
+        // void handle_gizmos_for_live_entity(EditorCamera* camera, Entity* selected_entity);
         void handle_input();
         void handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max);
         void draw_bounding_boxes();
@@ -223,13 +223,14 @@ namespace Salix {
         ImVec2 max_bound = ImGui::GetItemRectMax();
 
         if (!is_locked) {
-            if (context->data_mode == EditorDataMode::Live) {
+            /* if (context->data_mode == EditorDataMode::Live) {
                 Entity* selected_entity = context->active_scene ? context->active_scene->get_entity_by_id(context->selected_entity_id) : nullptr;
                 if (selected_entity) {
-                    handle_gizmos_for_live_entity(context->editor_camera, selected_entity);
+                    // handle_gizmos_for_live_entity(context->editor_camera, selected_entity);
                 }
             }
-            else if (context->data_mode == EditorDataMode::Yaml) {
+            else */
+            if (context->data_mode == EditorDataMode::Yaml) {
                 // In YAML mode, we don't need to pass an entity pointer.
                 handle_gizmos_for_archetype(context->editor_camera);                
             }
@@ -251,11 +252,14 @@ namespace Salix {
                     if (context->data_mode == EditorDataMode::Yaml) {
                         selected_entity = context->preview_scene->get_entity_by_id(context->selected_entity_id);
                     }
+                    /*
                     else if (context->data_mode == EditorDataMode::Live) {
                         if (context->active_scene) {
                             selected_entity = context->active_scene->get_entity_by_id(context->selected_entity_id);
                         }
                     }
+                    */
+
 
                     if (selected_entity) {
                         if (Transform* transform = selected_entity->get_transform()) {
@@ -283,7 +287,7 @@ namespace Salix {
                 ImGui::End(); ImGui::PopStyleVar(); return;
             }
 
-            // --- Scene Preparation (This logic is now correct) ---
+            // --- Scene Preparation ---
             if (pimpl->context->data_mode == EditorDataMode::Yaml) {
                 // --- Process the sync queue ---
                 if (!pimpl->context->sync_queue.empty()) {
@@ -378,7 +382,7 @@ namespace Salix {
     
 
 
-
+    /*
     void RealmDesignerPanel::Pimpl::handle_gizmos_for_live_entity(EditorCamera* camera, Entity* selected_entity) {
         if (is_locked || !selected_entity || selected_entity->is_purged()) return;
 
@@ -472,7 +476,7 @@ namespace Salix {
             ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
         }
     }
-
+    */
 
     // NEW: The complete implementation for the Archetype gizmo handler.
     void RealmDesignerPanel::Pimpl::handle_gizmos_for_archetype(EditorCamera* camera) {
@@ -724,10 +728,12 @@ namespace Salix {
 
     void RealmDesignerPanel::Pimpl::draw_scene() {
         Scene* active_scene = nullptr;
+        /*
         // LIVE PATHWAY
         if (context->data_mode == EditorDataMode::Live) { active_scene = context->active_scene; } // This will be deprecated soon.
+        */
         // YAML PATHWAY
-        else if (context->data_mode == EditorDataMode::Yaml) { 
+        if (context->data_mode == EditorDataMode::Yaml) { 
             active_scene = context->preview_scene.get();
                 
         }
