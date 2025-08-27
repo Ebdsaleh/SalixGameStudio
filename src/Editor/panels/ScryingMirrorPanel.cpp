@@ -278,7 +278,7 @@ namespace Salix {
                                 ImGui::PopItemWidth();
                             }
                             ImGui::EndTable();
-                            ImGui::PopID();
+                            //ImGui::PopID();
                         }
                         // --- FIT TO TEXTURE ---
                         // If the element drawn is a BoxCollider...
@@ -340,7 +340,9 @@ namespace Salix {
                             }
                             
                         }
+                        
                     }
+                    ImGui::PopID();
                 }
             } else {
                 ImGui::Text("No object selected.");
