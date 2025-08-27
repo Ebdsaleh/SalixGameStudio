@@ -1663,6 +1663,13 @@ namespace Salix {
         // 3. Apply the new value from the event to the archetype's YAML data node.
         element_it->data[e.property_name] = YAML::property_value_to_node(e.new_value);
         
+        // --- Synchronize the Element's name property change with data value ---.
+        // If the property that changed was "name", we must ALSO update the mirrored 'name' member.
+        if (e.property_name == "name") {
+            if (std::holds_alternative<std::string>(e.new_value)) {
+                element_it->name = std::get<std::string>(e.new_value);
+            }
+        }
         // 4. Re-evaluate the modified element and entity against the snapshot to update their UI state.
         if (context->loaded_realm_snapshot.is_element_modified(*element_it)) {
             element_it->state = ArchetypeState::Modified;
