@@ -82,7 +82,10 @@ namespace Salix {
                 },
 
                 // Setter: This lambda is empty, making the ID read-only in the editor.
-                [](void* instance, void* data) {(void) data; (void) instance;}
+                [](void* instance, void* data) {(void) data; (void) instance;},
+                UIHint::None,
+                false,
+                999
             },
             {
                 "name",
@@ -97,7 +100,10 @@ namespace Salix {
                 // Setter
                 [](void* instance, void* data) {
                     static_cast<Element*>(instance)->set_name(*static_cast<std::string*>(data));
-                }
+                },
+                UIHint::None,
+                false,
+                0
             },
             {
                 "visible",
@@ -113,7 +119,10 @@ namespace Salix {
                 // Setter
                 [](void* instance, void* data) {
                     static_cast<Element*>(instance)->set_visibility(*static_cast<bool*>(data));
-                }
+                },
+                UIHint::None,
+                false,
+                1
             }
         };
         
