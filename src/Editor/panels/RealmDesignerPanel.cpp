@@ -963,10 +963,8 @@ namespace Salix {
         // Define a color for the bounding boxes
         Color box_color = {0.0f, 1.0f, 0.0f, 1.0f}; // Green
         Scene* active_scene = nullptr;
-        if (context->data_mode == EditorDataMode::Live) {
-            active_scene = context->active_scene;
-        }
-        else if (context->data_mode == EditorDataMode::Yaml) {
+        
+        if (context->data_mode == EditorDataMode::Yaml) {
             active_scene = context->preview_scene.get();
         }
 
@@ -976,7 +974,7 @@ namespace Salix {
             BoxCollider* collider = entity->get_element<BoxCollider>(); 
 
             // We only draw boxes for entities that have a transform and a collider
-            if (transform && collider) { 
+            if (transform && collider && collider->is_visible()) { 
                 // Get the base model matrix from the entity's transform
                 glm::mat4 model_matrix = transform->get_model_matrix();
 
