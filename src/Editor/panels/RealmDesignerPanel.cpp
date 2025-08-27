@@ -728,10 +728,7 @@ namespace Salix {
 
     void RealmDesignerPanel::Pimpl::draw_scene() {
         Scene* active_scene = nullptr;
-        /*
-        // LIVE PATHWAY
-        if (context->data_mode == EditorDataMode::Live) { active_scene = context->active_scene; } // This will be deprecated soon.
-        */
+        
         // YAML PATHWAY
         if (context->data_mode == EditorDataMode::Yaml) { 
             active_scene = context->preview_scene.get();
@@ -746,33 +743,36 @@ namespace Salix {
             if (!entity || entity->is_purged()) continue;
             if (!entity->is_visible()) continue;
             Transform* transform = nullptr;
-            Sprite2D* sprite = nullptr;
+            std::vector<Element*> sprites;
             if (entity->get_element<Transform>()) { transform = entity->get_element<Transform>(); }
-            if (entity->get_element<Sprite2D>()) {sprite = entity->get_element<Sprite2D>(); }
-            
+            if (entity->get_element<Sprite2D>()) { sprites = entity->get_elements_by_type_name("Sprite2D"); }
+            for (auto sprite : sprites) {
+                Sprite2D* sprite_to_render = dynamic_cast<Sprite2D*>(sprite);
+                if (!sprite_to_render) continue;
 
-            if (transform && sprite && sprite->is_visible() && sprite->get_texture() ) {
-                assert(sprite->get_texture() != nullptr && "Cannot Draw scene because sprite texture is nullptr.");
-                // 1. Determine the correct flip state from the element's data
-                SpriteFlip flip_state = SpriteFlip::None;
-                if (sprite->flip_h && sprite->flip_v) {
-                    flip_state = SpriteFlip::Both;
-                } else if (sprite->flip_h) {
-                    flip_state = SpriteFlip::Horizontal;
-                } else if (sprite->flip_v) {
-                    flip_state = SpriteFlip::Vertical;
+                if (transform && sprite_to_render && sprite_to_render->is_visible() && sprite_to_render->get_texture() ) {
+                    assert(sprite_to_render->get_texture() != nullptr && "Cannot Draw scene because sprite texture is nullptr.");
+                    // 1. Determine the correct flip state from the element's data
+                    SpriteFlip flip_state = SpriteFlip::None;
+                    if (sprite_to_render->flip_h && sprite_to_render->flip_v) {
+                        flip_state = SpriteFlip::Both;
+                    } else if (sprite_to_render->flip_h) {
+                        flip_state = SpriteFlip::Horizontal;
+                    } else if (sprite_to_render->flip_v) {
+                        flip_state = SpriteFlip::Vertical;
+                    }
+                    
+
+
+                    // 2. Make the clean draw call
+                    //    The old, redundant Rect creation has been removed.
+                    renderer->draw_sprite(
+                        sprite_to_render->get_texture(),
+                        transform,
+                        sprite_to_render->get_color(),
+                        flip_state // Use the calculated flip state
+                    );
                 }
-                
-
-
-                // 2. Make the clean draw call
-                //    The old, redundant Rect creation has been removed.
-                renderer->draw_sprite(
-                    sprite->get_texture(),
-                    transform,
-                    sprite->get_color(),
-                    flip_state // Use the calculated flip state
-                );
             }
         }
     }
