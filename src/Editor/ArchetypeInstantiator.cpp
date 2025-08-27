@@ -185,6 +185,7 @@ namespace Salix {
         // --- PASS 1: Instantiate all entities and their elements ---
         for (const auto& archetype : realm) {
             Entity* live_entity = scene->create_entity(archetype.id, archetype.name);
+            live_entity->set_visible(archetype.is_visible);
             live_entity_map[archetype.id] = live_entity;
 
             Element* default_transform = live_entity->get_element_by_type_name("Transform");
@@ -196,17 +197,20 @@ namespace Salix {
                 Element* live_element = nullptr;
                 if (element_archetype.type_name == "Transform" && !has_applied_default_transform) {
                     live_element = default_transform;
+                    live_element->set_visibility(false);
                     live_element->set_id(element_archetype.id);
                     has_applied_default_transform = true;
                 }
                 else if (element_archetype.type_name == "BoxCollider" && !has_applied_default_collider) {
                     live_element = default_box_collider;
+                    live_element->set_visibility(element_archetype.is_visible);
                     live_element->set_id(element_archetype.id);
                     has_applied_default_collider = true;
                 }
                 else {
                     live_element = Salix::ByteMirror::create_element_by_name(element_archetype.type_name);
                     if (live_element) {
+                        live_element->set_visibility(element_archetype.is_visible);
                         live_entity->add_element(live_element);
                         live_element->set_id(element_archetype.id);
                     }
