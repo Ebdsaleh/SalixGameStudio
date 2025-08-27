@@ -124,12 +124,14 @@ namespace Salix {
         new_archetype.name = potential_name;
         new_archetype.id = SimpleGuid::generate();
         new_archetype.state = ArchetypeState::New;
+        
         // 3. Perform a deep copy of all elements, giving each a new ID.
         for (const auto& source_element : source.elements) {
             ElementArchetype new_element;
             new_element.type_name = source_element.type_name;
             new_element.name = source_element.name;
             new_element.id = SimpleGuid::generate();
+            new_element.owner_id = new_archetype.id;
             new_element.data = YAML::Clone(source_element.data);
             new_element.allows_duplication = source_element.allows_duplication;
             new_element.state = ArchetypeState::New;
