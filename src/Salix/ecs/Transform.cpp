@@ -171,14 +171,14 @@ namespace Salix {
 
 
 
-    Vector3 Transform::get_world_position() {
+    Vector3 Transform::get_world_position() const {
         // Get the final world matrix and extract the translation component from the 4th column.
         glm::mat4 world_matrix = get_model_matrix();
         return Vector3(world_matrix[3].x, world_matrix[3].y, world_matrix[3].z);
     }
 
 
-    Vector3 Transform::get_world_rotation() {
+    Vector3 Transform::get_world_rotation() const {
         
         if (pimpl->parent) {
             return pimpl->parent->get_world_rotation() + pimpl->rotation;
@@ -187,7 +187,7 @@ namespace Salix {
     }
 
 
-    Vector3 Transform::get_world_scale() {
+    Vector3 Transform::get_world_scale() const {
         // Decomposing for scale is also complex. Your current multiplication is a good approximation.
         if (pimpl->parent) {
             return pimpl->parent->get_world_scale() * pimpl->scale;

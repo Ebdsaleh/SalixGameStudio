@@ -20,9 +20,9 @@ namespace Salix {
             const char* get_class_name() const override { return "Transform"; }
             void update(float delta_time) override;
             // Calculate World Transform
-            Vector3 get_world_position();
-            Vector3 get_world_rotation();
-            Vector3 get_world_scale();
+            Vector3 get_world_position() const;
+            Vector3 get_world_rotation() const;
+            Vector3 get_world_scale() const;
 
             Vector3 world_to_local_position(const Vector3& world_pos) const;
             Vector3 local_to_world_position(const Vector3& local_pos) const;
