@@ -74,6 +74,7 @@ namespace Salix {
         setter_func set_data;
         UIHint hint = UIHint::None;
         bool is_read_only = false;
+        int display_order = 100;
         
     };
 
