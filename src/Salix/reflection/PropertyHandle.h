@@ -50,6 +50,8 @@ namespace Salix {
         }
         UIHint get_hint() const { return property_info.hint; } // UIHint getter.
         bool is_read_only() const { return property_info.is_read_only; } 
+        int get_display_order() const {return property_info.display_order; }
+
     protected:
         PropertyHandle(const Property& property_info) : property_info(property_info) {}
         const Property property_info;
