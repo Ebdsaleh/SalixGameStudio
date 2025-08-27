@@ -48,6 +48,8 @@ namespace Salix {
 
             void purge();
             bool is_purged() const;
+            void set_visible(bool visible);
+            bool is_visible() const;
             void set_name(const std::string& new_name);
             const std::string& get_name() const;
             const SimpleGuid&  get_id() const;

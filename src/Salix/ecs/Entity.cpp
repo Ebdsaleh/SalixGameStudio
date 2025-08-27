@@ -22,6 +22,7 @@ namespace Salix {
         std::string name;
         Entity* parent = nullptr;
         bool is_purged_flag = false;
+        bool is_visible = true;
         std::vector<Entity*>children;
         std::vector<std::unique_ptr<Element>> all_elements;
         std::vector<RenderableElement*> renderable_elements;
@@ -79,6 +80,14 @@ namespace Salix {
         }
     }
     
+    void Entity::set_visible(bool visible) {
+        pimpl->is_visible = visible;
+    }
+
+    bool Entity::is_visible() const {
+        return pimpl->is_visible;
+    }
+
     void Entity::update(float delta_time) {
         if (pimpl->is_purged_flag) return;
         for (auto& element : pimpl->all_elements) {
