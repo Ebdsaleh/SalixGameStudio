@@ -1,4 +1,4 @@
-# default_realm.yaml (located in application root directory for testing).
+# default_realm.yaml (located in Sandbox/TestProject directory for testing scene/realm loading).
 # Default Realm for Salix Game Studio
 RealmFileVersion: 1.0
 Settings:
