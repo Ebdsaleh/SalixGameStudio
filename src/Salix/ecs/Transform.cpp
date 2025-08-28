@@ -79,16 +79,12 @@ namespace Salix {
             return;
         }
 
-        // 1. Get our current world matrix BEFORE any changes are made.
-        glm::mat4 original_world_matrix = get_model_matrix();
+        // --- 1. Get current world state BEFORE changing parent ---
+        Vector3 old_world_pos = get_world_position();
+        Vector3 old_world_rot = get_world_rotation();
+        Vector3 old_world_scl = get_world_scale();
 
-        // 2. Get the new parent's world matrix.
-        glm::mat4 new_parent_world_matrix = glm::mat4(1.0f);
-        if (new_parent) {
-            new_parent_world_matrix = new_parent->get_model_matrix();
-        }
-
-        // 3. Update the hierarchy pointers
+        // --- 2. Update the hierarchy pointers ---
         if (pimpl->parent) {
             pimpl->parent->remove_child(this);
         }
@@ -97,31 +93,20 @@ namespace Salix {
             pimpl->parent->add_child(this);
         }
 
-        // 4. Calculate the new LOCAL matrix that preserves the original world position.
-        glm::mat4 new_local_matrix = glm::inverse(new_parent_world_matrix) * original_world_matrix;
-
-        // --- START: GLM-ONLY MATRIX DECOMPOSITION ---
-        
-        // 5. Decompose the new local matrix into its core components using GLM.
-        glm::vec3 new_local_scale;
-        glm::quat new_local_rotation_quat;
-        glm::vec3 new_local_pos;
-        glm::vec3 skew;
-        glm::vec4 perspective;
-        glm::decompose(new_local_matrix, new_local_scale, new_local_rotation_quat, new_local_pos, skew, perspective);
-
-        // Convert the rotation quaternion to Euler angles in degrees
-        glm::vec3 new_local_rot_rad = glm::eulerAngles(new_local_rotation_quat);
-        glm::vec3 new_local_rot_deg = glm::degrees(new_local_rot_rad);
-
-        // --- END: GLM-ONLY MATRIX DECOMPOSITION ---
-
-        // 6. Set the new local properties.
-        set_position(Vector3(new_local_pos.x, new_local_pos.y, new_local_pos.z));
-        // NOTE: glm::eulerAngles returns pitch (x), yaw (y), roll (z). We must apply them
-        // in the correct order to match how the model matrix is constructed.
-        set_rotation(Vector3(new_local_rot_deg.x, new_local_rot_deg.y, new_local_rot_deg.z));
-        set_scale(Vector3(new_local_scale.x, new_local_scale.y, new_local_scale.z));
+        // --- 3. Set the new LOCAL state to preserve the WORLD state ---
+        if (new_parent) {
+            // Use your existing, correct helper function for position!
+            set_position(new_parent->world_to_local_position(old_world_pos));
+            
+            // Apply the same logical pattern for rotation and scale
+            set_rotation(old_world_rot - new_parent->get_world_rotation());
+            set_scale(old_world_scl / new_parent->get_world_scale());
+        } else {
+            // If we are being orphaned, our new local state is our old world state.
+            set_position(old_world_pos);
+            set_rotation(old_world_rot);
+            set_scale(old_world_scl);
+        }
     }
 
     Transform* Transform::get_parent() const{
@@ -207,6 +192,70 @@ namespace Salix {
         return pimpl->scale;
     }
 
+    void Transform::set_world_position(const Vector3& world_position) {
+    if (pimpl->parent) {
+        // If there's a parent, calculate the new local position required
+        // to achieve the desired world position.
+        glm::mat4 parent_world_inverse = glm::inverse(pimpl->parent->get_model_matrix());
+        glm::vec4 new_local_position_4 = parent_world_inverse * glm::vec4(world_position.x, world_position.y, world_position.z, 1.0f);
+        set_position(Vector3(new_local_position_4.x, new_local_position_4.y, new_local_position_4.z));
+    } else {
+        // If no parent, our local position is our world position.
+        set_position(world_position);
+    }
+}
+
+    void Transform::set_world_rotation(const Vector3& world_rotation_deg) {
+        // Convert the desired world rotation from Euler degrees to a quaternion
+        glm::quat world_rotation_quat = glm::quat(glm::radians(world_rotation_deg.to_glm()));
+        
+        if (pimpl->parent) {
+            // Get the parent's world rotation as a quaternion
+            glm::mat4 parent_world_matrix = pimpl->parent->get_model_matrix();
+            glm::quat parent_world_rotation_quat = glm::quat_cast(parent_world_matrix);
+            
+            // Calculate the new local rotation by "subtracting" the parent's world rotation
+            // using quaternion multiplication with the inverse.
+            glm::quat new_local_quat = glm::inverse(parent_world_rotation_quat) * world_rotation_quat;
+            
+            // Convert the new local quaternion back to Euler angles in degrees
+            glm::vec3 new_local_rotation_rad = glm::eulerAngles(new_local_quat);
+            set_rotation(Vector3(glm::degrees(new_local_rotation_rad.x), glm::degrees(new_local_rotation_rad.y), glm::degrees(new_local_rotation_rad.z)));
+        } else {
+            // If no parent, our local rotation is our world rotation.
+            set_rotation(world_rotation_deg);
+        }
+    }
+
+    void Transform::set_world_scale(const Vector3& world_scale) {
+        if (pimpl->parent) {
+            // This is a robust way to handle scale in a hierarchy without simple division.
+            // We build a target world matrix with the new scale, then convert it back to local space.
+            glm::mat4 target_world_matrix;
+
+            // --- Build target matrix using only GLM ---
+            glm::mat4 trans = glm::translate(glm::mat4(1.0f), get_world_position().to_glm());
+            glm::mat4 rot = glm::mat4_cast(glm::quat(glm::radians(get_world_rotation().to_glm())));
+            glm::mat4 scale = glm::scale(glm::mat4(1.0f), world_scale.to_glm());
+            target_world_matrix = trans * rot * scale;
+            // --- End of GLM-only matrix construction ---
+
+            glm::mat4 parent_world_inverse = glm::inverse(pimpl->parent->get_model_matrix());
+            glm::mat4 new_local_matrix = parent_world_inverse * target_world_matrix;
+
+            // Decompose the new local matrix to get the final local scale
+            glm::vec3 new_local_scale, new_local_position;
+            glm::quat new_local_rotation;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            glm::decompose(new_local_matrix, new_local_scale, new_local_rotation, new_local_position, skew, perspective);
+            
+            set_scale(Vector3(new_local_scale.x, new_local_scale.y, new_local_scale.z));
+        } else {
+            // If no parent, our local scale is our world scale.
+            set_scale(world_scale);
+        }
+    }
 
     Vector3 Transform::world_to_local_position(const Vector3& world_pos) const {
         if (!pimpl->parent) return world_pos;

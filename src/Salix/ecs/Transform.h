@@ -24,6 +24,9 @@ namespace Salix {
             Vector3 get_world_rotation() const;
             Vector3 get_world_scale() const;
 
+            void set_world_position(const Vector3& world_position);
+            void set_world_rotation(const Vector3& world_rotation_deg);
+            void set_world_scale(const Vector3& world_scale);
             Vector3 world_to_local_position(const Vector3& world_pos) const;
             Vector3 local_to_world_position(const Vector3& local_pos) const;
 
