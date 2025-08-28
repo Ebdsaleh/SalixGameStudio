@@ -216,15 +216,14 @@ namespace Salix {
 
                 // Focus on Entity on double-click.
                 if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                    Transform focus_transform;
-                    for (const auto& element : archetype.elements) {
-                        if (element.type_name == "Transform") {
-                            focus_transform.set_position(element.data["position"].as<Salix::Vector3>());
-                            focus_transform.set_rotation(element.data["rotation"].as<Salix::Vector3>());
-                            focus_transform.set_scale(element.data["scale"].as<Salix::Vector3>());
-                            context->editor_camera->focus_on(&focus_transform, 3.0f);
-                            break;
-                        }
+                    // --- START FIX ---
+                    // 1. Get the LIVE entity from the preview scene using the archetype's ID.
+                    Entity* live_entity_to_focus = context->preview_scene->get_entity_by_id(archetype.id);
+
+                    // 2. Check if the live entity and its transform exist.
+                    if (live_entity_to_focus && live_entity_to_focus->get_transform()) {
+                        // 3. Pass the LIVE transform to the focus_on method.
+                        context->editor_camera->focus_on(live_entity_to_focus->get_transform(), 3.0f);
                     }
                 }
             }
