@@ -92,6 +92,14 @@ namespace Salix {
         void handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max);
         void draw_bounding_boxes();
         void draw_grid();
+
+        // Events
+        void handle_property_value_changed_event(const PropertyValueChangedEvent& e);
+        void handle_hierarchy_changed_event(const OnHierarchyChangedEvent& e);
+        void handle_entity_added_event(const OnEntityAddedEvent& e);
+        void handle_entity_purged_event(const OnEntityPurgedEvent& e);
+        void handle_entity_family_added_event(const OnEntityFamilyAddedEvent& e);
+        void handle_entity_family_purged_event(const OnEntityFamilyPurgedEvent& e);
         
     };
 
@@ -811,162 +819,168 @@ namespace Salix {
  
 
     void RealmDesignerPanel::on_event(IEvent& event) {
-        if (event.get_event_type() == EventType::EditorPropertyValueChanged) {
-            if (pimpl->context->data_mode != EditorDataMode::Yaml || !pimpl->context->preview_scene) {
-                return;
+        // This switch statement cleanly dispatches the event to the correct handler.
+        switch (event.get_event_type()) {
+            case EventType::EditorPropertyValueChanged:
+                pimpl->handle_property_value_changed_event(static_cast<PropertyValueChangedEvent&>(event));
+                break;
+            case EventType::EditorOnHierarchyChanged:
+                pimpl->handle_hierarchy_changed_event(static_cast<OnHierarchyChangedEvent&>(event));
+                break;
+            case EventType::EditorOnEntityAdded: // Assumes you added this to your EventType enum
+                pimpl->handle_entity_added_event(static_cast<OnEntityAddedEvent&>(event));
+                break;
+            case EventType::EditorOnEntityPurged: // Assumes you added this to your EventType enum
+                pimpl->handle_entity_purged_event(static_cast<OnEntityPurgedEvent&>(event));
+                break;
+            case EventType::EditorOnEntityFamilyAdded: // Assumes you added this to your EventType enum
+                pimpl->handle_entity_family_added_event(static_cast<OnEntityFamilyAddedEvent&>(event));
+                break;
+            case EventType::EditorOnEntityFamilyPurged: // Assumes you added this to your EventType enum
+                pimpl->handle_entity_family_purged_event(static_cast<OnEntityFamilyPurgedEvent&>(event));
+                break;
+            default:
+                break;
+        }
+    }
+    // Implementation of the Pimpl's Event handler methods ---
+
+    void RealmDesignerPanel::Pimpl::handle_property_value_changed_event(const PropertyValueChangedEvent& e) {
+        if (context->data_mode != EditorDataMode::Yaml || !context->preview_scene) {
+            return;
+        }
+
+        Entity* entity_to_update = context->preview_scene->get_entity_by_id(e.entity_id);
+        if (!entity_to_update) return;
+
+        Element* element_to_update = entity_to_update->get_element_by_id(e.element_id);
+        if (!element_to_update) return;
+
+        const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
+        if (!type_info) return;
+
+        for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
+            if (prop.name == e.property_name) {
+                std::visit([&](auto&& arg) {
+                    auto value_copy = arg;
+                    prop.set_data(element_to_update, &value_copy);
+                }, e.new_value);
+                break;
             }
+        }
+        
+        element_to_update->on_load(*context->init_context);
 
-            PropertyValueChangedEvent& e = static_cast<PropertyValueChangedEvent&>(event);
-            Entity* entity_to_update = pimpl->context->preview_scene->get_entity_by_id(e.entity_id);
-            if (!entity_to_update) return;
+        if (auto* live_sprite = dynamic_cast<Sprite2D*>(element_to_update)) {
+            auto entity_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
+                [&](EntityArchetype& archetype) { return archetype.id == e.entity_id; });
 
-            Element* element_to_update = nullptr;
-            for (auto* element : entity_to_update->get_all_elements()) {
-                if (element->get_id() == e.element_id) {
-                    element_to_update = element;
-                    break;
-                }
-            }
-            if (!element_to_update) return;
+            if (entity_it != context->current_realm.end()) {
+                auto element_it = std::find_if(entity_it->elements.begin(), entity_it->elements.end(),
+                    [&](ElementArchetype& element) { return element.id == e.element_id; });
 
-            const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
-            if (!type_info) return;
-
-            std::optional<Property> found_property;
-            for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
-                if (prop.name == e.property_name) {
-                    found_property = prop;
-                    break;
-                }
-            }
-            if (!found_property.has_value()) return;
-
-            std::visit([&](auto&& arg) {
-                auto value_copy = arg;
-                found_property->set_data(element_to_update, &value_copy);
-            }, e.new_value);
-            
-            element_to_update->on_load(*pimpl->context->init_context);
-
-            if (auto* live_sprite = dynamic_cast<Sprite2D*>(element_to_update)) {
-                auto entity_it = std::find_if(pimpl->context->current_realm.begin(), pimpl->context->current_realm.end(),
-                    [&](EntityArchetype& archetype) { return archetype.id == e.entity_id; });
-
-                if (entity_it != pimpl->context->current_realm.end()) {
-                    auto element_it = std::find_if(entity_it->elements.begin(), entity_it->elements.end(),
-                        [&](ElementArchetype& element) { return element.id == e.element_id; });
-
-                    if (element_it != entity_it->elements.end()) {
-                        element_it->data["width"] = live_sprite->get_texture_width();
-                        element_it->data["height"] = live_sprite->get_texture_height();
-                    }
+                if (element_it != entity_it->elements.end()) {
+                    element_it->data["width"] = live_sprite->get_texture_width();
+                    element_it->data["height"] = live_sprite->get_texture_height();
                 }
             }
         }
-        else if (event.get_event_type() == EventType::EditorOnHierarchyChanged) {
-            OnHierarchyChangedEvent& e = static_cast<OnHierarchyChangedEvent&>(event);
+    }
+
+    void RealmDesignerPanel::Pimpl::handle_hierarchy_changed_event(const OnHierarchyChangedEvent& e) {
+        Entity* dragged_live_entity = context->preview_scene->get_entity_by_id(e.entity_id);
+        Entity* target_live_entity = context->preview_scene->get_entity_by_id(e.parent_id);
+
+        if (!dragged_live_entity) return;
+
+        std::vector<Entity*> family_to_move;
+        std::function<void(Entity*)> find_descendants = 
+            [&](Entity* current) {
+            family_to_move.push_back(current);
+            for (Entity* child : current->get_children()) {
+                find_descendants(child);
+            }
+        };
+        find_descendants(dragged_live_entity);
+
+        dragged_live_entity->set_parent(target_live_entity);
+        
+        for (Entity* live_member : family_to_move) {
+            EntityArchetype* member_archetype = context->current_realm_map.at(live_member->get_id());
+            ElementArchetype* transform_arch = member_archetype->get_element_by_id(member_archetype->get_primary_transform_id());
             
-            // --- STEP 1: GET LIVE ENTITIES ---
-            Entity* dragged_live_entity = pimpl->context->preview_scene->get_entity_by_id(e.entity_id);
-            Entity* target_live_entity = pimpl->context->preview_scene->get_entity_by_id(e.parent_id);
-
-            if (!dragged_live_entity) return;
-
-            // --- STEP 2: GATHER THE ENTIRE FAMILY OF LIVE ENTITIES TO BE MOVED ---
-            std::vector<Entity*> family_to_move;
-            std::function<void(Entity*)> find_descendants = 
-                [&](Entity* current) {
-                family_to_move.push_back(current);
-                for (Entity* child : current->get_children()) {
-                    find_descendants(child);
-                }
-            };
-            find_descendants(dragged_live_entity);
-
-            // --- STEP 3: MODIFY THE LIVE HIERARCHY ---
-            // This single call triggers the robust, world-preserving logic inside Transform::set_parent.
-            dragged_live_entity->set_parent(target_live_entity);
-            
-            // --- STEP 4: SYNC ALL CHANGES BACK TO THE ARCHETYPES ---
-            // This fixes the "janky jump" by writing the new correct local transforms back to the data model.
-            for (Entity* live_member : family_to_move) {
-                EntityArchetype* member_archetype = pimpl->context->current_realm_map.at(live_member->get_id());
-                ElementArchetype* transform_arch = member_archetype->get_element_by_id(member_archetype->get_primary_transform_id());
+            if (transform_arch) {
+                Transform* live_transform = live_member->get_transform();
                 
-                if (transform_arch) {
-                    Transform* live_transform = live_member->get_transform();
-                    
-                    PropertyValueChangedEvent pos_event(live_member->get_id(), transform_arch->id, "Transform", "position", live_transform->get_position());
-                    pimpl->context->event_manager->dispatch(pos_event);
+                PropertyValueChangedEvent pos_event(live_member->get_id(), transform_arch->id, "Transform", "position", live_transform->get_position());
+                context->event_manager->dispatch(pos_event);
 
-                    PropertyValueChangedEvent rot_event(live_member->get_id(), transform_arch->id, "Transform", "rotation", live_transform->get_rotation());
-                    pimpl->context->event_manager->dispatch(rot_event);
+                PropertyValueChangedEvent rot_event(live_member->get_id(), transform_arch->id, "Transform", "rotation", live_transform->get_rotation());
+                context->event_manager->dispatch(rot_event);
 
-                    PropertyValueChangedEvent scale_event(live_member->get_id(), transform_arch->id, "Transform", "scale", live_transform->get_scale());
-                    pimpl->context->event_manager->dispatch(scale_event);
+                PropertyValueChangedEvent scale_event(live_member->get_id(), transform_arch->id, "Transform", "scale", live_transform->get_scale());
+                context->event_manager->dispatch(scale_event);
+            }
+        }
+    }
+
+    void RealmDesignerPanel::Pimpl::handle_entity_added_event(const OnEntityAddedEvent& e) {
+        if (context->preview_scene) {
+            ArchetypeInstantiator::instantiate(e.archetype, context->preview_scene.get(), *context->init_context);
+            
+            if (e.archetype.parent_id.is_valid()) {
+                Entity* live_child = context->preview_scene->get_entity_by_id(e.archetype.id);
+                Entity* live_parent = context->preview_scene->get_entity_by_id(e.archetype.parent_id);
+                if (live_child && live_parent) {
+                    live_child->set_parent(live_parent);
                 }
             }
         }
-        else if (event.get_event_type() == EventType::EditorOnEntityAdded) {
-            OnEntityAddedEvent& e = static_cast<OnEntityAddedEvent&>(event);
-            if (pimpl->context->preview_scene) {
-                // Use the ArchetypeInstantiator to create the live entity from the event data
-                ArchetypeInstantiator::instantiate(e.archetype, pimpl->context->preview_scene.get(), *pimpl->context->init_context);
-                
-                // If the added entity has a parent, we need to link the live entities too
-                if (e.archetype.parent_id.is_valid()) {
-                    Entity* live_child = pimpl->context->preview_scene->get_entity_by_id(e.archetype.id);
-                    Entity* live_parent = pimpl->context->preview_scene->get_entity_by_id(e.archetype.parent_id);
+    }
+
+    void RealmDesignerPanel::Pimpl::handle_entity_purged_event(const OnEntityPurgedEvent& e) {
+        if (context->preview_scene) {
+            Entity* entity_to_purge = context->preview_scene->get_entity_by_id(e.entity_id);
+            if (entity_to_purge) {
+                entity_to_purge->purge();
+            }
+        }
+    }
+
+    void RealmDesignerPanel::Pimpl::handle_entity_family_added_event(const OnEntityFamilyAddedEvent& e) {
+        if (context->preview_scene) {
+            for (const auto& archetype : e.archetypes) {
+                ArchetypeInstantiator::instantiate(archetype, context->preview_scene.get(), *context->init_context);
+            }
+            for (const auto& archetype : e.archetypes) {
+                if (archetype.parent_id.is_valid()) {
+                    Entity* live_child = context->preview_scene->get_entity_by_id(archetype.id);
+                    Entity* live_parent = context->preview_scene->get_entity_by_id(archetype.parent_id);
                     if (live_child && live_parent) {
                         live_child->set_parent(live_parent);
                     }
                 }
             }
         }
-        else if (event.get_event_type() == EventType::EditorOnEntityPurged) {
-            OnEntityPurgedEvent& e = static_cast<OnEntityPurgedEvent&>(event);
-            if (pimpl->context->preview_scene) {
-                Entity* entity_to_purge = pimpl->context->preview_scene->get_entity_by_id(e.entity_id);
+    }
+
+    void RealmDesignerPanel::Pimpl::handle_entity_family_purged_event(const OnEntityFamilyPurgedEvent& e) {
+        if (context->preview_scene) {
+            for (const auto& entity_id : e.entity_ids) {
+                Entity* entity_to_purge = context->preview_scene->get_entity_by_id(entity_id);
                 if (entity_to_purge) {
-                    // Purging the live entity will handle detaching children and removing it from the scene's list
                     entity_to_purge->purge();
                 }
             }
         }
-        else if (event.get_event_type() == EventType::EditorOnEntityFamilyAdded) {
-            OnEntityFamilyAddedEvent& e = static_cast<OnEntityFamilyAddedEvent&>(event);
-            if (pimpl->context->preview_scene) {
-                // Pass 1: Instantiate all entities in the family
-                for (const auto& archetype : e.archetypes) {
-                    ArchetypeInstantiator::instantiate(archetype, pimpl->context->preview_scene.get(), *pimpl->context->init_context);
-                }
-                // Pass 2: Link up the parent-child hierarchy for the live entities
-                for (const auto& archetype : e.archetypes) {
-                    if (archetype.parent_id.is_valid()) {
-                        Entity* live_child = pimpl->context->preview_scene->get_entity_by_id(archetype.id);
-                        Entity* live_parent = pimpl->context->preview_scene->get_entity_by_id(archetype.parent_id);
-                        if (live_child && live_parent) {
-                            live_child->set_parent(live_parent);
-                        }
-                    }
-                }
-            }
-        }
-        else if (event.get_event_type() == EventType::EditorOnEntityFamilyPurged) {
-            OnEntityFamilyPurgedEvent& e = static_cast<OnEntityFamilyPurgedEvent&>(event);
-            if (pimpl->context->preview_scene) {
-                // Loop through all IDs and purge the corresponding live entities
-                for (const auto& entity_id : e.entity_ids) {
-                    Entity* entity_to_purge = pimpl->context->preview_scene->get_entity_by_id(entity_id);
-                    if (entity_to_purge) {
-                        entity_to_purge->purge();
-                    }
-                }
-            }
-        }
-
     }
-    
+
+
+
+
+
+
+
     void RealmDesignerPanel::set_visibility(bool visibility) {
          pimpl->is_visible = visibility; 
     }
