@@ -628,7 +628,7 @@ namespace Salix {
                 }
             }
         } else {
-            // --- PERSPECTIVE MODE: 3D Raycasting (Your existing, correct logic) ---
+            // --- PERSPECTIVE MODE: 3D Raycasting (Existing, correct logic) ---
             Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
             last_picking_ray = world_ray;
 
@@ -827,16 +827,16 @@ namespace Salix {
             case EventType::EditorOnHierarchyChanged:
                 pimpl->handle_hierarchy_changed_event(static_cast<OnHierarchyChangedEvent&>(event));
                 break;
-            case EventType::EditorOnEntityAdded: // Assumes you added this to your EventType enum
+            case EventType::EditorOnEntityAdded:
                 pimpl->handle_entity_added_event(static_cast<OnEntityAddedEvent&>(event));
                 break;
-            case EventType::EditorOnEntityPurged: // Assumes you added this to your EventType enum
+            case EventType::EditorOnEntityPurged: 
                 pimpl->handle_entity_purged_event(static_cast<OnEntityPurgedEvent&>(event));
                 break;
-            case EventType::EditorOnEntityFamilyAdded: // Assumes you added this to your EventType enum
+            case EventType::EditorOnEntityFamilyAdded: 
                 pimpl->handle_entity_family_added_event(static_cast<OnEntityFamilyAddedEvent&>(event));
                 break;
-            case EventType::EditorOnEntityFamilyPurged: // Assumes you added this to your EventType enum
+            case EventType::EditorOnEntityFamilyPurged: 
                 pimpl->handle_entity_family_purged_event(static_cast<OnEntityFamilyPurgedEvent&>(event));
                 break;
             default:
@@ -1091,7 +1091,7 @@ namespace Salix {
             Transform* transform = entity->get_transform(); 
             BoxCollider* collider = entity->get_element<BoxCollider>(); 
 
-            // We only draw boxes for entities that have a transform and a collider
+            // Only draw boxes for entities that have a transform and a collider
             if (transform && collider && collider->is_visible()) { 
                 // Get the base model matrix from the entity's transform
                 glm::mat4 model_matrix = transform->get_model_matrix();
