@@ -866,11 +866,13 @@ namespace Salix {
         else if (event.get_event_type() == EventType::EditorOnHierarchyChanged) {
             OnHierarchyChangedEvent& e = static_cast<OnHierarchyChangedEvent&>(event);
             
+            // --- STEP 1: GET LIVE ENTITIES ---
             Entity* dragged_live_entity = pimpl->context->preview_scene->get_entity_by_id(e.entity_id);
             Entity* target_live_entity = pimpl->context->preview_scene->get_entity_by_id(e.parent_id);
 
             if (!dragged_live_entity) return;
 
+            // --- STEP 2: GATHER THE ENTIRE FAMILY OF LIVE ENTITIES TO BE MOVED ---
             std::vector<Entity*> family_to_move;
             std::function<void(Entity*)> find_descendants = 
                 [&](Entity* current) {
@@ -881,8 +883,12 @@ namespace Salix {
             };
             find_descendants(dragged_live_entity);
 
+            // --- STEP 3: MODIFY THE LIVE HIERARCHY ---
+            // This single call triggers the robust, world-preserving logic inside Transform::set_parent.
             dragged_live_entity->set_parent(target_live_entity);
             
+            // --- STEP 4: SYNC ALL CHANGES BACK TO THE ARCHETYPES ---
+            // This fixes the "janky jump" by writing the new correct local transforms back to the data model.
             for (Entity* live_member : family_to_move) {
                 EntityArchetype* member_archetype = pimpl->context->current_realm_map.at(live_member->get_id());
                 ElementArchetype* transform_arch = member_archetype->get_element_by_id(member_archetype->get_primary_transform_id());
