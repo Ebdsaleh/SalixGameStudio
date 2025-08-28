@@ -493,7 +493,11 @@ namespace Salix {
         ElementArchetype* transform_archetype = get_transform_archetype(selected_archetype);
         if (!transform_archetype) return;
 
-        ImGuizmo::SetOrthographic(false);
+        
+        // Check the camera's current mode to set the gizmo correctly.
+        bool is_orthographic = (camera->get_projection_mode() == ProjectionMode::Orthographic);
+        ImGuizmo::SetOrthographic(is_orthographic);
+    
         ImGuizmo::SetDrawlist();
         ImVec2 viewport_min = ImGui::GetItemRectMin();
         ImVec2 viewport_max = ImGui::GetItemRectMax();
@@ -549,72 +553,82 @@ namespace Salix {
 
 
     void RealmDesignerPanel::Pimpl::handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max) {
-        
-        // We only proceed if the mouse was actually clicked within the hovered window
         if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
             return;
         }
-        // --- Step 1: Create the world-space ray from mouse ---
-        // Calculate viewport size from the min/max points passed as arguments.
-        viewport_size = { (viewport_max.x - viewport_min.x), (viewport_max.y - viewport_min.y) };
+
         ImVec2 mouse_pos = ImGui::GetMousePos();
-
-        // Create the ray using the reliable viewport data 
-        Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
-        last_picking_ray = world_ray; // Save the ray for visualization
+        viewport_size = { (viewport_max.x - viewport_min.x), (viewport_max.y - viewport_min.y) };
         float closest_hit_distance = FLT_MAX;
-        // Declare closest_hit_id here so it's accessible by both modes.
         SimpleGuid closest_hit_id = SimpleGuid::invalid();
-        if (context->data_mode == EditorDataMode::Live) {    
-                   
+        
+        // Check which projection mode the camera is in
+        if (context->editor_camera->get_projection_mode() == ProjectionMode::Orthographic) {
+            // --- ORTHOGRAPHIC MODE: 2D Screen-Space Check ---
 
-            // --- Step 2: Find the closest entity with a collider that was hit ---
-            Entity* selected_entity = nullptr;
-            
+            const glm::mat4& view = context->editor_camera->get_view_matrix();
+            const glm::mat4& proj = context->editor_camera->get_projection_matrix();
 
-            // Add the SimpleGuid variable to store the new ID
-            SimpleGuid temp_selected_entity_id = SimpleGuid::invalid();
+            for (auto& archetype : context->current_realm) {
+                const ElementArchetype* collider_archetype = nullptr;
+                for (const auto& element : archetype.elements) {
+                    if (element.type_name == "BoxCollider") {
+                        collider_archetype = &element;
+                        break;
+                    }
+                }
 
-            for (Entity* entity : context->active_scene->get_entities()) {
-                if (!entity || entity->is_purged()) continue;
+                if (collider_archetype) {
+                    glm::mat4 model_matrix = get_world_matrix(&archetype);
+                    Vector3 size = collider_archetype->data["size"].as<Vector3>();
+                    glm::vec3 half_extents = size.to_glm() * 0.5f;
 
-                Transform* transform = entity->get_transform();
-                BoxCollider* collider = entity->get_element<BoxCollider>();
+                    // Define the 8 corners of the bounding box
+                    glm::vec3 corners[8] = {
+                        {-half_extents.x, -half_extents.y, -half_extents.z}, {half_extents.x, -half_extents.y, -half_extents.z},
+                        {half_extents.x,  half_extents.y, -half_extents.z}, {-half_extents.x,  half_extents.y, -half_extents.z},
+                        {-half_extents.x, -half_extents.y,  half_extents.z}, {half_extents.x, -half_extents.y,  half_extents.z},
+                        {half_extents.x,  half_extents.y,  half_extents.z}, {-half_extents.x,  half_extents.y,  half_extents.z}
+                    };
 
-                // We can only pick objects that have both a transform and a collider  
-                if (transform && collider) {
-                    glm::vec3 half_extents = collider->get_size().to_glm() * 0.5f;
-                    glm::mat4 model_matrix = transform->get_model_matrix();  
-                    float distance = 0.0f;
+                    // Project all 8 corners to screen space to find the 2D bounding box
+                    ImVec2 screen_min(FLT_MAX, FLT_MAX);
+                    ImVec2 screen_max(-FLT_MAX, -FLT_MAX);
+                    float avg_depth = 0.0f;
 
-                    if (Raycast::IntersectsOBB(world_ray, model_matrix, half_extents, distance)) {
-                        glm::vec3 world_hit_point = world_ray.origin + world_ray.direction * distance;  
-                        float world_distance = glm::distance(world_ray.origin, world_hit_point);  
+                    for(int i = 0; i < 8; ++i) {
+                        glm::vec4 clip_pos = proj * view * model_matrix * glm::vec4(corners[i], 1.0f);
+                        glm::vec3 ndc_pos = glm::vec3(clip_pos) / clip_pos.w;
+                        
+                        ImVec2 screen_pos;
+                        screen_pos.x = viewport_min.x + (ndc_pos.x + 1.0f) * 0.5f * viewport_size.x;
+                        screen_pos.y = viewport_min.y + (1.0f - ndc_pos.y) * 0.5f * viewport_size.y;
+                        
+                        screen_min.x = std::min(screen_min.x, screen_pos.x);
+                        screen_min.y = std::min(screen_min.y, screen_pos.y);
+                        screen_max.x = std::max(screen_max.x, screen_pos.x);
+                        screen_max.y = std::max(screen_max.y, screen_pos.y);
+                        avg_depth += ndc_pos.z;
+                    }
 
-                        if (world_distance < closest_hit_distance) {
-                            closest_hit_distance = world_distance;
-                            selected_entity = entity; 
-                            temp_selected_entity_id = entity->get_id(); 
+                    // Check if the mouse is inside this 2D screen-space rectangle
+                    if (mouse_pos.x >= screen_min.x && mouse_pos.x <= screen_max.x &&
+                        mouse_pos.y >= screen_min.y && mouse_pos.y <= screen_max.y) {
+                        
+                        // If it is, check if it's closer than the previous closest hit
+                        if (avg_depth < closest_hit_distance) {
+                            closest_hit_distance = avg_depth;
+                            closest_hit_id = archetype.id;
                         }
                     }
                 }
             }
+        } else {
+            // --- PERSPECTIVE MODE: 3D Raycasting (Your existing, correct logic) ---
+            Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
+            last_picking_ray = world_ray;
 
-            // --- Step 3: Fire the selection event ---
-            if (context->event_manager) {
-                EntitySelectedEvent event(selected_entity_id,selected_entity);
-                context->selected_entity = selected_entity;
-                context->event_manager->dispatch(event);  
-
-                // New, data-driven system (Additions)
-                selected_entity_id = temp_selected_entity_id;
-                context->selected_entity_id = selected_entity_id;
-                
-            }
-        } else if (context->data_mode == EditorDataMode::Yaml) {
-            SimpleGuid temp_selected_archetype_id = SimpleGuid::invalid();
             for (auto& archetype : context->current_realm) {
-                // Find the transform and collider data for this archetype
                 const ElementArchetype* transform_archetype = nullptr;
                 const ElementArchetype* collider_archetype = nullptr;
                 for (const auto& element : archetype.elements) {
@@ -622,17 +636,6 @@ namespace Salix {
                     if (element.type_name == "BoxCollider") collider_archetype = &element;
                 }
                 if (transform_archetype && collider_archetype) {
-                    // Read the data from the YAML nodes
-                    /*
-                    Vector3 pos = transform_archetype->data["position"].as<Vector3>();
-                    Vector3 rot = transform_archetype->data["rotation"].as<Vector3>();
-                    Vector3 scl = transform_archetype->data["scale"].as<Vector3>();
-                    Vector3 size = collider_archetype->data["size"].as<Vector3>();
-                    
-                    // Construct the model matrix (same as gizmo logic)
-                    glm::mat4 model_matrix;
-                    ImGuizmo::RecomposeMatrixFromComponents(glm::value_ptr(pos.to_glm()), glm::value_ptr(rot.to_glm()), glm::value_ptr(scl.to_glm()), glm::value_ptr(model_matrix));
-                    */
                     Vector3 size = collider_archetype->data["size"].as<Vector3>();
                     glm::mat4 model_matrix = get_world_matrix(&archetype);
                     glm::vec3 half_extents = size.to_glm() * 0.5f;
@@ -645,27 +648,20 @@ namespace Salix {
                     }
                 }
             }
-        
-            // --- Step 3: Fire the selection event (This is now the same for both modes) ---
-            if (context->event_manager) {
+        }
 
-                // Update the context with the new selection (or deselection if invalid)
-                context->selected_entity_id = closest_hit_id;
-                context->selected_entity = context->preview_scene->get_entity_by_id(context->selected_entity_id);
-                EntitySelectedEvent event(closest_hit_id, context->selected_entity);
-                // Dispatch the event. In YAML mode, the pointer will correctly be nullptr.
-                context->event_manager->dispatch(event);
-            }
-            // 2. Check for a double-click on the entity that was just selected.
-            if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && closest_hit_id.is_valid()) {
-                Entity* entity_to_focus = context->preview_scene->get_entity_by_id(closest_hit_id);
-                if (entity_to_focus) {
-                    Transform* transform = entity_to_focus->get_transform();
-                    if (transform) {
-                        // Call the focus_on method, just like in the WorldTreePanel.
-                        context->editor_camera->focus_on(transform, 3.0f);
-                    }
-                }
+        // --- Fire the selection event (This is the same for both modes) ---
+        if (context->event_manager) {
+            context->selected_entity_id = closest_hit_id;
+            context->selected_entity = context->preview_scene->get_entity_by_id(context->selected_entity_id);
+            EntitySelectedEvent event(closest_hit_id, context->selected_entity);
+            context->event_manager->dispatch(event);
+        }
+        
+        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && closest_hit_id.is_valid()) {
+            Entity* entity_to_focus = context->preview_scene->get_entity_by_id(closest_hit_id);
+            if (entity_to_focus && entity_to_focus->get_transform()) {
+                context->editor_camera->focus_on(entity_to_focus->get_transform(), 3.0f);
             }
         }
     }
