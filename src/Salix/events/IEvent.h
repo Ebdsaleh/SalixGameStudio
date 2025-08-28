@@ -43,7 +43,8 @@ namespace Salix {
         AppTick, AppUpdate, AppRender, KeyPressed, KeyReleased, KeyTyped,
         MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
         ImGuiInput, EditorEntitySelected, EditorElementSelected, EditorThemeReloadEvent,BeforeEntityPurged,
-        EditorPropertyValueChanged, EditorOnHierarchyChanged, EditorOnEntityAdded, EditorOnEntityPurged
+        EditorPropertyValueChanged, EditorOnHierarchyChanged, EditorOnEntityAdded, EditorOnEntityPurged,
+        EditorOnEntityFamilyAdded, EditorOnEntityFamilyPurged
     };
 
     class SALIX_API IEvent {
