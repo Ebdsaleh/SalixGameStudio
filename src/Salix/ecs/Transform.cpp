@@ -17,6 +17,10 @@
 #include <cereal/types/base_class.hpp> 
 #include <Salix/core/SerializationRegistrations.h>
 #include <cmath>
+#include <glm/glm.hpp>
+#include <glm/gtx/matrix_operation.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
 
 namespace Salix {
     struct Transform::Pimpl {
@@ -67,49 +71,57 @@ namespace Salix {
         */
 }
     void Transform::set_parent(Transform* new_parent) {
-        // Prevent circular hierarchy
-        if (new_parent && owner) {
-            // Check if new_parent is already a child of this transform
-            for (Transform* current = new_parent; current != nullptr; current = current->get_parent()) {
-                if (current == this) {
-                    std::cerr << "Circular transform hierarchy detected" << std::endl;
-                    return;
-                }
-            }
+        // Prevent invalid operations
+        if (pimpl->parent == new_parent) return;
+        if (new_parent == this) return;
+        if (new_parent && new_parent->is_child_of(this)) {
+            std::cerr << "Circular transform hierarchy detected" << std::endl;
+            return;
         }
-        // 1. Before changing anything, get our current world transform.
-        Vector3 world_position = get_world_position();
-        Vector3 world_rotation = get_world_rotation();
-        Vector3 world_scale    = get_world_scale();  
-        
-        // 2. Update the transform hierarchy
-        // If we already have a parent, detatch from it first.
+
+        // 1. Get our current world matrix BEFORE any changes are made.
+        glm::mat4 original_world_matrix = get_model_matrix();
+
+        // 2. Get the new parent's world matrix.
+        glm::mat4 new_parent_world_matrix = glm::mat4(1.0f);
+        if (new_parent) {
+            new_parent_world_matrix = new_parent->get_model_matrix();
+        }
+
+        // 3. Update the hierarchy pointers
         if (pimpl->parent) {
             pimpl->parent->remove_child(this);
         }
-
-        // Set the new parent.
         pimpl->parent = new_parent;
-
-        // if the new parent is not null, add ourselves to its list of children.
         if (pimpl->parent) {
             pimpl->parent->add_child(this);
         }
 
-       
-        // 3. Calculate and apply the new local transform to preserve the world state.
-        if (pimpl->parent) {
-            // If we have a new parent, convert the world position to its local space.
-            set_position(pimpl->parent->world_to_local_position(world_position));
-            set_rotation(world_rotation - pimpl->parent->get_world_rotation());
-            set_scale(world_scale / pimpl->parent->get_world_scale());
-        } else {
-            // If we have no new parent, our local transform IS our world transform.
-            set_position(world_position);
-            set_rotation(world_rotation);
-            set_scale(world_scale);
-        }
+        // 4. Calculate the new LOCAL matrix that preserves the original world position.
+        glm::mat4 new_local_matrix = glm::inverse(new_parent_world_matrix) * original_world_matrix;
+
+        // --- START: GLM-ONLY MATRIX DECOMPOSITION ---
         
+        // 5. Decompose the new local matrix into its core components using GLM.
+        glm::vec3 new_local_scale;
+        glm::quat new_local_rotation_quat;
+        glm::vec3 new_local_pos;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(new_local_matrix, new_local_scale, new_local_rotation_quat, new_local_pos, skew, perspective);
+
+        // Convert the rotation quaternion to Euler angles in degrees
+        glm::vec3 new_local_rot_rad = glm::eulerAngles(new_local_rotation_quat);
+        glm::vec3 new_local_rot_deg = glm::degrees(new_local_rot_rad);
+
+        // --- END: GLM-ONLY MATRIX DECOMPOSITION ---
+
+        // 6. Set the new local properties.
+        set_position(Vector3(new_local_pos.x, new_local_pos.y, new_local_pos.z));
+        // NOTE: glm::eulerAngles returns pitch (x), yaw (y), roll (z). We must apply them
+        // in the correct order to match how the model matrix is constructed.
+        set_rotation(Vector3(new_local_rot_deg.x, new_local_rot_deg.y, new_local_rot_deg.z));
+        set_scale(Vector3(new_local_scale.x, new_local_scale.y, new_local_scale.z));
     }
 
     Transform* Transform::get_parent() const{

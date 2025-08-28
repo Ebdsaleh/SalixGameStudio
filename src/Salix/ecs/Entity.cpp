@@ -224,34 +224,27 @@ namespace Salix {
     // Heirarchial methods
 
     void Entity::set_parent(Entity* new_parent) {
-        if (pimpl->parent == new_parent) return;  // No change if trying to set the current parent.
-        if (new_parent == this) return; // No self-parenting.
-        
-        // Prevent circular hierarchy
+        if (pimpl->parent == new_parent) return;
+        if (new_parent == this) return;
         if (new_parent && new_parent->is_child_of(this)) {
             std::cerr << "Cannot create circular parent-child relationship" << std::endl;
             return;
         }
 
-        // 1. Manage the Entity-level hierarchy
-        // Remove from current parent's list of children
+        // 1. Manage the logical Entity-level hierarchy
         if (pimpl->parent) {
             pimpl->parent->remove_child(this);
         }
-
-        // Set internal parent pointer.
         pimpl->parent = new_parent;
-        
-        // Add to new parent's list of children.
         if (new_parent) {
             new_parent->add_child(this);
         }
 
-        // 2. Delegate the transform update to the new, smarter Transform::set_parent().
+        // 2. Delegate the transform update to the powerful Transform::set_parent() method.
         Transform* new_parent_transform = new_parent ? new_parent->get_transform() : nullptr;
         if (pimpl->transform) {
             pimpl->transform->set_parent(new_parent_transform);
-        }        
+        }
     }
 
 

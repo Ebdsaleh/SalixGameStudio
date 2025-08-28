@@ -12,6 +12,7 @@
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>
 #include <Editor/events/PropertyValueChangedEvent.h>
+#include <Editor/events/OnHierarchyChangedEvent.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/core/SimpleGuid.h>
 #include <Editor/EditorContext.h>

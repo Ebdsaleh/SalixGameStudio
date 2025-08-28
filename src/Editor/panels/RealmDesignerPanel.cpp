@@ -37,6 +37,7 @@
 #include <Editor/ArchetypeInstantiator.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/PropertyValueChangedEvent.h>
+#include <Editor/events/OnHierarchyChangedEvent.h>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -493,9 +494,7 @@ namespace Salix {
         ElementArchetype* transform_archetype = get_transform_archetype(selected_archetype);
         if (!transform_archetype) return;
 
-        
-        // Check the camera's current mode to set the gizmo correctly.
-        bool is_orthographic = (camera->get_projection_mode() == ProjectionMode::Orthographic);
+         bool is_orthographic = (camera->get_projection_mode() == ProjectionMode::Orthographic);
         ImGuizmo::SetOrthographic(is_orthographic);
     
         ImGuizmo::SetDrawlist();
@@ -665,7 +664,6 @@ namespace Salix {
             }
         }
     }
-
 
 
     void RealmDesignerPanel::on_gui_render() {
