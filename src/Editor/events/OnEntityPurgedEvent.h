@@ -1,4 +1,4 @@
-// Editor/events/OnEntityRemovedEvent.h
+// Editor/events/OnEntityPurgedEvent.h
 #pragma once
 
 #include <Salix/events/IEvent.h>
