@@ -13,6 +13,11 @@
 #include <Editor/events/ElementSelectedEvent.h>
 #include <Editor/events/PropertyValueChangedEvent.h>
 #include <Editor/events/OnHierarchyChangedEvent.h>
+#include <Editor/events/OnEntityAddedEvent.h>
+#include <Editor/events/OnEntityFamilyAddedEvent.h>
+#include <Editor/events/OnEntityPurgedEvent.h>
+#include <Editor/events/OnEntityFamilyPurgedEvent.h>
+
 #include <Salix/events/EventManager.h>
 #include <Salix/core/SimpleGuid.h>
 #include <Editor/EditorContext.h>
@@ -569,104 +574,53 @@ namespace Salix {
             }
 
             // Hierarchy Operations
-            if (archetype.parent_id.get_value() != 0) {
+            if (archetype.parent_id.is_valid()) {
                 if (ImGui::MenuItem("Release From Parent##ReleaseFromParent")) {
-                    // Defer this action to the end of the frame.
                     deferred_commands.push_back([this, archetype_id = archetype.id]() {
-                        // Find the child archetype that is being released.
                         auto child_it = context->current_realm_map.find(archetype_id);
                         if (child_it == context->current_realm_map.end()) return;
                         EntityArchetype* child_archetype = child_it->second;
 
-                        // Get the parent's ID before we change anything.
                         SimpleGuid parent_id = child_archetype->parent_id;
-                        if (!parent_id.is_valid()) return; // Already a root, nothing to do.
+                        if (!parent_id.is_valid()) return;
 
-                        // Find the parent archetype.
                         auto parent_it = context->current_realm_map.find(parent_id);
                         if (parent_it != context->current_realm_map.end()) {
-                            EntityArchetype* parent_archetype = parent_it->second;
-                            
-                            // Remove the child's ID from the parent's list of children.
-                            parent_archetype->child_ids.erase(
-                                std::remove(parent_archetype->child_ids.begin(), parent_archetype->child_ids.end(), archetype_id),
-                                parent_archetype->child_ids.end()
-                            );
-
-                            // Check and update the parent's state against the snapshot
-                            if (parent_archetype->state != ArchetypeState::New) {
-                                if (context->loaded_realm_snapshot.is_entity_modified(*parent_archetype)) {
-                                    parent_archetype->state = ArchetypeState::Modified;
-                                } else {
-                                    parent_archetype->state = ArchetypeState::UnModified;
-                                }
-                            }
-                            
-                            
-                            // Now, update all of the former parent's ancestors.
-                            update_all_ancestor_states(parent_archetype->id);
-                            
+                            auto& children = parent_it->second->child_ids;
+                            children.erase(std::remove(children.begin(), children.end(), archetype_id), children.end());
+                            if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
                         }
                         
-                        // Clear the child's parent reference.
                         child_archetype->parent_id = SimpleGuid::invalid();
+                        if (child_archetype->state != ArchetypeState::New) child_archetype->state = ArchetypeState::Modified;
                         
-                        // Mark child as modified.
-                        if (child_archetype->state != ArchetypeState::New) {
-                            if (context->loaded_realm_snapshot.is_entity_modified(*child_archetype)) {
-                                child_archetype->state = ArchetypeState::Modified;
-                            } else {
-                                child_archetype->state = ArchetypeState::UnModified;
-                            }
-                        }
-                        
-                        context->realm_is_dirty = true;
-                        this->build_world_tree_hierarchy(); 
-                        this->print_world_tree_hierarchy();
+                        build_world_tree_hierarchy();
+
+                        // Dispatch event to update the live scene
+                        OnHierarchyChangedEvent event(archetype_id, SimpleGuid::invalid());
+                        context->event_manager->dispatch(event);
                     });
                 }
             }
             
             if (ImGui::MenuItem("Add Child Entity##AddChildEntity")) {
-                // Queue the command to be executed later
-                // CAPTURE BY VALUE: We capture the name and id we need, not the whole archetype.
-                deferred_commands.push_back([this, archetype_name = archetype.name, archetype_id = archetype.id]() {
-                    
-                    // Use the captured values
-                    EntityArchetype new_child_entity = ArchetypeFactory::create_entity_archetype(archetype_name + "_Child");
-                    new_child_entity.parent_id = archetype_id;
+                deferred_commands.push_back([this, parent_id = archetype.id]() {
+                    EntityArchetype new_child = ArchetypeFactory::create_entity_archetype("New Child");
+                    new_child.parent_id = parent_id;
 
-                    if (new_child_entity.parent_id != new_child_entity.id && new_child_entity.id.is_valid()) {
-                        // Find the parent using the captured ID and the fast map lookup
-                        auto parent_it = context->current_realm_map.find(archetype_id);
-
-                        if (parent_it != context->current_realm_map.end()) {
-                            EntityArchetype* parent_archetype = parent_it->second;
-                            parent_archetype->child_ids.push_back(new_child_entity.id);
-
-                            // Adding a child modifies the parent, so check its state and its ancestors.
-                            if (parent_archetype->state != ArchetypeState::New) {
-                                if (context->loaded_realm_snapshot.is_entity_modified(*parent_archetype)) {
-                                    parent_archetype->state = ArchetypeState::Modified;
-                                } else {
-                                    parent_archetype->state = ArchetypeState::UnModified;
-                                }
-                            }
-                            update_all_ancestor_states(parent_archetype->id);
-                        
-                        }
-                        
-                        context->current_realm.push_back(new_child_entity);
-                        this->rebuild_current_realm_map_internal();
-                        context->realm_is_dirty = true;
-
-                        context->selected_entity_id = new_child_entity.id;
-                        EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                        context->event_manager->dispatch(event);
-
-                        build_world_tree_hierarchy();
-                        print_world_tree_hierarchy();
+                    auto parent_it = context->current_realm_map.find(parent_id);
+                    if (parent_it != context->current_realm_map.end()) {
+                        parent_it->second->child_ids.push_back(new_child.id);
+                        if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
                     }
+
+                    context->current_realm.push_back(new_child);
+                    rebuild_current_realm_map_internal();
+                    build_world_tree_hierarchy();
+
+                    // Dispatch the event so other systems can react
+                    OnEntityAddedEvent event(new_child);
+                    context->event_manager->dispatch(event);
                 });
             }
             ImGui::Separator();
@@ -679,148 +633,85 @@ namespace Salix {
             }
 
             if (ImGui::MenuItem("Duplicate##DuplicateEntity", "Ctrl+D")) {
-                // 1. Create the duplicate immediately. This is a read-only operation that
-                // needs the current state of the realm to generate a unique name.
-                EntityArchetype duplicated_archetype = ArchetypeFactory::duplicate_entity_archetype(archetype, context->current_realm);
-
-                // 2. Defer the modification of the realm to the end of the frame.
-                // We capture the created duplicate by value to ensure it's safely stored.
-                deferred_commands.push_back([this, duplicated_archetype]() {
-                    // Add the new archetype to the realm.
+                deferred_commands.push_back([this, source_archetype = archetype]() {
+                    EntityArchetype duplicated_archetype = ArchetypeFactory::duplicate_entity_archetype(source_archetype, context->current_realm);
+                    
                     context->current_realm.push_back(duplicated_archetype);
-                    rebuild_current_realm_map_internal(); // Update the lookup map
+                    rebuild_current_realm_map_internal();
+                    build_world_tree_hierarchy();
 
-                    // Select the new entity to give the user immediate feedback.
-                    context->selected_entity_id = duplicated_archetype.id;
-                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
+                    // Dispatch the event
+                    OnEntityAddedEvent event(duplicated_archetype);
                     context->event_manager->dispatch(event);
-
-                    // Mark the realm as dirty to trigger a preview refresh.
-                    context->realm_is_dirty = true;
                 });
             }
 
             if (ImGui::MenuItem("Duplicate As Sibling##DuplicateEntityAsSibling", "Ctrl+Alt+D")) {
-                // 1. Create the duplicate immediately to generate its unique name.
-                EntityArchetype duplicated_archetype = ArchetypeFactory::duplicate_entity_archetype(
-                    archetype,
-                    context->current_realm
-                );
-                // 2. Set the parent to the SOURCE's parent to make it a sibling.
-                duplicated_archetype.parent_id = archetype.parent_id;
-                // 3. Defer all modifications to the realm.
-                deferred_commands.push_back([this, duplicated_archetype]() {
-                    // Add the new archetype to the realm.
-                    context->current_realm.push_back(duplicated_archetype);
-                    rebuild_current_realm_map_internal(); // Update the lookup map
+                deferred_commands.push_back([this, source_archetype = archetype]() {
+                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(source_archetype, context->current_realm);
+                    if (new_family.empty()) return;
 
-                    // If it has a parent, find the parent and add the new sibling to its child list.
-                    SimpleGuid parent_id = duplicated_archetype.parent_id;
-                    if (parent_id.is_valid()) {
-                        auto parent_it = context->current_realm_map.find(parent_id);
+                    // Add the new family to the realm
+                    for (const auto& new_member : new_family) {
+                        context->current_realm.push_back(new_member);
+                    }
+                    rebuild_current_realm_map_internal();
+
+                    // Update the new parent's child list
+                    if (new_family[0].parent_id.is_valid()) {
+                        auto parent_it = context->current_realm_map.find(new_family[0].parent_id);
                         if (parent_it != context->current_realm_map.end()) {
-                            EntityArchetype* parent_archetype = parent_it->second;
-                            parent_archetype->child_ids.push_back(duplicated_archetype.id);
-
-                            // Check and update the parent's state, then update all its ancestors.
-                            if (parent_archetype->state != ArchetypeState::New) {
-                                if (context->loaded_realm_snapshot.is_entity_modified(*parent_archetype)) {
-                                    parent_archetype->state = ArchetypeState::Modified;
-                                } else {
-                                    parent_archetype->state = ArchetypeState::UnModified;
-                                }
-                            }
-                            update_all_ancestor_states(parent_archetype->id);
-                            
+                            parent_it->second->child_ids.push_back(new_family[0].id);
+                            if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
                         }
                     }
-                    
-                    // Select the new entity to give the user immediate feedback.
-                    context->selected_entity_id = duplicated_archetype.id;
-                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                    context->event_manager->dispatch(event);
-
-                    // Mark the realm as dirty to trigger a preview refresh.
-                    context->realm_is_dirty = true;
                     build_world_tree_hierarchy();
+
+                    // Dispatch event with the new family
+                    OnEntityFamilyAddedEvent event(new_family);
+                    context->event_manager->dispatch(event);
                 });
             }
 
             if (ImGui::MenuItem("Duplicate With Children##DuplicateEntityWithChildren", "Ctrl+Shift+D")) {
-                // 1. Create the entire new family of archetypes immediately.
-                // This is a read-only operation on the current realm.
-                std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_and_children(
-                    archetype,
-                    context->current_realm
-                );
+                deferred_commands.push_back([this, source_archetype = archetype]() {
+                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_and_children(source_archetype, context->current_realm);
+                    if (new_family.empty()) return;
 
-                // 2. Defer all modifications to the realm.
-                // We capture the created family by value.
-                deferred_commands.push_back([this, new_family]() {
-                    // Add all the newly created entities (parent and children) to the realm.
                     for (const auto& new_member : new_family) {
                         context->current_realm.push_back(new_member);
                     }
-                    rebuild_current_realm_map_internal(); // Update the lookup map
-
-                    // Select the top-level parent of the new family.
-                    if (!new_family.empty()) {
-                        context->selected_entity_id = new_family[0].id;
-                        EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                        context->event_manager->dispatch(event);
-                    }
-
-                    context->realm_is_dirty = true;
+                    rebuild_current_realm_map_internal();
                     build_world_tree_hierarchy();
+                    
+                    // Dispatch event with the entire new family
+                    OnEntityFamilyAddedEvent event(new_family);
+                    context->event_manager->dispatch(event);
                 });
             }
 
             if (ImGui::MenuItem("Duplicate Family As Sibling##DuplicateFamilyAsSibling", "Ctrl+Alt+Shift+D")) {
-                // 1. Create the entire new family of archetypes immediately.
-                std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(
-                    archetype,
-                    context->current_realm
-                );
-                // 2. Defer all modifications to the realm if the duplication was successful.
-                if (!new_family.empty()) {
-                    deferred_commands.push_back([this, new_family]() {
-                        // Add all the newly created entities to the realm.
-                        for (const auto& new_member : new_family) {
-                            context->current_realm.push_back(new_member);
+                deferred_commands.push_back([this, source_archetype = archetype]() {
+                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(source_archetype, context->current_realm);
+                    if (new_family.empty()) return;
+
+                    for (const auto& new_member : new_family) {
+                        context->current_realm.push_back(new_member);
+                    }
+                    rebuild_current_realm_map_internal();
+
+                    if (new_family[0].parent_id.is_valid()) {
+                        auto parent_it = context->current_realm_map.find(new_family[0].parent_id);
+                        if (parent_it != context->current_realm_map.end()) {
+                            parent_it->second->child_ids.push_back(new_family[0].id);
+                            if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
                         }
-                        rebuild_current_realm_map_internal(); // Update the lookup map
-
-                        // Find the parent entity and add the new sibling to its child list.
-                        SimpleGuid parent_id = new_family[0].parent_id;
-                        if (parent_id.is_valid()) {
-                            auto parent_it = context->current_realm_map.find(parent_id);
-                            if (parent_it != context->current_realm_map.end()) {
-                                EntityArchetype* parent_archetype = parent_it->second;
-                                parent_archetype->child_ids.push_back(new_family[0].id);
-
-                                
-                                // Check and update the parent's state, then update all its ancestors.
-                                if (parent_archetype->state != ArchetypeState::New) {
-                                    if (context->loaded_realm_snapshot.is_entity_modified(*parent_archetype)) {
-                                        parent_archetype->state = ArchetypeState::Modified;
-                                    } else {
-                                        parent_archetype->state = ArchetypeState::UnModified;
-                                    }
-                                }
-                                update_all_ancestor_states(parent_archetype->id);
-                                
-                            }
-                        }
-                        
-                        // Select the top-level parent of the new family.
-                        context->selected_entity_id = new_family[0].id;
-                        EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                        context->event_manager->dispatch(event);
-
-                        context->realm_is_dirty = true;
-                        build_world_tree_hierarchy();
-                    });
-                }
+                    }
+                    build_world_tree_hierarchy();
+                    
+                    OnEntityFamilyAddedEvent event(new_family);
+                    context->event_manager->dispatch(event);
+                });
             }
             /*
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
@@ -884,306 +775,197 @@ namespace Salix {
             */
             // ---TEST CODE---
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
-    deferred_commands.push_back([this, archetype_id = archetype.id]() {
-        auto archetype_to_purge_it = context->current_realm_map.find(archetype_id);
-        if (archetype_to_purge_it == context->current_realm_map.end()) return;
-
-        // --- 1. Orphan All Children (in both live scene and archetypes) ---
-        std::vector<SimpleGuid> child_ids_copy = archetype_to_purge_it->second->child_ids;
-        for (const auto& child_id : child_ids_copy) {
-            // Update the archetype data to orphan the child
-            auto child_archetype_it = context->current_realm_map.find(child_id);
-            if (child_archetype_it != context->current_realm_map.end()) {
-                child_archetype_it->second->parent_id = SimpleGuid::invalid();
-            }
-            // Update the live scene by orphaning the live child
-            Entity* live_child_entity = context->preview_scene->get_entity_by_id(child_id);
-            if (live_child_entity) {
-                live_child_entity->set_parent(nullptr);
-            }
-        }
-
-        // --- 2. Remove From Parent's Archetype ---
-        SimpleGuid parent_id = archetype_to_purge_it->second->parent_id;
-        if (parent_id.is_valid()) {
-            auto parent_it = context->current_realm_map.find(parent_id);
-            if (parent_it != context->current_realm_map.end()) {
-                EntityArchetype* parent_archetype = parent_it->second;
-                parent_archetype->child_ids.erase(
-                    std::remove(parent_archetype->child_ids.begin(), parent_archetype->child_ids.end(), archetype_id),
-                    parent_archetype->child_ids.end()
-                );
-                if (parent_archetype->state != ArchetypeState::New) parent_archetype->state = ArchetypeState::Modified;
-            }
-        }
-
-        // --- 3. Purge the Live Entity ---
-        Entity* live_entity_to_purge = context->preview_scene->get_entity_by_id(archetype_id);
-        if (live_entity_to_purge) {
-            live_entity_to_purge->purge(); // Mark for removal from scene
-        }
-
-        // --- 4. Remove the Archetype from the Realm Data ---
-        context->current_realm.erase(
-            std::remove_if(context->current_realm.begin(), context->current_realm.end(),
-                [&](const EntityArchetype& e) { return e.id == archetype_id; }),
-            context->current_realm.end()
-        );
-
-        // --- 5. Update All Systems ---
-        rebuild_current_realm_map_internal();
-        context->selected_entity_id = SimpleGuid::invalid();
-        EntitySelectedEvent event(context->selected_entity_id, nullptr);
-        context->event_manager->dispatch(event);
-        build_world_tree_hierarchy();
-
-        // For a purge, a full rebuild is still the cleanest way to ensure
-        // the preview scene is perfectly in sync with the removed object.
-        context->realm_is_dirty = true;
-    });
-}
-            // ---END TEST CODE---
-            if (ImGui::MenuItem("Purge Entity Children##PurgeEntityChildren", "Ctrl+Del")) {
-                // Defer the entire purge operation.
                 deferred_commands.push_back([this, archetype_id = archetype.id]() {
-                    // Find the parent archetype whose children will be purged.
-                    auto parent_it = context->current_realm_map.find(archetype_id);
-                    if (parent_it == context->current_realm_map.end()) return;
-                    EntityArchetype* parent_archetype = parent_it->second;
+                    auto it = context->current_realm_map.find(archetype_id);
+                    if (it == context->current_realm_map.end()) return;
+                    EntityArchetype* archetype_to_purge = it->second;
 
-                    // 1. Make a copy of the child IDs before we start modifying the realm.
-                    std::vector<SimpleGuid> children_to_purge = parent_archetype->child_ids;
-
-                    // 2. Loop through the list of children to purge.
-                    for (const auto& child_id : children_to_purge) {
-                        auto child_to_purge_it = context->current_realm_map.find(child_id);
-                        if (child_to_purge_it != context->current_realm_map.end()) {
-                            EntityArchetype* child_to_purge = child_to_purge_it->second;
-                            
-                            // 3. Orphan the grandchildren: Set their parent_id to invalid.
-                            for (const auto& grandchild_id : child_to_purge->child_ids) {
-                                auto grandchild_it = context->current_realm_map.find(grandchild_id);
-                                if (grandchild_it != context->current_realm_map.end()) {
-                                    grandchild_it->second->parent_id = SimpleGuid::invalid();
-                                }
-                            }
-                        }
-                        
-                        // 4. Remove the child entity itself from the main realm list.
-                        context->current_realm.erase(
-                            std::remove_if(context->current_realm.begin(), context->current_realm.end(),
-                                [&](const EntityArchetype& e) { return e.id == child_id; }),
-                            context->current_realm.end()
-                        );
-                    }
-
-                    // 5. Clear the parent's original child list and update its state.
-                    parent_archetype->child_ids.clear();
-                    if (parent_archetype->state != ArchetypeState::New) {
-                        if (context->loaded_realm_snapshot.is_entity_modified(*parent_archetype)) {
-                            parent_archetype->state = ArchetypeState::Modified;
-                        } else {
-                            parent_archetype->state = ArchetypeState::UnModified;
+                    // Remove from parent's child list
+                    if (archetype_to_purge->parent_id.is_valid()) {
+                        auto parent_it = context->current_realm_map.find(archetype_to_purge->parent_id);
+                        if (parent_it != context->current_realm_map.end()) {
+                            auto& children = parent_it->second->child_ids;
+                            children.erase(std::remove(children.begin(), children.end(), archetype_id), children.end());
+                            if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
                         }
                     }
-                    update_all_ancestor_states(parent_archetype->id); 
 
-                    // 6. Update all necessary systems.
+                    // Remove from the main realm vector
+                    context->current_realm.erase(
+                        std::remove_if(context->current_realm.begin(), context->current_realm.end(),
+                            [&](const EntityArchetype& e) { return e.id == archetype_id; }),
+                        context->current_realm.end()
+                    );
+
                     rebuild_current_realm_map_internal();
-                    context->realm_is_dirty = true;
                     build_world_tree_hierarchy();
+                    
+                    // Clear selection if the purged entity was selected
+                    if (context->selected_entity_id == archetype_id) {
+                        context->selected_entity_id = SimpleGuid::invalid();
+                    }
+
+                    // Dispatch the event
+                    OnEntityPurgedEvent event(archetype_id);
+                    context->event_manager->dispatch(event);
                 });
             }
-            if (ImGui::MenuItem("Purge Entity Descendants##PurgeEntityDescendants", "Ctrl+Shift+Del")) {
-                // Defer the entire recursive purge operation.
+            // ---END TEST CODE---
+            if (ImGui::MenuItem("Purge Entity Children##PurgeEntityChildren", "Ctrl+Del")) {
                 deferred_commands.push_back([this, archetype_id = archetype.id]() {
-                    // 1. A recursive helper function to find all descendant IDs.
-                    std::vector<SimpleGuid> descendants_to_purge;
-                    std::function<void(const SimpleGuid&)> find_all_children;
+                    auto parent_it = context->current_realm_map.find(archetype_id);
+                    if (parent_it == context->current_realm_map.end()) return;
                     
-                    find_all_children = 
+                    std::vector<SimpleGuid> children_to_purge = parent_it->second->child_ids;
+                    if (children_to_purge.empty()) return;
+
+                    // Remove children from realm
+                    context->current_realm.erase(
+                        std::remove_if(context->current_realm.begin(), context->current_realm.end(),
+                            [&](const EntityArchetype& e) {
+                                return std::find(children_to_purge.begin(), children_to_purge.end(), e.id) != children_to_purge.end();
+                            }),
+                        context->current_realm.end()
+                    );
+
+                    // Update parent archetype
+                    parent_it->second->child_ids.clear();
+                    if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
+
+                    rebuild_current_realm_map_internal();
+                    build_world_tree_hierarchy();
+
+                    OnEntityFamilyPurgedEvent event(children_to_purge);
+                    context->event_manager->dispatch(event);
+                });
+            }
+
+            if (ImGui::MenuItem("Purge Entity Descendants##PurgeEntityDescendants", "Ctrl+Shift+Del")) {
+                deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                    std::vector<SimpleGuid> descendants_to_purge;
+                    // Recursive lambda to find all descendants
+                    std::function<void(const SimpleGuid&)> find_descendants = 
                         [&](const SimpleGuid& current_id) {
                         auto it = context->current_realm_map.find(current_id);
                         if (it != context->current_realm_map.end()) {
-                            // For each child of the current entity...
                             for (const auto& child_id : it->second->child_ids) {
-                                descendants_to_purge.push_back(child_id); // ...add it to the purge list...
-                                find_all_children(child_id);              // ...and then find all of its children.
+                                descendants_to_purge.push_back(child_id);
+                                find_descendants(child_id);
                             }
                         }
                     };
+                    find_descendants(archetype_id);
+                    if (descendants_to_purge.empty()) return;
 
-                    // 2. Start the recursion from the selected archetype.
-                    find_all_children(archetype_id);
-
-                    // 3. Remove all the collected descendant entities from the main realm list.
-                    if (!descendants_to_purge.empty()) {
-                        context->current_realm.erase(
-                            std::remove_if(context->current_realm.begin(), context->current_realm.end(),
-                                [&](const EntityArchetype& e) {
-                                    // Check if the entity's ID is in our purge list.
-                                    return std::find(descendants_to_purge.begin(), descendants_to_purge.end(), e.id) != descendants_to_purge.end();
-                                }),
-                            context->current_realm.end()
-                        );
-                    }
-
-                    // 4. Clear the child list of the original parent and update its state.
+                    // Remove from realm
+                    context->current_realm.erase(
+                        std::remove_if(context->current_realm.begin(), context->current_realm.end(),
+                            [&](const EntityArchetype& e) {
+                                return std::find(descendants_to_purge.begin(), descendants_to_purge.end(), e.id) != descendants_to_purge.end();
+                            }),
+                        context->current_realm.end()
+                    );
+                    
+                    // Update parent
                     auto parent_it = context->current_realm_map.find(archetype_id);
                     if (parent_it != context->current_realm_map.end()) {
                         parent_it->second->child_ids.clear();
-                        if (parent_it->second->state != ArchetypeState::New) {
-                            if (context->loaded_realm_snapshot.is_entity_modified(*parent_it->second)) {
-                                parent_it->second->state = ArchetypeState::Modified;
-                            } else {
-                                parent_it->second->state = ArchetypeState::UnModified;
-                            }
-                        }
-                        update_all_ancestor_states(parent_it->second->id);
+                        if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
                     }
-                    // 5. Update all necessary systems.
+
                     rebuild_current_realm_map_internal();
-                    context->realm_is_dirty = true;
                     build_world_tree_hierarchy();
+
+                    OnEntityFamilyPurgedEvent event(descendants_to_purge);
+                    context->event_manager->dispatch(event);
                 });
             }
+
             if (ImGui::MenuItem("Purge Entity And Family##PurgeEntityAndFamily", "Shift+Del")) {
-                // Defer the entire recursive purge operation.
                 deferred_commands.push_back([this, archetype_id = archetype.id]() {
-                    // 1. A list to hold the ID of the top-level entity AND all its descendants.
                     std::vector<SimpleGuid> family_to_purge;
-                    
-                    // 2. A recursive helper function to find all descendant IDs.
-                    std::function<void(const SimpleGuid&)> find_all_descendants;
-                    find_all_descendants = 
-                        [&](const SimpleGuid& current_id) {
+                    std::function<void(const SimpleGuid&)> find_descendants;
+                    find_descendants = [&](const SimpleGuid& current_id) {
                         auto it = context->current_realm_map.find(current_id);
                         if (it != context->current_realm_map.end()) {
-                            // For each child of the current entity...
                             for (const auto& child_id : it->second->child_ids) {
-                                family_to_purge.push_back(child_id);      // ...add it to the purge list...
-                                find_all_descendants(child_id);           // ...and then find all of its children.
+                                family_to_purge.push_back(child_id);
+                                find_descendants(child_id);
                             }
                         }
                     };
-                    // 3. Start the process by adding the top-level entity itself to the purge list.
                     family_to_purge.push_back(archetype_id);
-                    // Then find all of its descendants.
-                    find_all_descendants(archetype_id);
+                    find_descendants(archetype_id);
 
-                    // 4. Remove the top-level entity from its original parent's child list (if it has one).
+                    // Update original parent's child list
                     auto top_level_it = context->current_realm_map.find(archetype_id);
-                    if (top_level_it != context->current_realm_map.end()) {
-                        SimpleGuid parent_id = top_level_it->second->parent_id;
-                        if (parent_id.is_valid()) {
-                            auto parent_it = context->current_realm_map.find(parent_id);
-                            if (parent_it != context->current_realm_map.end()) {
-                                EntityArchetype* parent_archetype = parent_it->second; // Get pointer to parent
-
-                                parent_archetype->child_ids.erase(
-                                    std::remove(parent_archetype->child_ids.begin(), parent_archetype->child_ids.end(), archetype_id),
-                                    parent_archetype->child_ids.end()
-                                );
-                                
-                                
-                                if (parent_archetype->state != ArchetypeState::New) {
-                                    if (context->loaded_realm_snapshot.is_entity_modified(*parent_archetype)) {
-                                        parent_archetype->state = ArchetypeState::Modified;
-                                    } else {
-                                        parent_archetype->state = ArchetypeState::UnModified;
-                                    }
-                                }
-                                update_all_ancestor_states(parent_archetype->id); 
-                            
-                            }
+                    if (top_level_it != context->current_realm_map.end() && top_level_it->second->parent_id.is_valid()) {
+                        auto parent_it = context->current_realm_map.find(top_level_it->second->parent_id);
+                        if (parent_it != context->current_realm_map.end()) {
+                            auto& children = parent_it->second->child_ids;
+                            children.erase(std::remove(children.begin(), children.end(), archetype_id), children.end());
+                            if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
                         }
                     }
 
-                    // 5. Remove all the collected family entities from the main realm list.
-                    if (!family_to_purge.empty()) {
-                        context->current_realm.erase(
-                            std::remove_if(context->current_realm.begin(), context->current_realm.end(),
-                                [&](const EntityArchetype& e) {
-                                    return std::find(family_to_purge.begin(), family_to_purge.end(), e.id) != family_to_purge.end();
-                                }),
-                            context->current_realm.end()
-                        );
-                    }
+                    // Remove all from realm
+                    context->current_realm.erase(
+                        std::remove_if(context->current_realm.begin(), context->current_realm.end(),
+                            [&](const EntityArchetype& e) {
+                                return std::find(family_to_purge.begin(), family_to_purge.end(), e.id) != family_to_purge.end();
+                            }),
+                        context->current_realm.end()
+                    );
 
-                    // 6. Update all necessary systems.
                     rebuild_current_realm_map_internal();
-                    context->realm_is_dirty = true;
-                    
-                    // Clear selection and notify other panels.
-                    context->selected_entity_id = SimpleGuid::invalid();
-                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                    context->event_manager->dispatch(event);
-
                     build_world_tree_hierarchy();
+                    if (context->selected_entity_id == archetype_id) context->selected_entity_id = SimpleGuid::invalid();
+
+                    // Dispatch event with all IDs to be removed
+                    OnEntityFamilyPurgedEvent event(family_to_purge);
+                    context->event_manager->dispatch(event);
                 });
             }
             if (ImGui::MenuItem("Purge Entity Bloodline##PurgeEntityBloodline", "Alt+Shift+Del")) {
-                // Defer the entire bloodline purge operation.
                 deferred_commands.push_back([this, archetype_id = archetype.id]() {
-                    // --- 1. Find the Root of the Bloodline ---
+                    // Find the root of the bloodline
                     SimpleGuid root_id = archetype_id;
-                    EntityArchetype* current_archetype = nullptr;
-                    
-                    // Keep walking up the parent chain until we find the entity with no parent.
-                    while (true) {
-                        auto it = context->current_realm_map.find(root_id);
-                        if (it == context->current_realm_map.end()) {
-                            // Should not happen if the starting ID is valid, but it's a safe exit.
-                            break;
-                        }
-                        current_archetype = it->second;
-                        if (!current_archetype->parent_id.is_valid()) {
-                            break; // We've found the root.
-                        }
-                        root_id = current_archetype->parent_id;
+                    auto current_it = context->current_realm_map.find(root_id);
+                    while (current_it != context->current_realm_map.end() && current_it->second->parent_id.is_valid()) {
+                        root_id = current_it->second->parent_id;
+                        current_it = context->current_realm_map.find(root_id);
                     }
 
-                    // --- 2. Collect the Entire Bloodline for Purging ---
+                    // Now collect the entire family starting from the root
                     std::vector<SimpleGuid> bloodline_to_purge;
-                    std::function<void(const SimpleGuid&)> find_all_descendants;
-                    
-                    find_all_descendants = 
+                    std::function<void(const SimpleGuid&)> find_descendants = 
                         [&](const SimpleGuid& current_id) {
                         auto it = context->current_realm_map.find(current_id);
                         if (it != context->current_realm_map.end()) {
                             for (const auto& child_id : it->second->child_ids) {
                                 bloodline_to_purge.push_back(child_id);
-                                find_all_descendants(child_id);
+                                find_descendants(child_id);
                             }
                         }
                     };
+                    bloodline_to_purge.push_back(root_id); // Add the root itself
+                    find_descendants(root_id);
 
-                    // Start by adding the root of the family to the purge list.
-                    bloodline_to_purge.push_back(root_id);
-                    // Then find all of its descendants.
-                    find_all_descendants(root_id);
+                    // Remove all from realm
+                    context->current_realm.erase(
+                        std::remove_if(context->current_realm.begin(), context->current_realm.end(),
+                            [&](const EntityArchetype& e) {
+                                return std::find(bloodline_to_purge.begin(), bloodline_to_purge.end(), e.id) != bloodline_to_purge.end();
+                            }),
+                        context->current_realm.end()
+                    );
 
-                    // --- 3. Remove All Bloodline Members from the Realm ---
-                    if (!bloodline_to_purge.empty()) {
-                        context->current_realm.erase(
-                            std::remove_if(context->current_realm.begin(), context->current_realm.end(),
-                                [&](const EntityArchetype& e) {
-                                    return std::find(bloodline_to_purge.begin(), bloodline_to_purge.end(), e.id) != bloodline_to_purge.end();
-                                }),
-                            context->current_realm.end()
-                        );
-                    }
-
-                    // --- 4. Update All Systems ---
                     rebuild_current_realm_map_internal();
-                    context->realm_is_dirty = true;
-                    
-                    // Clear selection and notify other panels.
-                    context->selected_entity_id = SimpleGuid::invalid();
-                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                    context->event_manager->dispatch(event);
-
                     build_world_tree_hierarchy();
+                    if (context->selected_entity_id == archetype_id) context->selected_entity_id = SimpleGuid::invalid();
+
+                    OnEntityFamilyPurgedEvent event(bloodline_to_purge);
+                    context->event_manager->dispatch(event);
                 });
             }
             ImGui::EndPopup();
@@ -1415,65 +1197,55 @@ namespace Salix {
 
     // ---TEST CODE---
     void WorldTreePanel::Pimpl::process_entity_drop(SimpleGuid dragged_id, SimpleGuid target_id) {
+        // --- STEP 1: PRE-FLIGHT CHECKS (using archetypes) ---
         auto dragged_it = context->current_realm_map.find(dragged_id);
         if (dragged_it == context->current_realm_map.end()) return;
         EntityArchetype* dragged_archetype = dragged_it->second;
 
-        // Circular parenting check
+        if (dragged_archetype->parent_id == target_id) return;
+        if (dragged_id == target_id) return;
+
         if (target_id.is_valid()) {
             auto current_id = target_id;
             while (current_id.is_valid()) {
-                if (current_id == dragged_id) return; // Exit if circular
+                if (current_id == dragged_id) return;
                 auto current_it = context->current_realm_map.find(current_id);
-                current_id = (current_it != context->current_realm_map.end()) ? current_it->second->parent_id : SimpleGuid::invalid();
+                if (current_it == context->current_realm_map.end()) break;
+                current_id = current_it->second->parent_id;
             }
         }
 
-        // --- START OF FIX ---
-        // 1. Update the LIVE SCENE hierarchy first
-        Entity* dragged_live_entity = context->preview_scene->get_entity_by_id(dragged_id);
-        // target_live_entity will be nullptr if target_id is invalid (dropping to root), which is correct
-        Entity* target_live_entity = context->preview_scene->get_entity_by_id(target_id); 
-        
-        if (dragged_live_entity) {
-            dragged_live_entity->set_parent(target_live_entity);
-        }
+        // --- STEP 2: UPDATE ARCHETYPE HIERARCHY ---
+        SimpleGuid old_parent_id = dragged_archetype->parent_id;
 
-        // 2. Now, update the ARCHETYPE DATA to match the new state
-        // Remove from old parent's archetype child list
-        if (dragged_archetype->parent_id.is_valid()) {
-            auto old_parent_it = context->current_realm_map.find(dragged_archetype->parent_id);
+        if (old_parent_id.is_valid()) {
+            auto old_parent_it = context->current_realm_map.find(old_parent_id);
             if (old_parent_it != context->current_realm_map.end()) {
-                EntityArchetype* old_parent = old_parent_it->second;
-                old_parent->child_ids.erase(
-                    std::remove(old_parent->child_ids.begin(), old_parent->child_ids.end(), dragged_id),
-                    old_parent->child_ids.end());
-                // Mark old parent as modified
-                if (old_parent->state != ArchetypeState::New) old_parent->state = ArchetypeState::Modified;
+                EntityArchetype* old_parent_archetype = old_parent_it->second;
+                auto& children = old_parent_archetype->child_ids;
+                children.erase(std::remove(children.begin(), children.end(), dragged_id), children.end());
+                if (old_parent_archetype->state != ArchetypeState::New) old_parent_archetype->state = ArchetypeState::Modified;
             }
         }
 
-        // Set the new parent ID in the archetype
         dragged_archetype->parent_id = target_id;
-        
-        // Add to new parent's archetype child list
-        if (target_id.is_valid()) {
-            auto target_it = context->current_realm_map.find(target_id);
-            if (target_it != context->current_realm_map.end()) {
-                EntityArchetype* target_archetype = target_it->second;
-                target_archetype->child_ids.push_back(dragged_id);
-                // Mark new parent as modified
-                if (target_archetype->state != ArchetypeState::New) target_archetype->state = ArchetypeState::Modified;
-            }
-        }
-        
-        // Mark dragged entity archetype as modified
         if (dragged_archetype->state != ArchetypeState::New) dragged_archetype->state = ArchetypeState::Modified;
 
-        // 3. Rebuild the UI tree. A full scene rebuild is no longer needed for this operation.
+        if (target_id.is_valid()) {
+            auto new_parent_it = context->current_realm_map.find(target_id);
+            if (new_parent_it != context->current_realm_map.end()) {
+                EntityArchetype* new_parent_archetype = new_parent_it->second;
+                new_parent_archetype->child_ids.push_back(dragged_id);
+                if (new_parent_archetype->state != ArchetypeState::New) new_parent_archetype->state = ArchetypeState::Modified;
+            }
+        }
+
+        // --- STEP 3: DISPATCH EVENT TO UPDATE LIVE SCENE ---
+        OnHierarchyChangedEvent hierarchy_event(dragged_id, target_id);
+        context->event_manager->dispatch(hierarchy_event);
+        
+        // --- STEP 4: FINALIZE UI REFRESH ---
         build_world_tree_hierarchy();
-        context->realm_is_dirty = false; // Ensure we don't trigger an unnecessary rebuild
-        // --- END OF FIX ---
     }
     // --- END TEST CODE ---
 
