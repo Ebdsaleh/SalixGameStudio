@@ -69,9 +69,16 @@ namespace Salix {
         total_time += delta_time;
         set_position(sin(total_time), get_position().y, get_position().z);
         */
-}
+    }
     
    
+
+    Transform* Transform::get_parent() const{
+        return pimpl->parent;
+    }
+    
+
+    // Test Code
     void Transform::set_parent(Transform* new_parent) {
         // Prevent invalid operations
         if (pimpl->parent == new_parent) return;
@@ -117,15 +124,14 @@ namespace Salix {
             set_scale(Vector3(new_local_scale));
         } else {
             // If we are being orphaned, our new local state is our old world state.
+            // We use your existing helper methods that correctly capture the world state.
             set_position(get_world_position());
             set_rotation(get_world_rotation());
             set_scale(get_world_scale());
         }
     }
-    Transform* Transform::get_parent() const{
-        return pimpl->parent;
-    }
 
+    // End Test Code
     
 
     bool Transform::is_child_of(const Transform* potential_parent) const {
@@ -189,35 +195,43 @@ namespace Salix {
 
 
     Vector3 Transform::get_world_rotation() const {
-        
-        if (pimpl->parent) {
-            return pimpl->parent->get_world_rotation() + pimpl->rotation;
-        }
-        return pimpl->rotation;
+        // A more robust way to get world rotation from the model matrix
+        glm::mat4 world_matrix = get_model_matrix();
+        glm::vec3 scale;
+        glm::quat rotation_quat;
+        glm::vec3 position;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(world_matrix, scale, rotation_quat, position, skew, perspective);
+        return Vector3(glm::degrees(glm::eulerAngles(rotation_quat)));
     }
-
-
+   
+    
     Vector3 Transform::get_world_scale() const {
-        // Decomposing for scale is also complex. Your current multiplication is a good approximation.
-        if (pimpl->parent) {
-            return pimpl->parent->get_world_scale() * pimpl->scale;
-        }
-        return pimpl->scale;
+        // A more robust way to get world scale from the model matrix
+        glm::mat4 world_matrix = get_model_matrix();
+        glm::vec3 scale;
+        glm::quat rotation_quat;
+        glm::vec3 position;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(world_matrix, scale, rotation_quat, position, skew, perspective);
+        return Vector3(scale);
     }
 
     void Transform::set_world_position(const Vector3& world_position) {
-    if (pimpl->parent) {
-        // If there's a parent, calculate the new local position required
-        // to achieve the desired world position.
-        glm::mat4 parent_world_inverse = glm::inverse(pimpl->parent->get_model_matrix());
-        glm::vec4 new_local_position_4 = parent_world_inverse * glm::vec4(world_position.x, world_position.y, world_position.z, 1.0f);
-        set_position(Vector3(new_local_position_4.x, new_local_position_4.y, new_local_position_4.z));
-    } else {
-        // If no parent, our local position is our world position.
-        set_position(world_position);
+        if (pimpl->parent) {
+            // If there's a parent, calculate the new local position required
+            // to achieve the desired world position.
+            glm::mat4 parent_world_inverse = glm::inverse(pimpl->parent->get_model_matrix());
+            glm::vec4 new_local_position_4 = parent_world_inverse * glm::vec4(world_position.x, world_position.y, world_position.z, 1.0f);
+            set_position(Vector3(new_local_position_4.x, new_local_position_4.y, new_local_position_4.z));
+        } else {
+            // If no parent, our local position is our world position.
+            set_position(world_position);
+        }
     }
-}
-
+    
     void Transform::set_world_rotation(const Vector3& world_rotation_deg) {
         // Convert the desired world rotation from Euler degrees to a quaternion
         glm::quat world_rotation_quat = glm::quat(glm::radians(world_rotation_deg.to_glm()));
@@ -269,6 +283,7 @@ namespace Salix {
             set_scale(world_scale);
         }
     }
+
 
     Vector3 Transform::world_to_local_position(const Vector3& world_pos) const {
         if (!pimpl->parent) return world_pos;
