@@ -890,6 +890,7 @@ namespace Salix {
 
     void RealmDesignerPanel::Pimpl::handle_hierarchy_changed_event(const OnHierarchyChangedEvent& e) {
         Entity* dragged_live_entity = context->preview_scene->get_entity_by_id(e.entity_id);
+         assert(dragged_live_entity != nullptr && "FATAL: Dragged Entity not found in live scene during hierarchy change!"); // Sanity Check
         Entity* target_live_entity = context->preview_scene->get_entity_by_id(e.parent_id);
 
         if (!dragged_live_entity) return;
@@ -942,6 +943,7 @@ namespace Salix {
     void RealmDesignerPanel::Pimpl::handle_entity_purged_event(const OnEntityPurgedEvent& e) {
         if (context->preview_scene) {
             Entity* entity_to_purge = context->preview_scene->get_entity_by_id(e.entity_id);
+            assert(entity_to_purge != nullptr && "FATAL: Entity to 'purge' was not found in the live preview scene!"); // Sanity Check
             if (entity_to_purge) {
                 entity_to_purge->purge();
             }
