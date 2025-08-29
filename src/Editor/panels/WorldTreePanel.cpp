@@ -726,7 +726,7 @@ namespace Salix {
                     context->event_manager->dispatch(event);
                 });
             }
-            
+            /* 
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
                 deferred_commands.push_back([this, archetype_id = archetype.id]() {
                     auto it = context->current_realm_map.find(archetype_id);
@@ -761,6 +761,73 @@ namespace Salix {
                     // Dispatch the event
                     OnEntityPurgedEvent event(archetype_id);
                     context->event_manager->dispatch(event);
+                });
+            }
+            */
+            // --- TEST CODE ---
+            // In src/Editor/panels/WorldTreePanel.cpp, inside show_entity_context_menu()
+
+            if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
+                deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                    auto it = context->current_realm_map.find(archetype_id);
+                    if (it == context->current_realm_map.end()) return;
+
+                    EntityArchetype* archetype_to_purge = it->second;
+                    SimpleGuid old_parent_id = archetype_to_purge->parent_id;
+                    std::vector<SimpleGuid> children_to_orphan = archetype_to_purge->child_ids;
+
+                    // --- START FIX ---
+                    // Re-parent the children of the entity being purged to become root entities.
+                    for (const auto& child_id : children_to_orphan) {
+                        auto child_it = context->current_realm_map.find(child_id);
+                        if (child_it != context->current_realm_map.end()) {
+                            EntityArchetype* child_archetype = child_it->second;
+                            child_archetype->parent_id = SimpleGuid::invalid(); // Set as root
+                            
+                            // Mark the orphaned child as modified
+                            if (child_archetype->state != ArchetypeState::New) {
+                                child_archetype->state = ArchetypeState::Modified;
+                            }
+                        }
+                    }
+                    // --- END FIX ---
+
+                    // Remove from old parent's child list (if it had one)
+                    if (old_parent_id.is_valid()) {
+                        auto parent_it = context->current_realm_map.find(old_parent_id);
+                        if (parent_it != context->current_realm_map.end()) {
+                            auto& children = parent_it->second->child_ids;
+                            children.erase(std::remove(children.begin(), children.end(), archetype_id), children.end());
+                            if (parent_it->second->state != ArchetypeState::New) {
+                                parent_it->second->state = ArchetypeState::Modified;
+                            }
+                        }
+                    }
+
+                    // Remove from the main realm vector
+                    context->current_realm.erase(
+                        std::remove_if(context->current_realm.begin(), context->current_realm.end(),
+                            [&](const EntityArchetype& e) { return e.id == archetype_id; }),
+                        context->current_realm.end()
+                    );
+
+                    rebuild_current_realm_map_internal();
+                    build_world_tree_hierarchy();
+                    
+                    // Clear selection if the purged entity was selected
+                    if (context->selected_entity_id == archetype_id) {
+                        context->selected_entity_id = SimpleGuid::invalid();
+                    }
+
+                    // Dispatch the event so the live scene can be updated
+                    OnEntityPurgedEvent event(archetype_id);
+                    context->event_manager->dispatch(event);
+
+                    // Also need to dispatch hierarchy change events for the newly orphaned children
+                    for (const auto& child_id : children_to_orphan) {
+                        OnHierarchyChangedEvent orphan_event(child_id, SimpleGuid::invalid());
+                        context->event_manager->dispatch(orphan_event);
+                    }
                 });
             }
             // ---END TEST CODE---
