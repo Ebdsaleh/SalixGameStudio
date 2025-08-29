@@ -1,9 +1,14 @@
 // Editor/ArchetypeFactory.cpp
 #include <Salix/serialization/YamlConverters.h>
 #include <Editor/ArchetypeFactory.h>
+#include <Editor/EditorContext.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
+// Required ECS includes.
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Transform.h>
 #include <Salix/ecs/Element.h>
+#include <Salix/ecs/Scene.h>
 #include <vector>
 #include <Salix/math/Vector3.h>
 #include <Salix/math/Color.h>
@@ -87,7 +92,7 @@ namespace Salix {
 
 
     EntityArchetype ArchetypeFactory::duplicate_entity_archetype(const EntityArchetype& source, 
-        const std::vector<EntityArchetype>& all_archetypes) {
+        const std::vector<EntityArchetype>& all_archetypes, EditorContext* context) {
     
         EntityArchetype new_archetype;
 
@@ -143,6 +148,26 @@ namespace Salix {
             new_archetype.elements.push_back(new_element);
         }
 
+        // --- World Transform Preservation using Live Entity ---
+        Entity* source_live_entity = context->preview_scene->get_entity_by_id(source.id);
+        if (source_live_entity && source_live_entity->get_transform()) {
+            Transform* source_transform = source_live_entity->get_transform();
+            
+            // Get the source's actual world transform
+            Vector3 world_pos = source_transform->get_world_position();
+            Vector3 world_rot = source_transform->get_world_rotation();
+            Vector3 world_scale = source_transform->get_world_scale();
+
+            // Find the transform archetype in our new duplicate
+            ElementArchetype* new_transform_arch = new_archetype.get_element_by_id(new_archetype.get_primary_transform_id());
+            if (new_transform_arch) {
+                // Since the new duplicate is a root, its local transform IS its world transform.
+                new_transform_arch->data["position"] = world_pos;
+                new_transform_arch->data["rotation"] = world_rot;
+                new_transform_arch->data["scale"] = world_scale;
+            }
+        }
+
         return new_archetype;
         
     }
@@ -186,7 +211,7 @@ namespace Salix {
 
     std::vector<EntityArchetype> ArchetypeFactory::duplicate_entity_archetype_and_children(
         const EntityArchetype& source,
-        const std::vector<EntityArchetype>& all_archetypes) {
+        const std::vector<EntityArchetype>& all_archetypes, EditorContext* context) {
         std::vector<EntityArchetype> new_family;
         std::map<SimpleGuid, SimpleGuid> id_map;
         duplicate_recursive_helper(source.id, all_archetypes, new_family, id_map);
@@ -246,7 +271,7 @@ namespace Salix {
 
     std::vector<EntityArchetype> ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(
         const EntityArchetype& source,
-        const std::vector<EntityArchetype>& all_archetypes) {
+        const std::vector<EntityArchetype>& all_archetypes, EditorContext* context) {
         
         std::vector<EntityArchetype> new_family;
         std::map<SimpleGuid, SimpleGuid> id_map;
