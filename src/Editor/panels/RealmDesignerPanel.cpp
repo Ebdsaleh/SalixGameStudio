@@ -29,6 +29,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/glm.hpp>
 #include <glad/glad.h>
+#include <glm/gtx/matrix_decompose.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <Salix/math/RayCasting.h>
 #include <Salix/events/EventManager.h>
@@ -963,6 +964,7 @@ namespace Salix {
             }
         }
     }
+    
 
     void RealmDesignerPanel::Pimpl::handle_entity_family_purged_event(const OnEntityFamilyPurgedEvent& e) {
         if (context->preview_scene) {
