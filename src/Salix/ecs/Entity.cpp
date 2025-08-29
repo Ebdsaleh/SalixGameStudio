@@ -121,6 +121,10 @@ namespace Salix {
         pimpl->is_purged_flag = true;
     }
 
+    void Entity::simple_purge() {
+        pimpl->is_purged_flag = true;
+    }
+
     bool Entity::is_purged() const {
         return pimpl->is_purged_flag;
     }

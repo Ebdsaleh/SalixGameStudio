@@ -47,6 +47,7 @@ namespace Salix {
             bool is_root() const { return get_parent() == nullptr; }
 
             void purge();
+            void simple_purge();
             bool is_purged() const;
             void set_visible(bool visible);
             bool is_visible() const;
