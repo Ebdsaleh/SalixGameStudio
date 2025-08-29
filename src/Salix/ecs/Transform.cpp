@@ -70,6 +70,8 @@ namespace Salix {
         set_position(sin(total_time), get_position().y, get_position().z);
         */
 }
+    
+   
     void Transform::set_parent(Transform* new_parent) {
         // Prevent invalid operations
         if (pimpl->parent == new_parent) return;
@@ -79,10 +81,8 @@ namespace Salix {
             return;
         }
 
-        // --- 1. Get current world state BEFORE changing parent ---
-        Vector3 old_world_pos = get_world_position();
-        Vector3 old_world_rot = get_world_rotation();
-        Vector3 old_world_scl = get_world_scale();
+        // --- 1. Get current world matrix BEFORE changing parent ---
+        glm::mat4 old_child_world_matrix = get_model_matrix();
 
         // --- 2. Update the hierarchy pointers ---
         if (pimpl->parent) {
@@ -93,22 +93,35 @@ namespace Salix {
             pimpl->parent->add_child(this);
         }
 
-        // --- 3. Set the new LOCAL state to preserve the WORLD state ---
+        // --- 3. Calculate new local state to preserve world state ---
         if (new_parent) {
-            // Use your existing, correct helper function for position!
-            set_position(new_parent->world_to_local_position(old_world_pos));
+            // Get the new parent's world matrix
+            glm::mat4 new_parent_world_matrix = new_parent->get_model_matrix();
+            // Multiply the child's old world matrix by the inverse of the parent's world matrix
+            glm::mat4 new_local_matrix = glm::inverse(new_parent_world_matrix) * old_child_world_matrix;
+
+            // --- 4. Decompose the new local matrix and apply values ---
+            glm::vec3 new_local_position;
+            glm::quat new_local_rotation_quat;
+            glm::vec3 new_local_scale;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            glm::decompose(new_local_matrix, new_local_scale, new_local_rotation_quat, new_local_position, skew, perspective);
             
-            // Apply the same logical pattern for rotation and scale
-            set_rotation(old_world_rot - new_parent->get_world_rotation());
-            set_scale(old_world_scl / new_parent->get_world_scale());
+            // Convert the quaternion rotation to Euler angles in degrees
+            glm::vec3 new_local_rotation_deg = glm::degrees(glm::eulerAngles(new_local_rotation_quat));
+            
+            // Use your existing setters to update the local state
+            set_position(Vector3(new_local_position));
+            set_rotation(Vector3(new_local_rotation_deg));
+            set_scale(Vector3(new_local_scale));
         } else {
             // If we are being orphaned, our new local state is our old world state.
-            set_position(old_world_pos);
-            set_rotation(old_world_rot);
-            set_scale(old_world_scl);
+            set_position(get_world_position());
+            set_rotation(get_world_rotation());
+            set_scale(get_world_scale());
         }
     }
-
     Transform* Transform::get_parent() const{
         return pimpl->parent;
     }
