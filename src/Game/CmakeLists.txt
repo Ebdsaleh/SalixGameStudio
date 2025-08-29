@@ -32,3 +32,7 @@ target_compile_definitions(Game PRIVATE SALIX_BUILD_GAME)
 set_target_properties(Game PROPERTIES
     OUTPUT_NAME "Game"
 )
+if(MSVC)
+    target_compile_options(Game PRIVATE $<$<CONFIG:Debug>:/MDd /Zi /RTC1>)
+    target_link_options(Game PRIVATE $<$<CONFIG:Debug>:/DEBUG>)
+endif()

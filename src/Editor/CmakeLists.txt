@@ -49,3 +49,9 @@ target_compile_definitions(SalixEditor PRIVATE SALIX_BUILD_EDITOR)
 set_target_properties(SalixEditor PROPERTIES
     OUTPUT_NAME "SalixEditor"
 )
+
+
+if(MSVC)
+    target_compile_options(SalixEditor PRIVATE $<$<CONFIG:Debug>:/MDd /Zi /RTC1>)
+    target_link_options(SalixEditor PRIVATE $<$<CONFIG:Debug>:/DEBUG>)
+endif()

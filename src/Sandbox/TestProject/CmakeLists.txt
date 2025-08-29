@@ -128,3 +128,25 @@ install(FILES "${SDL2_LIB_DIR}/SDL2.dll"
 install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/Assets/" DESTINATION "Assets" FILE_PERMISSIONS OWNER_READ OWNER_WRITE GROUP_READ WORLD_READ)
 # Copy the .salixproj file.
 install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/TestProject.salixproj" DESTINATION ".")
+
+if(MSVC)
+    # --- Add debug/release flags for the DLL ---
+    if(TARGET TestProjectDll)
+        target_compile_options(TestProjectDll PRIVATE
+            $<$<CONFIG:Debug>:/MDd /Zi /RTC1>
+            $<$<CONFIG:Release>:/MD /O2>
+        )
+        target_link_options(TestProjectDll PRIVATE
+            $<$<CONFIG:Debug>:/DEBUG>
+        )
+    endif()
+
+    # --- Add debug/release flags for the EXE ---
+    target_compile_options(TestProjectExe PRIVATE
+        $<$<CONFIG:Debug>:/MDd /Zi /RTC1>
+        $<$<CONFIG:Release>:/MD /O2>
+    )
+    target_link_options(TestProjectExe PRIVATE
+        $<$<CONFIG:Debug>:/DEBUG>
+    )
+endif()
