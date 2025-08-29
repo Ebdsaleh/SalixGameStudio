@@ -647,29 +647,39 @@ namespace Salix {
             }
 
             if (ImGui::MenuItem("Duplicate As Sibling##DuplicateEntityAsSibling", "Ctrl+Alt+D")) {
-                deferred_commands.push_back([this, source_archetype = archetype]() {
-                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(
-                        source_archetype, context->current_realm, context);
-                    if (new_family.empty()) return;
-
-                    // Add the new family to the realm
-                    for (const auto& new_member : new_family) {
-                        context->current_realm.push_back(new_member);
+                deferred_commands.push_back([this, &source_archetype = archetype]() {
+                    // 1. Call the simple, working duplicate method. 
+                    // This creates a new archetype at the correct WORLD position, but as a root entity.
+                    EntityArchetype duplicated_archetype = ArchetypeFactory::duplicate_entity_archetype(source_archetype, context->current_realm, context);
+                    
+                    // 2. Manually set the parent ID to match the source, making it a sibling.
+                    // This is the key insight you had.
+                    duplicated_archetype.parent_id = source_archetype.parent_id;
+                    if (duplicated_archetype.state != ArchetypeState::New) {
+                        duplicated_archetype.state = ArchetypeState::Modified;
                     }
+
+                    // 3. Add the corrected archetype to the realm.
+                    context->current_realm.push_back(duplicated_archetype);
                     rebuild_current_realm_map_internal();
 
-                    // Update the new parent's child list
-                    if (new_family[0].parent_id.is_valid()) {
-                        auto parent_it = context->current_realm_map.find(new_family[0].parent_id);
+                    // 4. If it has a parent, we must also add its ID to the parent's child list.
+                    if (duplicated_archetype.parent_id.is_valid()) {
+                        auto parent_it = context->current_realm_map.find(duplicated_archetype.parent_id);
                         if (parent_it != context->current_realm_map.end()) {
-                            parent_it->second->child_ids.push_back(new_family[0].id);
-                            if (parent_it->second->state != ArchetypeState::New) parent_it->second->state = ArchetypeState::Modified;
+                            parent_it->second->child_ids.push_back(duplicated_archetype.id);
+                            if (parent_it->second->state != ArchetypeState::New) {
+                                parent_it->second->state = ArchetypeState::Modified;
+                            }
                         }
                     }
+                    
+                    // 5. Rebuild the UI tree.
                     build_world_tree_hierarchy();
 
-                    // Dispatch event with the new family
-                    OnEntityFamilyAddedEvent event(new_family);
+                    // 6. Dispatch a single "Added" event. The RealmDesignerPanel's handler
+                    // will see the parent_id and correctly call set_parent() on the new live entity.
+                    OnEntityAddedEvent event(duplicated_archetype);
                     context->event_manager->dispatch(event);
                 });
             }
