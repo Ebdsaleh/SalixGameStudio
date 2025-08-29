@@ -12,7 +12,10 @@
 #include <vector>
 #include <Salix/math/Vector3.h>
 #include <Salix/math/Color.h>
-// Add other property type includes as needed...
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/matrix_decompose.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 namespace Salix {
 
@@ -329,7 +332,6 @@ namespace Salix {
         
         return new_family;
     }
-
 
 
 
