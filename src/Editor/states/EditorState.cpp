@@ -33,6 +33,7 @@
 #include <Editor/management/RealmSnapshot.h>
 // Editor-specific systems
 #include <Editor/EditorContext.h>
+#include <Editor/ArchetypeInstantiator.h>
 #include <Editor/panels/PanelManager.h>
 #include <Editor/panels/WorldTreePanel.h>
 #include <Editor/panels/ScryingMirrorPanel.h>
@@ -87,7 +88,7 @@ namespace Salix {
         void render_menu_bar_and_panels();
         void end_dockspace();
         // for testing
-        void create_mock_scene();
+        // void create_mock_scene();
         void draw_test_cube(); 
         void process_input();
         void draw_debug_window();
@@ -343,7 +344,7 @@ namespace Salix {
                 }
             }
         
-            else if (pimpl->editor_context->data_mode == EditorDataMode::Live) { pimpl->create_mock_scene(); }
+            
 
             else {
                 std::cerr << "EditorState::initialize - Invalid EditorDataMode detected!" << std::endl;
@@ -372,6 +373,21 @@ namespace Salix {
         // Update animation timer
         pimpl->total_time += delta_time;
 
+         if (pimpl->editor_context->data_mode == EditorDataMode::Yaml) {
+        if (pimpl->editor_context->realm_is_dirty) {
+            Scene* preview_scene = pimpl->editor_context->preview_scene.get();
+            auto& realm_archetypes = pimpl->editor_context->current_realm;
+            
+            preview_scene->clear_all_entities();
+            
+            if (!realm_archetypes.empty()) {
+                ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_scene, *pimpl->editor_context->init_context);
+            }
+            
+            // Clear the flag so this only runs when needed
+            pimpl->editor_context->realm_is_dirty = false;
+        }
+    }
         pimpl->handle_first_frame_setup();
         pimpl->process_input();
 
@@ -644,6 +660,7 @@ namespace Salix {
     }
 
 
+    /* NO LONGER REQUIRED
     void EditorState::Pimpl::create_mock_scene() {
         if(!editor_context) {
             std::cout << "EditorState::create_mock_scene - EditorContext is NULL, aborting..." << std::endl;
@@ -686,6 +703,7 @@ namespace Salix {
         player->report_ids();
         
     }
+    */
 
     void EditorState::Pimpl::draw_test_cube() {
         // Safety check to ensure the renderer and camera exist
