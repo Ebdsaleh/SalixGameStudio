@@ -317,23 +317,24 @@ namespace Salix {
                     }
                     pimpl->context->sync_queue.clear();
                 }
+                // --- TEST CODE COMMENTING OUT ---
+                /*
                 // 1. Check if the realm data has changed.
                 if (pimpl->context->realm_is_dirty) {
                     Scene* preview_scene = pimpl->context->preview_scene.get();
                     auto& realm_archetypes = pimpl->context->current_realm;
                     preview_scene->clear_all_entities();
                     if (!realm_archetypes.empty()) {
-                        /*
-                        for (const auto& entity_archetype : realm_archetypes) {
-                            ArchetypeInstantiator::instantiate(entity_archetype, preview_scene, *pimpl->context->init_context);
-                        }
-                        */
+                        
                         ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_scene, *pimpl->context->init_context);
                     }
                     // 3. Clear the flag so this doesn't run again.
                     pimpl->context->realm_is_dirty = false;
                 }
+                */
+               // --- END TEST CODE COMMENTNG OUT ---
             }
+            
 
             pimpl->update_camera_and_buttons();
             pimpl->update_viewport(renderer);
@@ -945,7 +946,7 @@ namespace Salix {
             Entity* entity_to_purge = context->preview_scene->get_entity_by_id(e.entity_id);
             assert(entity_to_purge != nullptr && "FATAL: Entity to 'purge' was not found in the live preview scene!"); // Sanity Check
             if (entity_to_purge) {
-                entity_to_purge->purge();
+                entity_to_purge->simple_purge();
             }
         }
     }
