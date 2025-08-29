@@ -633,7 +633,8 @@ namespace Salix {
 
             if (ImGui::MenuItem("Duplicate##DuplicateEntity", "Ctrl+D")) {
                 deferred_commands.push_back([this, source_archetype = archetype]() {
-                    EntityArchetype duplicated_archetype = ArchetypeFactory::duplicate_entity_archetype(source_archetype, context->current_realm);
+                    EntityArchetype duplicated_archetype = ArchetypeFactory::duplicate_entity_archetype(
+                        source_archetype, context->current_realm, context);
                     
                     context->current_realm.push_back(duplicated_archetype);
                     rebuild_current_realm_map_internal();
@@ -647,7 +648,8 @@ namespace Salix {
 
             if (ImGui::MenuItem("Duplicate As Sibling##DuplicateEntityAsSibling", "Ctrl+Alt+D")) {
                 deferred_commands.push_back([this, source_archetype = archetype]() {
-                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(source_archetype, context->current_realm);
+                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(
+                        source_archetype, context->current_realm, context);
                     if (new_family.empty()) return;
 
                     // Add the new family to the realm
@@ -674,7 +676,8 @@ namespace Salix {
 
             if (ImGui::MenuItem("Duplicate With Children##DuplicateEntityWithChildren", "Ctrl+Shift+D")) {
                 deferred_commands.push_back([this, source_archetype = archetype]() {
-                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_and_children(source_archetype, context->current_realm);
+                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_and_children(
+                        source_archetype, context->current_realm, context);
                     if (new_family.empty()) return;
 
                     for (const auto& new_member : new_family) {
@@ -691,7 +694,8 @@ namespace Salix {
 
             if (ImGui::MenuItem("Duplicate Family As Sibling##DuplicateFamilyAsSibling", "Ctrl+Alt+Shift+D")) {
                 deferred_commands.push_back([this, source_archetype = archetype]() {
-                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(source_archetype, context->current_realm);
+                    std::vector<EntityArchetype> new_family = ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(
+                        source_archetype, context->current_realm, context);
                     if (new_family.empty()) return;
 
                     for (const auto& new_member : new_family) {
