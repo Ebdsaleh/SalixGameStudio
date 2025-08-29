@@ -726,67 +726,7 @@ namespace Salix {
                     context->event_manager->dispatch(event);
                 });
             }
-            /*
-            if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
-                // Defer the entire purge operation.
-                deferred_commands.push_back([this, archetype_id = archetype.id]() {
-                    // --- 1. Find and Orphan All Children ---
-                    auto archetype_to_purge_it = context->current_realm_map.find(archetype_id);
-                    if (archetype_to_purge_it == context->current_realm_map.end()) return; // Not found
-                    
-                    std::vector<SimpleGuid> child_ids_copy = archetype_to_purge_it->second->child_ids;
-                    for (const auto& child_id : child_ids_copy) {
-                        auto child_it = context->current_realm_map.find(child_id);
-                        if (child_it != context->current_realm_map.end()) {
-                            child_it->second->parent_id = SimpleGuid::invalid();
-                        }
-                    }
-
-                    // --- 2. Remove From Parent's Child List & Update Parent State ---
-                    SimpleGuid parent_id = archetype_to_purge_it->second->parent_id;
-                    
-                    if (parent_id.is_valid()) {
-                        auto parent_it = context->current_realm_map.find(parent_id);
-                        if (parent_it != context->current_realm_map.end()) {
-                            EntityArchetype* parent_archetype = parent_it->second;
-
-                            parent_archetype->child_ids.erase(
-                                std::remove(parent_archetype->child_ids.begin(), parent_archetype->child_ids.end(), archetype_id),
-                                parent_archetype->child_ids.end()
-                            );
-
-                            // Check and update the parent's state against the snapshot
-                            if (parent_archetype->state != ArchetypeState::New) {
-                                if (context->loaded_realm_snapshot.is_entity_modified(*parent_archetype)) {
-                                    parent_archetype->state = ArchetypeState::Modified;
-                                } else {
-                                    parent_archetype->state = ArchetypeState::UnModified;
-                                }
-                            }
-                            update_all_ancestor_states(parent_archetype->id);
-                        }
-                    }
-                    
-                    
-                    // --- 3. Remove the Entity Itself From the Realm ---
-                    context->current_realm.erase(
-                        std::remove_if(context->current_realm.begin(), context->current_realm.end(),
-                            [&](const EntityArchetype& e) { return e.id == archetype_id; }),
-                        context->current_realm.end()
-                    );
-                    // --- 4. Update All Systems ---
-                    rebuild_current_realm_map_internal();
-                    context->realm_is_dirty = true;
-                    
-                    context->selected_entity_id = SimpleGuid::invalid();
-                    EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                    context->event_manager->dispatch(event);
-                    
-                    build_world_tree_hierarchy();
-                });
-            }
-            */
-            // ---TEST CODE---
+            
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
                 deferred_commands.push_back([this, archetype_id = archetype.id]() {
                     auto it = context->current_realm_map.find(archetype_id);
