@@ -19,6 +19,7 @@
 #include <memory>
 #include <functional>
 #include <Editor/Archetypes.h>
+#include <Editor/management/EditorRealmManager.h>
 #include <Editor/management/RealmSnapshot.h>
 
 namespace Salix {
@@ -80,11 +81,7 @@ namespace Salix {
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         EditorDataMode data_mode = EditorDataMode::Yaml;
-        std::vector<EntityArchetype> current_realm;
-        std::vector<std::shared_ptr<WorldTreeNode>> world_tree_hierarchy;
-        std::vector<EntityArchetype*> world_tree_render_order; // Can be used later for better performance.
-        RealmSnapshot loaded_realm_snapshot;  // used to check against changes to the current realm.
-        std::unordered_map<SimpleGuid, EntityArchetype*> current_realm_map;
+        std::unique_ptr<EditorRealmManager> editor_realm_manager;
         //A queue for commands to be run at the end of the frame.
         std::vector<std::function<void()>> deferred_type_drawer_commands;
         std::vector<std::function<void()>> sync_queue;
