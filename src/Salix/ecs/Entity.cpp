@@ -45,7 +45,26 @@ namespace Salix {
         pimpl->box_collider = add_element<BoxCollider>();
        
     }
-    Entity::~Entity() = default;
+    Entity::~Entity() {
+        // 1. When this entity is destroyed, it must detach itself from its parent
+        // to prevent the parent from holding a dangling pointer to it.
+        if (pimpl->parent) {
+            // This calls pimpl->parent->remove_child(this)
+            release_from_parent(); 
+        }
+
+        // 2. We must also orphan our children so they don't hold a dangling
+        // pointer to us (their now-destroyed parent).
+        // We iterate through a copy because child->set_parent(nullptr) will modify our child list.
+        auto children_copy = pimpl->children;
+        for (auto* child : children_copy) {
+            if (child) {
+                // This correctly sets the child's parent pointer to null and updates its transform.
+                child->set_parent(nullptr); 
+            }
+        }
+
+    }
 
 
     // --- Public Methods (now access pimpl) ---
@@ -112,7 +131,9 @@ namespace Salix {
         // will modify the original list.
         auto children_copy = pimpl->children;
         for (auto* child : children_copy) {
-            if (child) {
+            if (child && child->parent) {
+                assert(child->parent, "[Release From Parent Error] Parent Entity is nullptr");
+                assert(child, "[Release From Parent Error] Child Entity is nullptr!");
                 child->release_from_parent();
             }
         }
