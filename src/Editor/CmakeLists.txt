@@ -24,6 +24,7 @@ add_library(SalixEditor SHARED
     events/EntitySelectedEvent.cpp
     reflection/PropertyHandleFactory.cpp
     reflection/ui/TypeDrawer.cpp
+    management/EditorRealmManager.cpp
     management/RealmLoader.cpp
     management/RealmSnapshot.cpp
     # Add any other .cpp files specific to SalixEditor.dll here
