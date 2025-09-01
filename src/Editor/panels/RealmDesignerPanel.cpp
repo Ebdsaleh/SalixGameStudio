@@ -36,13 +36,17 @@
 #include <yaml-cpp/yaml.h>
 #include <Editor/Archetypes.h>
 #include <Editor/ArchetypeInstantiator.h>
+#include <Editor/ArchetypeFactory.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/PropertyValueChangedEvent.h>
 #include <Editor/events/OnHierarchyChangedEvent.h>
+#include <Editor/events/OnRootEntityAddedEvent.h>
+#include <Editor/events/OnChildEntityAddedEvent.h>
 #include <Editor/events/OnEntityAddedEvent.h>
 #include <Editor/events/OnEntityFamilyAddedEvent.h>
 #include <Editor/events/OnEntityPurgedEvent.h>
 #include <Editor/events/OnEntityFamilyPurgedEvent.h>
+#include <Editor/events/OnElementAddedEvent.h>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -97,10 +101,13 @@ namespace Salix {
         // Events
         void handle_property_value_changed_event(const PropertyValueChangedEvent& e);
         void handle_hierarchy_changed_event(const OnHierarchyChangedEvent& e);
+        void handle_root_entity_added_event(const OnRootEntityAddedEvent& e);
         void handle_entity_added_event(const OnEntityAddedEvent& e);
+        void handle_child_entity_added_event(const OnChildEntityAddedEvent& e);
         void handle_entity_purged_event(const OnEntityPurgedEvent& e);
         void handle_entity_family_added_event(const OnEntityFamilyAddedEvent& e);
         void handle_entity_family_purged_event(const OnEntityFamilyPurgedEvent& e);
+        void handle_element_added_event(const OnElementAddedEvent& e);
         
     };
 
@@ -172,10 +179,13 @@ namespace Salix {
         glm::mat4 local_matrix;
         ImGuizmo::RecomposeMatrixFromComponents(glm::value_ptr(p.to_glm()), glm::value_ptr(r.to_glm()), glm::value_ptr(s.to_glm()), glm::value_ptr(local_matrix));
 
+        // If the archetype has a parent, recursively get the parent's world matrix and multiply it.
         if (archetype->parent_id.is_valid()) {
-            auto parent_it = context->current_realm_map.find(archetype->parent_id);
-            if (parent_it != context->current_realm_map.end()) {
-                return get_world_matrix(parent_it->second) * local_matrix;
+            // Use the manager's public getter to safely find the parent archetype.
+            EntityArchetype* parent_archetype = context->editor_realm_manager->get_archetype(archetype->parent_id);
+            if (parent_archetype) {
+                // Recursively call this function with the parent and multiply the results.
+                return get_world_matrix(parent_archetype) * local_matrix;
             }
         }
 
@@ -187,12 +197,7 @@ namespace Salix {
         if (!context || !context->selected_entity_id.is_valid()) {
             return nullptr;
         }
-        for (auto& archetype : context->current_realm) {
-            if (archetype.id == context->selected_entity_id) {
-                return &archetype;
-            }
-        }
-        return nullptr;
+        return context->editor_realm_manager->get_archetype(context->selected_entity_id);
     }
 
 
@@ -575,7 +580,7 @@ namespace Salix {
             const glm::mat4& view = context->editor_camera->get_view_matrix();
             const glm::mat4& proj = context->editor_camera->get_projection_matrix();
 
-            for (auto& archetype : context->current_realm) {
+            for (const auto& archetype : context->editor_realm_manager->get_realm()) {
                 const ElementArchetype* collider_archetype = nullptr;
                 for (const auto& element : archetype.elements) {
                     if (element.type_name == "BoxCollider") {
@@ -634,7 +639,7 @@ namespace Salix {
             Ray world_ray = Raycast::CreateRayFromScreen(context->editor_camera, mouse_pos, viewport_min, viewport_size);
             last_picking_ray = world_ray;
 
-            for (auto& archetype : context->current_realm) {
+            for (const auto& archetype : context->editor_realm_manager->get_realm()) {
                 const ElementArchetype* transform_archetype = nullptr;
                 const ElementArchetype* collider_archetype = nullptr;
                 for (const auto& element : archetype.elements) {
@@ -829,6 +834,12 @@ namespace Salix {
             case EventType::EditorOnHierarchyChanged:
                 pimpl->handle_hierarchy_changed_event(static_cast<OnHierarchyChangedEvent&>(event));
                 break;
+            case EventType::EditorOnRootEntityAdded:
+                pimpl->handle_root_entity_added_event(static_cast<OnRootEntityAddedEvent&>(event));
+                break;
+            case EventType::EditorOnChildEntityAdded:
+                pimpl->handle_child_entity_added_event(static_cast<OnChildEntityAddedEvent&>(event));
+                break;
             case EventType::EditorOnEntityAdded:
                 pimpl->handle_entity_added_event(static_cast<OnEntityAddedEvent&>(event));
                 break;
@@ -840,6 +851,9 @@ namespace Salix {
                 break;
             case EventType::EditorOnEntityFamilyPurged: 
                 pimpl->handle_entity_family_purged_event(static_cast<OnEntityFamilyPurgedEvent&>(event));
+                break;
+            case EventType::EditorOnElementAdded:
+                pimpl->handle_element_added_event(static_cast<OnElementAddedEvent&>(event));
                 break;
             default:
                 break;
@@ -858,6 +872,7 @@ namespace Salix {
         Element* element_to_update = entity_to_update->get_element_by_id(e.element_id);
         if (!element_to_update) return;
 
+        // This part uses ByteMirror to set the property on the live element.
         const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
         if (!type_info) return;
 
@@ -871,27 +886,29 @@ namespace Salix {
             }
         }
         
+        
+        // After updating the property, this call allows the live element
+        // to react to the change (e.g., load the new texture).
         element_to_update->on_load(*context->init_context);
 
+        // This block handles writing derived data (like texture dimensions) back to the archetype.
         if (auto* live_sprite = dynamic_cast<Sprite2D*>(element_to_update)) {
-            auto entity_it = std::find_if(context->current_realm.begin(), context->current_realm.end(),
-                [&](EntityArchetype& archetype) { return archetype.id == e.entity_id; });
-
-            if (entity_it != context->current_realm.end()) {
-                auto element_it = std::find_if(entity_it->elements.begin(), entity_it->elements.end(),
-                    [&](ElementArchetype& element) { return element.id == e.element_id; });
-
-                if (element_it != entity_it->elements.end()) {
-                    element_it->data["width"] = live_sprite->get_texture_width();
-                    element_it->data["height"] = live_sprite->get_texture_height();
+            EntityArchetype* entity_archetype = context->editor_realm_manager->get_archetype(e.entity_id);
+            if (entity_archetype) {
+                ElementArchetype* element_archetype = entity_archetype->get_element_by_id(e.element_id);
+                if (element_archetype) {
+                    element_archetype->data["width"] = live_sprite->get_texture_width();
+                    element_archetype->data["height"] = live_sprite->get_texture_height();
                 }
             }
         }
     }
 
+    
     void RealmDesignerPanel::Pimpl::handle_hierarchy_changed_event(const OnHierarchyChangedEvent& e) {
         Entity* dragged_live_entity = context->preview_scene->get_entity_by_id(e.entity_id);
-         assert(dragged_live_entity != nullptr && "FATAL: Dragged Entity not found in live scene during hierarchy change!"); // Sanity Check
+        assert(dragged_live_entity != nullptr && "FATAL: Dragged Entity not found in live scene during hierarchy change!");
+        
         Entity* target_live_entity = context->preview_scene->get_entity_by_id(e.parent_id);
 
         if (!dragged_live_entity) return;
@@ -905,25 +922,37 @@ namespace Salix {
             }
         };
         find_descendants(dragged_live_entity);
-
+        dragged_live_entity->release_from_parent();  // <-- I Added this!
         dragged_live_entity->set_parent(target_live_entity);
-        
+
         for (Entity* live_member : family_to_move) {
-            EntityArchetype* member_archetype = context->current_realm_map.at(live_member->get_id());
-            ElementArchetype* transform_arch = member_archetype->get_element_by_id(member_archetype->get_primary_transform_id());
-            
-            if (transform_arch) {
-                Transform* live_transform = live_member->get_transform();
+            // REFACTORED: Use the manager's public getter.
+            EntityArchetype* member_archetype = context->editor_realm_manager->get_archetype(live_member->get_id());
+            if (member_archetype) {
+                ElementArchetype* transform_arch = member_archetype->get_element_by_id(member_archetype->get_primary_transform_id());
                 
-                PropertyValueChangedEvent pos_event(live_member->get_id(), transform_arch->id, "Transform", "position", live_transform->get_position());
-                context->event_manager->dispatch(pos_event);
+                if (transform_arch) {
+                    Transform* live_transform = live_member->get_transform();
+                    PropertyValueChangedEvent pos_event(live_member->get_id(), transform_arch->id, "Transform", "position", live_transform->get_position());
+                    context->event_manager->dispatch(pos_event);
 
-                PropertyValueChangedEvent rot_event(live_member->get_id(), transform_arch->id, "Transform", "rotation", live_transform->get_rotation());
-                context->event_manager->dispatch(rot_event);
+                    PropertyValueChangedEvent rot_event(live_member->get_id(), transform_arch->id, "Transform", "rotation", live_transform->get_rotation());
+                    context->event_manager->dispatch(rot_event);
 
-                PropertyValueChangedEvent scale_event(live_member->get_id(), transform_arch->id, "Transform", "scale", live_transform->get_scale());
-                context->event_manager->dispatch(scale_event);
+                    PropertyValueChangedEvent scale_event(live_member->get_id(), transform_arch->id, "Transform", "scale", live_transform->get_scale());
+                    context->event_manager->dispatch(scale_event);
+                }
             }
+        }
+        EntitySelectedEvent event(e.entity_id);
+        context->event_manager->dispatch(event);
+    }
+   
+
+    void RealmDesignerPanel::Pimpl::handle_root_entity_added_event(const OnRootEntityAddedEvent& e) {
+        if (context->preview_scene) {
+            ArchetypeInstantiator::instantiate(e.archetype, context->preview_scene.get(), *context->init_context);
+            
         }
     }
 
@@ -937,8 +966,32 @@ namespace Salix {
                 if (live_child && live_parent) {
                     live_child->set_parent(live_parent);
                 }
+                EntitySelectedEvent event(e.archetype.id);
+                context->event_manager->dispatch(event);
             }
         }
+    }
+
+    void RealmDesignerPanel::Pimpl::handle_child_entity_added_event(const OnChildEntityAddedEvent& e) {
+        if (!context || !context->preview_scene) return;
+
+        // 1. Instantiate the new archetype to create the live entity in the preview scene.
+        ArchetypeInstantiator::instantiate(e.archetype, context->preview_scene.get(), *context->init_context);
+
+        // 2. Find the newly created live entity and its live parent.
+        Entity* live_child = context->preview_scene->get_entity_by_id(e.archetype.id);
+        Entity* live_parent = context->preview_scene->get_entity_by_id(e.archetype.parent_id);
+        // 3. If both exist, set the parent to establish the correct transform hierarchy.
+        if (live_child && live_parent) {
+            live_child->set_parent(live_parent);
+        }
+        
+        OnHierarchyChangedEvent hierarchy_event(live_child->get_id(), live_parent->get_id());
+        context->event_manager->dispatch(hierarchy_event);
+
+        // 4. (Optional) Automatically select the new entity for immediate user feedback.
+        EntitySelectedEvent select_event(live_child->get_id(), live_child);
+        context->event_manager->dispatch(select_event);
     }
 
     void RealmDesignerPanel::Pimpl::handle_entity_purged_event(const OnEntityPurgedEvent& e) {
@@ -981,6 +1034,34 @@ namespace Salix {
     }
 
 
+    void RealmDesignerPanel::Pimpl::handle_element_added_event(const OnElementAddedEvent& e) {
+        if (!context || !context->preview_scene) return;
+
+        // 1. Find the live parent entity in the preview scene.
+        Entity* live_parent_entity = context->preview_scene->get_entity_by_id(e.parent_entity_id);
+        if (!live_parent_entity) return;
+
+        // 2. Create the new live element using the archetype's type name.
+        Element* new_live_element = ByteMirror::create_element_by_name(e.element_archetype.type_name);
+        if (!new_live_element) return;
+
+        // 3. Set the new element's ID to match its archetype and add it to the live parent.
+        new_live_element->set_id(e.element_archetype.id);
+        live_parent_entity->add_element(new_live_element);
+
+        // 4. THIS IS THE KEY: Call on_load() to initialize the element and load its assets.
+        new_live_element->on_load(*context->init_context);
+
+        // 5. Dispatch an event to sync derived data (like width/height) back to the archetype.
+        PropertyValueChangedEvent sync_event(
+            e.parent_entity_id,
+            e.element_archetype.id,
+            e.element_archetype.type_name,
+            "__internal_sync__", // This is just to trigger the handler, the name doesn't matter
+            {}
+        );
+        context->event_manager->dispatch(sync_event);
+    }
 
 
 
