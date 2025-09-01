@@ -45,7 +45,7 @@ namespace Salix {
         ImGuiInput, EditorEntitySelected, EditorElementSelected, EditorThemeReloadEvent,BeforeEntityPurged,
         EditorPropertyValueChanged, EditorOnHierarchyChanged, EditorOnRootEntityAdded, EditorOnEntityAdded,
         EditorOnChildEntityAdded, EditorOnEntityPurged,
-        EditorOnEntityFamilyAdded, EditorOnEntityFamilyPurged, EditorOnElementAdded
+        EditorOnEntityFamilyAdded, EditorOnEntityFamilyPurged, EditorOnElementAdded, EditorOnMainCameraChanged
     };
 
     class SALIX_API IEvent {
