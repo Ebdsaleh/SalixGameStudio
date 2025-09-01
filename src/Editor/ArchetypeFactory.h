@@ -35,7 +35,9 @@ namespace Salix {
 
         static bool entity_exists_in_realm(const std::vector<EntityArchetype>& realm, const EntityArchetype& entity);
 
-        static std::string generate_unique_entity_name(const std::string& source_name, EditorRealmManager* realm_manager);
+        static std::string generate_unique_entity_name(const std::string& source_name, EditorRealmManager* realm_manager,
+            const std::vector<EntityArchetype>& current_batch);
+    
 
         private:
         // Private helper function to handle the recursion for the second function.

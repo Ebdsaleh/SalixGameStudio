@@ -151,7 +151,7 @@ namespace Salix {
         EntityArchetype new_archetype = duplicate_single_archetype_internal(source, context);
 
         // 2. Generate and apply the unique name using the new helper method.
-        new_archetype.name = generate_unique_entity_name(source.name, realm_manager);
+        new_archetype.name = generate_unique_entity_name(source.name, realm_manager, {});
 
         return new_archetype;
     }
@@ -226,7 +226,7 @@ namespace Salix {
             if (!original_archetype) continue;
             
             // A. Generate a unique name for EVERY entity in the family
-            new_archetype.name = generate_unique_entity_name(original_archetype->name, realm_manager);
+            new_archetype.name = generate_unique_entity_name(original_archetype->name, realm_manager, new_family);
 
             // B. Re-wire the parent ID using our map
             new_archetype.parent_id = id_map.count(original_archetype->parent_id) 
@@ -281,7 +281,7 @@ namespace Salix {
             if (!original_archetype) continue;
             
             // A. Generate a unique name for EVERY entity
-            new_archetype.name = generate_unique_entity_name(original_archetype->name, realm_manager);
+            new_archetype.name = generate_unique_entity_name(original_archetype->name, realm_manager, new_family);
 
             // B. Re-wire Parent ID. THIS IS THE KEY DIFFERENCE.
             if (original_archetype->id == source.id) {
@@ -365,20 +365,37 @@ namespace Salix {
     }
 
 
-    std::string ArchetypeFactory::generate_unique_entity_name(const std::string& source_name, EditorRealmManager* realm_manager) {
-        // 1. Get the base name by stripping any existing " (Copy...)" suffix.
+    std::string ArchetypeFactory::generate_unique_entity_name(const std::string& source_name, EditorRealmManager* realm_manager,
+        const std::vector<EntityArchetype>& current_batch) {
+        
         std::string base_name = source_name;
         size_t copy_pos = base_name.find(" (Copy");
         if (copy_pos != std::string::npos) {
             base_name = base_name.substr(0, copy_pos);
         }
         
-        // 2. Loop until a unique name is found.
         std::string potential_name = base_name + " (Copy)";
-        int copy_number = 2; // Start numbering at 2 for " (Copy 2)"
+        int copy_number = 2;
         
-        // Use the manager's new helper for an efficient and encapsulated check.
-        while (realm_manager->does_entity_name_exist(potential_name)) {
+        while (true) {
+            // Check 1: Does the name exist in the main realm?
+            bool name_exists_in_realm = realm_manager->does_entity_name_exist(potential_name);
+
+            // Check 2: Does the name exist in the batch we are currently creating?
+            bool name_exists_in_batch = false;
+            for (const auto& archetype : current_batch) {
+                if (archetype.name == potential_name) {
+                    name_exists_in_batch = true;
+                    break;
+                }
+            }
+
+            if (!name_exists_in_realm && !name_exists_in_batch) {
+                // The name is truly unique, we can exit the loop.
+                break;
+            }
+
+            // If the name was found, generate the next one and try again.
             potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
         }
         
