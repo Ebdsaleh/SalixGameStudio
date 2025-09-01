@@ -751,9 +751,13 @@ namespace Salix {
             return; // Element not found
         }
         
-        // 3. Apply the new value from the event to the archetype's YAML data node.
-        element_archetype->data[e.property_name] = YAML::property_value_to_node(e.new_value);
-        
+        // Put a clause in here to prevent it from overwriting the camera's projection mode after its been set
+        // With the ScryingMirrorPanel
+        if (e.property_name != "projection_mode") {
+            // 3. Apply the new value from the event to the archetype's YAML data node.
+            element_archetype->data[e.property_name] = YAML::property_value_to_node(e.new_value);
+        }
+
         // --- Synchronize the Element's name property change with its data value ---.
         // If the property that changed was "name", we must ALSO update the mirrored 'name' member.
         if (e.property_name == "name") {
