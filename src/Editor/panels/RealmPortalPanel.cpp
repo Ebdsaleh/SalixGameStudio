@@ -186,13 +186,17 @@ namespace Salix {
             return;
         }
 
+        Scene* scene_to_use = pimpl->context->active_scene;
         
         // If we don't have a camera pointer yet, try to find it using the scene's ID
         if (!pimpl->game_camera) {
             SimpleGuid cam_id = pimpl->context->active_scene->get_main_camera_entity_id();
             if (cam_id.is_valid()) {
                 Entity* cam_entity = pimpl->context->active_scene->get_entity_by_id(cam_id);
+                
                 if (cam_entity) {
+                    std::cout << "Camera Entity ID" << cam_id.get_value() << std::endl;
+                    
                     pimpl->game_camera = cam_entity->get_element<Camera>();
                 }
             }
@@ -257,14 +261,20 @@ namespace Salix {
     void RealmPortalPanel::on_event(IEvent& event) {
         if (event.get_event_type() == EventType::EditorOnMainCameraChanged) {
             auto& e = static_cast<OnMainCameraChangedEvent&>(event);
-
-            // Update the active scene's data
-            if (pimpl->context->active_scene) {
-                pimpl->context->active_scene->set_main_camera_entity(e.entity_id);
+            
+            Scene* scene_to_use = pimpl->context->active_scene;
+            // Safety check to ensure the scene exists.
+            if (!scene_to_use) {
+                return;
             }
 
-            // Find the new live camera and update the internal pointer
-            Entity* camera_entity = pimpl->context->active_scene->get_entity_by_id(e.entity_id);
+            // 1. Update the Scene's data to record which entity is the main camera.
+            scene_to_use->set_main_camera_entity(e.entity_id);
+
+            // 2. Find the new live camera entity within the scene.
+            Entity* camera_entity = scene_to_use->get_entity_by_id(e.entity_id);
+            
+            // 3. Update the panel's internal pointer to the live Camera component.
             if (camera_entity) {
                 pimpl->game_camera = camera_entity->get_element<Camera>();
             } else {
