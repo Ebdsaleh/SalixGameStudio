@@ -223,38 +223,85 @@ namespace Salix {
     }
 
 
+    // A small struct to hold all the info needed for a single draw call
+struct RenderJob {
+    const Sprite2D* sprite;
+    const Transform* transform;
+    int sorting_layer;
+};
+
     void RealmPortalPanel::Pimpl::draw_scene() {
         Scene* active_scene = context->active_scene;
-        IRenderer* renderer = context->renderer; // Use the interface
+        IRenderer* renderer = context->renderer;
         if (!renderer || !active_scene) return;
 
-        // Loop through all entities in the scene and draw them
+        // --- STEP 1: COLLECT all visible sprites into a render queue ---
+        std::vector<RenderJob> render_queue;
         for (Entity* entity : active_scene->get_entities()) {
-            if (!entity || entity->is_purged()) continue;
-            
-            Transform* transform = entity->get_element<Transform>();
-            Sprite2D* sprite = entity->get_element<Sprite2D>();
+            if (!entity || entity->is_purged() || !entity->is_visible()) continue;
+            Transform* transform = entity->get_transform();
+            if (!transform) continue;
 
-            if (transform && sprite && sprite->get_texture()) {
-                // 1. Determine the correct flip state from the element's data
-                SpriteFlip flip_state = SpriteFlip::None;
-                if (sprite->flip_h && sprite->flip_v) {
-                    flip_state = SpriteFlip::Both;
-                } else if (sprite->flip_h) {
-                    flip_state = SpriteFlip::Horizontal;
-                } else if (sprite->flip_v) {
-                    flip_state = SpriteFlip::Vertical;
+            std::vector<Element*> sprites = entity->get_elements_by_type_name("Sprite2D");
+            for (auto* element : sprites) {
+                Sprite2D* sprite = dynamic_cast<Sprite2D*>(element);
+                if (sprite && sprite->is_visible() && sprite->get_texture()) {
+                    render_queue.push_back({sprite, transform, sprite->get_sorting_layer()});
                 }
-
-                // 2. Make the clean draw call
-                //    The old, redundant Rect creation has been removed.
-                renderer->draw_sprite(
-                    sprite->get_texture(),
-                    transform,
-                    sprite->get_color(),
-                    flip_state // Use the calculated flip state
-                );
             }
+        }
+
+        // --- STEP 2: SORT the render queue by sorting_layer ---
+        std::sort(render_queue.begin(), render_queue.end(), [](const RenderJob& a, const RenderJob& b) {
+            return a.sorting_layer < b.sorting_layer;
+        });
+
+        // --- STEP 3: RENDER the sorted queue ---
+        for (const auto& job : render_queue) {
+            const Sprite2D* sprite = job.sprite;
+            const Transform* transform = job.transform;
+
+            // Get the entity's base world matrix
+            glm::mat4 entity_model_matrix;
+            if (sprite->use_entity_rotation) {
+                // Use the entity's full world matrix, including its rotation and scale.
+                entity_model_matrix = transform->get_model_matrix();
+            } else {
+                // Create a matrix from ONLY the entity's world position for billboarding.
+                entity_model_matrix = glm::translate(glm::mat4(1.0f), transform->get_world_position().to_glm());
+            }
+
+            // Get sprite's local properties
+            Vector2 offset = sprite->offset;
+            Vector2 pivot = sprite->pivot;
+            float local_rotation_deg = sprite->get_local_rotation();
+            const float PIXELS_PER_UNIT = renderer->get_pixels_per_unit();
+            float world_width = (float)sprite->get_texture_width() / PIXELS_PER_UNIT;
+            float world_height = (float)sprite->get_texture_height() / PIXELS_PER_UNIT;
+
+            // Apply flip logic to the scale
+            float scale_x = world_width;
+            float scale_y = world_height;
+            if (sprite->flip_h) scale_x *= -1.0f;
+            if (sprite->flip_v) scale_y *= -1.0f;
+
+            // Build the sprite's complete local transformation matrix
+            glm::mat4 local_sprite_matrix = glm::mat4(1.0f);
+            local_sprite_matrix = glm::translate(local_sprite_matrix, glm::vec3(offset.x, offset.y, 0.0f));
+            local_sprite_matrix = glm::rotate(local_sprite_matrix, glm::radians(local_rotation_deg), glm::vec3(0.0f, 0.0f, 1.0f));
+            local_sprite_matrix = glm::scale(local_sprite_matrix, glm::vec3(scale_x, scale_y, 1.0f));
+            // Pivot correction shifts the quad so the pivot point is at the origin before scaling
+            local_sprite_matrix = local_sprite_matrix * glm::translate(glm::mat4(1.0f), glm::vec3(0.5f - pivot.x, 0.5f - pivot.y, 0.0f));
+
+            // Combine with the entity's world matrix to get the final matrix for this sprite
+            glm::mat4 final_model_matrix = entity_model_matrix * local_sprite_matrix;
+
+            // Make the clean draw call with the FINAL calculated matrix
+            renderer->draw_sprite(
+                sprite->get_texture(),
+                final_model_matrix,
+                sprite->color
+            );
         }
     }
 
