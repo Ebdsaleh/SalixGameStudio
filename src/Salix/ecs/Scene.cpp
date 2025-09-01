@@ -35,6 +35,7 @@ namespace Salix {
         std::vector<std::unique_ptr<Entity>> entities;
         InitContext context;
         ICamera* active_camera = nullptr;
+        SimpleGuid main_camera_entity_id = SimpleGuid::invalid();
         Pimpl() = default; // Default constructor
 
         template <class Archive>
@@ -69,6 +70,11 @@ namespace Salix {
     ICamera* Scene::get_active_camera() {
         return pimpl->active_camera;
     }
+
+    void Scene::set_main_camera_entity(SimpleGuid entity_id) { pimpl->main_camera_entity_id = entity_id; }
+    SimpleGuid Scene::get_main_camera_entity_id() const { return pimpl->main_camera_entity_id; }
+
+
     // --- NEW: Method to load the scene's content (entities/elements) from its file into Pimpl ---
     // This is the core "load on demand" logic, called by on_load().
     bool Scene::load_content_from_file(const std::string& project_root_path) {
@@ -365,6 +371,7 @@ namespace Salix {
         // When deserializing a FULL scene (e.g., in SceneManager::load_scene, which loads shell+content),
         // or when saving a loaded scene, this will serialize/deserialize the Pimpl's entities.
         archive(cereal::make_nvp("entities", pimpl->entities)); // Corrected key name for Pimpl's content
+        archive(cereal::make_nvp("main_camera_entity_id", pimpl->main_camera_entity_id));  // Entity holding the main camera.
     }
 
     template void Scene::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);
