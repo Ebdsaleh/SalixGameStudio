@@ -281,6 +281,8 @@ namespace Salix {
         TypeInfo type_info;
         type_info.name = std::string("Sprite2D");
         type_info.ancestor = get_type_info(typeid(RenderableElement2D));
+        // Tell the system that "width" and "height" are derived properties for a Sprite2D.
+        type_info.derived_properties = {"width", "height"};
         type_info.properties = {
             { 
                 "color", PropertyType::Color, nullptr,
@@ -652,5 +654,47 @@ namespace Salix {
     }
 
     
+    PropertyValue ByteMirror::get_property_value(Element* element, const std::string& property_name) {
+        // 1. Safety checks
+        if (!element) {
+            return {}; // Return empty variant if element is null
+        }
+
+        const TypeInfo* type_info = get_type_info(typeid(*element));
+        if (!type_info) {
+            return {}; // Return empty if reflection data not found
+        }
+
+        // 2. Find the specific property's reflection data
+        for (const auto& prop : get_all_properties_for_type(type_info)) {
+            if (prop.name == property_name) {
+                // 3. Use the property's generic getter to get the void* to the data
+                void* data_ptr = prop.get_data(element);
+                if (!data_ptr) {
+                    return {};
+                }
+
+                // 4. Convert the void* to the correct type and return it in a PropertyValue variant
+                switch (prop.type) {
+                    case PropertyType::Int:       return *static_cast<int*>(data_ptr);
+                    case PropertyType::UInt64:    return *static_cast<uint64_t*>(data_ptr);
+                    case PropertyType::Float:     return *static_cast<float*>(data_ptr);
+                    case PropertyType::Bool:      return *static_cast<bool*>(data_ptr);
+                    case PropertyType::String:    return *static_cast<std::string*>(data_ptr);
+                    case PropertyType::Vector2:   return *static_cast<Vector2*>(data_ptr);
+                    case PropertyType::Vector3:   return *static_cast<Vector3*>(data_ptr);
+                    case PropertyType::Color:     return *static_cast<Color*>(data_ptr);
+                    case PropertyType::Point:     return *static_cast<Point*>(data_ptr);
+                    case PropertyType::Rect:      return *static_cast<Rect*>(data_ptr);
+                    // Note: Enums are read as integers by the reflection system
+                    case PropertyType::Enum:      return *static_cast<int*>(data_ptr);
+                    case PropertyType::EnumClass: return *static_cast<int*>(data_ptr);
+                    default:                      return {};
+                }
+            }
+        }
+
+        return {}; // Return empty if the property name was not found
+    }
 
 } // namespace Salix

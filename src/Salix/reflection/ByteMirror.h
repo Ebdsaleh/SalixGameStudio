@@ -1,10 +1,10 @@
 // Salix/reflection/ByteMirror.h
 #pragma once
 #include <Salix/core/Core.h>
-
+#include <Salix/reflection/ReflectionTypes.h>
 #include <string>
 #include <vector>
-#include <cstddef> // Required for offsetof
+#include <cstddef> 
 #include <unordered_map>
 #include <typeindex>
 #include <functional>
@@ -85,6 +85,7 @@ namespace Salix {
         std::vector<Property> properties;
         const TypeInfo* ancestor = nullptr;
         std::optional<std::type_index> type_index;
+        std::vector<std::string> derived_properties;
 
     };
 
@@ -123,6 +124,9 @@ namespace Salix {
             
             // Recursively collects all properties from a type and its ancestors.
             static std::vector<Property> get_all_properties_for_type(const TypeInfo* type_info);
+
+            // Gets a property's value from a live element by name.
+            static PropertyValue get_property_value(Element* element, const std::string& property_name);
 
         private:
             // The static registry mapping a type_index to its reflection data.
