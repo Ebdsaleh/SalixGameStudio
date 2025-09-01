@@ -250,6 +250,11 @@ namespace Salix {
             }
         }
 
+        // --- Create and initialize the EditorRealmManager ---
+        log_file << "[DEBUG] Creating EditorRealmManager..." << std::endl;
+        pimpl->editor_context->editor_realm_manager = std::make_unique<EditorRealmManager>(pimpl->editor_context.get());
+
+
         log_file << "[DEBUG] EditorState::on_enter FINISHED successfully." << std::endl;
 
         pimpl->camera = std::make_unique<EditorCamera>();
@@ -267,7 +272,7 @@ namespace Salix {
             engine_context.app_config->window_config.width,
             engine_context.app_config->window_config.height
         );
-        if (pimpl->editor_context->current_realm.empty()) {
+        if (pimpl->editor_context->editor_realm_manager->realm_is_empty()) {
             // load the scene/realm based on the EditorDataMode set during the Engine initialization.
             if (pimpl->editor_context->data_mode == EditorDataMode::Yaml) {
                 std::cout << "DEBUG: Starting YAML load..." << std::endl;
@@ -278,74 +283,14 @@ namespace Salix {
                 std::filesystem::path path_to_realm = std::filesystem::absolute(project_directory_path / relative_path_to_realm);
                 
                 std::cout << "REALM TO LOAD: " << path_to_realm<< std::endl;
-                pimpl->editor_context->current_realm = load_archetypes_from_file(path_to_realm.string());
+                pimpl->editor_context->editor_realm_manager->load_realm_from_file(path_to_realm.string());
+
                 std::cout << "DEBUG: Load completed. Vector size: " 
-                        << pimpl->editor_context->current_realm.size() << std::endl;
+                        << pimpl->editor_context->editor_realm_manager->get_realm_size() << std::endl;
 
-                
-                // --- Sync the ID counter ---
-                uint64_t max_id = 0;
-                for (const auto& entity_archetype : pimpl->editor_context->current_realm) {
-                    if (entity_archetype.id.get_value() > max_id) {
-                        max_id = entity_archetype.id.get_value();
-                    }
-                    for (const auto& element_archetype : entity_archetype.elements) {
-                        if (element_archetype.id.get_value() > max_id) {
-                            max_id = element_archetype.id.get_value();
-                        }
-                    }
-                }
-                SimpleGuid::update_next_id(max_id);
-                
-                // Debug check #1 - Verify vector contents
-                for (const auto& archetype : pimpl->editor_context->current_realm) {
-                    assert(!archetype.name.empty() && "Entity archetype has empty name");
-                    assert(archetype.id.is_valid() && "Entity archetype has invalid ID");
-                    std::cout << "  - " << archetype.name.c_str() << " (ID: " << archetype.id.get_value() << ") with "
-                            << archetype.elements.size() << " elements" << std::endl;
-                    
-                    for (const auto& element : archetype.elements) {
-                        assert(!element.type_name.empty() && "Element has empty type name");
-                        assert(element.id.is_valid() && "Element has invalid ID");
-                        std::cout << "    * " << element.type_name.c_str() << " (ID: " << element.id.get_value() << ")" << std::endl;
-                    }
-                }
-
-                // Debug check #2 - Verify YAML node validity
-                for (const auto& archetype : pimpl->editor_context->current_realm) {
-                    for (const auto& element : archetype.elements) {
-                        assert(element.data.IsDefined() && "Element data node is invalid");
-                        assert(element.data.IsMap() && "Element data is not a map");
-                    }
-                }
-                // Populate the current_realm_map for fast retrieval and EntityArchetype manipulation.
-                std::cout << "DEBUG: All archetype data validated successfully." << std::endl;
-                // Now that the realm is loaded, get the WorldTreePanel and tell it to build its map.
-                IPanel* panel = pimpl->panel_manager->get_panel("World Tree Panel");
-                if (WorldTreePanel* world_tree = dynamic_cast<WorldTreePanel*>(panel)) {
-                    world_tree->rebuild_current_realm_map(); // Assuming you make this public
-                    std::cout << "DEBUG: Initialized the WorldTreePanel's realm map." << std::endl;
-                }
-
-
-                pimpl->editor_context->loaded_realm_snapshot = RealmSnapshot::load_from_entity_archetype_vector(pimpl->editor_context->current_realm);
-                // CORRECTED: Call get_entity_map() to access the map, then check if it's empty.
-                if (!pimpl->editor_context->loaded_realm_snapshot.get_entity_map().empty()) {
-                    std::cout << "DEBUG: Realm Snapshot instantiated..." << std::endl;
-                }
-                else {
-                    std::cerr << "DEBUG ERROR: Realm Snapshot Failed To Instantiate From The Loaded Realm!" << std::endl;
-                }
-                if (pimpl->editor_context->loaded_realm_snapshot.validate_snapshot(pimpl->editor_context->current_realm)) {
-                    std::cout << "DEBUG: Realm Snapshot Is Valid..." << std::endl;
-                }
-                else {
-                    std::cerr << "DEBUG: Realm Snapshot Failed Validation" << std::endl;
-                }
+                pimpl->editor_context->editor_realm_manager->validate_realm();
+                pimpl->editor_context->editor_realm_manager->print_hierarchy();
             }
-        
-            
-
             else {
                 std::cerr << "EditorState::initialize - Invalid EditorDataMode detected!" << std::endl;
             }
@@ -376,7 +321,7 @@ namespace Salix {
          if (pimpl->editor_context->data_mode == EditorDataMode::Yaml) {
         if (pimpl->editor_context->realm_is_dirty) {
             Scene* preview_scene = pimpl->editor_context->preview_scene.get();
-            auto& realm_archetypes = pimpl->editor_context->current_realm;
+            auto& realm_archetypes = pimpl->editor_context->editor_realm_manager->get_realm();
             
             preview_scene->clear_all_entities();
             
