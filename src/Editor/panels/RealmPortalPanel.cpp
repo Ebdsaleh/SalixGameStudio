@@ -1,6 +1,7 @@
 // Editor/panels/RealmPortalPanel.cpp
 #include <Editor/panels/RealmPortalPanel.h>
 #include <Salix/gui/imgui/ImGuiIconManager.h>
+#include <Editor/events/OnMainCameraChangedEvent.h>
 #include <Salix/gui/IGui.h>
 #include <Salix/gui/IconInfo.h>
 #include <Editor/EditorContext.h>
@@ -9,6 +10,7 @@
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/core/SimpleGuid.h>
+#include <Salix/events/EventManager.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/DummyCamera.h>
@@ -40,7 +42,7 @@ namespace Salix {
         ImVec2 viewport_size = { 1280, 720 };
         bool is_panel_focused_this_frame = false;
         std::unique_ptr<DummyCamera> failsafe_camera;
-        
+        ICamera* game_camera = nullptr;  
         void draw_scene();
         
     };
@@ -82,6 +84,7 @@ namespace Salix {
                 pimpl->framebuffer_id << std::endl;
         }
 
+        pimpl->context->event_manager->subscribe(EventCategory::Editor, this);
          
         
     }
@@ -183,13 +186,19 @@ namespace Salix {
             return;
         }
 
-        // Find the MainCamera from the context (which is set when the scene is created) 
-        ICamera* camera_to_use = pimpl->context->main_camera;
-        if (!camera_to_use) {
-            // If there's no main camera, we can't render the game view.
-
-            camera_to_use = pimpl->failsafe_camera.get();
+        
+        // If we don't have a camera pointer yet, try to find it using the scene's ID
+        if (!pimpl->game_camera) {
+            SimpleGuid cam_id = pimpl->context->active_scene->get_main_camera_entity_id();
+            if (cam_id.is_valid()) {
+                Entity* cam_entity = pimpl->context->active_scene->get_entity_by_id(cam_id);
+                if (cam_entity) {
+                    pimpl->game_camera = cam_entity->get_element<Camera>();
+                }
+            }
         }
+
+        ICamera* camera_to_use = pimpl->game_camera ? pimpl->game_camera : pimpl->failsafe_camera.get();
 
         IRenderer* renderer = pimpl->context->renderer;
         if (!renderer) return;
@@ -245,7 +254,24 @@ namespace Salix {
         }
     }
 
-    void RealmPortalPanel::on_event(IEvent& event) { (void)event; }
+    void RealmPortalPanel::on_event(IEvent& event) {
+        if (event.get_event_type() == EventType::EditorOnMainCameraChanged) {
+            auto& e = static_cast<OnMainCameraChangedEvent&>(event);
+
+            // Update the active scene's data
+            if (pimpl->context->active_scene) {
+                pimpl->context->active_scene->set_main_camera_entity(e.entity_id);
+            }
+
+            // Find the new live camera and update the internal pointer
+            Entity* camera_entity = pimpl->context->active_scene->get_entity_by_id(e.entity_id);
+            if (camera_entity) {
+                pimpl->game_camera = camera_entity->get_element<Camera>();
+            } else {
+                pimpl->game_camera = nullptr;
+            }
+        }
+    }
 
 
     void RealmPortalPanel::set_visibility(bool visibility) {
