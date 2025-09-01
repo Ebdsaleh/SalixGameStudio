@@ -2,6 +2,7 @@
 #include <Salix/serialization/YamlConverters.h>
 #include <Editor/ArchetypeFactory.h>
 #include <Editor/EditorContext.h>
+#include <Editor/management/EditorRealmManager.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
 // Required ECS includes.
@@ -93,50 +94,19 @@ namespace Salix {
     }
 
 
-
-    EntityArchetype ArchetypeFactory::duplicate_entity_archetype(const EntityArchetype& source, 
-        const std::vector<EntityArchetype>& all_archetypes, EditorContext* context) {
-    
+     // --- NEW PRIVATE HELPER FUNCTION ---
+    // This contains the core logic from your original duplicate_entity_archetype.
+    // Its job is to create a single copy with the world transform preserved.
+    static EntityArchetype duplicate_single_archetype_internal(const EntityArchetype& source, EditorContext* context)
+    {
         EntityArchetype new_archetype;
-
-        // 1. Determine the base name for the copy.
-        // This finds the root name if we are copying an existing copy (e.g., "Player" from "Player (Copy)").
-        std::string base_name = source.name;
-        size_t copy_pos = base_name.find(" (Copy");
-        if (copy_pos != std::string::npos) {
-            base_name = base_name.substr(0, copy_pos);
-        }
         
-        // 2. Generate and check for a unique name.
-        std::string potential_name = base_name + " (Copy)";
-        int copy_number = 1;
-
-        // This loop continues until a unique name is found.
-        bool name_is_unique = false;
-        while (!name_is_unique) {
-            bool name_found = false;
-            // Check against all existing archetypes.
-            for (const auto& existing_archetype : all_archetypes) {
-                if (existing_archetype.name == potential_name) {
-                    name_found = true;
-                    break;
-                }
-            }
-
-            if (name_found) {
-                // If the name exists, append the next number and try again.
-                potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
-            } else {
-                // If we looped through all entities and didn't find the name, it's unique.
-                name_is_unique = true;
-            }
-        }
-        
-        new_archetype.name = potential_name;
+        // 1. Copy base properties but generate a new ID. The name will be set by the public-facing functions.
+        new_archetype.name = source.name;
         new_archetype.id = SimpleGuid::generate();
         new_archetype.state = ArchetypeState::New;
-        
-        // 3. Perform a deep copy of all elements, giving each a new ID.
+
+        // 2. Deep copy all elements, giving each a new ID.
         for (const auto& source_element : source.elements) {
             ElementArchetype new_element;
             new_element.type_name = source_element.type_name;
@@ -144,19 +114,16 @@ namespace Salix {
             new_element.id = SimpleGuid::generate();
             new_element.owner_id = new_archetype.id;
             new_element.is_visible = source_element.is_visible;
-            new_element.data["visible"] = source_element.is_visible;
             new_element.data = YAML::Clone(source_element.data);
             new_element.allows_duplication = source_element.allows_duplication;
             new_element.state = ArchetypeState::New;
             new_archetype.elements.push_back(new_element);
         }
 
-        // --- World Transform Preservation using Live Entity ---
+        // 3. --- World Transform Preservation using Live Entity ---
         Entity* source_live_entity = context->preview_scene->get_entity_by_id(source.id);
         if (source_live_entity && source_live_entity->get_transform()) {
             Transform* source_transform = source_live_entity->get_transform();
-            
-            // Get the source's actual world transform
             Vector3 world_pos = source_transform->get_world_position();
             Vector3 world_rot = source_transform->get_world_rotation();
             Vector3 world_scale = source_transform->get_world_scale();
@@ -172,168 +139,172 @@ namespace Salix {
         }
 
         return new_archetype;
-        
     }
 
+
+
+    // This one is refactored correcty!
+    EntityArchetype ArchetypeFactory::duplicate_entity_archetype(const EntityArchetype& source, 
+        EditorRealmManager* realm_manager, EditorContext* context) {
+        // 1. Create the base duplicate using our internal helper.
+        // This correctly preserves the entity's world transform.
+        EntityArchetype new_archetype = duplicate_single_archetype_internal(source, context);
+
+        // 2. Generate and apply the unique name using the new helper method.
+        new_archetype.name = generate_unique_entity_name(source.name, realm_manager);
+
+        return new_archetype;
+    }
+
+    // This one doesn't need modifying
     // This is the private recursive helper function's implementation.
     void ArchetypeFactory::duplicate_recursive_helper(
         const SimpleGuid& source_id,
-        const std::vector<EntityArchetype>& all_archetypes,
-        std::vector<EntityArchetype>& new_family,
-        std::map<SimpleGuid, SimpleGuid>& id_map) 
-    {
-        auto it = std::find_if(all_archetypes.begin(), all_archetypes.end(),
-            [&](const EntityArchetype& e) { return e.id == source_id; });
-        if (it == all_archetypes.end()) return;
-
-        const EntityArchetype& source_archetype = *it;
-
-        EntityArchetype new_archetype;
-        new_archetype.name = source_archetype.name;
-        new_archetype.id = SimpleGuid::generate();
-        new_archetype.state = ArchetypeState::New;
-        id_map[source_archetype.id] = new_archetype.id;
-
-        for (const auto& source_element : source_archetype.elements) {
-            ElementArchetype new_element;
-            new_element.type_name = source_element.type_name;
-            new_element.name = source_element.name;
-            new_element.id = SimpleGuid::generate();
-            new_element.owner_id = new_archetype.id;
-            new_element.data = YAML::Clone(source_element.data);
-            new_element.state = ArchetypeState::New;
-            new_archetype.elements.push_back(new_element);
+        EditorRealmManager* realm_manager,
+        EditorContext* context,
+        std::vector<EntityArchetype>& out_new_family,
+        std::map<SimpleGuid, SimpleGuid>& out_id_map) {
+        // --- Method Start ---
+        // 1. Use the manager for a fast, direct lookup of the original archetype.
+        const EntityArchetype* source_archetype = realm_manager->get_archetype(source_id);
+        if (!source_archetype) {
+            return; // Safety check in case an ID is invalid.
         }
 
-        new_family.push_back(new_archetype);
+        // 2. THIS IS THE KEY: Call our trusted internal helper.
+        // This single function call creates a perfect, world-preserved copy.
+        // All of the old, manual property copying is now gone.
+        EntityArchetype new_archetype = duplicate_single_archetype_internal(*source_archetype, context);
+        
+        // 3. Record the mapping from the original ID to the new duplicate's ID.
+        out_id_map[source_archetype->id] = new_archetype.id;
 
-        for (const auto& child_id : source_archetype.child_ids) {
-            duplicate_recursive_helper(child_id, all_archetypes, new_family, id_map);
+        // 4. Add the newly created archetype to our list of results.
+        out_new_family.push_back(new_archetype);
+
+        // 5. Recursively call this function for all children of the original archetype.
+        for (const auto& child_id : source_archetype->child_ids) {
+            duplicate_recursive_helper(child_id, realm_manager, context, out_new_family, out_id_map);
         }
     }
 
+
+    
     std::vector<EntityArchetype> ArchetypeFactory::duplicate_entity_archetype_and_children(
-        const EntityArchetype& source,
-        const std::vector<EntityArchetype>& all_archetypes, EditorContext* context) {
+        SimpleGuid source_id, 
+        EditorContext* context) {
+        // --- Initial Setup ---
+        if (!context || !context->editor_realm_manager) {
+            return {}; // Safety check
+        }
+        EditorRealmManager* realm_manager = context->editor_realm_manager.get();
+        
         std::vector<EntityArchetype> new_family;
-        std::map<SimpleGuid, SimpleGuid> id_map;
-        duplicate_recursive_helper(source.id, all_archetypes, new_family, id_map);
+        std::map<SimpleGuid, SimpleGuid> id_map; // Maps original ID -> new ID
 
+        // --- Step 1: CREATE all the new parts using our powerful recursive helper ---
+        // This single call traverses the entire hierarchy and creates a flat list of 
+        // world-preserved duplicates in the 'new_family' vector.
+        duplicate_recursive_helper(source_id, realm_manager, context, new_family, id_map);
+
+        if (new_family.empty()) {
+            return {};
+        }
+
+        // --- Step 2: ASSEMBLE the new family by wiring up relationships and names ---
+        // This final loop connects all the parts and gives them unique names.
         for (auto& new_archetype : new_family) {
+            // Find the original archetype that this new one was copied from
             SimpleGuid original_id;
-            for (const auto& pair : id_map) { if (pair.second == new_archetype.id) { original_id = pair.first; break; } }
-            
-            auto it = std::find_if(all_archetypes.begin(), all_archetypes.end(),
-                [&](const EntityArchetype& e) { return e.id == original_id; });
-            if (it == all_archetypes.end()) continue;
-            const EntityArchetype& original_archetype = *it;
-
-            if (id_map.count(original_archetype.parent_id)) {
-                new_archetype.parent_id = id_map.at(original_archetype.parent_id);
-            } else {
-                new_archetype.parent_id = SimpleGuid::invalid();
+            for (const auto& pair : id_map) {
+                if (pair.second == new_archetype.id) {
+                    original_id = pair.first;
+                    break;
+                }
             }
+            const EntityArchetype* original_archetype = realm_manager->get_archetype(original_id);
+            if (!original_archetype) continue;
+            
+            // A. Generate a unique name for EVERY entity in the family
+            new_archetype.name = generate_unique_entity_name(original_archetype->name, realm_manager);
 
+            // B. Re-wire the parent ID using our map
+            new_archetype.parent_id = id_map.count(original_archetype->parent_id) 
+                ? id_map.at(original_archetype->parent_id) 
+                : SimpleGuid::invalid();
+            
+            // C. Re-wire the child IDs using our map
             new_archetype.child_ids.clear();
-            for (const auto& old_child_id : original_archetype.child_ids) {
+            for (const auto& old_child_id : original_archetype->child_ids) {
                 if (id_map.count(old_child_id)) {
                     new_archetype.child_ids.push_back(id_map.at(old_child_id));
                 }
             }
         }
-
-        if (!new_family.empty()) {
-            std::string base_name = new_family[0].name;
-            size_t copy_pos = base_name.find(" (Copy");
-            if (copy_pos != std::string::npos) {
-                base_name = base_name.substr(0, copy_pos);
-            }
-            
-            std::string potential_name = base_name + " (Copy)";
-            int copy_number = 2;
-            bool name_is_unique = false;
-            while (!name_is_unique) {
-                bool name_found = false;
-                for (const auto& existing_archetype : all_archetypes) {
-                    if (existing_archetype.name == potential_name) {
-                        name_found = true;
-                        break;
-                    }
-                }
-                if (name_found) {
-                    potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
-                } else {
-                    name_is_unique = true;
-                }
-            }
-            new_family[0].name = potential_name;
-        }
         
+        // The factory's job is done. Return the fully assembled, correct new family.
         return new_family;
-    }
+    }              
+            
 
+   
     std::vector<EntityArchetype> ArchetypeFactory::duplicate_entity_archetype_family_as_sibling(
         const EntityArchetype& source,
-        const std::vector<EntityArchetype>& all_archetypes, EditorContext* context) {
-        
+        EditorContext* context) {
+        // --- Method Start ---
+        // --- 1. Setup ---
+        if (!context || !context->editor_realm_manager) return {};
+        EditorRealmManager* realm_manager = context->editor_realm_manager.get();
+
         std::vector<EntityArchetype> new_family;
         std::map<SimpleGuid, SimpleGuid> id_map;
-        duplicate_recursive_helper(source.id, all_archetypes, new_family, id_map);
 
+        // --- 2. CREATE all parts using our robust recursive helper ---
+        // This creates a flat list of disconnected, world-preserved duplicates.
+        duplicate_recursive_helper(source.id, realm_manager, context, new_family, id_map);
+
+        if (new_family.empty()) {
+            return {};
+        }
+
+        // --- 3. ASSEMBLE the new family ---
         for (auto& new_archetype : new_family) {
+            // Find the original archetype corresponding to this new one
             SimpleGuid original_id;
-            for (const auto& pair : id_map) { if (pair.second == new_archetype.id) { original_id = pair.first; break; } }
-            
-            auto it = std::find_if(all_archetypes.begin(), all_archetypes.end(),
-                [&](const EntityArchetype& e) { return e.id == original_id; });
-            if (it == all_archetypes.end()) continue;
-            const EntityArchetype& original_archetype = *it;
-
-            if (id_map.count(original_archetype.parent_id)) {
-                new_archetype.parent_id = id_map.at(original_archetype.parent_id);
-            } else {
-                new_archetype.parent_id = source.parent_id;
+            for (const auto& pair : id_map) {
+                if (pair.second == new_archetype.id) {
+                    original_id = pair.first;
+                    break;
+                }
             }
+            const EntityArchetype* original_archetype = realm_manager->get_archetype(original_id);
+            if (!original_archetype) continue;
+            
+            // A. Generate a unique name for EVERY entity
+            new_archetype.name = generate_unique_entity_name(original_archetype->name, realm_manager);
 
+            // B. Re-wire Parent ID. THIS IS THE KEY DIFFERENCE.
+            if (original_archetype->id == source.id) {
+                // If this is the root of the new family, make it a sibling of the source.
+                new_archetype.parent_id = source.parent_id;
+            } else {
+                // Otherwise, it's a child within the new family, so find its new parent.
+                new_archetype.parent_id = id_map.count(original_archetype->parent_id) 
+                    ? id_map.at(original_archetype->parent_id) 
+                    : SimpleGuid::invalid();
+            }
+            
+            // C. Re-wire Child IDs
             new_archetype.child_ids.clear();
-            for (const auto& old_child_id : original_archetype.child_ids) {
+            for (const auto& old_child_id : original_archetype->child_ids) {
                 if (id_map.count(old_child_id)) {
                     new_archetype.child_ids.push_back(id_map.at(old_child_id));
                 }
             }
         }
-
-        if (!new_family.empty()) {
-            std::string base_name = new_family[0].name;
-            size_t copy_pos = base_name.find(" (Copy");
-            if (copy_pos != std::string::npos) {
-                base_name = base_name.substr(0, copy_pos);
-            }
-            
-            std::string potential_name = base_name + " (Copy)";
-            int copy_number = 2;
-            bool name_is_unique = false;
-            while (!name_is_unique) {
-                bool name_found = false;
-                for (const auto& existing_archetype : all_archetypes) {
-                    if (existing_archetype.name == potential_name) {
-                        name_found = true;
-                        break;
-                    }
-                }
-                if (name_found) {
-                    potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
-                } else {
-                    name_is_unique = true;
-                }
-            }
-            new_family[0].name = potential_name;
-        }
         
         return new_family;
     }
-
-
 
     ElementArchetype ArchetypeFactory::duplicate_element_archetype(const ElementArchetype& source, const EntityArchetype& parent) {
         ElementArchetype new_element;
@@ -391,6 +362,27 @@ namespace Salix {
             return false;
         }
         return true;
+    }
+
+
+    std::string ArchetypeFactory::generate_unique_entity_name(const std::string& source_name, EditorRealmManager* realm_manager) {
+        // 1. Get the base name by stripping any existing " (Copy...)" suffix.
+        std::string base_name = source_name;
+        size_t copy_pos = base_name.find(" (Copy");
+        if (copy_pos != std::string::npos) {
+            base_name = base_name.substr(0, copy_pos);
+        }
+        
+        // 2. Loop until a unique name is found.
+        std::string potential_name = base_name + " (Copy)";
+        int copy_number = 2; // Start numbering at 2 for " (Copy 2)"
+        
+        // Use the manager's new helper for an efficient and encapsulated check.
+        while (realm_manager->does_entity_name_exist(potential_name)) {
+            potential_name = base_name + " (Copy " + std::to_string(copy_number++) + ")";
+        }
+        
+        return potential_name;
     }
     
 } // namespace Salix
