@@ -341,43 +341,32 @@ namespace Salix {
                 break;
             }
             case PropertyType::EnumClass: {
-                int current_value_int = std::get<int>(handle.get_value());
-                auto enum_data = EnumRegistry::get_enum_data_as_ptr(handle.get_contained_type_info()->type_index.value());
+    int current_value_int = std::get<int>(handle.get_value());
+    auto enum_data = EnumRegistry::get_enum_data_as_ptr(handle.get_contained_type_info()->type_index.value());
 
-                
-                if (enum_data) {
-                    // Get the string name for the currently selected integer value.
-                    std::string current_item_name_str = enum_data->get_name(current_value_int);
-                    const char* current_item_name = current_item_name_str.c_str();
-                    
-                    // Start the combo box, displaying the current name.
-                    if (ImGui::BeginCombo(label, current_item_name)) {
-                        // Loop through all possible enum names from the registry.
-                        for (const auto& name : enum_data->get_names()) {
-                            bool is_selected = (current_item_name_str == name);
-                            
-                            // Draw a selectable item for this name.
-                            if (ImGui::Selectable(name.c_str(), is_selected)) {
-                                // Debug output:
-                                int new_value_int = enum_data->get_value(name);
-                                std::cout << "[TypeDrawer] User selected '" << name 
-                                    << "', preparing to set new value to: " << new_value_int << std::endl;
-                                // End of Debug output
-                                // If the user clicks it, set the value to the integer for THIS name.
-                                handle.set_value(enum_data->get_value(name));
-                                value_changed = true;
-                            }
+    if (enum_data) {
+        
+        // Store the result in a local std::string to ensure its lifetime.
+        std::string current_item_name_str = enum_data->get_name(current_value_int);
+        const char* current_item_name = current_item_name_str.c_str();
+        
 
-                            // Set focus to the currently selected item when the dropdown opens.
-                            if (is_selected) {
-                                ImGui::SetItemDefaultFocus();
-                            }
-                        }
-                        ImGui::EndCombo();
-                    }
+        if (ImGui::BeginCombo(label, current_item_name)) {
+            for (const auto& name : enum_data->get_names()) {
+                bool is_selected = (current_item_name_str == name);
+                if (ImGui::Selectable(name.c_str(), is_selected)) {
+                    handle.set_value(enum_data->get_value(name));
+                    value_changed = true;
                 }
-                break;
+                if (is_selected) {
+                    ImGui::SetItemDefaultFocus();
+                }
             }
+            ImGui::EndCombo();
+        }
+    }
+    break;
+}
             
 
             case PropertyType::GlmMat4: {
