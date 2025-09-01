@@ -1,4 +1,5 @@
 #pragma once
+#include <ostream>
 #include <variant>
 #include <string>
 #include <glm/glm.hpp>
@@ -13,4 +14,13 @@ namespace Salix {
     using PropertyValue = std::variant<
         int, uint64_t, float, bool, std::string, Vector2, Vector3, Color, Point, Rect, glm::mat4
     >;
+
+    inline std::ostream& operator<<(std::ostream& os, const Salix::PropertyValue& value) {
+        // std::visit calls the correct lambda based on the type currently held by the variant.
+        std::visit([&os](const auto& val) {
+            os << val;
+        }, value);
+        // Return the stream to allow for chaining (e.g., std::cout << val1 << val2;)
+        return os;
+    }
 }
