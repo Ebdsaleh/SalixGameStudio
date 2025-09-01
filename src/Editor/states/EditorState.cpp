@@ -295,6 +295,8 @@ namespace Salix {
                 std::cerr << "EditorState::initialize - Invalid EditorDataMode detected!" << std::endl;
             }
         }
+         // Make the active_scene pointer refer to our preview_scene for the editor's lifetime.
+        pimpl->editor_context->active_scene = pimpl->editor_context->preview_scene.get();
     }
 
 
