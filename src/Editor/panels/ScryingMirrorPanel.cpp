@@ -180,15 +180,7 @@ namespace Salix {
 
         // The main logic is now nested inside this check for the data mode.
         if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            EntityArchetype* selected_archetype = nullptr;
-            if (pimpl->selected_entity_id.is_valid()) {
-                for (auto& archetype : pimpl->context->current_realm) {
-                    if (archetype.id == pimpl->selected_entity_id) {
-                        selected_archetype = &archetype;
-                        break;
-                    }
-                }
-            }
+            EntityArchetype* selected_archetype = pimpl->context->editor_realm_manager->get_archetype(pimpl->selected_entity_id);
 
             if (selected_archetype) {
                 // YAML/Archetype drawing logic.
@@ -286,10 +278,9 @@ namespace Salix {
     
                                 std::vector<const ElementArchetype*> suitable_siblings;
                                 const SimpleGuid& owner_id = element_archetype->owner_id;
-                                auto entity_it = pimpl->context->current_realm_map.find(owner_id);
+                                EntityArchetype* owner_entity = pimpl->context->editor_realm_manager->get_archetype(owner_id);
 
-                                if (entity_it != pimpl->context->current_realm_map.end()) {
-                                    EntityArchetype* owner_entity = entity_it->second;
+                                if (owner_entity) {
                                     for (const auto& sibling_element : owner_entity->elements) {
                                         const TypeInfo* sibling_type_info = ByteMirror::get_type_info_by_name(sibling_element.type_name);
                                         bool is_renderable2d = false;
