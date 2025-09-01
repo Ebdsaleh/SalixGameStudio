@@ -171,7 +171,7 @@ namespace Salix {
 
     void Transform::release_from_parent() {
         if (!pimpl->parent) return;
-
+        
         // 2. Get our current world-space values BEFORE detaching.
         Vector3 world_position = get_world_position();
         Vector3 world_rotation = get_world_rotation();
@@ -183,6 +183,7 @@ namespace Salix {
         set_position(world_position);
         set_rotation(world_rotation);
         set_scale(world_scale);
+        
     }
 
 
