@@ -18,6 +18,7 @@
 #include <Editor/events/OnEntityFamilyAddedEvent.h>
 #include <Editor/events/OnEntityPurgedEvent.h>
 #include <Editor/events/OnEntityFamilyPurgedEvent.h>
+#include <Editor/events/OnMainCameraChangedEvent.h>
 #include <Editor/management/EditorRealmManager.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/core/SimpleGuid.h>
@@ -497,7 +498,16 @@ namespace Salix {
             // Header with entity name
             ImGui::TextDisabled("%s", element_archetype.name.c_str());
             ImGui::Separator();
-            
+            if (element_archetype.type_name == "Camera") {
+                ImGui::Separator();
+                if (ImGui::MenuItem("Set As Active Camera##SetAsAcitveCamera")) {
+                    deferred_commands.push_back([this, owner_id = parent_archetype.id]() {
+                        // Dispatch the new event with the owner entity's ID
+                        OnMainCameraChangedEvent event(owner_id);
+                        context->event_manager->dispatch(event);
+                    });
+                }
+            } 
             if(ImGui::MenuItem("Rename##RenameElement", "F2")) {
                 context->is_editing_property = true;
                 element_to_rename_id = element_archetype.id;
