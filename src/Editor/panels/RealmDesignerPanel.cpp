@@ -862,6 +862,7 @@ namespace Salix {
     // Implementation of the Pimpl's Event handler methods ---
 
     void RealmDesignerPanel::Pimpl::handle_property_value_changed_event(const PropertyValueChangedEvent& e) {
+        // 1. Initial safety checks.
         if (context->data_mode != EditorDataMode::Yaml || !context->preview_scene) {
             return;
         }
@@ -872,10 +873,10 @@ namespace Salix {
         Element* element_to_update = entity_to_update->get_element_by_id(e.element_id);
         if (!element_to_update) return;
 
-        // This part uses ByteMirror to set the property on the live element.
         const TypeInfo* type_info = ByteMirror::get_type_info(typeid(*element_to_update));
         if (!type_info) return;
 
+        // 2. Apply the incoming property change to the live element.
         for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
             if (prop.name == e.property_name) {
                 std::visit([&](auto&& arg) {
@@ -886,19 +887,28 @@ namespace Salix {
             }
         }
         
-        
-        // After updating the property, this call allows the live element
-        // to react to the change (e.g., load the new texture).
-        element_to_update->on_load(*context->init_context);
+        // 3. --- GENERIC RELOADER LOGIC ---
+        // If the event indicates a reload is needed (e.g., a texture path changed)...
+        if (e.requires_reload) {
+            // ...call on_load() to allow the live element to update itself.
+            element_to_update->on_load(*context->init_context);
 
-        // This block handles writing derived data (like texture dimensions) back to the archetype.
-        if (auto* live_sprite = dynamic_cast<Sprite2D*>(element_to_update)) {
-            EntityArchetype* entity_archetype = context->editor_realm_manager->get_archetype(e.entity_id);
-            if (entity_archetype) {
-                ElementArchetype* element_archetype = entity_archetype->get_element_by_id(e.element_id);
-                if (element_archetype) {
-                    element_archetype->data["width"] = live_sprite->get_texture_width();
-                    element_archetype->data["height"] = live_sprite->get_texture_height();
+            // Check if this element type has any "derived properties" that need to be synced back.
+            if (!type_info->derived_properties.empty()) {
+                // Loop through the names of the derived properties (e.g., "width", "height").
+                for (const std::string& derived_prop_name : type_info->derived_properties) {
+                    // Use our new ByteMirror helper to get the new value from the live element.
+                    PropertyValue new_derived_value = ByteMirror::get_property_value(element_to_update, derived_prop_name);
+
+                    // Dispatch a new event to sync this derived value back to the archetype data.
+                    PropertyValueChangedEvent sync_event(
+                        e.entity_id,
+                        e.element_id,
+                        type_info->name,
+                        derived_prop_name,
+                        new_derived_value
+                    );
+                    context->event_manager->dispatch(sync_event);
                 }
             }
         }
