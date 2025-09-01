@@ -52,6 +52,8 @@ class SimpleGuid;
         void clear_all_entities();
         void set_active_camera(ICamera* camera);
         ICamera* get_active_camera();
+        void set_main_camera_entity(SimpleGuid entity_id);
+        SimpleGuid get_main_camera_entity_id() const;
 
     private:
         struct Pimpl;
