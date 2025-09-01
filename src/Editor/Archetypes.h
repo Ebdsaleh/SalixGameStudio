@@ -27,6 +27,7 @@ namespace Salix {
         SimpleGuid id = SimpleGuid::invalid();
         bool is_visible = true;
         bool allows_duplication = true;
+        int display_order = 0;
         ArchetypeState state = ArchetypeState::UnModified;
         // The raw YAML data for this element's properties.
         YAML::Node data;
@@ -45,7 +46,7 @@ namespace Salix {
         // We replace raw pointers with IDs for hierarchy
         SimpleGuid parent_id = SimpleGuid::invalid();
         std::vector<SimpleGuid> child_ids;
-       
+        int display_order = 0;
         // A list of its element archetypes instead of live elements
         std::vector<ElementArchetype> elements;
         ArchetypeState state = ArchetypeState::UnModified;
