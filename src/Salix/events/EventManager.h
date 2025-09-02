@@ -28,7 +28,8 @@ namespace Salix {
 
             // The Engine calls this method to push a new event into the system.
             // The EventManager will then forward it to all relevant subscribers.
-            void dispatch(IEvent& event);
+            void dispatch(std::unique_ptr<IEvent> event);
+            void process_queue();
         
         private:
             // This is the core data structure: a map where the key is an event

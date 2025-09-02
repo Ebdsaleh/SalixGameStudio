@@ -10,6 +10,7 @@
 namespace Salix {
     struct EventManager::Pimpl {
         std::map<EventCategory, std::vector<IEventListener*>> subscribers;
+        std::vector<std::unique_ptr<IEvent>> event_queue; 
     };
     
     EventManager::EventManager() : pimpl(std::make_unique<Pimpl>()) {}
@@ -40,39 +41,63 @@ namespace Salix {
         }
     }
 
-    void EventManager::dispatch(IEvent& event) {
-
-         if (event.should_block()) {
-            event.handled = true;
+    void EventManager::dispatch(std::unique_ptr<IEvent> event) {
+        // Check the block flag here. If it's true, we
+        // mimic the old behavior by simply returning and not adding
+        // the event to the queue. It's effectively discarded.
+        if (event->should_block()) {
+            event->handled = true;
             return;
         }
-        // When an event comes in, we need to notify listeners for all categories
-        // that this event belongs to.
 
-        // We can't just iterate the map, because an event like KeyPressed needs to
-        // be sent to listeners of EventCategory::Keyboard AND EventCategory::Input.
-        // We must check every category we have subscribers for.
-        for (const auto& pair : pimpl->subscribers) {
-            EventCategory category = pair.first;
-            const auto& listener_list = pair.second;
+        // If the event is not blocked, add it to the queue for later processing.
+        pimpl->event_queue.push_back(std::move(event));
+    }
 
-            // Use our 'is_in_category' helper to check if the event matches the subscription category.
-            if (event.is_in_category(category)) {
-                // We create a copy of the listener list before iterating. This is a very important
-                // safety measure. It prevents crashes if a listener decides to unsubscribe itself
-                // (or another listener) from within its on_event method, which would otherwise
-                // invalidate the iterator of the loop we are in.
-                auto listeners_to_notify = listener_list;
-                for (auto* listener : listeners_to_notify) {
-                    listener->on_event(event);
+    void EventManager::process_queue() {
+        // Process all events currently in the queue.
+        for (const auto& event_ptr : pimpl->event_queue) {
+            IEvent& event = *event_ptr;
+            
+            // ... (The entire for-loop from your old dispatch() method goes here) ...
+            for (const auto& pair : pimpl->subscribers) {
+                // ... logic to find listeners and call listener->on_event(event) ...
+            }
+        }
+        // Clear the queue after processing.
+        pimpl->event_queue.clear();
+    }
 
-                    // If an event is "handled" by a listener, we can stop propagating it.
-                    if (event.handled) {
-                        return; // Exit the dispatch function entirely.
+    void EventManager::process_queue() {
+        // Process all events currently in the queue for this frame.
+        for (const auto& event_ptr : pimpl->event_queue) {
+            IEvent& event = *event_ptr;
+
+            // This is the full logic from your old dispatch method.
+            for (const auto& pair : pimpl->subscribers) {
+                EventCategory category = pair.first;
+                const auto& listener_list = pair.second;
+
+                if (event.is_in_category(category)) {
+                    // Create a copy to prevent iterator invalidation if a listener unsubscribes.
+                    auto listeners_to_notify = listener_list;
+                    for (auto* listener : listeners_to_notify) {
+                        listener->on_event(event);
+
+                        // If an event is handled, stop sending it to other listeners.
+                        if (event.handled) {
+                            break; // Exit this inner loop for this event.
+                        }
                     }
+                }
+                // If the event was handled, we can also stop checking other categories for it.
+                if (event.handled) {
+                    break;
                 }
             }
         }
+        // Clear the queue after processing all events for this frame.
+        pimpl->event_queue.clear();
     }
 
 } // namespace Salix
