@@ -3,6 +3,7 @@
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Editor/events/OnMainCameraChangedEvent.h>
 #include <Salix/events/BeforeEntityPurgedEvent.h>
+#include <Salix/events/BeforeElementPurgedEvent.h>
 #include <Salix/gui/IGui.h>
 #include <Salix/gui/IconInfo.h>
 #include <Editor/EditorContext.h>
@@ -343,6 +344,22 @@ struct RenderJob {
                 if (camera_as_element && e.entity == camera_as_element->get_owner()) {
                     // If it is, clear the pointer to prevent it from dangling.
                     pimpl->game_camera = nullptr;
+                }
+            }
+        }
+        else if (event.get_event_type() == EventType::BeforeElementPurged) {
+            auto& e = static_cast<BeforeElementPurgedEvent&>(event);
+
+            std::cout << "[RealmPortalPanel] BeforeElementPurgedEvent: Received..." << std::endl;
+            if (pimpl->game_camera) {
+                // Safely cast to Element* to get the Camera's ID
+                if (Element* camera_as_element = dynamic_cast<Element*>(pimpl->game_camera)) {
+                    // If the purged element's ID matches our camera's ID, clear the pointer.
+                    if (camera_as_element->get_id() == e.element_id) {
+                        std::cout << "[RealmPortalPanel] BeforeElementPurgedEvent: Processing..." << std::endl;
+                        pimpl->game_camera = nullptr;
+                        std::cout << "[RealmPortalPanel] BeforeElementPurgedEvent: Completed..." << std::endl;
+                    }
                 }
             }
         }
