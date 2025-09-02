@@ -27,6 +27,7 @@ class PropertyValueChangedEvent : public IEvent {
 
         EVENT_CLASS_TYPE(EditorPropertyValueChanged) 
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
+        CLONE_EVENT_METHOD(PropertyValueChangedEvent)
 
         // The ID of the entity that was changed.
         SimpleGuid entity_id;
@@ -39,7 +40,7 @@ class PropertyValueChangedEvent : public IEvent {
         // The new value for the property, stored in our std::variant.
         PropertyValue new_value;
         // Flag if the Element will require to be reloaded for the change to take effect.
-        bool requires_reload;
+        bool requires_reload = false;
     };
 
 } // namespace Salix
