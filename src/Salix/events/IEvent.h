@@ -44,7 +44,7 @@ namespace Salix {
         MouseButtonPressed, MouseButtonReleased, MouseMoved, MouseScrolled,
         ImGuiInput, EditorEntitySelected, EditorElementSelected, EditorThemeReloadEvent,BeforeEntityPurged,
         EditorPropertyValueChanged, EditorOnHierarchyChanged, EditorOnRootEntityAdded, EditorOnEntityAdded,
-        EditorOnChildEntityAdded, EditorOnEntityPurged,
+        EditorOnChildEntityAdded, EditorOnEntityPurged, BeforeElementPurged,
         EditorOnEntityFamilyAdded, EditorOnEntityFamilyPurged, EditorOnElementAdded, EditorOnMainCameraChanged
     };
 
