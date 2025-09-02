@@ -133,9 +133,11 @@ namespace Salix {
     void OpenGLImGui::new_frame() {
         ImGuiIO& io = ImGui::GetIO(); // Get current IO state
         // Create and dispatch the ImGuiInputEvent
-        ImGuiInputEvent event(io.WantCaptureMouse, io.WantCaptureKeyboard);
+        
         if (pimpl->event_manager) { // Ensure event manager is valid
-            pimpl->event_manager->dispatch(event);
+            pimpl->event_manager->dispatch(
+                std::make_unique<ImGuiInputEvent>(io.WantCaptureMouse, io.WantCaptureKeyboard)
+            );
         } else {
             std::cerr << "SDLImGui Warning: EventManager is null when dispatching ImGuiInputEvent." << std::endl;
         }
