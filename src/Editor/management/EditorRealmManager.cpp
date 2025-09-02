@@ -16,6 +16,7 @@
 #include <Editor/events/ElementSelectedEvent.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/OnElementAddedEvent.h>
+#include <Salix/events/BeforeElementPurgedEvent.h>
 #include <Salix/events/EventManager.h>
 #include <vector>
 #include <memory>
@@ -172,8 +173,8 @@ namespace Salix {
         synchronize();
 
         // 3. NOW, notify the rest of the editor what just happened.
-        OnRootEntityAddedEvent add_event(archetype);
-        pimpl->context->event_manager->dispatch(add_event);
+        
+        pimpl->context->event_manager->dispatch(std::make_unique<OnRootEntityAddedEvent>(archetype));
     }
 
     void EditorRealmManager::purge_entity(SimpleGuid entity_id) {
@@ -210,16 +211,18 @@ namespace Salix {
         synchronize();
         
         // Dispatch the event for the entity that was actually purged.
-        OnEntityPurgedEvent purge_event(entity_id);
-        pimpl->context->event_manager->dispatch(purge_event);
+        
+        pimpl->context->event_manager->dispatch(std::make_unique<OnEntityPurgedEvent>(entity_id));
 
         // --- THE FIX PART 2 ---
 
         // 3. Now, dispatch a hierarchy change event for each child that was orphaned.
         // This tells the RealmDesignerPanel to update their live transforms.
         for (const auto& child_id : orphaned_child_ids) {
-            OnHierarchyChangedEvent hierarchy_event(child_id, SimpleGuid::invalid());
-            pimpl->context->event_manager->dispatch(hierarchy_event);
+            
+            pimpl->context->event_manager->dispatch(
+                std::make_unique<OnHierarchyChangedEvent>(child_id, SimpleGuid::invalid())
+            );
         }
     }
 
@@ -261,8 +264,10 @@ namespace Salix {
 
         // 4. Resynchronize the manager and dispatch the event.
         synchronize();
-        OnEntityFamilyPurgedEvent event(descendants_to_purge);
-        pimpl->context->event_manager->dispatch(event);
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnEntityFamilyPurgedEvent>(descendants_to_purge)
+        );
     }
 
 
@@ -300,8 +305,10 @@ namespace Salix {
 
         synchronize();
 
-        OnEntityFamilyPurgedEvent event(family_to_purge);
-        pimpl->context->event_manager->dispatch(event);
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnEntityFamilyPurgedEvent>(family_to_purge)
+        );
     }
 
 
@@ -342,8 +349,10 @@ namespace Salix {
 
         // 4. Resynchronize the manager and dispatch the event.
         synchronize();
-        OnEntityFamilyPurgedEvent event(bloodline_to_purge);
-        pimpl->context->event_manager->dispatch(event);
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnEntityFamilyPurgedEvent>(bloodline_to_purge)
+        );
     }
 
     void EditorRealmManager::reparent_entity(SimpleGuid child_id, SimpleGuid new_parent_id) {
@@ -376,9 +385,11 @@ namespace Salix {
 
         // 2. (THE FIX) Dispatch the event to notify listeners like RealmDesignerPanel
         //    that the live hierarchy needs to be updated.
-        OnHierarchyChangedEvent hierarchy_event(child_id, SimpleGuid::invalid());
+        
         if (pimpl->context && pimpl->context->event_manager) {
-            pimpl->context->event_manager->dispatch(hierarchy_event);
+            pimpl->context->event_manager->dispatch(
+                std::make_unique<OnHierarchyChangedEvent>(child_id, SimpleGuid::invalid())
+            );
         }
     }
 
@@ -402,8 +413,10 @@ namespace Salix {
 
         // 4. Update ancestor states and notify the editor of the change.
         update_ancestor_states(parent_archetype->id);
-        OnChildEntityAddedEvent event(pimpl->realm.back()); // Pass the archetype we just added
-        pimpl->context->event_manager->dispatch(event);
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnChildEntityAddedEvent>(pimpl->realm.back())
+        );
     }
 
     void EditorRealmManager::duplicate_entity(SimpleGuid source_id) {
@@ -434,8 +447,10 @@ namespace Salix {
         }
         
         add_entity(std::move(duplicated_archetype));
-        OnHierarchyChangedEvent hierarchy_event(duplicated_archetype.id,  duplicated_archetype.parent_id);
-        pimpl->context->event_manager->dispatch(hierarchy_event);
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnHierarchyChangedEvent>(duplicated_archetype.id,  duplicated_archetype.parent_id)
+        );
     }
 
     void EditorRealmManager::duplicate_entity_with_children(SimpleGuid source_id) {
@@ -451,8 +466,10 @@ namespace Salix {
         
         synchronize();
 
-        OnEntityFamilyAddedEvent event(new_family);
-        pimpl->context->event_manager->dispatch(event);
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnEntityFamilyAddedEvent>(new_family)
+        );
     }
 
 
@@ -476,8 +493,10 @@ namespace Salix {
 
         synchronize();
 
-        OnEntityFamilyAddedEvent event(new_family);
-        pimpl->context->event_manager->dispatch(event);
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnEntityFamilyAddedEvent>(new_family)
+        );
     }
 
     void EditorRealmManager::add_element_to_entity(SimpleGuid entity_id, ElementArchetype element) {
@@ -495,8 +514,9 @@ namespace Salix {
         update_ancestor_states(entity_id);
 
         // DISPATCH THE NEW, SPECIFIC EVENT
-        OnElementAddedEvent event(entity_id, element_copy);
-        pimpl->context->event_manager->dispatch(event);
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnElementAddedEvent>(entity_id, element_copy)
+        );
     }
 
 
@@ -526,17 +546,26 @@ namespace Salix {
         pimpl->context->realm_is_dirty = true;
 
         // 7. Dispatch events to notify other systems (like selecting the new element in the UI).
-        // TODO: Create and dispatch an OnElementAddedEvent if needed.
-        ElementSelectedEvent event(duplicated_element.id, parent_archetype->id, nullptr);
-        pimpl->context->event_manager->dispatch(event);
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<ElementSelectedEvent>(duplicated_element.id, parent_archetype->id, nullptr)
+        );
     }
+
 
     void EditorRealmManager::purge_element(SimpleGuid parent_entity_id, SimpleGuid element_to_purge_id) {
         // 1. Find the parent archetype.
         EntityArchetype* parent_archetype = get_archetype(parent_entity_id);
         if (!parent_archetype) return;
 
-        // 2. Use the erase-remove idiom to find and remove the element.
+        // 2. Announce that the element is ABOUT to be purged. This is the "heads-up".
+        //    Listeners like EditorState and RealmPortalPanel will use this to clear their pointers.
+        
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<BeforeElementPurgedEvent>(element_to_purge_id, parent_entity_id)
+        );
+
+        // 3. Use the erase-remove idiom to find and remove the element archetype.
         auto& elements = parent_archetype->elements;
         auto original_size = elements.size();
         elements.erase(
@@ -545,7 +574,7 @@ namespace Salix {
             elements.end()
         );
 
-        // 3. If an element was removed, update state and dispatch events.
+        // 4. If an element was actually removed, update the entity's state and mark for rebuild.
         if (elements.size() < original_size) {
             if (parent_archetype->state != ArchetypeState::New) {
                 if (get_snapshot()->is_entity_modified(*parent_archetype)) {
@@ -556,18 +585,8 @@ namespace Salix {
             }
             update_ancestor_states(parent_archetype->id);
 
-            // 4. Mark the realm as dirty for the preview scene to update.
+            // Mark the realm as dirty so the preview scene will be rebuilt without the element.
             pimpl->context->realm_is_dirty = true;
-
-            // 5. If the purged element was selected, clear the selection.
-            if (pimpl->context->selected_element_id == element_to_purge_id) {
-                pimpl->context->selected_element_id = SimpleGuid::invalid();
-                // Dispatch an event to notify the Scrying Mirror to clear itself.
-                ElementSelectedEvent event(SimpleGuid::invalid(), SimpleGuid::invalid(), nullptr);
-                pimpl->context->event_manager->dispatch(event);
-            }
-            
-            // TODO: Create and dispatch an OnElementPurgedEvent if other systems need to react.
         }
     }
 
