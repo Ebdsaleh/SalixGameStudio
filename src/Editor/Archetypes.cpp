@@ -192,4 +192,14 @@ namespace Salix {
         return SimpleGuid::invalid();
     }
     
+    bool EntityArchetype::has_element_of_type(const std::string& type_name) const {
+        for (const auto& element : elements) {
+            if (element.type_name == type_name) {
+                // As soon as we find one, we can stop and return true.
+                return true;
+            }
+        }
+        // If we finish the loop without finding one, return false.
+        return false;
+    }
 }  // namespace Salix
