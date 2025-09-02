@@ -26,6 +26,7 @@ Entities:
       Camera:
         id: 5
         visible: true
+        active: true
         projection_mode: "Perspective"
         field_of_view: 45.0
         near_clip: 0.1
