@@ -449,6 +449,19 @@ namespace Salix {
         type_info.ancestor = get_type_info(typeid(Element));
         type_info.properties = {
             {
+                "active", PropertyType::Bool, nullptr,
+                // getter_func
+                [](void* instance) {
+                thread_local static bool value;
+                value = static_cast<Camera*>(instance)->get_is_active();
+                return &value;
+            },
+                // setter_func
+                [](void* instance, void* data) {
+                    static_cast<Camera*>(instance)->set_is_active(*static_cast<bool*>(data));
+                }
+            },
+            {
                 "projection_mode", PropertyType::EnumClass,
                 ByteMirror::get_type_info(typeid(Salix::ProjectionMode)),
                 // getter_func
