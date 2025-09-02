@@ -545,14 +545,37 @@ namespace Salix {
         // --- STEP 4: SYNC BACK TO ARCHETYPE VIA EVENTS ---
         ElementArchetype* transform_arch = selected_archetype->get_element_by_id(selected_archetype->get_primary_transform_id());
         if (transform_arch) {
-            PropertyValueChangedEvent pos_event(selected_archetype->id, transform_arch->id, "Transform", "position", live_transform->get_position());
-            context->event_manager->dispatch(pos_event);
+            
+            context->event_manager->dispatch(
+                std::make_unique<PropertyValueChangedEvent>(
+                selected_archetype->id,
+                 transform_arch->id,
+                 "Transform",
+                 "position", 
+                 live_transform->get_position())
+            );
 
-            PropertyValueChangedEvent rot_event(selected_archetype->id, transform_arch->id, "Transform", "rotation", live_transform->get_rotation());
-            context->event_manager->dispatch(rot_event);
+            
+            context->event_manager->dispatch(
+                std::make_unique<PropertyValueChangedEvent>(
+                selected_archetype->id,
+                 transform_arch->id,
+                 "Transform",
+                 "rotation",
+                 live_transform->get_rotation()
+                )
+            );
 
-            PropertyValueChangedEvent scale_event(selected_archetype->id, transform_arch->id, "Transform", "scale", live_transform->get_scale());
-            context->event_manager->dispatch(scale_event);
+            
+            context->event_manager->dispatch(
+                std::make_unique<PropertyValueChangedEvent>(
+                selected_archetype->id,
+                 transform_arch->id,
+                 "Transform",
+                 "scale",
+                 live_transform->get_scale()
+                )
+            );
         }
     }
     
@@ -665,8 +688,10 @@ namespace Salix {
         if (context->event_manager) {
             context->selected_entity_id = closest_hit_id;
             context->selected_entity = context->preview_scene->get_entity_by_id(context->selected_entity_id);
-            EntitySelectedEvent event(closest_hit_id, context->selected_entity);
-            context->event_manager->dispatch(event);
+            
+            context->event_manager->dispatch(
+                std::make_unique<EntitySelectedEvent>(closest_hit_id, context->selected_entity)
+            );
         }
         
         if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && closest_hit_id.is_valid()) {
@@ -901,14 +926,15 @@ namespace Salix {
                     PropertyValue new_derived_value = ByteMirror::get_property_value(element_to_update, derived_prop_name);
 
                     // Dispatch a new event to sync this derived value back to the archetype data.
-                    PropertyValueChangedEvent sync_event(
+                    
+                    context->event_manager->dispatch(
+                        std::make_unique<PropertyValueChangedEvent>(
                         e.entity_id,
                         e.element_id,
                         type_info->name,
                         derived_prop_name,
-                        new_derived_value
+                        new_derived_value)
                     );
-                    context->event_manager->dispatch(sync_event);
                 }
             }
         }
@@ -943,19 +969,44 @@ namespace Salix {
                 
                 if (transform_arch) {
                     Transform* live_transform = live_member->get_transform();
-                    PropertyValueChangedEvent pos_event(live_member->get_id(), transform_arch->id, "Transform", "position", live_transform->get_position());
-                    context->event_manager->dispatch(pos_event);
+                    
+                    context->event_manager->dispatch(
+                        std::make_unique<PropertyValueChangedEvent>(
+                            live_member->get_id(),
+                            transform_arch->id,
+                            "Transform",
+                            "position", 
+                            live_transform->get_position()
+                        )
+                    );
 
-                    PropertyValueChangedEvent rot_event(live_member->get_id(), transform_arch->id, "Transform", "rotation", live_transform->get_rotation());
-                    context->event_manager->dispatch(rot_event);
+                    
+                    context->event_manager->dispatch(
+                        std::make_unique<PropertyValueChangedEvent>(
+                            live_member->get_id(),
+                            transform_arch->id, "Transform",
+                            "rotation", 
+                            live_transform->get_rotation()
+                        )
+                    );
 
-                    PropertyValueChangedEvent scale_event(live_member->get_id(), transform_arch->id, "Transform", "scale", live_transform->get_scale());
-                    context->event_manager->dispatch(scale_event);
+                    
+                    context->event_manager->dispatch(
+                        std::make_unique<PropertyValueChangedEvent>(
+                            live_member->get_id(),
+                            transform_arch->id,
+                            "Transform",
+                            "scale", 
+                            live_transform->get_scale()
+                        )
+                    );
                 }
             }
         }
-        EntitySelectedEvent event(e.entity_id);
-        context->event_manager->dispatch(event);
+        
+        context->event_manager->dispatch(
+            std::make_unique<EntitySelectedEvent>(e.entity_id)
+        );
     }
    
 
@@ -976,8 +1027,10 @@ namespace Salix {
                 if (live_child && live_parent) {
                     live_child->set_parent(live_parent);
                 }
-                EntitySelectedEvent event(e.archetype.id);
-                context->event_manager->dispatch(event);
+                
+                context->event_manager->dispatch(
+                    std::make_unique<EntitySelectedEvent>(e.archetype.id)
+                );
             }
         }
     }
@@ -996,12 +1049,16 @@ namespace Salix {
             live_child->set_parent(live_parent);
         }
         
-        OnHierarchyChangedEvent hierarchy_event(live_child->get_id(), live_parent->get_id());
-        context->event_manager->dispatch(hierarchy_event);
+        
+        context->event_manager->dispatch(
+            std::make_unique<OnHierarchyChangedEvent>(live_child->get_id(), live_parent->get_id())
+        );
 
         // 4. (Optional) Automatically select the new entity for immediate user feedback.
-        EntitySelectedEvent select_event(live_child->get_id(), live_child);
-        context->event_manager->dispatch(select_event);
+        
+        context->event_manager->dispatch(
+            std::make_unique<EntitySelectedEvent>(live_child->get_id(), live_child)
+        );
     }
 
     void RealmDesignerPanel::Pimpl::handle_entity_purged_event(const OnEntityPurgedEvent& e) {
@@ -1063,14 +1120,16 @@ namespace Salix {
         new_live_element->on_load(*context->init_context);
 
         // 5. Dispatch an event to sync derived data (like width/height) back to the archetype.
-        PropertyValueChangedEvent sync_event(
-            e.parent_entity_id,
-            e.element_archetype.id,
-            e.element_archetype.type_name,
-            "__internal_sync__", // This is just to trigger the handler, the name doesn't matter
-            {}
+        
+        context->event_manager->dispatch(
+            std::make_unique<PropertyValueChangedEvent>(
+                e.parent_entity_id,
+                e.element_archetype.id,
+                e.element_archetype.type_name,
+                "__internal_sync__", // This is just to trigger the handler, the name doesn't matter
+                Salix::PropertyValue{}
+            )
         );
-        context->event_manager->dispatch(sync_event);
     }
 
 
