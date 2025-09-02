@@ -27,6 +27,10 @@ namespace Salix {
         virtual void set_orthographic_size(float size) = 0;
         virtual void set_2D_mode(bool is_2d) { (void) is_2d;}
         virtual Transform* get_transform() { return nullptr; }
+        virtual void set_is_active(bool is_active) { (void) is_active; }
+        virtual bool get_is_active() {return false; }
+        virtual void activate(){}
+        virtual void deactivate() {}
     };
 
 }
