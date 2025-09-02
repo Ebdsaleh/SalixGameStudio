@@ -9,8 +9,10 @@
 #include <Salix/management/FileManager.h> // For file operations
 #include <Salix/core/SerializationRegistrations.h>
 #include <Salix/rendering/ICamera.h>
+#include <Salix/ecs/Camera.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/events/BeforeEntityPurgedEvent.h>
+
 #include <filesystem> // For std::filesystem::path
 #include <fstream>    // For std::ifstream
 #include <algorithm>  // For std::remove_if
@@ -337,6 +339,38 @@ namespace Salix {
     
 
 
+
+    void Scene::set_active_camera_entity(SimpleGuid entity_id) {
+        // 1. Deactivate the OLD active camera (if one exists).
+        if (pimpl->main_camera_entity_id.is_valid()) {
+            Entity* old_camera_entity = get_entity_by_id(pimpl->main_camera_entity_id);
+            if (old_camera_entity) {
+                // Get the general ICamera interface first.
+                if (ICamera* i_camera = old_camera_entity->get_element<ICamera>()) {
+                    // Safely cast it to the concrete Camera to access activate/deactivate.
+                    if (Camera* old_camera = dynamic_cast<Camera*>(i_camera)) {
+                        old_camera->deactivate();
+                    }
+                }
+            }
+        }
+
+        // 2. Set the NEW active camera's ID.
+        pimpl->main_camera_entity_id = entity_id;
+
+        // 3. Activate the NEW camera component (if the new ID is valid).
+        if (pimpl->main_camera_entity_id.is_valid()) {
+            Entity* new_camera_entity = get_entity_by_id(pimpl->main_camera_entity_id);
+            if (new_camera_entity) {
+                if (ICamera* i_camera = new_camera_entity->get_element<ICamera>()) {
+                    if (Camera* new_camera = dynamic_cast<Camera*>(i_camera)) {
+                        set_active_camera(new_camera);
+                        new_camera->activate();
+                    }
+                }
+            }
+        }
+    }
 
 
     std::vector<Entity*> Scene::get_entities() {
