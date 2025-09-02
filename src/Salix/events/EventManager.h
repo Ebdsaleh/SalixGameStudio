@@ -29,6 +29,8 @@ namespace Salix {
             // The Engine calls this method to push a new event into the system.
             // The EventManager will then forward it to all relevant subscribers.
             void dispatch(std::unique_ptr<IEvent> event);
+            // The new overload for cloning.
+            void dispatch(const IEvent& event);           
             void process_queue();
         
         private:
