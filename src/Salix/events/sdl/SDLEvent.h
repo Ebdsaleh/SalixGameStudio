@@ -37,7 +37,7 @@ namespace Salix {
         int get_key_code() const { return key_code; }
 
         EVENT_CLASS_CATEGORY(EventCategory::Keyboard | EventCategory::Input)
-
+        CLONE_EVENT_METHOD(KeyEvent)
     protected:
         // Change: Add const SDL_Event& sdl_event_in to constructor
         // Change: Pass sdl_event_in to the base SDLEventBase constructor
@@ -62,6 +62,7 @@ namespace Salix {
         }
 
         EVENT_CLASS_TYPE(KeyPressed)
+        CLONE_EVENT_METHOD(KeyPressedEvent)
         private:
             bool is_repeat;
 };
@@ -80,6 +81,7 @@ namespace Salix {
             }
 
             EVENT_CLASS_TYPE(KeyReleased)
+            CLONE_EVENT_METHOD(KeyReleasedEvent)
     };
     //==============================================================================
     // MOUSE EVENTS
@@ -104,6 +106,7 @@ namespace Salix {
 
             EVENT_CLASS_TYPE(MouseMoved)
             EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input | EventCategory::MouseAxis)
+            CLONE_EVENT_METHOD(MouseMovedEvent)
         private:
             float mouse_x, mouse_y;
     };
@@ -126,7 +129,7 @@ namespace Salix {
 
             EVENT_CLASS_TYPE(MouseScrolled)
             EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input | EventCategory::MouseAxis)
-        
+            CLONE_EVENT_METHOD(MouseScrolledEvent)
         private:
             float x_offset, y_offset;
     };
@@ -136,6 +139,7 @@ namespace Salix {
             int get_mouse_button() const { return button; }
 
             EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input | EventCategory::MouseButton)
+            CLONE_EVENT_METHOD(MouseButtonEvent)
         protected:
             // **CRUCIAL CHANGE HERE:** Add 'const SDL_Event& sdl_event_in' to the constructor
             // And pass it up to the base 'SDLEventBase' constructor.
@@ -159,6 +163,7 @@ namespace Salix {
         }
 
             EVENT_CLASS_TYPE(MouseButtonPressed)
+            CLONE_EVENT_METHOD(MouseButtonPressedEvent)
     };
 
     class MouseButtonReleasedEvent : public MouseButtonEvent {
@@ -174,6 +179,7 @@ namespace Salix {
                 return ss.str();
             }
             EVENT_CLASS_TYPE(MouseButtonReleased)
+            CLONE_EVENT_METHOD(MouseButtonReleasedEvent)
     };
 
 
@@ -199,6 +205,7 @@ namespace Salix {
 
         EVENT_CLASS_TYPE(WindowResize)
         EVENT_CLASS_CATEGORY(EventCategory::Application)
+        CLONE_EVENT_METHOD(WindowResizeEvent)
        
         private:
             unsigned int width, height;
@@ -210,6 +217,7 @@ namespace Salix {
 
             EVENT_CLASS_TYPE(WindowClose)
             EVENT_CLASS_CATEGORY(EventCategory::Application)
+            CLONE_EVENT_METHOD(WindowCloseEvent)
     };
 
 } // namespace Salix
