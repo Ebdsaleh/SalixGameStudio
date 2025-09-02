@@ -28,6 +28,7 @@ class EntitySelectedEvent : public IEvent {
 
         EVENT_CLASS_TYPE(EditorEntitySelected)
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
+        CLONE_EVENT_METHOD(EntitySelectedEvent)
 
         bool should_block() const override { return block_selection; }
         void set_block(bool block) override { block_selection = block;}
