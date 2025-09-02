@@ -115,15 +115,16 @@ namespace Salix {
                             result.file_path_name
                         );
                         
-                        PropertyValueChangedEvent event(
+                        this->context->event_manager->dispatch(
+                            std::make_unique<PropertyValueChangedEvent>(
                             this->selected_entity_id, // 'this' now refers to the Pimpl struct
                             element_archetype->id,
                             type_info->name,
                             property_name,
                             relative_path,
                             true
-                        );
-                        this->context->event_manager->dispatch(event); // 'this' now refers to the Pimpl struct
+                        )
+                        ); 
                     };
                     this->context->deferred_type_drawer_commands.push_back(command); // 'this' now refers to the Pimpl struct
                 }
@@ -155,14 +156,15 @@ namespace Salix {
             );
 
             // 3. Fire the event to update the BoxCollider's size property.
-            PropertyValueChangedEvent event(
+            
+            context->event_manager->dispatch(
+                std::make_unique<PropertyValueChangedEvent>(
                 box_collider_archetype->owner_id,
                 box_collider_archetype->id,
                 "BoxCollider",
                 "size",
-                new_size
+                new_size)
             );
-            context->event_manager->dispatch(event);
         }
     }
 
@@ -280,17 +282,18 @@ namespace Salix {
                                         }
                                         
                                     // If it returns true, a value was changed. FIRE THE EVENT!
-                                    PropertyValueChangedEvent event(
+                                    
+                                    if (ImGui::IsItemActive()) {
+                                        pimpl->context->is_editing_property = true;
+                                    }
+                                    pimpl->context->event_manager->dispatch(
+                                        std::make_unique<PropertyValueChangedEvent>(
                                         pimpl->selected_entity_id,
                                         element_archetype->id,
                                         type_info->name,
                                         handle->get_name(),
-                                        handle->get_value()
+                                        handle->get_value())
                                     );
-                                    if (ImGui::IsItemActive()) {
-                                        pimpl->context->is_editing_property = true;
-                                    }
-                                    pimpl->context->event_manager->dispatch(event);
                                     
                                 }
                                 
