@@ -202,8 +202,8 @@ namespace Salix {
             }
         }
 
-        ICamera* camera_to_use = pimpl->game_camera ? pimpl->game_camera : pimpl->failsafe_camera.get();
-
+        ICamera* camera_to_use = pimpl->game_camera && pimpl->game_camera->get_is_active() ? pimpl->game_camera : pimpl->failsafe_camera.get();
+    
         IRenderer* renderer = pimpl->context->renderer;
         if (!renderer) return;
 
@@ -214,9 +214,11 @@ namespace Salix {
 
         //  Use the MainCamera for this render pass 
         renderer->set_active_camera(camera_to_use);
-
-        // --- Draw the Scene ---
-        pimpl->draw_scene();
+        
+        if (camera_to_use->get_is_active()) {
+           // --- Draw the Scene ---
+            pimpl->draw_scene();
+        }
 
         // --- End The Render Pass ---
         renderer->end_render_pass();
