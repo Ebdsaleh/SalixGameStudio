@@ -39,6 +39,10 @@ namespace Salix {
         void focus_on(Transform* target_transform, float distance);
         void simple_focus_on(Transform* target_transform, float distance);
         void check_scene_bounds();
+        void set_is_active(bool active) override;
+        bool get_is_active() override;
+        void activate() override;
+        void deactivate() override;
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;

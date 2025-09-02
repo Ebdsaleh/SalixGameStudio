@@ -20,6 +20,7 @@ namespace Salix {
         bool is_initialzed = false;
         bool mouse_is_inside_scene = false;
         bool should_draw_boundary_warning = false;
+        bool is_active = true;
         Vector3 boundary_violation_direction = Vector3::Zero;
         ImGuiInputManager* input;
         Transform transform = Transform();
@@ -77,9 +78,24 @@ namespace Salix {
         glm::vec3 up = transform.get_up();
         view_matrix = glm::lookAt(position, position + front, up);
         
+        
     }
 
-     void EditorCamera::Pimpl::recalculate_projection_matrix() {
+    void EditorCamera::set_is_active(bool active) { pimpl->is_active = active; }
+
+    bool EditorCamera::get_is_active() { return pimpl->is_active; }
+
+    void EditorCamera::activate() {
+        if (pimpl->is_active) return;
+        set_is_active(true);
+    }
+
+    void EditorCamera::deactivate() {
+        if (!pimpl->is_active) return;
+        set_is_active(false);
+    }
+
+    void EditorCamera::Pimpl::recalculate_projection_matrix() {
         if (projection_mode == ProjectionMode::Perspective) {
             projection_matrix = glm::perspective(glm::radians(fov), aspect_ratio, near_clip, far_clip);
         } else { // Orthographic
