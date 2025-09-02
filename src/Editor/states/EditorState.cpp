@@ -24,6 +24,7 @@
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/BoxCollider.h>
 #include <Salix/events/BeforeEntityPurgedEvent.h>
+#include <Salix/events/BeforeElementPurgedEvent.h>
 #include <Salix/events/EventManager.h>
 #include <Salix/management/FileManager.h>
 #include <Salix/management/ProjectManager.h>
@@ -305,8 +306,9 @@ namespace Salix {
                     pimpl->editor_context->active_scene->set_active_camera_entity(entity_camera_id);
                     // This event notifies all panels (like RealmPortalPanel)
                     // about the initial active camera that was just set from the YAML file.
-                    OnMainCameraChangedEvent initial_camera_event(entity_camera_id);
-                    pimpl->editor_context->event_manager->dispatch(initial_camera_event);
+                    pimpl->editor_context->event_manager->dispatch(
+                        std::make_unique<OnMainCameraChangedEvent>(entity_camera_id)
+                    );
                     
 
                     break; // We found the one active camera, no need to keep searching
@@ -406,6 +408,12 @@ namespace Salix {
             // Clear the queue for the next frame.
             pimpl->editor_context->deferred_type_drawer_commands.clear();
         }
+        // Now that all updates for this frame are done, we process
+        // all the events that were queued up. This ensures all systems are in a
+        // consistent state before rendering begins.
+        if (pimpl->editor_context->event_manager) {
+            pimpl->editor_context->event_manager->process_queue();
+        }
     }
 
 
@@ -446,8 +454,7 @@ namespace Salix {
     void EditorState::on_event(IEvent& event) {
 
         // Check if the event is the one we care about
-        if (event.get_event_type() == EventType::BeforeEntityPurged)
-        {
+        if (event.get_event_type() == EventType::BeforeEntityPurged) {
             // Cast the event to access its data
             BeforeEntityPurgedEvent& e = static_cast<BeforeEntityPurgedEvent&>(event);
             Entity* purged_entity = e.entity;
@@ -472,6 +479,20 @@ namespace Salix {
                     pimpl->editor_context->renderer->set_active_camera(nullptr);
                 }
             }
+        }
+        if (event.get_event_type() == EventType::BeforeElementPurged) {
+            auto& e = static_cast<BeforeElementPurgedEvent&>(event);
+
+            std::cout << "[EditorState] BeforeElementPurgedEvent: Received..." << std::endl;
+            // If the element being purged is the currently selected one,
+            // clear the selection in the context to prevent a dangling pointer.
+            if (pimpl->editor_context->selected_element_id == e.element_id) {
+                std::cout << "[EditorState] BeforeElementPurgedEvent: Processing..." << std::endl;
+                pimpl->editor_context->selected_element = nullptr;
+                pimpl->editor_context->selected_element_id = SimpleGuid::invalid();
+                std::cout << "[EditorState] BeforeElementPurgedEvent: Completed..." << std::endl;
+            }
+        
         }
     }
 
