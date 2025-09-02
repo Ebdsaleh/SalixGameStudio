@@ -284,6 +284,26 @@ namespace Salix {
             ImGui::TextDisabled("%s", archetype.name.c_str());
             ImGui::Separator();
 
+            // REASONING: First, we check if this entity has a camera component.
+            bool has_camera = false;
+            for (const auto& element : archetype.elements) {
+                if (element.type_name == "Camera") {
+                    has_camera = true;
+                    break; // Found one, no need to keep searching
+                }
+            }
+
+            // REASONING: Only if the entity has a camera, we show the special menu item.
+            if (has_camera) {
+                if (ImGui::MenuItem("Set As Realm Camera##SetAsRealmCamera")) {
+                    deferred_commands.push_back([this, owner_id = archetype.id]() {
+                        // Dispatch the event with this entity's ID
+                        OnMainCameraChangedEvent event(owner_id);
+                        context->event_manager->dispatch(event);
+                    });
+                }
+                ImGui::Separator();
+            }
             // Element Creation Submenu
             if (ImGui::BeginMenu("Add Element##AddElementMenu")) {
                 if (ImGui::MenuItem("Transform##AddTransform")) {
@@ -500,7 +520,7 @@ namespace Salix {
             ImGui::Separator();
             if (element_archetype.type_name == "Camera") {
                 ImGui::Separator();
-                if (ImGui::MenuItem("Set As Active Camera##SetAsAcitveCamera")) {
+                if (ImGui::MenuItem("Set As Realm Camera##SetAsRealmCamera")) {
                     deferred_commands.push_back([this, owner_id = parent_archetype.id]() {
                         // Dispatch the new event with the owner entity's ID
                         OnMainCameraChangedEvent event(owner_id);
