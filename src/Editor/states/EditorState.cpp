@@ -34,6 +34,7 @@
 // Editor-specific systems
 #include <Editor/EditorContext.h>
 #include <Editor/ArchetypeInstantiator.h>
+#include <Editor/events/OnMainCameraChangedEvent.h>
 #include <Editor/panels/PanelManager.h>
 #include <Editor/panels/WorldTreePanel.h>
 #include <Editor/panels/ScryingMirrorPanel.h>
@@ -297,6 +298,23 @@ namespace Salix {
         }
          // Make the active_scene pointer refer to our preview_scene for the editor's lifetime.
         pimpl->editor_context->active_scene = pimpl->editor_context->preview_scene.get();
+        for (auto& entity : pimpl->editor_context->editor_realm_manager->get_realm()) {
+            for (auto& element : entity.elements){
+                if (element.type_name == "Camera" && element.data["active"].as<bool>() == true){
+                    SimpleGuid entity_camera_id = entity.id;
+                    pimpl->editor_context->active_scene->set_active_camera_entity(entity_camera_id);
+                    // This event notifies all panels (like RealmPortalPanel)
+                    // about the initial active camera that was just set from the YAML file.
+                    OnMainCameraChangedEvent initial_camera_event(entity_camera_id);
+                    pimpl->editor_context->event_manager->dispatch(initial_camera_event);
+                    
+
+                    break; // We found the one active camera, no need to keep searching
+                }
+                
+            }
+        }
+        
     }
 
 
