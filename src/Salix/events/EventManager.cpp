@@ -54,19 +54,6 @@ namespace Salix {
         pimpl->event_queue.push_back(std::move(event));
     }
 
-    void EventManager::process_queue() {
-        // Process all events currently in the queue.
-        for (const auto& event_ptr : pimpl->event_queue) {
-            IEvent& event = *event_ptr;
-            
-            // ... (The entire for-loop from your old dispatch() method goes here) ...
-            for (const auto& pair : pimpl->subscribers) {
-                // ... logic to find listeners and call listener->on_event(event) ...
-            }
-        }
-        // Clear the queue after processing.
-        pimpl->event_queue.clear();
-    }
 
     // Overloaded dispatch method.
     void EventManager::dispatch(const IEvent& event) {
