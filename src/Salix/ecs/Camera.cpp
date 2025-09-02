@@ -11,6 +11,8 @@ namespace Salix {
     struct Camera::Pimpl {
         ProjectionMode projection_mode = ProjectionMode::Perspective;
 
+        // Is this set as the active camera?.
+        bool is_active = false;
         // Matrices
         glm::mat4 view_matrix{1.0f};
         glm::mat4 projection_matrix{1.0f};
@@ -51,6 +53,7 @@ namespace Salix {
     }
 
     void Camera::update(float /*delta_time*/) {
+        if (!pimpl->is_active) return;
         // In a real engine, you'd check if the owner's transform has changed.
         // For now, we'll just assume it might have and mark the view matrix as dirty.
         pimpl->view_dirty = true;
@@ -61,6 +64,19 @@ namespace Salix {
         pimpl->projection_dirty = true;
     }
 
+    void Camera::set_is_active(bool active) { pimpl->is_active = active; }
+
+    bool Camera::get_is_active() { return pimpl->is_active; }
+
+    void Camera::activate() {
+        if (pimpl->is_active) return;
+        set_is_active(true);
+    }
+
+    void Camera::deactivate() {
+        if (!pimpl->is_active) return;
+        set_is_active(false);
+    }
 
     const ProjectionMode& Camera::get_projection_mode() const {
         std::cout << "[Camera::Getter] READING value: " << static_cast<int>(pimpl->projection_mode) << std::endl;

@@ -50,6 +50,10 @@ public:
     void set_far_clip(float far_clip);
     float& get_far_clip() const;
 
+    void set_is_active(bool active) override;
+    bool get_is_active() override;
+    void activate() override;
+    void deactivate() override;
     // --- Element Lifecycle Methods (from your base class) ---
     // We can override these if the camera needs specific logic.
     void initialize() override;
