@@ -25,6 +25,7 @@ class OnHierarchyChangedEvent : public IEvent {
 
         EVENT_CLASS_TYPE(EditorOnHierarchyChanged)
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
+        CLONE_EVENT_METHOD(OnHierarchyChangedEvent)
     };
 
 } // namespace Salix
