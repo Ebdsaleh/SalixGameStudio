@@ -46,6 +46,7 @@ namespace Salix {
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         void handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info);
         void handle_box_collider_resize_button(ElementArchetype* box_collider_archetype, const ElementArchetype* source_renderable);
+        void handle_camera_activation(const ElementArchetype& archetype, const PropertyHandle& handle);
     };
 
     ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
@@ -167,6 +168,28 @@ namespace Salix {
 
 
 
+    void ScryingMirrorPanel::Pimpl::handle_camera_activation(const ElementArchetype& archetype, const PropertyHandle& handle) {
+        bool was_just_activated = std::get<bool>(handle.get_value());
+
+        if (was_just_activated) {
+            Scene* scene = context->preview_scene.get();
+            if (scene) {
+                // Tell the Scene which entity is now the main camera.
+                scene->set_main_camera_entity(archetype.owner_id);
+
+                // Loop through ALL entities to find and deactivate other cameras.
+                for (Entity* entity : scene->get_entities()) {
+                    // Don't deactivate the camera we just turned on.
+                    if (entity->get_id() != archetype.owner_id) {
+                        if (Camera* other_camera = entity->get_element<Camera>()) {
+                            // Use your new method to safely deactivate it.
+                            other_camera->deactivate();
+                        }
+                    }
+                }
+            }
+        }
+    }
 
 
 
@@ -251,26 +274,30 @@ namespace Salix {
                                         
                                         pimpl->handle_media_file_selection(*handle, element_archetype, type_info);
                                         
-                                    } else {
-                                        // If it returns true, a value was changed. FIRE THE EVENT!
-                                        PropertyValueChangedEvent event(
-                                            pimpl->selected_entity_id,
-                                            element_archetype->id,
-                                            type_info->name,
-                                            handle->get_name(),
-                                            handle->get_value()
-                                        );
-                                        if (ImGui::IsItemActive()) {
-                                            pimpl->context->is_editing_property = true;
+                                    } 
+                                    else if (element_archetype->type_name == "Camera" && handle->get_name() == "active") {
+                                            pimpl->handle_camera_activation(*element_archetype, *handle);
                                         }
-                                        pimpl->context->event_manager->dispatch(event);
+                                        
+                                    // If it returns true, a value was changed. FIRE THE EVENT!
+                                    PropertyValueChangedEvent event(
+                                        pimpl->selected_entity_id,
+                                        element_archetype->id,
+                                        type_info->name,
+                                        handle->get_name(),
+                                        handle->get_value()
+                                    );
+                                    if (ImGui::IsItemActive()) {
+                                        pimpl->context->is_editing_property = true;
                                     }
+                                    pimpl->context->event_manager->dispatch(event);
+                                    
                                 }
                                 
                                 ImGui::PopItemWidth();
                             }
                             ImGui::EndTable();
-                            //ImGui::PopID();
+                            
                         }
                         // --- FIT TO TEXTURE ---
                         // If the element drawn is a BoxCollider...
