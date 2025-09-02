@@ -2,6 +2,7 @@
 #include <Editor/panels/RealmPortalPanel.h>
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Editor/events/OnMainCameraChangedEvent.h>
+#include <Salix/events/BeforeEntityPurgedEvent.h>
 #include <Salix/gui/IGui.h>
 #include <Salix/gui/IconInfo.h>
 #include <Editor/EditorContext.h>
@@ -316,7 +317,7 @@ struct RenderJob {
             if (!scene_to_use) {
                 return;
             }
-
+            
             // 1. Update the Scene's data to record which entity is the main camera.
             scene_to_use->set_main_camera_entity(e.entity_id);
 
@@ -328,6 +329,21 @@ struct RenderJob {
                 pimpl->game_camera = camera_entity->get_element<Camera>();
             } else {
                 pimpl->game_camera = nullptr;
+            }
+        }
+        else if (event.get_event_type() == EventType::BeforeEntityPurged) {
+            auto& e = static_cast<BeforeEntityPurgedEvent&>(event);
+
+           // Only proceed if we have a valid pointer to a game camera.
+            if (pimpl->game_camera) {
+                // Safely cast the ICamera* to an Element* to access the get_owner() method.
+                Element* camera_as_element = dynamic_cast<Element*>(pimpl->game_camera);
+
+                // Now we can safely check if the owner is the entity being purged.
+                if (camera_as_element && e.entity == camera_as_element->get_owner()) {
+                    // If it is, clear the pointer to prevent it from dangling.
+                    pimpl->game_camera = nullptr;
+                }
             }
         }
     }
