@@ -210,8 +210,8 @@ namespace Salix {
         // Step 2: Dispatch the 'BeforeEntityDestroyedEvent' for each one.
         // This gives other systems a chance to safely clean up their references.
         for (Entity* entity : entities_to_purge) {
-            BeforeEntityPurgedEvent event(entity);
-            pimpl->context.event_manager->dispatch(event);
+            
+            pimpl->context.event_manager->dispatch(std::make_unique<BeforeEntityPurgedEvent>(entity));
         }
         
         // Step 3: Now that everyone has been notified, we can safely delete the entities.
