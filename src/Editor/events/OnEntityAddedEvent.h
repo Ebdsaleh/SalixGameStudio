@@ -25,5 +25,6 @@ namespace Salix {
 
         EVENT_CLASS_TYPE(EditorOnEntityAdded) 
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
+        CLONE_EVENT_METHOD(OnEntityAddedEvent)
     };
 }
