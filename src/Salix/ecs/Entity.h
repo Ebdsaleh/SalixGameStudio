@@ -61,7 +61,8 @@ namespace Salix {
             Element* get_element_by_type_name(const std::string& element_type_name);
             std::vector<Element*> get_elements_by_type_name(const std::string& type_name);
             Element* get_element_by_id(SimpleGuid id);
-
+            std::vector<Element*> get_all_elements();
+            std::vector<const Element*> get_all_elements() const;
             void add_element(Element* element_to_add);
             // --- PUBLIC TEMPLATE METHODS (defined in the header) ---
             // New public template overload for add_element.
@@ -100,20 +101,30 @@ namespace Salix {
                 return raw_ptr;
             }
         
-            std::vector<Element *> get_all_elements();
-
+            
+            // Non-const version
             template<typename T>
             T* get_element() {
-                // Call the private, non-templated helper to do the real work.
-                // We pass the typeid so the helper knows what to look for.
-                return static_cast<T*>(get_element_internal(typeid(T)));
+                // The loop now correctly iterates through the vector of raw pointers.
+                for (Element* element_ptr : get_all_elements()) {
+                    // REASONING: We dynamic_cast the raw pointer directly, without .get().
+                    if (T* casted_element = dynamic_cast<T*>(element_ptr)) {
+                        return casted_element;
+                    }
+                }
+                return nullptr;
             }
 
+            // CONST version for getting a read-only pointer.
             template<typename T>
             const T* get_element() const {
-                // Call the private, non-templated helper to do the real work.
-                // We pass the typeid so the helper knows what to look for.
-                return static_cast<const T*>(get_element_internal(typeid(T)));
+                // REASONING: The const version is corrected the same way.
+                for (const Element* element_ptr : get_all_elements()) {
+                    if (const T* casted_element = dynamic_cast<const T*>(element_ptr)) {
+                        return casted_element;
+                    }
+                }
+                return nullptr;
             }
             
             template<typename T>

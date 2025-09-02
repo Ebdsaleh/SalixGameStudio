@@ -132,8 +132,6 @@ namespace Salix {
         auto children_copy = pimpl->children;
         for (auto* child : children_copy) {
             if (child && child->parent) {
-                assert(child->parent, "[Release From Parent Error] Parent Entity is nullptr");
-                assert(child, "[Release From Parent Error] Child Entity is nullptr!");
                 child->release_from_parent();
             }
         }
@@ -347,6 +345,14 @@ namespace Salix {
         return raw_pointers;
     }
 
+    std::vector<const Element*> Entity::get_all_elements() const {
+        std::vector<const Element*> raw_pointers;
+        raw_pointers.reserve(pimpl->all_elements.size());
+        for (const auto& element_owner_ptr : pimpl->all_elements) {
+            raw_pointers.push_back(element_owner_ptr.get());
+        }
+        return raw_pointers;
+    }
 
     // --- Private Helper Implementations (can safely access pimpl) ---
     void Entity::add_element_internal(std::unique_ptr<Element> element) {
