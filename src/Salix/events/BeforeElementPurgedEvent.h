@@ -23,5 +23,6 @@ namespace Salix {
 
         EVENT_CLASS_TYPE(BeforeElementPurged) // Add BeforeElementPurged to your EventType enum
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
+        CLONE_EVENT_METHOD(BeforeElementPurgedEvent)
     };
 }
