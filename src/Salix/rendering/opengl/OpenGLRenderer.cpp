@@ -591,7 +591,7 @@ namespace Salix {
     // --- 3D Method Implementations ---
 
     void OpenGLRenderer::set_active_camera(ICamera* camera) {
-        pimpl->active_camera = camera;
+            pimpl->active_camera = camera;
     }
 
     ICamera* OpenGLRenderer::get_active_camera() {
