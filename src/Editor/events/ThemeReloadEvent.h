@@ -17,6 +17,7 @@ namespace Salix {
            
         EVENT_CLASS_TYPE(EditorThemeReloadEvent)
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
+        CLONE_EVENT_METHOD(ThemeReloadEvent)
 
        
     };
