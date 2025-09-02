@@ -36,6 +36,7 @@ namespace Salix {
 
         EVENT_CLASS_TYPE(ImGuiInput)
         EVENT_CLASS_CATEGORY(EventCategory::Input) // It's an input-related event
+        CLONE_EVENT_METHOD(ImGuiInputEvent)
 
     private:
         bool mouse_captured;    // Whether ImGui wants to capture mouse input
