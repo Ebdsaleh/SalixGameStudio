@@ -56,6 +56,7 @@ namespace Salix {
         ElementArchetype* get_element_by_id(const SimpleGuid& element_id);
         const std::vector<ElementArchetype*> get_elements_by_type_name(const std::string& type_name);
         SimpleGuid get_primary_transform_id();
+        bool has_element_of_type(const std::string& type_name) const;
         
         
     };
