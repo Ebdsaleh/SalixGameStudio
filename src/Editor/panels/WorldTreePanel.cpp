@@ -139,8 +139,10 @@ namespace Salix {
             if (ImGui::IsItemClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right)) {
                 context->selected_entity_id = archetype.id;
                 context->selected_element_id = SimpleGuid::invalid();
-                EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                context->event_manager->dispatch(event);
+                
+                context->event_manager->dispatch(
+                    std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
+                );
             }
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
                 Entity* live_entity_to_focus = context->preview_scene->get_entity_by_id(archetype.id);
@@ -179,14 +181,15 @@ namespace Salix {
                             const std::string new_name = rename_buffer;
                             element.name = new_name;
                             element.data["name"] = new_name;
-                            PropertyValueChangedEvent event(
+                            
+                            context->event_manager->dispatch(
+                                std::make_unique<PropertyValueChangedEvent>(
                                 archetype.id,
                                 element.id,
                                 element.type_name,
                                 "name",
-                                new_name
+                                new_name)
                             );
-                            context->event_manager->dispatch(event);
                             //  Update the ElementArchetype state.
                             if(context->editor_realm_manager->get_snapshot()->is_element_modified(element)){
                                 element.state = ArchetypeState::Modified;
@@ -221,8 +224,13 @@ namespace Salix {
                     if (ImGui::IsItemClicked()) {
                         context->selected_element_id = element.id;
                         context->selected_entity_id = archetype.id;
-                        ElementSelectedEvent event(context->selected_element_id, context->selected_entity_id, nullptr);
-                        context->event_manager->dispatch(event);
+                        
+                        context->event_manager->dispatch(
+                            std::make_unique<ElementSelectedEvent>(
+                            context->selected_element_id,
+                            context->selected_entity_id,
+                            nullptr)
+                        );
                     }
                     show_element_context_menu(archetype, element);
                     ImGui::PopID();
@@ -257,8 +265,10 @@ namespace Salix {
                         // The panel is still responsible for UI state, like what is selected.
                         context->selected_entity_id = new_entity.id;
                         context->selected_element_id = SimpleGuid::invalid();
-                        EntitySelectedEvent select_event(context->selected_entity_id, nullptr);
-                        context->event_manager->dispatch(select_event);
+                        
+                        context->event_manager->dispatch(
+                            std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
+                        );
                     }
                 });
             }
@@ -287,8 +297,10 @@ namespace Salix {
             if (archetype.has_element_of_type("Camera")) {
                 if (ImGui::MenuItem("Set As Realm Camera##SetAsRealmCamera")) {
                     deferred_commands.push_back([this, owner_id = archetype.id]() {
-                        OnMainCameraChangedEvent event(owner_id);
-                        context->event_manager->dispatch(event);
+                        
+                        context->event_manager->dispatch(
+                            std::make_unique<OnMainCameraChangedEvent>(owner_id)
+                        );
                     });
                 }
                 ImGui::Separator();
@@ -308,8 +320,10 @@ namespace Salix {
 
                             // Reselect the entity to refresh the Inspector panel.
                             context->selected_entity_id = archetype_id;
-                            EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                            context->event_manager->dispatch(event);
+                            
+                            context->event_manager->dispatch(
+                                std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
+                            );
                         }
                     });
                 }
@@ -327,8 +341,10 @@ namespace Salix {
 
                                 // Reselect the entity to refresh the Inspector panel.
                                 context->selected_entity_id = archetype_id;
-                                EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                                context->event_manager->dispatch(event);
+                                
+                                context->event_manager->dispatch(
+                                    std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
+                                );
                             }
                         });
                     }
@@ -348,8 +364,10 @@ namespace Salix {
 
                             // 3. Reselect the entity to refresh the Inspector panel.
                             context->selected_entity_id = archetype_id;
-                            EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                            context->event_manager->dispatch(event);
+                            
+                            context->event_manager->dispatch(
+                                std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
+                            );
                         }
                     });
                 }
@@ -367,8 +385,10 @@ namespace Salix {
 
                                 // Reselect the entity to refresh the Inspector
                                 context->selected_entity_id = archetype_id;
-                                EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                                context->event_manager->dispatch(event);
+                                
+                                context->event_manager->dispatch(
+                                    std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
+                                );
                             }
                         });
                     }
@@ -385,8 +405,10 @@ namespace Salix {
 
                                 // Reselect the entity to refresh the Inspector
                                 context->selected_entity_id = archetype_id;
-                                EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                                context->event_manager->dispatch(event);
+                                
+                                context->event_manager->dispatch(
+                                    std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
+                                );
                             }
                         });
                     }
@@ -405,8 +427,10 @@ namespace Salix {
 
                             // 3. Reselect the entity to refresh the Inspector panel.
                             context->selected_entity_id = archetype_id;
-                            EntitySelectedEvent event(context->selected_entity_id, nullptr);
-                            context->event_manager->dispatch(event);
+                            
+                            context->event_manager->dispatch(
+                                std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
+                            );
                         }
                     });
                 }
@@ -513,8 +537,10 @@ namespace Salix {
                 if (ImGui::MenuItem("Set As Realm Camera##SetAsRealmCamera")) {
                     deferred_commands.push_back([this, owner_id = parent_archetype.id]() {
                         // Dispatch the new event with the owner entity's ID
-                        OnMainCameraChangedEvent event(owner_id);
-                        context->event_manager->dispatch(event);
+                        
+                        context->event_manager->dispatch(
+                            std::make_unique<OnMainCameraChangedEvent>(owner_id)
+                        );
                     });
                 }
             } 
@@ -639,8 +665,10 @@ namespace Salix {
         context->editor_realm_manager->update_ancestor_states(dragged_id);
 
         // --- STEP 4: DISPATCH EVENT FOR LISTENERS (like RealmDesignerPanel) ---
-        OnHierarchyChangedEvent hierarchy_event(dragged_id, target_id);
-        context->event_manager->dispatch(hierarchy_event);
+        
+        context->event_manager->dispatch(
+            std::make_unique<OnHierarchyChangedEvent>(dragged_id, target_id)
+        );
     }
     // --- END TEST CODE ---
 
