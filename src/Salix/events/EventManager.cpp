@@ -68,6 +68,13 @@ namespace Salix {
         pimpl->event_queue.clear();
     }
 
+    // Overloaded dispatch method.
+    void EventManager::dispatch(const IEvent& event) {
+        // Call the unique_ptr overload with a clone of the event.
+        dispatch(event.clone());
+    }
+
+
     void EventManager::process_queue() {
         // Process all events currently in the queue for this frame.
         for (const auto& event_ptr : pimpl->event_queue) {
