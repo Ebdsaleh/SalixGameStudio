@@ -9,7 +9,7 @@
 #include <Salix/core/Core.h>
 #include <string>
 #include <sstream>
-
+#include <memory>
 namespace Salix {
 
     // --- CHANGE 1: EventCategory is now a strongly-typed enum class. ---
@@ -69,8 +69,12 @@ namespace Salix {
         // This will be overridden by concrete SDL events to return the SDL_Event*
         virtual bool should_block() const { return false; } // Default implementation
         virtual void set_block(bool block) {(void)block;}              // Default does nothing
-    
+        virtual std::unique_ptr<IEvent> clone() const = 0;
         bool handled = false;
     };
 
 } // namespace Salix
+#define CLONE_EVENT_METHOD(type) \
+    std::unique_ptr<IEvent> clone() const override { \
+        return std::make_unique<type>(*this); \
+    }
