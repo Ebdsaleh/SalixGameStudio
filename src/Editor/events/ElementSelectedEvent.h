@@ -23,6 +23,7 @@ class ElementSelectedEvent : public IEvent {
 
         EVENT_CLASS_TYPE(EditorElementSelected) 
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
+        CLONE_EVENT_METHOD(ElementSelectedEvent)
         Element* element;
         // The stable ID, which works in both modes
         SimpleGuid owner_id;
