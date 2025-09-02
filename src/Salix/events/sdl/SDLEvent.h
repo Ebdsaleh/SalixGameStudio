@@ -37,7 +37,7 @@ namespace Salix {
         int get_key_code() const { return key_code; }
 
         EVENT_CLASS_CATEGORY(EventCategory::Keyboard | EventCategory::Input)
-        CLONE_EVENT_METHOD(KeyEvent)
+        
     protected:
         // Change: Add const SDL_Event& sdl_event_in to constructor
         // Change: Pass sdl_event_in to the base SDLEventBase constructor
@@ -139,7 +139,6 @@ namespace Salix {
             int get_mouse_button() const { return button; }
 
             EVENT_CLASS_CATEGORY(EventCategory::Mouse | EventCategory::Input | EventCategory::MouseButton)
-            CLONE_EVENT_METHOD(MouseButtonEvent)
         protected:
             // **CRUCIAL CHANGE HERE:** Add 'const SDL_Event& sdl_event_in' to the constructor
             // And pass it up to the base 'SDLEventBase' constructor.
