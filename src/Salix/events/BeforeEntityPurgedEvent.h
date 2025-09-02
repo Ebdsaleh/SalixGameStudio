@@ -24,6 +24,7 @@ class BeforeEntityPurgedEvent : public IEvent {
 
         EVENT_CLASS_TYPE(BeforeEntityPurged)
         EVENT_CLASS_CATEGORY(EventCategory::Editor)
+        CLONE_EVENT_METHOD(BeforeEntityPurgedEvent)
 
         Entity* entity;
 };
