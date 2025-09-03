@@ -55,7 +55,6 @@ namespace Salix {
         void handle_property_value_change(const PropertyValueChangedEvent& e);
         void update_entity_archetype_state(EntityArchetype& archetype);
         void update_element_archetype_state(ElementArchetype& archetype);
-        std::vector<std::function<void()>> deferred_commands;
 
         
     };
@@ -255,7 +254,7 @@ namespace Salix {
     void WorldTreePanel::Pimpl::show_empty_space_context_menu() {
         if (ImGui::BeginPopupContextWindow("WorldTreeContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverExistingPopup)) {
             if (ImGui::MenuItem("Add Entity##AddRootEntity")) {
-                deferred_commands.push_back([this]() {
+                context->add_deferred_command([this]() {
                     // The panel's only job is to create the data and send the command.
                     EntityArchetype new_entity = ArchetypeFactory::create_entity_archetype("Entity");
                     if (new_entity.id.is_valid()) {
@@ -296,7 +295,7 @@ namespace Salix {
 
             if (archetype.has_element_of_type("Camera")) {
                 if (ImGui::MenuItem("Set As Realm Camera##SetAsRealmCamera")) {
-                    deferred_commands.push_back([this, owner_id = archetype.id]() {
+                    context->add_deferred_command([this, owner_id = archetype.id]() {
                         
                         context->event_manager->dispatch(
                             std::make_unique<OnMainCameraChangedEvent>(owner_id)
@@ -309,7 +308,7 @@ namespace Salix {
             // Element Creation Submenu
             if (ImGui::BeginMenu("Add Element##AddElementMenu")) {
                 if (ImGui::MenuItem("Transform##AddTransform")) {
-                    deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                    context->add_deferred_command([this, archetype_id = archetype.id]() {
                         // Create the new element data.
                         ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Transform");
                         new_element.owner_id = archetype_id;
@@ -329,7 +328,7 @@ namespace Salix {
                 }
                 if (ImGui::BeginMenu("Collider##AddColliderMenu")) {
                     if (ImGui::MenuItem("Box Collider##AddBoxCollider")) {
-                        deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                        context->add_deferred_command([this, archetype_id = archetype.id]() {
                             // Create the new element data.
                             ElementArchetype new_element = ArchetypeFactory::create_element_archetype("BoxCollider");
                             new_element.owner_id = archetype_id;
@@ -353,7 +352,7 @@ namespace Salix {
                 }
                 
                 if (ImGui::MenuItem("Sprite2D##AddSprite2D")) {
-                    deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                    context->add_deferred_command([this, archetype_id = archetype.id]() {
                         // 1. Create the new element data.
                         ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Sprite2D");
                         new_element.owner_id = archetype_id;
@@ -374,7 +373,7 @@ namespace Salix {
                 
                 if (ImGui::BeginMenu("Script##AddScriptMenu")) {
                     if (ImGui::MenuItem("C++ Script##AddCPPScript")) {
-                        deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                        context->add_deferred_command([this, archetype_id = archetype.id]() {
                             // Create the new element data
                             ElementArchetype new_element = ArchetypeFactory::create_element_archetype("CppScript");
                             new_element.owner_id = archetype_id;
@@ -394,7 +393,7 @@ namespace Salix {
                     }
 
                     if (ImGui::MenuItem("Python Script##AddPythonScript")) {
-                        deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                        context->add_deferred_command([this, archetype_id = archetype.id]() {
                             // Create the new element data
                             ElementArchetype new_element = ArchetypeFactory::create_element_archetype("PythonScript");
                             new_element.owner_id = archetype_id;
@@ -416,7 +415,7 @@ namespace Salix {
                 }
                 
                 if (ImGui::MenuItem("Camera##AddCamera")) {
-                    deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                    context->add_deferred_command([this, archetype_id = archetype.id]() {
                         // 1. Create the new element data.
                         ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Camera");
                         new_element.owner_id = archetype_id;
@@ -441,7 +440,7 @@ namespace Salix {
             // Hierarchy Operations
             if (archetype.parent_id.is_valid()) {
                 if (ImGui::MenuItem("Release From Parent##ReleaseFromParent")) {
-                    deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                    context->add_deferred_command([this, archetype_id = archetype.id]() {
                         // Just send the command to the manager
                         context->editor_realm_manager->release_from_parent(archetype_id);
                     });
@@ -449,7 +448,7 @@ namespace Salix {
             }
             
             if (ImGui::MenuItem("Add Child Entity##AddChildEntity")) {
-                deferred_commands.push_back([this, parent_id = archetype.id]() {
+                context->add_deferred_command([this, parent_id = archetype.id]() {
                     EntityArchetype new_child = ArchetypeFactory::create_entity_archetype("New Child");
                     new_child.parent_id = parent_id;
                     // Just send the command to the manager
@@ -466,53 +465,53 @@ namespace Salix {
             }
 
             if (ImGui::MenuItem("Duplicate##DuplicateEntity", "Ctrl+D")) {
-                deferred_commands.push_back([this, source_id = archetype.id]() {
+                context->add_deferred_command([this, source_id = archetype.id]() {
                     context->editor_realm_manager->duplicate_entity(source_id);
                 });
             }
 
             if (ImGui::MenuItem("Duplicate As Sibling##DuplicateEntityAsSibling", "Ctrl+Alt+D")) {
-                deferred_commands.push_back([this, source_id = archetype.id]() {
+                context->add_deferred_command([this, source_id = archetype.id]() {
                     context->editor_realm_manager->duplicate_entity_as_sibling(source_id);
                 });
             }
 
 
              if (ImGui::MenuItem("Duplicate With Children##DuplicateEntityWithChildren", "Ctrl+Shift+D")) {
-                deferred_commands.push_back([this, source_id = archetype.id]() {
+                context->add_deferred_command([this, source_id = archetype.id]() {
                     context->editor_realm_manager->duplicate_entity_with_children(source_id);
                 });
             }
 
             if (ImGui::MenuItem("Duplicate Family As Sibling##DuplicateFamilyAsSibling", "Ctrl+Alt+Shift+D")) {
-                deferred_commands.push_back([this, source_id = archetype.id]() {
+                context->add_deferred_command([this, source_id = archetype.id]() {
                     context->editor_realm_manager->duplicate_family_as_sibling(source_id);
                 });
             }
             
 
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
-                deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                context->add_deferred_command([this, archetype_id = archetype.id]() {
                     context->editor_realm_manager->purge_entity(archetype_id);
                 });
             }
 
             if (ImGui::MenuItem("Purge Entity Descendants##PurgeEntityDescendants", "Ctrl+Shift+Del")) {
-                deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                context->add_deferred_command([this, archetype_id = archetype.id]() {
                     // Just send the command. The manager handles all the complex work.
                     context->editor_realm_manager->purge_entity_descendants(archetype_id);
                 });
             }
              
             if (ImGui::MenuItem("Purge Entity And Family##PurgeEntityAndFamily", "Shift+Del")) {
-                deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                context->add_deferred_command([this, archetype_id = archetype.id]() {
                     context->editor_realm_manager->purge_entity_and_family(archetype_id);
                 });
             }
 
             
             if (ImGui::MenuItem("Purge Entity Bloodline##PurgeEntityBloodline", "Alt+Shift+Del")) {
-                deferred_commands.push_back([this, archetype_id = archetype.id]() {
+                context->add_deferred_command([this, archetype_id = archetype.id]() {
                     // Just send the command. The manager handles all the complex work.
                     context->editor_realm_manager->purge_entity_bloodline(archetype_id);
 
@@ -535,7 +534,7 @@ namespace Salix {
             if (element_archetype.type_name == "Camera") {
                 ImGui::Separator();
                 if (ImGui::MenuItem("Set As Realm Camera##SetAsRealmCamera")) {
-                    deferred_commands.push_back([this, owner_id = parent_archetype.id]() {
+                    context->add_deferred_command([this, owner_id = parent_archetype.id]() {
                         // Dispatch the new event with the owner entity's ID
                         
                         context->event_manager->dispatch(
@@ -554,7 +553,7 @@ namespace Salix {
             if (element_archetype.allows_duplication) {
                 if (ImGui::MenuItem("Duplicate##DuplicateElement", "Ctrl+D")) {
                     // Defer the command to call the manager.
-                    deferred_commands.push_back([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
+                    context->add_deferred_command([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
                         context->editor_realm_manager->duplicate_element(parent_id, element_id);
                     });
                 }
@@ -563,7 +562,7 @@ namespace Salix {
 
             if (ImGui::MenuItem("Purge##PurgeElement", "Del")) {
                 // Defer the command to call the manager.
-                deferred_commands.push_back([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
+                context->add_deferred_command([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
                     context->editor_realm_manager->purge_element(parent_id, element_id);
                 });
             }
@@ -585,7 +584,7 @@ namespace Salix {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DND_GUID")) {
                 SimpleGuid dragged_id = *(const SimpleGuid*)payload->Data;
                 if (dragged_id != target.id) {
-                    deferred_commands.push_back([this, dragged_id, target_id = target.id]() {
+                    context->add_deferred_command([this, dragged_id, target_id = target.id]() {
                         // Use the captured 'target_id' instead of 'target.id'
                         process_entity_drop(dragged_id, target_id);
                     });
@@ -605,7 +604,7 @@ namespace Salix {
                 draw_list->AddLine(ImVec2(rect_min.x, rect_min.y), ImVec2(rect_max.x, rect_min.y), ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
                 if (ImGui::IsMouseReleased(0)) {
                     SimpleGuid dragged_id = *(SimpleGuid*)payload->Data;
-                    deferred_commands.push_back([this, dragged_id, parent_id = anchor.parent_id]() {
+                    context->add_deferred_command([this, dragged_id, parent_id = anchor.parent_id]() {
                         // Use the captured 'parent_id' instead of 'anchor.parent_id'
                         process_entity_drop(dragged_id, parent_id);
                     });
@@ -732,13 +731,7 @@ namespace Salix {
         }
         ImGui::EndChild();
 
-        // The deferred command logic from your original file remains the same.
-        if (!pimpl->deferred_commands.empty()) {
-            for (const auto& command : pimpl->deferred_commands) {
-                command();
-            }
-            pimpl->deferred_commands.clear();
-        }
+        
     }
    
    
