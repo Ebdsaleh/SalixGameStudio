@@ -16,6 +16,7 @@
 #include <Salix/reflection/EditorDataMode.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/DummyCamera.h>
+#include <Salix/rendering/ICamera.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/ecs/Scene.h>
 #include <Salix/ecs/Entity.h>
@@ -188,24 +189,38 @@ namespace Salix {
             return;
         }
 
-        Scene* scene_to_use = pimpl->context->active_scene;
-        
-        // If we don't have a camera pointer yet, try to find it using the scene's ID
-        if (!pimpl->game_camera) {
-            SimpleGuid cam_id = pimpl->context->active_scene->get_main_camera_entity_id();
-            if (cam_id.is_valid()) {
-                Entity* cam_entity = pimpl->context->active_scene->get_entity_by_id(cam_id);
-                
-                if (cam_entity) {
-                    std::cout << "Camera Entity ID" << cam_id.get_value() << std::endl;
-                    
-                    pimpl->game_camera = cam_entity->get_element<Camera>();
-                }
+        // --- 1. Proactively Find the Active Camera ---
+        // REASONING: At the start of every render, we check the scene's state.
+        // This is safer than relying on event handlers alone.
+        SimpleGuid active_cam_id = pimpl->context->active_scene->get_main_camera_entity_id();
+        if (active_cam_id.is_valid()) {
+            Entity* cam_entity = pimpl->context->active_scene->get_entity_by_id(active_cam_id);
+            if (cam_entity) {
+                // If the entity exists, get its camera.
+                pimpl->game_camera = cam_entity->get_element<Camera>();
+            } else {
+                // If the entity DOESN'T exist, the ID is stale. Clear everything.
+                pimpl->game_camera = nullptr;
+                pimpl->context->active_scene->set_main_camera_entity(SimpleGuid::invalid());
             }
+        } else {
+            // If the scene has no active camera ID, ensure our pointer is also clear.
+            pimpl->game_camera = nullptr;
         }
 
-        ICamera* camera_to_use = pimpl->game_camera && pimpl->game_camera->get_is_active() ? pimpl->game_camera : pimpl->failsafe_camera.get();
-    
+        // --- 2. Make a Clear Choice ---
+        // REASONING: Now we make the choice in a clear, step-by-step way,
+        // avoiding the confusing ternary operator.
+        ICamera* camera_to_use = nullptr;
+        if (pimpl->game_camera && pimpl->game_camera->get_is_active()) {
+            // If we have a valid game camera and it's active, use it.
+            camera_to_use = pimpl->game_camera;
+        } else {
+            // Otherwise, fall back to the failsafe. The .get() correctly returns
+            // a DummyCamera*, which is implicitly convertible to an ICamera*.
+            camera_to_use = pimpl->failsafe_camera.get();
+        }
+        
         IRenderer* renderer = pimpl->context->renderer;
         if (!renderer) return;
 
