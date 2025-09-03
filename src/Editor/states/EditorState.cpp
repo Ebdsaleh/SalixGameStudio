@@ -388,7 +388,7 @@ namespace Salix {
         }  
         pimpl->begin_dockspace();
         pimpl->draw_debug_window();
-        // moved pimpl->render_menu_bar_and_panels() to EditorState::render()
+        
         pimpl->update_menu_bar_and_panels(); 
         if (pimpl->editor_context && pimpl->editor_context->gui) {
             pimpl->editor_context->gui->display_dialogs();
@@ -401,12 +401,12 @@ namespace Salix {
         }
         
         // Process any commands that were deferred during this frame.
-        if (!pimpl->editor_context->deferred_type_drawer_commands.empty()) {
-            for (const auto& command : pimpl->editor_context->deferred_type_drawer_commands) {
-                command(); // Execute the command
+        // a. Process the single, central command queue. This will queue up all events.
+        if (!pimpl->editor_context->deferred_commands.empty()) {
+            for (const auto& command : pimpl->editor_context->deferred_commands) {
+                command();
             }
-            // Clear the queue for the next frame.
-            pimpl->editor_context->deferred_type_drawer_commands.clear();
+            pimpl->editor_context->clear_deferred_commands();
         }
         // Now that all updates for this frame are done, we process
         // all the events that were queued up. This ensures all systems are in a
