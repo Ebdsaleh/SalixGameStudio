@@ -83,11 +83,21 @@ namespace Salix {
         EditorDataMode data_mode = EditorDataMode::Yaml;
         std::unique_ptr<EditorRealmManager> editor_realm_manager;
         //A queue for commands to be run at the end of the frame.
-        std::vector<std::function<void()>> deferred_type_drawer_commands;
+        std::vector<std::function<void()>> deferred_commands;
         std::vector<std::function<void()>> sync_queue;
         bool realm_is_dirty = true; 
         bool is_editing_property = false;
         EditorContext() : grid_settings(20.0f, 1.0f, 4, true, 0.25f, {0.3f, 0.3f, 0.3f, 0.4f}){}
+        // This is the centralized way to add deferred commands.
+        void add_deferred_command(std::function<void()> command) {
+            deferred_commands.push_back(std::move(command));
+        }
+        void clear_deferred_commands() {
+            deferred_commands.clear();
+        }
+        bool is_deferred_commands_empty() {
+            return deferred_commands.empty();
+        }
     };
     
 
