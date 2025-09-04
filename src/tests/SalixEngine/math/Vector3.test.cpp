@@ -1,4 +1,4 @@
-// tests/math/Vector3.test.cpp
+// Tests/math/Vector3.test.cpp
 #include <doctest.h>
 #include <Salix/math/Vector3.h>
 
