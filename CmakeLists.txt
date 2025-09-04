@@ -1,7 +1,7 @@
 # SalixGameStudio/CMakeLists.txt (root)
 cmake_minimum_required(VERSION 3.15)
 project(SalixGameStudio VERSION 0.1 LANGUAGES CXX C)
-
+enable_testing()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -39,6 +39,12 @@ set_target_properties(SDL2_IMAGE_LIB PROPERTIES IMPORTED_LOCATION "${SDL2_IMAGE_
 add_library(SDL2_TTF_LIB STATIC IMPORTED)
 set_target_properties(SDL2_TTF_LIB PROPERTIES IMPORTED_LOCATION "${SDL2_TTF_LIB_DIR}/SDL2_ttf.lib" INTERFACE_INCLUDE_DIRECTORIES "${SDL2_TTF_INCLUDE_DIR}")
 
+# --- Create INTERFACE Library for DocTest Testing framework.
+# --- doctest Integration (Single Header for Offline Use) ---
+add_library(doctest INTERFACE)
+target_include_directories(doctest INTERFACE
+    "${CMAKE_SOURCE_DIR}/vendor/doctest/doctest"
+)
 # --- Create INTERFACE Library for GLM (Header-Only) ---
 add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE "${CMAKE_SOURCE_DIR}/vendor/glm")
@@ -85,7 +91,7 @@ add_subdirectory(src/Salix)
 add_subdirectory(src/Game)
 add_subdirectory(src/Editor)
 add_subdirectory(src/Launcher)
-
+add_subdirectory(src/tests)
 
 # --- INSTALL RULES ---
 # SDL2.dll
