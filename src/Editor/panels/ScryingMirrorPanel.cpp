@@ -126,7 +126,7 @@ namespace Salix {
                         )
                         ); 
                     };
-                    this->context->deferred_type_drawer_commands.push_back(command); // 'this' now refers to the Pimpl struct
+                    this->context->add_deferred_command(command); // 'this' now refers to the Pimpl struct
                 }
             });
             context->gui->show_dialog_by_key(dialog_key);
@@ -235,7 +235,7 @@ namespace Salix {
                     bool is_visible = selected_archetype->is_visible;
                     if (ImGui::Checkbox("Visible", &is_visible)) {
                         // Defer the change to happen at a safe time
-                        pimpl->context->deferred_type_drawer_commands.push_back([this, selected_archetype, is_visible]() {
+                        pimpl->context->add_deferred_command([this, selected_archetype, is_visible]() {
                             // Update the archetype's data
                             selected_archetype->is_visible = is_visible;
 
@@ -351,7 +351,7 @@ namespace Salix {
                                     ImGui::PopItemWidth();
 
                                     if (ImGui::Button("Apply Resize", ImVec2(-1, 0))) {
-                                        pimpl->context->deferred_type_drawer_commands.push_back([this, element_archetype, selected_sibling = suitable_siblings[selected_sibling_index]]() {
+                                        pimpl->context->add_deferred_command([this, element_archetype, selected_sibling = suitable_siblings[selected_sibling_index]]() {
                                             pimpl->handle_box_collider_resize_button(element_archetype, selected_sibling);
                                         });
                                     }
