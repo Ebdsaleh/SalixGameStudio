@@ -3,7 +3,7 @@
 #include <Salix/math/Vector3.h>
 
 TEST_CASE("Vector3 Addition") {
-     // ARRANGE: Create two vectors we want to add.
+    // ARRANGE: Create two vectors we want to add.
     Salix::Vector3 a(1.0f, 2.0f, 3.0f);
     Salix::Vector3 b(4.0f, 5.0f, 6.0f);
 
