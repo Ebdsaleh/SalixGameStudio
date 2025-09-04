@@ -234,6 +234,21 @@ namespace Salix {
                 }, value);
             }
             live_element->on_load(context);
+            // +++ START FIX +++
+            // NEW: Write derived data back to the archetype
+            // This is a mutable reference, so we can modify the original archetype in the vector.
+            if (auto* live_sprite = dynamic_cast<Sprite2D*>(live_element)) {
+                // Find the corresponding element archetype to modify it.
+                // This assumes the `archetype` parameter is the one being instantiated.
+                for (auto& element_arch : archetype.elements) {
+                    if (element_arch.id == live_element->get_id()) {
+                        element_arch.data["width"].as<int>( live_sprite->get_texture_width());
+                        element_arch.data["height"].as<int>( live_sprite->get_texture_height());
+                        break;
+                    }
+                }
+            }
+            // +++ END FIX +++
         }
         live_entity->on_load(context);
     }
