@@ -32,7 +32,8 @@ namespace Salix {
             // The new overload for cloning.
             void dispatch(const IEvent& event);           
             void process_queue();
-        
+            bool is_queue_empty() const;
+ 
         private:
             // This is the core data structure: a map where the key is an event
             // category, and the value is a list of all listeners subscribed

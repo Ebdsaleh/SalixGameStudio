@@ -94,4 +94,7 @@ namespace Salix {
         pimpl->event_queue.clear();
     }
 
+    bool EventManager::is_queue_empty() const {
+        return pimpl->event_queue.empty();
+    }
 } // namespace Salix
