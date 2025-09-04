@@ -10,6 +10,7 @@
 #include <Editor/events/PropertyValueChangedEvent.h>
 #include <Editor/events/OnChildEntityAddedEvent.h>
 #include <Editor/events/OnEntityFamilyAddedEvent.h>
+#include <Salix/events/BeforeEntityPurgedEvent.h>
 #include <Editor/events/OnEntityPurgedEvent.h>
 #include <Editor/events/OnEntityFamilyPurgedEvent.h>
 #include <Editor/events/OnHierarchyChangedEvent.h>
@@ -226,6 +227,10 @@ namespace Salix {
         }
     }
 
+    
+    // Working before event system became queue-based.
+    // This code crashes (now, for some reason) other Entities maintain their world position but now their
+    // local position is no longer relative to their parent...
     void EditorRealmManager::purge_entity_descendants(SimpleGuid parent_id) {
         EntityArchetype* parent_archetype = get_archetype(parent_id);
         if (!parent_archetype) return;
@@ -269,7 +274,67 @@ namespace Salix {
             std::make_unique<OnEntityFamilyPurgedEvent>(descendants_to_purge)
         );
     }
+    
+    /*
+    // Test code This implementation prevents the crash but breaks the world position of other Entities.
+    void EditorRealmManager::purge_entity_descendants(SimpleGuid parent_id) {
+        EntityArchetype* parent_archetype = get_archetype(parent_id);
+        if (!parent_archetype) return;
 
+        // 1. Find all descendants to purge (this logic is okay).
+        std::vector<SimpleGuid> descendants_to_purge;
+        std::function<void(const SimpleGuid&)> find_descendants = 
+            [&](const SimpleGuid& current_id) {
+            EntityArchetype* current_archetype = get_archetype(current_id);
+            if (current_archetype) {
+                for (const auto& child_id : current_archetype->child_ids) {
+                    descendants_to_purge.push_back(child_id);
+                    find_descendants(child_id);
+                }
+            }
+        };
+        find_descendants(parent_id);
+
+        if (descendants_to_purge.empty()) return;
+
+        // 2. (SAFETY FIX) Fire the "heads-up" event for EACH descendant.
+        //    This warns all systems to clear their pointers before the live objects are deleted.
+        for (const auto& descendant_id : descendants_to_purge) {
+            Entity* live_entity = pimpl->context->preview_scene->get_entity_by_id(descendant_id);
+            if (live_entity) {
+                pimpl->context->event_manager->dispatch(
+                    std::make_unique<BeforeEntityPurgedEvent>(live_entity)
+                );
+            }
+        }
+
+        // 3. (CRASH FIX) Use a safe backward loop to remove the archetypes from the data.
+        for (int i = static_cast<int>(pimpl->realm.size()) - 1; i >= 0; --i) {
+            const auto& entity_archetype = pimpl->realm[i];
+            if (std::find(descendants_to_purge.begin(), descendants_to_purge.end(), entity_archetype.id) != descendants_to_purge.end()) {
+                pimpl->realm.erase(pimpl->realm.begin() + i);
+            }
+        }
+        
+        // 4. Clean up the parent's data.
+        parent_archetype->child_ids.clear();
+        if (parent_archetype->state != ArchetypeState::New) {
+            parent_archetype->state = ArchetypeState::Modified;
+        }
+        update_ancestor_states(parent_archetype->id);
+
+        // 5. (STALE SCENE FIX) Mark the realm as dirty to trigger a rebuild.
+        pimpl->context->realm_is_dirty = true;
+
+        // 6. Resynchronize and dispatch the "aftermath" event.
+        synchronize();
+        pimpl->context->event_manager->dispatch(
+            std::make_unique<OnEntityFamilyPurgedEvent>(descendants_to_purge)
+        );
+        
+    }
+
+    */
 
     void EditorRealmManager::purge_entity_and_family(SimpleGuid entity_id) {
         std::vector<SimpleGuid> family_to_purge;
