@@ -331,7 +331,7 @@ namespace Salix {
 
 
 
-
+    /* --- PREVIOUS IMPLEMENTATION ---
     void EditorState::update(float delta_time ) {
         
         // Reset the input lock at the start of every frame.
@@ -416,6 +416,98 @@ namespace Salix {
         }
     }
 
+    */
+
+    // --- TEST CODE ---
+
+    void EditorState::update(float delta_time) {
+        // ====================================================================
+        // 1. BEGINNING-OF-FRAME SETUP
+        // ====================================================================
+        pimpl->editor_context->is_editing_property = false;
+        pimpl->total_time += delta_time;
+        pimpl->handle_first_frame_setup();
+        pimpl->process_input();
+        if (pimpl->camera) {
+            pimpl->camera->on_update(delta_time);
+        }
+
+        // ====================================================================
+        // 2. MAIN UI UPDATE PHASE
+        // ====================================================================
+        // This is where all ImGui widgets are drawn. Panels will call 
+        // context->add_deferred_command() to queue up their actions.
+        
+        // Push Font
+        IFont* active_font = pimpl->editor_context->font_manager->get_active_font();
+        if (active_font && active_font->get_imgui_font_ptr()) {
+            ImGui::PushFont(active_font->get_imgui_font_ptr());
+        }
+        
+        // Begin Dockspace & Gizmos
+        if (pimpl->editor_context->init_context->engine->is_running()) {
+            ImGuizmo::BeginFrame();
+        }
+        pimpl->begin_dockspace();
+        
+        // Update Panels (This populates the deferred_commands queue)
+        pimpl->draw_debug_window();
+        pimpl->update_menu_bar_and_panels(); 
+        if (pimpl->editor_context && pimpl->editor_context->gui) {
+            pimpl->editor_context->gui->display_dialogs();
+        }
+        
+        // End Dockspace & Pop Font
+        pimpl->end_dockspace();
+        if (active_font && active_font->get_imgui_font_ptr()) {
+            ImGui::PopFont();
+        }
+
+        // ====================================================================
+        // 3. END-OF-FRAME STATE SYNCHRONIZATION (The "Master Playlist")
+        // ====================================================================
+        
+        // a. Process the single, central command queue. This queues up all events.
+        if (!pimpl->editor_context->is_deferred_commands_empty()) {
+            for (const auto& command : pimpl->editor_context->deferred_commands) {
+                command();
+            }
+            pimpl->editor_context->clear_deferred_commands();
+        }
+
+        // b. Process the event queue. Listeners clear their pointers here, BEFORE demolition.
+        if (pimpl->editor_context->event_manager) {
+            while (!pimpl->editor_context->event_manager->is_queue_empty()) {
+                pimpl->editor_context->event_manager->process_queue();
+            }    
+        }
+
+        // c. Now that pointers are safe, run scene maintenance to delete purged entities.
+        if (pimpl->editor_context->preview_scene) {
+            pimpl->editor_context->preview_scene->maintain();
+        }
+
+        // d. Rebuild the scene if the archetype data was changed. It's now safe.
+        if (pimpl->editor_context->realm_is_dirty) {
+            Scene* preview_scene = pimpl->editor_context->preview_scene.get();
+            auto& realm_archetypes = pimpl->editor_context->editor_realm_manager->get_realm();
+            
+            preview_scene->clear_all_entities();
+            if (!realm_archetypes.empty()) {
+                ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_scene, *pimpl->editor_context->init_context);
+            }
+            pimpl->editor_context->realm_is_dirty = false;
+        }
+
+        // e. Update the scene's scripts (if in game mode).
+        if (pimpl->editor_context->preview_scene) {
+            if (pimpl->editor_context->init_context->engine_mode == EngineMode::Game) {
+                pimpl->editor_context->preview_scene->update(delta_time);
+            }
+        }
+    }
+
+    // --- END TEST CODE ---
 
 
 
