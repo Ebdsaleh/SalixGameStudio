@@ -150,3 +150,22 @@ if(MSVC)
         $<$<CONFIG:Debug>:/DEBUG>
     )
 endif()
+
+# --- Project-Specific Tests ---
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+    # Find all test files for this specific project
+    file(GLOB_RECURSE PROJECT_TEST_SOURCES "tests/*.test.cpp")
+
+    # Create a SEPARATE executable just for this project's tests
+    add_executable(TestProject_Tests
+        "${CMAKE_SOURCE_DIR}/src/tests/main.cpp" # We can reuse the main from the engine tests
+        ${PROJECT_TEST_SOURCES}
+    )
+
+    # Link it against this project's DLL (TestProjectDll) and the engine
+    target_link_libraries(TestProject_Tests PRIVATE
+        TestProjectDll
+        SalixEngine
+        doctest
+    )
+endif()
