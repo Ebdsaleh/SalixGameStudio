@@ -152,13 +152,13 @@ if(MSVC)
 endif()
 
 # --- Project-Specific Tests ---
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/Tests")
     # Find all test files for this specific project
-    file(GLOB_RECURSE PROJECT_TEST_SOURCES "tests/*.test.cpp")
+    file(GLOB_RECURSE PROJECT_TEST_SOURCES "Tests/*.test.cpp")
 
     # Create a SEPARATE executable just for this project's tests
     add_executable(TestProject_Tests
-        "${CMAKE_SOURCE_DIR}/src/tests/main.cpp" # We can reuse the main from the engine tests
+        "${CMAKE_SOURCE_DIR}/src/Tests/main.cpp" # We can reuse the main from the engine tests
         ${PROJECT_TEST_SOURCES}
     )
 

@@ -6,7 +6,7 @@ include("${CMAKE_SOURCE_DIR}/vendor/doctest/scripts/cmake/doctest.cmake")
 # --- Reusable function to create a test suite for a module ---
 function(create_salix_test_suite MODULE_NAME)
     # Automatically find all .test.cpp files within the module's test folder
-    # Example: For MODULE_NAME=SalixEngine, this looks in "src/tests/SalixEngine/"
+    # Example: For MODULE_NAME=SalixEngine, this looks in "src/Tests/SalixEngine/"
     file(GLOB_RECURSE TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_NAME}/*.test.cpp")
 
     # If we found any test files, create the executable

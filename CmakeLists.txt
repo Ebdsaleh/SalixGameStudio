@@ -91,7 +91,7 @@ add_subdirectory(src/Salix)
 add_subdirectory(src/Game)
 add_subdirectory(src/Editor)
 add_subdirectory(src/Launcher)
-add_subdirectory(src/tests)
+add_subdirectory(src/Tests)
 
 # --- INSTALL RULES ---
 # SDL2.dll
