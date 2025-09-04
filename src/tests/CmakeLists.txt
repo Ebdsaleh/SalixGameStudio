@@ -1,0 +1,43 @@
+# src/tests/CMakeLists.txt (master test configuration file)
+
+# Include doctest's own helper script to find tests
+include("${CMAKE_SOURCE_DIR}/vendor/doctest/scripts/cmake/doctest.cmake")
+
+# --- Reusable function to create a test suite for a module ---
+function(create_salix_test_suite MODULE_NAME)
+    # Automatically find all .test.cpp files within the module's test folder
+    # Example: For MODULE_NAME=SalixEngine, this looks in "src/tests/SalixEngine/"
+    file(GLOB_RECURSE TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_NAME}/*.test.cpp")
+
+    # If we found any test files, create the executable
+    if(TEST_SOURCES)
+        set(EXECUTABLE_NAME "${MODULE_NAME}_tests")
+
+        add_executable(${EXECUTABLE_NAME}
+            main.cpp        # The common main file for doctest
+            ${TEST_SOURCES} # All the test files we just found
+        )
+
+        # Link the test executable against its module and doctest
+        target_link_libraries(${EXECUTABLE_NAME} PRIVATE
+            ${MODULE_NAME}  # Link against the library we're testing (e.g., SalixEngine)
+            ${ARGN}         # Link any additional libraries passed to the function
+            doctest         # Link the testing framework
+        )
+
+        # Tell doctest/CTest to discover all the tests in this executable
+        doctest_discover_tests(${EXECUTABLE_NAME})
+    endif()
+endfunction()
+
+
+# --- Define all your test suites here ---
+
+# Test suite for the core engine
+create_salix_test_suite(SalixEngine)
+
+# Test suite for the editor (which depends on SalixEngine)
+create_salix_test_suite(SalixEditor SalixEngine)
+
+# Test suite for the game DLL (which depends on SalixEngine)
+create_salix_test_suite(Game SalixEngine)
