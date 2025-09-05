@@ -170,4 +170,18 @@ namespace Salix::ValidationUtils {
     bool is_valid_long_double(long double value) {
         return is_finite(value);
     }
+
+    // Complex numbers
+    bool is_valid_complex_float(const std::complex<float>& value) {
+        return is_finite_complex(value);
+    }
+
+    bool is_valid_complex_double(const std::complex<double>& value) {
+        return is_finite_complex(value);
+    }
+
+    bool is_valid_complex_long_double(const std::complex<long double>& value) {
+        return is_finite_complex(value);
+    }
+
 } // namespace Salix::ValidationUtils

@@ -1,11 +1,13 @@
 // Salix/core/ValidationUtils.h
 #pragma once
 #include <Salix/core/Core.h>
-#include <type_traits>
-#include <cmath>
-#include <limits>
-#include <string>
 #include <cstdint>
+#include <cmath>
+#include <complex>
+#include <limits>
+#include <type_traits>
+#include <string>
+
 
 // In C++, it's more common to group free-standing utility functions
 // in a namespace rather than a class with only static methods.
@@ -68,90 +70,119 @@ namespace Salix::ValidationUtils {
     // Maximum unsigned int
     SALIX_API bool is_valid_uintmax_t(uintmax_t test_uintmax_t);
     
+    // Complex numbers
+    SALIX_API bool is_valid_complex_float(const std::complex<float>& test_complex_float);
+    SALIX_API bool is_valid_complex_double(const std::complex<double>& test_complex_double);
+    SALIX_API bool is_valid_complex_long_double(const std::complex<long double>& test_complex_long_double);
 
     // --- TEMPLATE FUNCTIONS ---
     // Template functions are defined entirely in the header file.
     // This one function can check ANY type of pointer for null.
-
-    // Checks if a signed type is within its bounds (not min or max).
-    template<typename T>
-    inline bool is_within_bounds(const T& value) {
-        static_assert(std::is_signed_v<T>, "is_within_bounds is for signed types.");
-        return value != std::numeric_limits<T>::max() && value != std::numeric_limits<T>::min();
-    }
-
-    // Checks if an unsigned type is within its bounds (not max).
-    template<typename T>
-    inline bool is_within_bounds_unsigned(const T& value) {
-        static_assert(std::is_unsigned_v<T>, "is_within_bounds_unsigned is for unsigned types.");
-        return value != std::numeric_limits<T>::max();
-    }
-
-    // Generic function to check if any integral type (int, uint8_t, uint64_t, etc.)
-    // has a "valid" value (i.e., it hasn't overflowed to its maximum).
-    template<typename T>
-    bool is_valid_integral(const T& value) {
-        // This static_assert ensures this function can ONLY be compiled with integer types.
-        static_assert(std::is_integral_v<T>, "is_valid_integral can only be used with integer types.");
-        return value != std::numeric_limits<T>::max();
-    }
-
-    // Generic function to check if any floating-point type (float, double)
-    // is a normal, finite number.
-    template<typename T>
-    bool is_valid_floating_point(const T& value) {
-        // This static_assert ensures this function can ONLY be used with floating-point types.
-        static_assert(std::is_floating_point_v<T>, "is_valid_floating_point can only be used with float or double.");
-        return !std::isnan(value) && !std::isinf(value);
-    }
-
-    // This is the generic type-checker for ByteMirror.
-    template<typename ExpectedType, typename ActualType>
-    bool is_type(const ActualType& variable) {
-        // This checks if the core types are the same. It will return
-        // true for is_type<int>(my_int_variable)
-        return std::is_same_v<std::decay_t<ExpectedType>, std::decay_t<ActualType>>;
-    }
-
-    template<typename T>
-    bool is_valid_ptr(T* test_ptr) {
-        return test_ptr != nullptr;
-    }
-
-     // Checks if any signed number (int, short, long, etc.) is not negative.
-    template<typename T>
-    bool is_not_negative(const T& value) {
-        // This check only works for signed types.
-        static_assert(std::is_signed_v<T>, "is_not_negative can only be used with signed types.");
-        return value >= 0;
-    }
-
-    // Checks if a float or double is a normal, finite number.
-    template<typename T>
-    bool is_finite(const T& value) {
-        // This check only works for floating-point types.
-        static_assert(std::is_floating_point_v<T>, "is_finite can only be used with float or double.");
-        return !std::isnan(value) && !std::isinf(value);
-    }
-
 
     // --- TYPE TRAIT HELPERS (For auto-generation) ---
     // These are the C++ equivalent of Python's isinstance(). They check the fundamental
     // category of a type at compile-time.
 
     template<typename T>
-    constexpr bool is_integral() {
+    inline constexpr bool is_integral() {
         return std::is_integral_v<std::decay_t<T>>;
     }
 
     template<typename T>
-    constexpr bool is_floating_point() {
+    inline constexpr bool is_floating_point() {
         return std::is_floating_point_v<std::decay_t<T>>;
     }
 
     template<typename T>
-    constexpr bool is_signed() {
+    inline constexpr bool is_signed() {
         return std::is_signed_v<std::decay_t<T>>;
     }
+
+    template<typename T>
+    inline constexpr bool is_unsigned() {
+        return std::is_unsigned_v<std::decay_t<T>>;
+    }
+
+
+    // Generic validation helpers.
+
+    // This is the generic type-checker for ByteMirror.
+    template<typename ExpectedType, typename ActualType>
+    inline constexpr bool is_type(const ActualType& variable) {
+        (void)variable;
+        // This checks if the core types are the same. It will return
+        // true for is_type<int>(my_int_variable)
+        return std::is_same_v<std::decay_t<ExpectedType>, std::decay_t<ActualType>>;
+    }
+
+
+    // Checks if a signed type is within its bounds (not min or max).
+    template<typename T>
+    inline bool is_within_bounds(const T& value) {
+        static_assert(is_signed<T>(), "is_within_bounds is for signed types.");
+        return value != std::numeric_limits<T>::max() && value != std::numeric_limits<T>::min();
+    }
+
+    // Checks if an unsigned type is within its bounds (not max).
+    template<typename T>
+    inline bool is_within_bounds_unsigned(const T& value) {
+        static_assert(is_unsigned<T>(), "is_within_bounds_unsigned is for unsigned types.");
+        return value != std::numeric_limits<T>::max();
+    }
+
+    // Generic function to check if any integral type (int, uint8_t, uint64_t, etc.)
+    // has a "valid" value (i.e., it hasn't overflowed to its maximum).
+    template<typename T>
+    inline bool is_valid_integral(const T& value) {
+        // This static_assert ensures this function can ONLY be compiled with integer types.
+        static_assert(is_integral<T>(), "is_valid_integral can only be used with integer types.");
+        return value != std::numeric_limits<T>::max();
+    }
+
+    // Generic function to check if any floating-point type (float, double, long double).
+    // is a normal, finite number.
+    template<typename T>
+    inline bool is_valid_floating_point(const T& value) {
+        // This static_assert ensures this function can ONLY be used with floating-point types.
+        static_assert(is_floating_point<T>(), "is_valid_floating_point can only be used with float, double, or long double.");
+        return !std::isnan(value) && !std::isinf(value);
+    }
+
+    
+    template<typename T>
+    inline bool is_valid_ptr(T* test_ptr) {
+        return test_ptr != nullptr;
+    }
+
+     // Checks if any signed number (int, short, long, etc.) is not negative.
+    template<typename T>
+    inline bool is_not_negative(const T& value) {
+        // This check only works for signed types.
+        static_assert(is_signed<T>(), "is_not_negative can only be used with signed types.");
+        return value >= 0;
+    }
+
+    // Checks if a float, double, or long double is a normal, finite number.
+    template<typename T>
+    inline bool is_finite(const T& value) {
+
+        if (is_type<float>(value) ||
+            is_type<double>(value) ||
+            is_type<long double>(value)) {
+            // This check only works for floating-point types.
+            static_assert(is_floating_point<T>(), "is_finite can only be used with float, double or long double.");
+            return !std::isnan(value) && !std::isinf(value);
+        }
+        return false;
+    } 
+
+    // A dedicated template for complex types, as you suggested.
+    template<typename T>
+    inline bool is_finite_complex(const std::complex<T>& value) {
+        // A complex number is finite if both its real and imaginary parts are finite.
+        // This correctly calls the is_finite template above for the .real() and .imag() parts.
+        return is_finite(value.real()) && is_finite(value.imag());
+    }
+
 
 } // namespace Salix::ValidationUtils
