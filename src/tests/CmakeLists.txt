@@ -1,4 +1,4 @@
-# src/tests/CMakeLists.txt (master test configuration file)
+# src/Tests/CMakeLists.txt (master test configuration file)
 
 # Include doctest's own helper script to find tests
 include("${CMAKE_SOURCE_DIR}/vendor/doctest/scripts/cmake/doctest.cmake")
