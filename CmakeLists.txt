@@ -115,6 +115,11 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Shaders/"
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Shaders/"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release/Assets" CONFIGURATIONS Release)
 
-
+# --- Coverage Flags for MSVC ---
+if(MSVC)
+    # These flags ONLY apply to the test executable target
+    target_compile_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+    target_link_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+endif()
 # --- Define compile-time feature flags ---
 add_definitions(-DSALIX_GUI_IMGUI -DSALIX_BACKEND_SDL -DSALIX_IMAGE_SDL)
