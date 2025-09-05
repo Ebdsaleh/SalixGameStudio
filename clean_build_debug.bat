@@ -50,15 +50,17 @@ echo [Clean Build - Debug] Pre-copying required DLLs for test runner...
 SET SDL2_LIB_DIR=%~dp0vendor\SDL2\lib\x64
 SET SDL2_IMAGE_LIB_DIR=%~dp0vendor\SDL2_image\lib\x64
 SET SDL2_TTF_LIB_DIR=%~dp0vendor\SDL2_ttf\lib\x64
-
+REM ---------------------------------------------------------------------
+echo copying "%SDL2_LIB_DIR%\SDL2.dll" to "%CONFIG_OUTPUT_DIR%"
 copy "%SDL2_LIB_DIR%\SDL2.dll" "%CONFIG_OUTPUT_DIR%"
+REM ---------------------------------------------------------------------
+echo copying "%SDL2_IMAGE_LIB_DIR%\SDL2_image.dll" "%CONFIG_OUTPUT_DIR%"
 copy "%SDL2_IMAGE_LIB_DIR%\SDL2_image.dll" "%CONFIG_OUTPUT_DIR%"
-copy "%SDL2_IMAGE_LIB_DIR%\libpng16-16.dll" "%CONFIG_OUTPUT_DIR%"
-copy "%SDL2_IMAGE_LIB_DIR%\zlib1.dll" "%CONFIG_OUTPUT_DIR%"
+REM ---------------------------------------------------------------------
+echo copying "%SDL2_TTF_LIB_DIR%\SDL2_ttf.dll" "%CONFIG_OUTPUT_DIR%"
 copy "%SDL2_TTF_LIB_DIR%\SDL2_ttf.dll" "%CONFIG_OUTPUT_DIR%"
-copy "%SDL2_TTF_LIB_DIR%\libfreetype-6.dll" "%CONFIG_OUTPUT_DIR%"
-
-
+REM ---------------------------------------------------------------------
+REM 
 REM --- Step 3: Build all targets for the specific configuration ---
 echo [Clean Build - Debug] Building all targets for %CONFIGURATION%...
 pushd "%BUILD_ROOT_DIR%"
