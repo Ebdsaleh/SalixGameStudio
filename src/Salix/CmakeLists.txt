@@ -11,6 +11,7 @@ add_library(SalixEngine SHARED
     core/SDLTimer.cpp
     core/SimpleGuid.cpp
     core/StringUtils.cpp
+    core/ValidationUtils.cpp
     ecs/BoxCollider.cpp
     ecs/Camera.cpp
     ecs/CppScript.cpp
