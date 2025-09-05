@@ -59,6 +59,8 @@ namespace Salix::ValidationUtils {
     SALIX_API bool is_valid_float(float test_float);
     // Double
     SALIX_API bool is_valid_double(double test_double);
+    // Long Double
+    SALIX_API bool is_valid_long_double(long double test_long_double);
 
     // Maximum signed int
     SALIX_API bool is_valid_intmax_t(intmax_t test_intmax_t);

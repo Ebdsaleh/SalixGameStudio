@@ -167,4 +167,7 @@ namespace Salix::ValidationUtils {
         return is_finite(value);
     }
 
+    bool is_valid_long_double(long double value) {
+        return is_finite(value);
+    }
 } // namespace Salix::ValidationUtils
