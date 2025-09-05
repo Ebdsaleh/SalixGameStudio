@@ -31,13 +31,33 @@ function(create_salix_test_suite MODULE_NAME)
 endfunction()
 
 
+
 # --- Define all your test suites here ---
 
 # Test suite for the core engine
 create_salix_test_suite(SalixEngine)
-
 # Test suite for the editor (which depends on SalixEngine)
 create_salix_test_suite(SalixEditor SalixEngine)
-
 # Test suite for the game DLL (which depends on SalixEngine)
 create_salix_test_suite(Game SalixEngine)
+
+
+# --- NEW: Add flags for code coverage directly to the targets ---
+if(MSVC)
+    # Apply coverage flags directly to each test executable target
+    # This avoids any scoping issues within the function.
+     if(TARGET SalixEngine_tests)
+        target_compile_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+        target_link_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+    endif()
+    
+    if(TARGET SalixEditor_tests)
+        target_compile_options(SalixEditor_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+        target_link_options(SalixEditor_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+    endif()
+    
+    if(TARGET Game_tests)
+        target_compile_options(Game_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+        target_link_options(Game_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+    endif()
+endif()
