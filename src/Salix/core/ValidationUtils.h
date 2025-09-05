@@ -2,7 +2,10 @@
 #pragma once
 #include <Salix/core/Core.h>
 #include <type_traits>
+#include <cmath>
+#include <limits>
 #include <string>
+#include <cstdint>
 
 // In C++, it's more common to group free-standing utility functions
 // in a namespace rather than a class with only static methods.
@@ -11,10 +14,15 @@ namespace Salix::ValidationUtils {
     // --- Function DECLARATIONS ---
     
 
-    SALIX_API bool is_valid_string(const std::string& test_string, bool allow_empty = false, bool allow_whitespace);
+    SALIX_API bool is_valid_string(const std::string& test_string, bool allow_empty = false, bool allow_whitespace = false);
     SALIX_API bool is_valid_c_str(const char* test_c_str);
+
     // Signed ints
     SALIX_API bool is_valid_int(int test_int);
+    SALIX_API bool is_valid_int8_t(int8_t test_int8_t);
+    SALIX_API bool is_valid_int16_t(int16_t test_int16_t);
+    SALIX_API bool is_valid_int32_t(int32_t test_int32_t);
+    SALIX_API bool is_valid_int64_t(int64_t test_int64_t);
 
     // Unsigned ints
     SALIX_API bool is_valid_unsigned_int(unsigned int test_unsigned_int);
@@ -22,16 +30,78 @@ namespace Salix::ValidationUtils {
     SALIX_API bool is_valid_uint16_t(uint16_t test_uint16_t);
     SALIX_API bool is_valid_uint32_t(uint32_t test_uint32_t);
     SALIX_API bool is_valid_uint64_t(uint64_t test_uint64_t);
+
+    // Least signed ints
+    SALIX_API bool is_valid_intleast8_t(int_least8_t test_int_least8_t);
+    SALIX_API bool is_valid_intleast16_t(int_least16_t test_int_least16_t);
+    SALIX_API bool is_valid_intleast32_t(int_least32_t test_int_least32_t);
+    SALIX_API bool is_valid_intleast64_t(int_least64_t test_int_least64_t);
+
+    // Least unsigned ints
+    SALIX_API bool is_valid_uint_least8_t(uint_least8_t test_uint_least8_t);
+    SALIX_API bool is_valid_uint_least16_t(uint_least16_t test_uint_least16_t);
+    SALIX_API bool is_valid_uint_least32_t(uint_least32_t test_uint_least32_t);
+    SALIX_API bool is_valid_uint_least64_t(uint_least64_t test_uint_least64_t);
+
+    // Fast signed ints
+    SALIX_API bool is_valid_int_fast8_t(int_fast8_t test_int_fast8_t);
+    SALIX_API bool is_valid_int_fast16_t(int_fast16_t test_int_fast16_t);
+    SALIX_API bool is_valid_int_fast32_t(int_fast32_t test_int_fast32_t);
+    SALIX_API bool is_valid_int_fast64_t(int_fast64_t test_int_fast64_t);
+
+    // Fast unsigned ints
+    SALIX_API bool is_valid_uint_fast8_t(uint_fast8_t test_uint_fast8_t);
+    SALIX_API bool is_valid_uint_fast16_t(uint_fast16_t test_uint_fast16_t);
+    SALIX_API bool is_valid_uint_fast32_t(uint_fast32_t test_uint_fast32_t);
+    SALIX_API bool is_valid_uint_fast64_t(uint_fast64_t test_uint_fast64_t);
+
     // Float
     SALIX_API bool is_valid_float(float test_float);
     // Double
     SALIX_API bool is_valid_double(double test_double);
 
+    // Maximum signed int
+    SALIX_API bool is_valid_intmax_t(intmax_t test_intmax_t);
+
+    // Maximum unsigned int
+    SALIX_API bool is_valid_uintmax_t(uintmax_t test_uintmax_t);
     
 
     // --- TEMPLATE FUNCTIONS ---
     // Template functions are defined entirely in the header file.
     // This one function can check ANY type of pointer for null.
+
+    // Checks if a signed type is within its bounds (not min or max).
+    template<typename T>
+    inline bool is_within_bounds(const T& value) {
+        static_assert(std::is_signed_v<T>, "is_within_bounds is for signed types.");
+        return value != std::numeric_limits<T>::max() && value != std::numeric_limits<T>::min();
+    }
+
+    // Checks if an unsigned type is within its bounds (not max).
+    template<typename T>
+    inline bool is_within_bounds_unsigned(const T& value) {
+        static_assert(std::is_unsigned_v<T>, "is_within_bounds_unsigned is for unsigned types.");
+        return value != std::numeric_limits<T>::max();
+    }
+
+    // Generic function to check if any integral type (int, uint8_t, uint64_t, etc.)
+    // has a "valid" value (i.e., it hasn't overflowed to its maximum).
+    template<typename T>
+    bool is_valid_integral(const T& value) {
+        // This static_assert ensures this function can ONLY be compiled with integer types.
+        static_assert(std::is_integral_v<T>, "is_valid_integral can only be used with integer types.");
+        return value != std::numeric_limits<T>::max();
+    }
+
+    // Generic function to check if any floating-point type (float, double)
+    // is a normal, finite number.
+    template<typename T>
+    bool is_valid_floating_point(const T& value) {
+        // This static_assert ensures this function can ONLY be used with floating-point types.
+        static_assert(std::is_floating_point_v<T>, "is_valid_floating_point can only be used with float or double.");
+        return !std::isnan(value) && !std::isinf(value);
+    }
 
     // This is the generic type-checker for ByteMirror.
     template<typename ExpectedType, typename ActualType>
