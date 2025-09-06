@@ -14,7 +14,10 @@ namespace Salix {
         const glm::mat4& get_view_matrix() override;
         const glm::mat4& get_projection_matrix() override;
         void set_projection_mode(ProjectionMode mode) override { (void) mode;}
-        const ProjectionMode& get_projection_mode() const override { return ProjectionMode::Perspective;}
+        const ProjectionMode& get_projection_mode() const override {
+             static const ProjectionMode mode = ProjectionMode::Perspective;
+            return mode;
+        }
         void set_orthographic_size(float size) override {(void) size;}
 
     private:
