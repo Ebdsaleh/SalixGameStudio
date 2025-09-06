@@ -13,7 +13,7 @@
 // Use the namespace for convenience
 using namespace Salix::ValidationUtils;
 
-TEST_SUITE("ValidationUtils") {
+TEST_SUITE("Salix::core::ValidationUtils") {
     TEST_CASE("String Validation") {
         SUBCASE("is_valid_string") {
             // Default behavior: empty is not allowed, whitespace-only is not allowed
