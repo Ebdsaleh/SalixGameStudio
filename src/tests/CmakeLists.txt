@@ -1,63 +1,64 @@
-# src/Tests/CMakeLists.txt (master test configuration file)
+# src/Tests/CMakeLists.txt
 
-# Include doctest's own helper script to find tests
 include("${CMAKE_SOURCE_DIR}/vendor/doctest/scripts/cmake/doctest.cmake")
 
-# --- Reusable function to create a test suite for a module ---
+# Add an option to enable/disable coverage, defaulting to OFF
+option(ENABLE_COVERAGE "Enable code coverage generation with OpenCppCoverage" OFF)
+
 function(create_salix_test_suite MODULE_NAME)
-    # Automatically find all .test.cpp files within the module's test folder
-    # Example: For MODULE_NAME=SalixEngine, this looks in "src/Tests/SalixEngine/"
     file(GLOB_RECURSE TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_NAME}/*.test.cpp")
 
-    # If we found any test files, create the executable
     if(TEST_SOURCES)
         set(EXECUTABLE_NAME "${MODULE_NAME}_tests")
+        add_executable(${EXECUTABLE_NAME} main.cpp ${TEST_SOURCES})
 
-        add_executable(${EXECUTABLE_NAME}
-            main.cpp        # The common main file for doctest
-            ${TEST_SOURCES} # All the test files we just found
-        )
-
-        # Link the test executable against its module and doctest
         target_link_libraries(${EXECUTABLE_NAME} PRIVATE
-            ${MODULE_NAME}  # Link against the library we're testing (e.g., SalixEngine)
-            ${ARGN}         # Link any additional libraries passed to the function
-            doctest         # Link the testing framework
-        )
+            ${MODULE_NAME} ${ARGN} doctest)
 
-        # Tell doctest/CTest to discover all the tests in this executable
-        doctest_discover_tests(${EXECUTABLE_NAME})
+        if(ENABLE_COVERAGE)
+            # Convert CMake's forward-slash paths to native Windows backslashes
+            file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/src/Salix" NATIVE_SALIX_SRC_PATH)
+            file(TO_NATIVE_PATH "${CMAKE_SOURCE_DIR}/src/Editor" NATIVE_EDITOR_SRC_PATH)
+            add_test(
+                NAME ${EXECUTABLE_NAME}_Coverage
+                COMMAND ${OPENCPPCOVERAGE_EXECUTABLE}
+                    --sources "${NATIVE_SALIX_SRC_PATH}"
+                    --sources "${NATIVE_EDITOR_SRC_PATH}"
+                    --export_type=html:coverage_report_${MODULE_NAME}
+                    -- $<TARGET_FILE:${EXECUTABLE_NAME}>
+            )
+        else()
+            # Does not organize the tests into their declared TEST_SUITE's
+            doctest_discover_tests(${EXECUTABLE_NAME}
+                #WORKING_DIRECTORY ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${CMAKE_CFG_INTDIR}
+                DISCOVERY_ARGS --list-test-suite
+            )
+        endif()
     endif()
 endfunction()
 
+if(ENABLE_COVERAGE)
+    find_program(OPENCPPCOVERAGE_EXECUTABLE OpenCppCoverage.exe)
+    if(NOT OPENCPPCOVERAGE_EXECUTABLE)
+        message(FATAL_ERROR "OpenCppCoverage.exe not found. Please add it to your system PATH.")
+    else()
+        message(STATUS "Code coverage enabled. Found OpenCppCoverage at: ${OPENCPPCOVERAGE_EXECUTABLE}")
+    endif()
+endif()
 
-
-# --- Define all your test suites here ---
-
-# Test suite for the core engine
 create_salix_test_suite(SalixEngine)
-# Test suite for the editor (which depends on SalixEngine)
 create_salix_test_suite(SalixEditor SalixEngine)
-# Test suite for the game DLL (which depends on SalixEngine)
-create_salix_test_suite(Game SalixEngine)
+# The Game test suite is commented out as there are no test files for it yet.
+# create_salix_test_suite(Game SalixEngine)
 
-
-# --- NEW: Add flags for code coverage directly to the targets ---
-if(MSVC)
-    # Apply coverage flags directly to each test executable target
-    # This avoids any scoping issues within the function.
-     if(TARGET SalixEngine_tests)
-        target_compile_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+if(MSVC AND ENABLE_COVERAGE)
+    message(STATUS "Applying MSVC /PROFILE flags for coverage.")
+    if(TARGET SalixEngine_tests)
+        # target_compile_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
         target_link_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
     endif()
-    
     if(TARGET SalixEditor_tests)
-        target_compile_options(SalixEditor_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
+        # target_compile_options(SalixEditor_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
         target_link_options(SalixEditor_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
-    endif()
-    
-    if(TARGET Game_tests)
-        target_compile_options(Game_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
-        target_link_options(Game_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
     endif()
 endif()

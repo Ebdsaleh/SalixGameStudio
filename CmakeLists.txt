@@ -6,13 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-
 if(MSVC)
-    # Set only the general flags that apply to ALL build types
     add_compile_options(/EHsc /W4 /wd4251)
 endif()
-
-
 
 set(CORE_ENGINE_BUILD_DIR "${CMAKE_BINARY_DIR}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CORE_ENGINE_BUILD_DIR}")
@@ -40,7 +36,6 @@ add_library(SDL2_TTF_LIB STATIC IMPORTED)
 set_target_properties(SDL2_TTF_LIB PROPERTIES IMPORTED_LOCATION "${SDL2_TTF_LIB_DIR}/SDL2_ttf.lib" INTERFACE_INCLUDE_DIRECTORIES "${SDL2_TTF_INCLUDE_DIR}")
 
 # --- Create INTERFACE Library for DocTest Testing framework.
-# --- doctest Integration (Single Header for Offline Use) ---
 add_library(doctest INTERFACE)
 target_include_directories(doctest INTERFACE
     "${CMAKE_SOURCE_DIR}/vendor/doctest/doctest"
@@ -80,7 +75,7 @@ target_include_directories(ImGui PUBLIC
 target_link_libraries(ImGui PRIVATE SDL2_LIB glad)
 
 # --- Add yaml-cpp from the vendor directory ---
-set(YAML_CPP_BUILD_TOOLS OFF) # <-- This disables the sandbox/parse/read executables
+set(YAML_CPP_BUILD_TOOLS OFF)
 add_subdirectory(vendor/yaml-cpp)
 if(MSVC)
   target_compile_options(yaml-cpp PRIVATE /W3)
@@ -94,32 +89,22 @@ add_subdirectory(src/Launcher)
 add_subdirectory(src/Tests)
 
 # --- INSTALL RULES ---
-# SDL2.dll
 install(FILES "${SDL2_LIB_DIR}/SDL2.dll" "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll" "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release" CONFIGURATIONS Release)
 
 install(FILES "${SDL2_LIB_DIR}/SDL2.dll" "${SDL2_IMAGE_LIB_DIR}/SDL2_image.dll" "${SDL2_TTF_LIB_DIR}/SDL2_ttf.dll"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug" CONFIGURATIONS Debug)
 
-# Assets/Fonts
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Fonts/"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug/Assets/Fonts" CONFIGURATIONS Debug)
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Fonts/"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release/Assets/Fonts" CONFIGURATIONS Release)
 
-# Assets/Shaders
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Shaders/"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Debug/Assets" CONFIGURATIONS Debug)
 
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/Assets/Shaders/"
     DESTINATION "${CORE_ENGINE_BUILD_DIR}/Release/Assets" CONFIGURATIONS Release)
 
-# --- Coverage Flags for MSVC ---
-if(MSVC)
-    # These flags ONLY apply to the test executable target
-    target_compile_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
-    target_link_options(SalixEngine_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
-endif()
-# --- Define compile-time feature flags ---
-add_definitions(-DSALIX_GUI_IMGUI -DSALIX_BACKEND_SDL -DSALIX_IMAGE_SDL)
+# NOTE: The incorrect coverage block and the old add_definitions() have been removed.
