@@ -1,4 +1,4 @@
-// Tests/mocking/rendering/MockITexture.h
+// Tests/SalixEngine/mocking/rendering/MockITexture.h
 #pragma once
 #include <Salix/rendering/ITexture.h>
 class MockITexture : public Salix::ITexture {
