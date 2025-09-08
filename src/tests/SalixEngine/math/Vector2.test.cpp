@@ -1,10 +1,14 @@
-// Tests/math/Vector2.test.cpp
+// =================================================================================
+// Filename:    src/Tests/SalixEngine/math/Vector2.test.cpp
+// Description: Contains unit tests for the Vector2 functions.
+// ================================================================================= 
+// Tests/SalixEngine/math/Vector2.test.cpp
 #include <doctest.h>
 #include <Salix/math/Vector2.h>
 
 TEST_SUITE("Salix::math::Vector2") {
 
-    TEST_CASE("Vector2 Addition") {
+    TEST_CASE("correctly add two vectors") {
         // ARRANGE: Create two vectors we want to add.
         Salix::Vector2 a(5.0f, 1.0f);
         Salix::Vector2 b(4.0f, 5.0f);
@@ -17,7 +21,7 @@ TEST_SUITE("Salix::math::Vector2") {
         CHECK(result.y == 6.0f);
     }
 
-    TEST_CASE("Vector2: Normalization") {
+    TEST_CASE("correctly normalize a vector") {
         // ARRANGE: Create a vector that does not have a length of 1.
         Salix::Vector2 vec(0.0f, 5.0f);
 
@@ -35,7 +39,7 @@ TEST_SUITE("Salix::math::Vector2") {
     }
 
 
-    TEST_CASE("Vector2: Dot Product") {
+    TEST_CASE("calculate the dot product of two vectors") {
         // ARRANGE: Create two vectors that are perpendicular (orthogonal).
         Salix::Vector2 forward(2.0f, 1.0f);
         Salix::Vector2 right(1.0f, 1.0f);
@@ -47,7 +51,7 @@ TEST_SUITE("Salix::math::Vector2") {
         CHECK(result == 3.0f);
     }
 
-    TEST_CASE("Vector2: Dot Product of Perpendicular Vectors is Zero") {
+    TEST_CASE("dot product of perpendicular vectors is zero") {
         // ARRANGE: Create two vectors that are exactly perpendicular.
         Salix::Vector2 up(0.0f, 1.0f);
         Salix::Vector2 right(1.0f, 0.0f);
@@ -60,7 +64,7 @@ TEST_SUITE("Salix::math::Vector2") {
         CHECK(result == 0.0f);
     }
 
-    TEST_CASE("Vector2: Dot Product of Parallel Vectors is Positive") {
+    TEST_CASE("dot product of parallel vectors is positive") {
         // ARRANGE: Create two vectors pointing in the same direction.
         Salix::Vector2 a(2.0f, 3.0f);
         Salix::Vector2 b(4.0f, 6.0f);
@@ -74,7 +78,7 @@ TEST_SUITE("Salix::math::Vector2") {
         CHECK(result == 26.0f);
     }
 
-    TEST_CASE("Vector2: Dot Product of Opposite Vectors is Negative") {
+    TEST_CASE("dot product of opposite vectors is negative") {
         // ARRANGE: Create two vectors pointing in opposite directions.
         Salix::Vector2 a(2.0f, 3.0f);
         Salix::Vector2 b(-2.0f, -3.0f);
