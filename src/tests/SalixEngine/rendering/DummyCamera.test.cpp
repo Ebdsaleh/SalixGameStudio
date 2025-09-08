@@ -1,4 +1,7 @@
-// Tests/SalixEngine/rendering/DummyCamera.test.cpp
+// =================================================================================
+// Filename:    src/Tests/SalixEngine/rendering/DummyCamera.test.cpp
+// Description: Contains unit tests for the DummyCamera functions.
+// ================================================================================= 
 #include <doctest.h>
 #include <Salix/rendering/DummyCamera.h>
 #include <glm/glm.hpp>
@@ -7,7 +10,7 @@
 
 TEST_SUITE("Salix::rendering::DummyCamera") {
    
-        TEST_CASE("Default Behavior") {
+        TEST_CASE("ensure default behaviour") {
             std::unique_ptr<Salix::DummyCamera> dummy_camera;
             dummy_camera = std::make_unique<Salix::DummyCamera>();
 
@@ -29,7 +32,7 @@ TEST_SUITE("Salix::rendering::DummyCamera") {
             // The default return value for a non-implemented virtual method should be predictable.
             CHECK(dummy_camera->get_is_active() == false);
         }
-        TEST_CASE("Toggle Activation") {
+        TEST_CASE("toggle activation") {
             std::unique_ptr<Salix::DummyCamera> dummy_camera;
             dummy_camera = std::make_unique<Salix::DummyCamera>();
             // Try setting as active.
@@ -42,7 +45,7 @@ TEST_SUITE("Salix::rendering::DummyCamera") {
             dummy_camera->activate();
             CHECK(dummy_camera->get_is_active() == true);
         }
-        TEST_CASE("Set Orthographic Size") {
+        TEST_CASE("correctly set the orthographic size") {
             std::unique_ptr<Salix::DummyCamera> dummy_camera;
             dummy_camera = std::make_unique<Salix::DummyCamera>();
 
