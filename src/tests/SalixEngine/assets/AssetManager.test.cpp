@@ -1,13 +1,17 @@
-// Tests/SalixEngine/assets/AssetManager.test.cpp
+// =================================================================================
+// Filename:    src/Tests/SalixEngine/assets/AssetManager.test.cpp
+// Description: Contains unit tests for the AssetManager functions.
+// ================================================================================= 
 #include <doctest.h>
 #include <Salix/assets/AssetManager.h>
 #include <doctest.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/ITexture.h>
 #include <Salix/window/WindowConfig.h>
-// include the mocking interfaces
+// mocking interfaces.
 #include <Tests/SalixEngine/mocking/rendering/MockITexture.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
+// std library.
 #include <string>
 #include <memory>
 #include <map>
@@ -16,7 +20,7 @@
 
 TEST_SUITE("Salix::assets::AssetManager") {
     // Test case for the basic initialization and shutdown process.
-    TEST_CASE("Initialization and Shutdown") {
+    TEST_CASE("initialization and shutdown") {
         Salix::AssetManager asset_manager;
         MockIRenderer mock_renderer_instance;
         const Salix::WindowConfig config;
@@ -35,13 +39,13 @@ TEST_SUITE("Salix::assets::AssetManager") {
     }
 
     // Test case for the primary get_texture method.
-    TEST_CASE("Get Texture") {
+    TEST_CASE("get texture from a file path") {
         Salix::AssetManager asset_manager;
         MockIRenderer mock_renderer_instance;
         MockIRenderer* mock_renderer = &mock_renderer_instance;
         asset_manager.initialize(mock_renderer);
 
-        SUBCASE("Load a texture for the first time") {
+        SUBCASE("load a texture for the first time") {
             const std::string file_path = "assets/textures/test.png";
 
             // When we get the texture for the first time, it should return a valid pointer.
@@ -49,7 +53,7 @@ TEST_SUITE("Salix::assets::AssetManager") {
             CHECK(texture1 != nullptr);
         }
 
-        SUBCASE("Load the same texture again from cache") {
+        SUBCASE("load the same texture again from cache") {
             const std::string file_path = "assets/textures/test.png";
 
             // Load the texture once.
@@ -62,7 +66,7 @@ TEST_SUITE("Salix::assets::AssetManager") {
             CHECK(texture1 == texture2);
         }
 
-        SUBCASE("Load a different texture") {
+        SUBCASE("load a different texture") {
             const std::string file_path1 = "assets/textures/test1.png";
             const std::string file_path2 = "assets/textures/test2.png";
 
