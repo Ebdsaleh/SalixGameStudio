@@ -12,6 +12,14 @@ function(create_salix_test_suite MODULE_NAME)
         set(EXECUTABLE_NAME "${MODULE_NAME}_tests")
         add_executable(${EXECUTABLE_NAME} main.cpp ${TEST_SOURCES})
 
+        # 1. Add the definition to the LIBRARY being tested (e.g., SalixEngine.dll)
+        #    PUBLIC makes the definition apply to the library AND anything that links to it.
+        target_compile_definitions(${MODULE_NAME} PUBLIC SALIX_TESTS_ENABLED)
+
+        # 2. Add the definition to the TEST EXECUTABLE itself.
+        #    PRIVATE is sufficient here as it only applies to the executable's own sources.
+        target_compile_definitions(${EXECUTABLE_NAME} PRIVATE SALIX_TESTS_ENABLED)
+
         target_link_libraries(${EXECUTABLE_NAME} PRIVATE
             ${MODULE_NAME} ${ARGN} doctest)
 
