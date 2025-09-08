@@ -21,6 +21,10 @@ namespace Salix {
     // A type-safe wrapper around a 64-bit unsigned integer.
     class SALIX_API SimpleGuid {
     public:
+        // For testing only Debug build.
+        #ifdef SALIX_TESTS_ENABLED
+           static void reset_counter_for_testing();
+        #endif
         SimpleGuid(); // Default constructor creates an invalid ID (0)
         // Public method to get a new, unique ID. This is the only way to create one.
         static SimpleGuid generate();

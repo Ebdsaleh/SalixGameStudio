@@ -51,15 +51,20 @@ namespace Salix {
     bool SimpleGuid::operator!=(const SimpleGuid& other) const { return id != other.id; }
     bool SimpleGuid::operator<(const SimpleGuid& other) const { return id < other.id; }
 
+    #ifdef SALIX_TESTS_ENABLED
+    void SimpleGuid::reset_counter_for_testing() {
+        next_id_counter = 1;
+    }
+    #endif
     template<class Archive>
     void SimpleGuid::serialize(Archive& archive) {
             archive( cereal::make_nvp("id", id) );
         }
     
-    template void SimpleGuid::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);
-    template void SimpleGuid::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
-    template void SimpleGuid::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
-    template void SimpleGuid::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
+    template SALIX_API void SimpleGuid::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);
+    template SALIX_API void SimpleGuid::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
+    template SALIX_API void SimpleGuid::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
+    template SALIX_API void SimpleGuid::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
 
 
 } // namespace Salix
