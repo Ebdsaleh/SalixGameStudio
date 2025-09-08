@@ -14,7 +14,7 @@
 using namespace Salix::ValidationUtils;
 
 TEST_SUITE("Salix::core::ValidationUtils") {
-    TEST_CASE("String Validation") {
+    TEST_CASE("string validation") {
         SUBCASE("is_valid_string") {
             // Default behavior: empty is not allowed, whitespace-only is not allowed
             CHECK_FALSE(is_valid_string(""));
@@ -47,7 +47,7 @@ TEST_SUITE("Salix::core::ValidationUtils") {
         }
     }
 
-    TEST_CASE("Pointer Validation") {
+    TEST_CASE("pointer validation") {
         SUBCASE("is_valid_ptr (template)") {
             int x = 10;
             int* valid_ptr = &x;
@@ -66,7 +66,7 @@ TEST_SUITE("Salix::core::ValidationUtils") {
     }
 
     
-    TEST_CASE("Signed Integer Validation") {
+    TEST_CASE("signed integer validation") {
         SUBCASE("int8_t") {
             using T = int8_t;
             CHECK(is_within_bounds(static_cast<T>(100)));
@@ -93,7 +93,7 @@ TEST_SUITE("Salix::core::ValidationUtils") {
         }
     }
 
-    TEST_CASE("High-Level Signed Integer Validators")
+    TEST_CASE("high-level signed integer validators")
     {
         CHECK(is_valid_int(5));
         CHECK_FALSE(is_valid_int(-5));
@@ -101,7 +101,7 @@ TEST_SUITE("Salix::core::ValidationUtils") {
     }
 
     
-    TEST_CASE("Unsigned Integer Validation") {
+    TEST_CASE("unsigned integer validation") {
         SUBCASE("uint8_t") {
             using T = uint8_t;
             CHECK(is_within_bounds_unsigned(static_cast<T>(100)));
@@ -124,13 +124,13 @@ TEST_SUITE("Salix::core::ValidationUtils") {
         }
     }
     
-    TEST_CASE("High-Level Unsigned Integer Validators") {
+    TEST_CASE("high-level unsigned integer validators") {
         CHECK(is_valid_unsigned_int(5));
         CHECK_FALSE(is_valid_unsigned_int(std::numeric_limits<unsigned int>::max()));
     }
 
     // REFACTORED: Use SUBCASEs instead of TEMPLATE_TEST_CASE
-    TEST_CASE("Floating Point Validation") {
+    TEST_CASE("floating point validation") {
         SUBCASE("float") {
             using T = float;
             CHECK(is_finite(static_cast<T>(3.14)));
@@ -151,13 +151,13 @@ TEST_SUITE("Salix::core::ValidationUtils") {
         }
     }
 
-    TEST_CASE("High-Level Floating Point Validation") {
+    TEST_CASE("high-level floating point validation") {
         CHECK(is_valid_float(3.14f));
         CHECK_FALSE(is_valid_float(std::numeric_limits<float>::quiet_NaN()));
     }
 
-    TEST_CASE("Complex Numbers Validation") {
-        SUBCASE("Complex Floating Point Validation") {
+    TEST_CASE("complex number validation") {
+        SUBCASE("complex Floating Point Validation") {
             using T = float;
             const auto nan_val = std::numeric_limits<T>::quiet_NaN();
             const auto inf_val = std::numeric_limits<T>::infinity();
@@ -169,7 +169,7 @@ TEST_SUITE("Salix::core::ValidationUtils") {
             CHECK_FALSE(is_valid_complex_float({1.0f, inf_val}));
         }
 
-        SUBCASE("Complex Double Validation") {
+        SUBCASE("complex double validation") {
             using T = double;
             const auto nan_val = std::numeric_limits<T>::quiet_NaN();
             const auto inf_val = std::numeric_limits<T>::infinity();
@@ -181,7 +181,7 @@ TEST_SUITE("Salix::core::ValidationUtils") {
             CHECK_FALSE(is_valid_complex_double({1.0, inf_val}));
         }
 
-        SUBCASE("Complex Long Double Validation") {
+        SUBCASE("complex Long double validation") {
             using T = long double;
             const auto nan_val = std::numeric_limits<T>::quiet_NaN();
             const auto inf_val = std::numeric_limits<T>::infinity();
