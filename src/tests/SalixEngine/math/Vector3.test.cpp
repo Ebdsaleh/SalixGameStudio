@@ -1,11 +1,14 @@
-// Tests/math/Vector3.test.cpp
+// =================================================================================
+// Filename:    src/Tests/SalixEngine/math/Vector3.test.cpp
+// Description: Contains unit tests for the Vector3 functions.
+// ================================================================================= 
 #include <doctest.h>
 #include <Salix/math/Vector3.h>
 
 
 TEST_SUITE("Salix::math::Vector3") {
     
-    TEST_CASE("Vector3 Addition") {
+    TEST_CASE("correctly add two vectors") {
         // ARRANGE: Create two vectors we want to add.
         Salix::Vector3 a(1.0f, 2.0f, 3.0f);
         Salix::Vector3 b(4.0f, 5.0f, 6.0f);
@@ -19,7 +22,7 @@ TEST_SUITE("Salix::math::Vector3") {
         CHECK(result.z == 9.0f);
     }
 
-    TEST_CASE("Vector3: Normalization") {
+    TEST_CASE("correctly normalize a vector") {
         // ARRANGE: Create a vector that does not have a length of 1.
         Salix::Vector3 vec(0.0f, 5.0f, 0.0f);
 
@@ -36,7 +39,7 @@ TEST_SUITE("Salix::math::Vector3") {
         CHECK(vec.length() == doctest::Approx(1.0f));
     }
 
-    TEST_CASE("Vector3: Dot Product") {
+    TEST_CASE("calculate the dot product of two vectors") {
         // ARRANGE: Create two vectors that are perpendicular (orthogonal).
         Salix::Vector3 forward(0.0f, 0.0f, 1.0f);
         Salix::Vector3 right(1.0f, 0.0f, 0.0f);
