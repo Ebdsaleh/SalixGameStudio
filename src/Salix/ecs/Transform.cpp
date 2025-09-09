@@ -62,13 +62,8 @@ namespace Salix {
     }
 
     void Transform::update(float delta_time) {
-        /*
-        // This is temporary test code to prove the update loop is working.
-        // It will animate the object's X position using a sine wave.
-        static float total_time = 0.0f;
-        total_time += delta_time;
-        set_position(sin(total_time), get_position().y, get_position().z);
-        */
+        (void)delta_time;
+      
     }
     
    
@@ -285,7 +280,8 @@ namespace Salix {
         }
     }
 
-
+    // Hierarchical calculation helpers.
+    // Converts the  world_position (absolute position) to the local position (relative to parent).
     Vector3 Transform::world_to_local_position(const Vector3& world_pos) const {
         if (!pimpl->parent) return world_pos;
         glm::vec4 local = glm::inverse(pimpl->parent->get_model_matrix()) * 
@@ -293,13 +289,61 @@ namespace Salix {
         return Vector3(local.x, local.y, local.z);
     }
 
-
+    // Converts the local position (relative to parent) to the world position (absolute position).
+    // Relative to the root of the parent hierarchy.
     Vector3 Transform::local_to_world_position(const Vector3& local_pos) const {
-        glm::vec4 world = get_model_matrix() * glm::vec4(local_pos.x, local_pos.y, local_pos.z, 1.0f);
-        return Vector3(world.x, world.y, world.z);
+        // 1. Get the parent's world matrix.
+        // If there is no parent, the "parent" is the world itself,
+        // and its transformation matrix is the identity matrix.
+        glm::mat4 parent_world_matrix = pimpl->parent ? 
+            pimpl->parent->get_model_matrix() : 
+            glm::mat4(1.0f);
+
+        // 2. Transform the local point by the parent's world matrix.
+        glm::vec4 world_pos_4 = parent_world_matrix * glm::vec4(local_pos.x, local_pos.y, local_pos.z, 1.0f);
+
+        return Vector3(world_pos_4.x, world_pos_4.y, world_pos_4.z);
     }
 
 
+    Vector3 Transform::calculate_local_pos_if_child_of(const Transform* prospective_parent) const {
+        // 1. Get my current absolute world matrix.
+        glm::mat4 my_world_matrix = this->get_model_matrix();
+
+        // 2. Get the prospective parent's inverse world matrix.
+        // If the new parent is nullptr (the root), its inverse is just the identity matrix.
+        glm::mat4 parent_inverse_world = prospective_parent ? 
+            glm::inverse(prospective_parent->get_model_matrix()) : 
+            glm::mat4(1.0f);
+
+        // 3. The result is my new local matrix relative to that parent.
+        glm::mat4 new_local_matrix = parent_inverse_world * my_world_matrix;
+
+        // 4. Decompose to get just the position component.
+        glm::vec3 new_local_pos, new_local_rot, new_local_scale;
+        glm::vec3 skew;
+        glm::vec4 perspective;
+        glm::decompose(new_local_matrix, new_local_scale, glm::quat(), new_local_pos, skew, perspective);
+        
+        return Vector3(new_local_pos.x, new_local_pos.y, new_local_pos.z);
+    }
+
+    // --- Coordindate Distance-Type Calculation Methods ----
+
+    // This function takes a point relative to THIS transform
+    // and finds where it is in the world.
+    Vector3 Transform::get_world_position_of_local_point(const Vector3& local_point) const {
+        glm::vec4 world = get_model_matrix() * glm::vec4(local_point.x, local_point.y, local_point.z, 1.0f);
+        return Vector3(world.x, world.y, world.z);
+    }
+
+    // This takes a world point and finds
+    // where it is relative to THIS transform's origin.
+    Vector3 Transform::get_local_position_of_world_point(const Vector3& world_point) const {
+        glm::mat4 my_world_inverse = glm::inverse(this->get_model_matrix());
+        glm::vec4 local_pos_4 = my_world_inverse * glm::vec4(world_point.x, world_point.y, world_point.z, 1.0f);
+        return Vector3(local_pos_4.x, local_pos_4.y, local_pos_4.z);
+    }
 
 
 
@@ -372,31 +416,20 @@ namespace Salix {
 
 
     glm::vec3 Transform::get_forward() const {
-        // Rotate the default "forward" vector (0, 0, -1 in OpenGL)
-        // by this transform's rotation quaternion.
-        
-        // 1. Get the rotation angles as a glm::vec3
-        glm::vec3 euler_angles = pimpl->rotation.to_glm(); // 'rotation' is your Vector3 member
-
-        // 2. Create a quaternion from the Euler angles
-        glm::quat orientation = glm::quat(euler_angles);
-
-        // 3. Use the quaternion to rotate the direction vector
+        // Convert the stored degrees to radians FOR THE CALCULATION
+        glm::quat orientation = glm::quat(glm::radians(pimpl->rotation.to_glm()));
         return orientation * glm::vec3(0.0f, 0.0f, -1.0f);
     }
 
-
     glm::vec3 Transform::get_up() const {
-        // Rotate the default "up" vector (0, 1, 0)
-        glm::quat orientation = glm::quat(pimpl->rotation.to_glm());
-       
+        // Convert the stored degrees to radians FOR THE CALCULATION
+        glm::quat orientation = glm::quat(glm::radians(pimpl->rotation.to_glm()));
         return orientation * glm::vec3(0.0f, 1.0f, 0.0f);
     }
 
-
     glm::vec3 Transform::get_right() const {
-        // Rotate the default "right" vector (1, 0, 0)
-         glm::quat orientation = glm::quat(pimpl->rotation.to_glm());
+        // Convert the stored degrees to radians FOR THE CALCULATION
+        glm::quat orientation = glm::quat(glm::radians(pimpl->rotation.to_glm()));
         return orientation * glm::vec3(1.0f, 0.0f, 0.0f);
     }
 
@@ -426,55 +459,27 @@ namespace Salix {
     }
 
 
-
-
-
-
-    // This is the SAVE function. It reads data using your public getters.
     template<class Archive>
-    void Transform::save(Archive& archive) const {
-        // First, save the base class data.
-        archive(cereal::base_class<Element>(this));
-        
-        // Get the values using your public getters and serialize them.
-        archive(
-            cereal::make_nvp("position", get_position()),
-            cereal::make_nvp("rotation", get_rotation()),
-            cereal::make_nvp("scale", get_scale())
-        );
-    }
-
-    // This is the LOAD function. It writes data using your public setters.
-    template<class Archive>
-    void Transform::load(Archive& archive) {
-        // First, load the base class data.
+    void Transform::serialize(Archive& archive) {
+        // 1. First, tell Cereal to serialize the data from the base class (Element).
         archive(cereal::base_class<Element>(this));
 
-        // Create temporary variables to hold the loaded data.
-        Vector3 loaded_position;
-        Vector3 loaded_rotation;
-        Vector3 loaded_scale;
-
-        // Load the data from the archive into the temporary variables.
+        // 2. Then, serialize the data specific to the Transform class.
+        //    This reads/writes directly to your private pimpl members.
         archive(
-            cereal::make_nvp("position", loaded_position),
-            cereal::make_nvp("rotation", loaded_rotation),
-            cereal::make_nvp("scale", loaded_scale)
+            cereal::make_nvp("position", pimpl->position),
+            cereal::make_nvp("rotation", pimpl->rotation),
+            cereal::make_nvp("scale", pimpl->scale)
         );
-        
-        // Use your public setters to apply the loaded data.
-        set_position(loaded_position);
-        set_rotation(loaded_rotation);
-        set_scale(loaded_scale);
     }
 
     // --- ADD THESE LINES AT THE VERY END OF Transform.cpp ---
     // This is required to make the template functions available to other parts of your code.
 
-    template void Transform::save<cereal::JSONOutputArchive>(cereal::JSONOutputArchive&) const;
-    template void Transform::load<cereal::JSONInputArchive>(cereal::JSONInputArchive&);
-    template void Transform::save<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive&) const;
-    template void Transform::load<cereal::BinaryInputArchive>(cereal::BinaryInputArchive&);
+    template SALIX_API void Transform::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive&);
+    template SALIX_API void Transform::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive&);
+    template SALIX_API void Transform::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive&);
+    template SALIX_API void Transform::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive&);
 
 
 } // namespace Salix

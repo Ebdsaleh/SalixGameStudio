@@ -19,7 +19,11 @@ namespace Salix {
 
             const char* get_class_name() const override { return "Transform"; }
             void update(float delta_time) override;
-            // Calculate World Transform
+            // Coordinate Distance calculations.
+            Vector3 get_world_position_of_local_point(const Vector3& local_point) const;
+            Vector3 get_local_position_of_world_point(const Vector3& world_point) const;
+
+            // Calculate World Transform (Hierarchy conscious).
             Vector3 get_world_position() const;
             Vector3 get_world_rotation() const;
             Vector3 get_world_scale() const;
@@ -29,6 +33,7 @@ namespace Salix {
             void set_world_scale(const Vector3& world_scale);
             Vector3 world_to_local_position(const Vector3& world_pos) const;
             Vector3 local_to_world_position(const Vector3& local_pos) const;
+            Vector3 calculate_local_pos_if_child_of(const Transform* prospective_parent) const;
 
             void set_position(const Vector3& new_position);
             void set_position(const float new_x, float new_y, float new_z);
@@ -73,10 +78,7 @@ namespace Salix {
             std::unique_ptr<Pimpl>pimpl;
             friend class cereal::access;
             template <class Archive>
-            void save(Archive& archive) const; // For writing data
-
-            template <class Archive>
-            void load(Archive& archive);      // For reading data
+            void serialize(Archive& archive);
             // Private methods called by set_parent and the destructor
             void add_child(Transform* child);
             void remove_child(Transform* child);
