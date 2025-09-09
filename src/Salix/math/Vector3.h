@@ -48,7 +48,7 @@ namespace Salix {
         
         // Static constants
         static const Vector3 Zero; // declaration only 
-
+        static const Vector3 One;  // (1.0f, 1.0f, 1.0f)
         
 
 

@@ -39,8 +39,10 @@ namespace Salix {
     Vector3 Vector3::from_glm(const glm::vec3& glm_vec3) {
         return Vector3(glm_vec3.x, glm_vec3.y, glm_vec3.z);
     }
+
     // For constexpr compatibility (C++17)
     const Vector3 Vector3::Zero {0.0f, 0.0f, 0.0f};
+    const Vector3 Vector3::One {1.0f, 1.0f, 1.0f};
     
 
     YAML::Emitter& operator<<(YAML::Emitter& out, const Salix::Vector3& v) {
