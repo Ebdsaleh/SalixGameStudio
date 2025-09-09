@@ -409,8 +409,8 @@ namespace Salix {
             if (first_rotation_event) {
                 // Before we start, sync our yaw/pitch with the camera's actual current rotation.
                 const Salix::Vector3& current_rot_rad = transform.get_rotation();
-                pitch = glm::degrees(current_rot_rad.x);
-                yaw = glm::degrees(current_rot_rad.y);
+                pitch = current_rot_rad.x;
+                yaw = current_rot_rad.y;
                 last_mouse_pos = mouse_pos;
                 first_rotation_event = false;
             }
@@ -429,7 +429,7 @@ namespace Salix {
             if (pitch < -89.0f) pitch = -89.0f;
 
             // **CRITICAL: This line must be INSIDE the if-statement**
-            transform.set_rotation(glm::radians(pitch), glm::radians(yaw), 0.0f);
+            transform.set_rotation(pitch, yaw, 0.0f);
         }
         else {
             // When the button is NOT held, we reset this flag
