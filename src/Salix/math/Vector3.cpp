@@ -30,10 +30,15 @@ namespace Salix {
         return start + (end - start) * t;
     }
 
-    glm::vec3 Vector3::to_glm() const{
+    // Convert a Vector3 to a glm::vec3 object.
+    glm::vec3 Vector3::to_glm() const {
         return glm::vec3(x, y, z);
     }
     
+    // Create a Vector3 from a glm::vec3 object.
+    Vector3 Vector3::from_glm(const glm::vec3& glm_vec3) {
+        return Vector3(glm_vec3.x, glm_vec3.y, glm_vec3.z);
+    }
     // For constexpr compatibility (C++17)
     const Vector3 Vector3::Zero {0.0f, 0.0f, 0.0f};
     

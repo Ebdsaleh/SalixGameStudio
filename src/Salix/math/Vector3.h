@@ -75,6 +75,7 @@ namespace Salix {
 
         glm::vec3 to_glm() const;
 
+        static Vector3 from_glm(const glm::vec3& glm_vec3);
 
         Vector3& operator+=(const Vector3& other) {
         // Modify this object's members
