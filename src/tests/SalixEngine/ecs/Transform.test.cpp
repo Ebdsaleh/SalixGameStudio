@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <cereal/archives/json.hpp> // For the JSON archive
+#include <sstream>                  // For std::stringstream
 
 // A helper for comparing Vector3 with tolerance
 // This is needed because floating point math can have tiny precision errors.
@@ -57,6 +59,17 @@ TEST_SUITE("Salix::ecs::Transform") {
         check_vector3_approximate(default_transform->get_world_position(), 0.0f, 0.0f, 0.0f);
         check_vector3_approximate(default_transform->get_world_rotation(), 0.0f, 0.0f, 0.0f);
         check_vector3_approximate(default_transform->get_world_scale(), 1.0f, 1.0f, 1.0f);
+    }
+    TEST_CASE("update method does not alter 'delta_time' value") {
+        // ARRANGE
+        auto transform = std::make_unique<Salix::Transform>();
+
+        // ACT
+        float delta_time = 1.0f;
+        transform->update(delta_time);
+        // ASSERT: update method will return void and will not change delta_time value
+        CHECK( delta_time == 1.0f);
+
     }
     TEST_CASE("a root transform's local and world rotations are equivalent") {
         // ARRANGE
@@ -345,6 +358,410 @@ TEST_SUITE("Salix::ecs::Transform") {
             Salix::Vector3 final_position_2 = root_2.get_position();
             check_vector3_approximate(final_position_2, 23.5f, 5.1f, 1.3f);
         }
-        
     }
+    // Space left here for testing child transforms updating with parents.
+        
+    TEST_CASE("correctly set the position of transform") {
+        // ARRANGE
+        auto transform_0 = std::make_unique<Salix::Transform>();
+        auto transform_1 = std::make_unique<Salix::Transform>();
+        CHECK(transform_0->get_position() == Salix::Vector3::Zero);
+        CHECK(transform_1->get_position() == Salix::Vector3::Zero);
+
+
+        SUBCASE("for 'Vector3") {
+            // ACT
+           Salix::Vector3 new_position = Salix::Vector3(55.0f, 1.0f, 3.0f);
+            //ASSERT
+            transform_0->set_position(new_position);
+            check_vector3_approximate(transform_0->get_position(), Salix::Vector3(55.0f, 1.0f, 3.0f));
+        }
+        SUBCASE("for floats") {
+            // ACT
+            float new_position_x = 32.0f;
+            float new_position_y = -10.0f;
+            float new_position_z = -5.0f;
+            transform_1->set_position(new_position_x, new_position_y, new_position_z);                  
+            // ASSERT
+            check_vector3_approximate(transform_1->get_position(), new_position_x, new_position_y, new_position_z);
+        }
+        transform_0.reset();
+        transform_1.reset();
+    }
+
+    TEST_CASE("correctly set the rotation of transform") {
+        // ARRANGE
+        auto transform_0 = std::make_unique<Salix::Transform>();
+        auto transform_1 = std::make_unique<Salix::Transform>();
+        CHECK(transform_0->get_rotation() == Salix::Vector3::Zero);
+        CHECK(transform_1->get_rotation() == Salix::Vector3::Zero);
+
+
+        SUBCASE("for 'Vector3") {
+            // ACT
+           Salix::Vector3 new_rotation = Salix::Vector3(0.0f, 90.0f, 0.0f);
+            //ASSERT
+            transform_0->set_rotation(new_rotation);
+            check_vector3_approximate(transform_0->get_rotation(), Salix::Vector3(0.0f, 90.0f, 0.0f));
+        }
+        SUBCASE("for floats") {
+            // ACT
+            float new_rotation_x = 0.0f;
+            float new_rotation_y = 0.0f;
+            float new_rotation_z = -45.0f;
+            transform_1->set_rotation(new_rotation_x, new_rotation_y, new_rotation_z);                  
+            // ASSERT
+            check_vector3_approximate(transform_1->get_rotation(), new_rotation_x, new_rotation_y, new_rotation_z);
+        }
+        transform_0.reset();
+        transform_1.reset();
+    }
+    TEST_CASE("correctly set the scale of transform") {
+        // ARRANGE
+        auto transform_0 = std::make_unique<Salix::Transform>();
+        auto transform_1 = std::make_unique<Salix::Transform>();
+        CHECK(transform_0->get_scale() == Salix::Vector3(1.0f, 1.0f, 1.0f));
+        CHECK(transform_1->get_scale() == Salix::Vector3(1.0f, 1.0f, 1.0f));
+
+
+        SUBCASE("for 'Vector3") {
+            // ACT
+           Salix::Vector3 new_scale = Salix::Vector3(4.0f, 4.0f, 2.0f);
+            //ASSERT
+            transform_0->set_scale(new_scale);
+            check_vector3_approximate(transform_0->get_scale(), Salix::Vector3(4.0f, 4.0f, 2.0f));
+        }
+        SUBCASE("for floats") {
+            // ACT
+            float new_scale_x = 10.0f;
+            float new_scale_y = 4.0f;
+            float new_scale_z = 20.0f;
+            transform_1->set_scale(new_scale_x, new_scale_y, new_scale_z);   
+
+            // ASSERT
+            check_vector3_approximate(transform_1->get_scale(), new_scale_x, new_scale_y, new_scale_z);
+        }
+        transform_0.reset();
+        transform_1.reset();
+    }
+    TEST_CASE("correctly rotate the transform") {
+        // ARRANGE
+        auto transform_0 = std::make_unique<Salix::Transform>();
+        auto transform_1 = std::make_unique<Salix::Transform>();
+        auto transform_2 = std::make_unique<Salix::Transform>();
+        CHECK(transform_0->get_rotation() == Salix::Vector3::Zero);
+        CHECK(transform_1->get_rotation() == Salix::Vector3::Zero);
+        CHECK(transform_2->get_rotation() == Salix::Vector3::Zero);
+
+        SUBCASE("for 'Vector3'") {
+            // ACT
+            Salix::Vector3 new_delta = Salix::Vector3(0.0f, 36.0f, 1.0f);
+            transform_0->rotate(new_delta);
+            // ASSERT
+            check_vector3_approximate(transform_0->get_rotation(), new_delta);
+
+        }
+        SUBCASE("for floats") {
+            // ACT
+            float delta_x = 135.0f;
+            float delta_y = 0.0f;
+            float delta_z = 0.0f;
+            transform_1->rotate(delta_x, delta_y, delta_z);
+            // ASSERT
+            check_vector3_approximate(transform_1->get_rotation(), delta_x, delta_y, delta_z);
+
+        }
+        SUBCASE("for 'glm::vec3'") {
+            // ACT
+            glm::vec3 new_rotation_delta =glm::vec3(0.0f, 36.0f, 1.0f);
+            transform_2->rotate(new_rotation_delta);
+            // ASSERT
+            check_vector3_approximate(transform_2->get_rotation(), Salix::Vector3::from_glm(new_rotation_delta));
+
+        }
+        transform_0.reset();
+        transform_1.reset();
+        transform_2.reset();
+    }
+    TEST_CASE("correctly convert world position to a local position") {
+        // ARRANGE
+        auto parent_root = std::make_unique<Salix::Transform>();
+        auto child_0 = std::make_unique<Salix::Transform>();
+        auto child_1 = std::make_unique<Salix::Transform>();
+
+        CHECK(parent_root->get_position() == Salix::Vector3::Zero);
+        CHECK(child_0->get_position() == Salix::Vector3::Zero);
+        CHECK(child_1->get_position() == Salix::Vector3::Zero);
+
+        parent_root->set_position( { 0.0f, 2.0f, 0.0f } );  // Parent moves up by 2.
+        child_0->set_position( { 10.0f, 0.0f, 0.0f } );  // Child 0 moves right by 10.
+        child_1->set_position( { -10.0f, 0.0f, 0.0f } ); // Child 1 moves left by 10.
+        
+        child_0->set_parent(parent_root.get());
+        child_1->set_parent(parent_root.get());
+
+        SUBCASE("the root-level parent will not be affected") {
+            // ACT
+            Salix::Vector3 parent_position = parent_root->world_to_local_position(
+                parent_root->get_world_position());
+
+            // ASSERT
+            check_vector3_approximate(parent_position,  0.0f, 2.0f, 0.0f);
+        }
+        SUBCASE("child_0's new position will be {10.0f, -2.0f, 0.0f}") {
+            // ACT
+            Salix::Vector3 child_0_position = child_0->world_to_local_position(
+                child_0->get_world_position());
+
+            // ASSERT
+            check_vector3_approximate(child_0_position, 10.0f, -2.0f, 0.0f);
+        }
+        SUBCASE("child_1's new position will be {-10.0f, -2.0f, 0.0f}") {
+            // ACT
+            Salix::Vector3 child_1_position = child_1->world_to_local_position(
+                child_1->get_world_position());
+
+            // ASSERT
+            check_vector3_approximate(child_1_position, -10.0f, -2.0f, 0.0f);
+        }
+        SUBCASE("child_1's new position will be {-20.0f, 0.0f, 0.0f}") {
+            // ACT: Make child_1 a child of child_0.
+            child_1->release_from_parent();
+            child_1->set_parent(child_0.get());
+
+            Salix::Vector3 child_1_position = child_1->world_to_local_position(
+                child_1->get_world_position());
+
+            // ASSERT
+            check_vector3_approximate(child_1_position, -20.0f, 0.0f, 0.0f);
+        }
+
+
+        parent_root.reset();
+        child_0.reset();
+        child_1.reset();
+    }
+    TEST_CASE("correctly convert a local position to world position") {
+        // ARRANGE
+        auto parent_root = std::make_unique<Salix::Transform>();
+        auto child_0 = std::make_unique<Salix::Transform>();
+        auto child_1 = std::make_unique<Salix::Transform>();
+
+        CHECK(parent_root->get_position() == Salix::Vector3::Zero);
+        CHECK(child_0->get_position() == Salix::Vector3::Zero);
+        CHECK(child_1->get_position() == Salix::Vector3::Zero);
+        // Move to new positions while all are at the root-level of the hierarchy.
+        parent_root->set_position( { 0.0f, 2.0f, 0.0f } );  // Parent moves up by 2.
+        child_0->set_position( { 10.0f, 0.0f, 0.0f } );  // Child 0 moves right by 10.
+        child_1->set_position( { -10.0f, 0.0f, 0.0f } ); // Child 1 moves left by 10.
+        
+        child_0->set_parent(parent_root.get());
+        child_1->set_parent(parent_root.get());
+
+        SUBCASE("the root-level parent world position will be unaffected") {
+            // ACT
+            Salix::Vector3 parent_world_position = parent_root->local_to_world_position(
+                parent_root->get_position());
+
+            // ASSERT: parent world position will be {0.0f, 2.0f, 0.0f}.
+            check_vector3_approximate(parent_world_position,  0.0f, 2.0f, 0.0f);
+        }
+        SUBCASE("child_0's world position will be {10.0f, 0.0f, 0.0f}") {
+            // ACT
+            Salix::Vector3 child_0_world_position = child_0->local_to_world_position(
+                child_0->get_position());
+
+            // ASSERT
+            check_vector3_approximate(child_0_world_position, 10.0f, 0.0f, 0.0f);
+        }
+        SUBCASE("child_1's world position will be {-10.0f, 0.0f, 0.0f}") {
+            // ACT
+            Salix::Vector3 child_1_world_position = child_1->local_to_world_position(
+                child_1->get_position());
+
+            // ASSERT
+            check_vector3_approximate(child_1_world_position, -10.0f, 0.0f, 0.0f);
+        }
+        SUBCASE("child_1's world position will be {-10.0f, 0.0f, 0.0f}") {
+            // ACT: Make child_1 a child of child_0.
+            child_1->release_from_parent();
+            child_1->set_parent(child_0.get());
+
+            Salix::Vector3 child_1_world_position = child_1->local_to_world_position(
+                child_1->get_position());
+
+            // ASSERT
+            check_vector3_approximate(child_1_world_position, -10.0f, 0.0f, 0.0f);
+        }
+        parent_root.reset();
+        child_0.reset();
+        child_1.reset();
+    }
+
+    TEST_CASE("correctly calculates direction vectors after rotation") {
+        // ARRANGE
+        Salix::Transform transform;
+
+        SUBCASE("when rotated 90 degrees on the Y-axis") {
+            transform.set_rotation(0.0f, 90.0f, 0.0f);
+
+            // ACT
+            glm::vec3 forward = transform.get_forward();
+            glm::vec3 up = transform.get_up();
+            glm::vec3 right = transform.get_right();
+            
+
+            // ASSERT
+            // The default forward is (0,0,-1). Rotated 90 deg on Y, it becomes (-1,0,0).
+            check_vector3_approximate(Salix::Vector3::from_glm(forward), -1.0f, 0.0f, 0.0f);
+            
+            // The up vector should be unchanged by a Y-axis rotation.
+            check_vector3_approximate(Salix::Vector3::from_glm(up), 0.0f, 1.0f, 0.0f);
+
+            // The default right is (1,0,0). Rotated 90 deg on Y, it becomes (0,0,-1).
+            check_vector3_approximate(Salix::Vector3::from_glm(right), 0.0f, 0.0f, -1.0f);
+        }
+
+        SUBCASE("when pitched 90 degrees on the X-axis") {
+            transform.set_rotation(90.0f, 0.0f, 0.0f);
+
+            // ACT
+            glm::vec3 forward = transform.get_forward();
+            glm::vec3 up = transform.get_up();
+
+            // ASSERT
+            // The default forward (0,0,-1) pitched up 90 deg becomes (0,1,0).
+            check_vector3_approximate(Salix::Vector3::from_glm(forward), 0.0f, 1.0f, 0.0f);
+
+            // The default up (0,1,0) pitched forward 90 deg becomes (0,0,1).
+            check_vector3_approximate(Salix::Vector3::from_glm(up), 0.0f, 0.0f, 1.0f);
+        }
+        SUBCASE("when rolled 90 degrees on the Z-axis") {
+            transform.set_rotation(0.0f, 0.0f, 90.0f);
+
+            // ACT
+            glm::vec3 forward = transform.get_forward();
+            glm::vec3 up = transform.get_up();
+            glm::vec3 right = transform.get_right();
+
+            // ASSERT
+            // A roll should not change the forward/backward direction.
+            check_vector3_approximate(Salix::Vector3::from_glm(forward), 0.0f, 0.0f, -1.0f);
+            
+            // The up vector (0,1,0) rolled 90 deg on Z points left (-1,0,0).
+            check_vector3_approximate(Salix::Vector3::from_glm(up), -1.0f, 0.0f, 0.0f);
+
+            // The right vector (1,0,0) rolled 90 deg on Z points up (0,1,0).
+            check_vector3_approximate(Salix::Vector3::from_glm(right), 0.0f, 1.0f, 0.0f);
+        }
+    }
+    TEST_CASE("calculate_local_pos_if_child_of simulates reparenting correctly") {
+    
+        SUBCASE("when reparenting to a new parent") {
+            // ARRANGE: An object to move, its original parent, and a new parent.
+            Salix::Transform original_parent;
+            original_parent.set_position(10.f, 0.f, 0.f);
+
+            Salix::Transform object_to_move;
+            object_to_move.set_parent(&original_parent);
+            object_to_move.set_position(5.f, 0.f, 0.f); // World position is now (15, 0, 0)
+            
+            Salix::Transform new_parent;
+            new_parent.set_position(100.f, 0.f, 0.f);
+            new_parent.set_rotation(0.f, 90.f, 0.f); // Rotated 90 degrees
+
+            // ACT: Ask the object what its new local position would be if it
+            // were a child of the new_parent.
+            Salix::Vector3 new_local_pos = object_to_move.calculate_local_pos_if_child_of(&new_parent);
+
+            // ASSERT: Check against the mathematically correct result.
+            // The calculation is complex due to the parent's rotation, but the result
+            // is the local position needed to keep the object at world pos (15,0,0).
+            check_vector3_approximate(new_local_pos, 0.0f, 0.0f, -85.0f);
+        }
+
+        SUBCASE("when becoming a root object (parent is nullptr)") {
+            // ARRANGE: A simple parent-child relationship.
+            Salix::Transform parent;
+            parent.set_position(10.f, 0.f, 0.f);
+
+            Salix::Transform child;
+            child.set_parent(&parent);
+            child.set_position(5.f, 0.f, 0.f); // World position is (15, 0, 0)
+
+            // ACT: Ask the child what its new local position would be if it had no parent.
+            Salix::Vector3 new_local_pos = child.calculate_local_pos_if_child_of(nullptr);
+
+            // ASSERT: To maintain its world position, its new local position
+            // must be equal to its current world position.
+            check_vector3_approximate(new_local_pos, 15.0f, 0.0f, 0.0f);
+        }
+    }
+    TEST_CASE("point conversion functions are perfect inverses") {
+        // ARRANGE: Create a transform with a complex world position and rotation.
+        Salix::Transform transform;
+        transform.set_position(100.f, -50.f, 200.f);
+        transform.set_rotation(45.f, 30.f, 60.f);
+
+        Salix::Vector3 original_local_point(10.f, 5.f, -2.f);
+
+        // ACT: Convert the local point to world space...
+        Salix::Vector3 world_point = transform.get_world_position_of_local_point(original_local_point);
+        
+        // ...and then immediately convert it back to local space.
+        Salix::Vector3 final_local_point = transform.get_local_position_of_world_point(world_point);
+
+        // ASSERT: The final local point must be identical to the original local point.
+        check_vector3_approximate(final_local_point, original_local_point);
+    }
+    TEST_CASE("set_world transform correctly modifies a root transform") {
+        // ARRANGE
+        auto root_transform = std::make_unique<Salix::Transform>();
+        REQUIRE(root_transform->get_parent() == nullptr);
+
+        // ACT
+        root_transform->set_world_position({10.f, 20.f, 30.f});
+        root_transform->set_world_rotation({45.f, 0.f, 0.f});
+        root_transform->set_world_scale({2.f, 3.f, 4.f});
+
+        // ASSERT: For a root transform, the local values should now
+        // be identical to the world values we just set.
+        check_vector3_approximate(root_transform->get_position(), 10.f, 20.f, 30.f);
+        check_vector3_approximate(root_transform->get_rotation(), 45.f, 0.f, 0.f);
+        check_vector3_approximate(root_transform->get_scale(), 2.f, 3.f, 4.f);
+
+        root_transform.reset();
+    }
+    TEST_CASE("can be serialized and deserialized correctly") {
+        // ARRANGE
+        auto original_transform = std::make_unique<Salix::Transform>();
+        original_transform->set_position(10.f, 20.f, 30.f);
+        original_transform->set_rotation(45.f, 0.f, 0.f);
+        original_transform->set_scale(2.f, 3.f, 4.f);
+
+        std::stringstream ss;
+
+        // ACT (Serialization)
+        { 
+            cereal::JSONOutputArchive output_archive(ss);
+            output_archive(*original_transform);
+        }
+
+        // ACT (Deserialization)
+        auto loaded_transform = std::make_unique<Salix::Transform>();
+        {
+            cereal::JSONInputArchive input_archive(ss);
+            input_archive(*loaded_transform);
+        }
+
+        // ASSERT
+        check_vector3_approximate(loaded_transform->get_position(), original_transform->get_position());
+        check_vector3_approximate(loaded_transform->get_rotation(), original_transform->get_rotation());
+        check_vector3_approximate(loaded_transform->get_scale(), original_transform->get_scale());
+        
+        // CLEAN UP
+        loaded_transform.reset();
+        original_transform.reset();
+    }
+    
 }
