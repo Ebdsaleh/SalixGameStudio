@@ -91,6 +91,9 @@ namespace Salix {
     }
 
     bool StringUtils::contains_snake_case(const std::string& str) {
+        if (str.empty()) {
+            return false;
+        }
         for (size_t i = 1; i < str.length() - 1; ++i) {
             if (str[i] == '_' && std::isalnum(str[i - 1]) && std::isalnum(str[i + 1])) {
                 return true; // Found a valid snake_case segment
@@ -122,6 +125,7 @@ namespace Salix {
     // --- Pascal Case Utilities ---
     
     bool StringUtils::is_pascal_case(const std::string& str) {
+        
         if (str.empty() || !std::isupper(str[0])) {
             return false; // Must not be empty and must start with an uppercase letter.
         }
