@@ -176,7 +176,7 @@ namespace Salix::ValidationUtils {
         return false;
     } 
 
-    // A dedicated template for complex types, as you suggested.
+    // A dedicated template for complex types.
     template<typename T>
     inline bool is_finite_complex(const std::complex<T>& value) {
         // A complex number is finite if both its real and imaginary parts are finite.

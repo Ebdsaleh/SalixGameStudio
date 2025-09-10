@@ -69,24 +69,36 @@ TEST_SUITE("Salix::core::ValidationUtils") {
     TEST_CASE("signed integer validation") {
         SUBCASE("int8_t") {
             using T = int8_t;
+            CHECK(is_valid_int8_t(static_cast<T>(100)));
+            CHECK_FALSE(is_valid_int8_t(static_cast<T>(-100)));
+
             CHECK(is_within_bounds(static_cast<T>(100)));
             CHECK_FALSE(is_not_negative(static_cast<T>(-100)));
             CHECK_FALSE(is_within_bounds(std::numeric_limits<T>::max()));
         }
         SUBCASE("int16_t") {
             using T = int16_t;
+            CHECK(is_valid_int16_t(static_cast<T>(100)));
+            CHECK_FALSE(is_valid_int16_t(static_cast<T>(-100)));
+
             CHECK(is_within_bounds(static_cast<T>(100)));
             CHECK_FALSE(is_not_negative(static_cast<T>(-100)));
             CHECK_FALSE(is_within_bounds(std::numeric_limits<T>::max()));
         }
         SUBCASE("int32_t") {
             using T = int32_t;
+            CHECK(is_valid_int32_t(static_cast<T>(100)));
+            CHECK_FALSE(is_valid_int32_t(static_cast<T>(-100)));
+
             CHECK(is_within_bounds(static_cast<T>(100)));
             CHECK_FALSE(is_not_negative(static_cast<T>(-100)));
             CHECK_FALSE(is_within_bounds(std::numeric_limits<T>::max()));
         }
         SUBCASE("int64_t") {
             using T = int64_t;
+            CHECK(is_valid_int64_t(static_cast<T>(100)));
+            CHECK_FALSE(is_valid_int64_t(static_cast<T>(-100)));
+
             CHECK(is_within_bounds(static_cast<T>(100)));
             CHECK_FALSE(is_not_negative(static_cast<T>(-100)));
             CHECK_FALSE(is_within_bounds(std::numeric_limits<T>::max()));
@@ -104,21 +116,25 @@ TEST_SUITE("Salix::core::ValidationUtils") {
     TEST_CASE("unsigned integer validation") {
         SUBCASE("uint8_t") {
             using T = uint8_t;
+            CHECK(is_valid_uint8_t(static_cast<T>(100)));
             CHECK(is_within_bounds_unsigned(static_cast<T>(100)));
             CHECK_FALSE(is_within_bounds_unsigned(std::numeric_limits<T>::max()));
         }
         SUBCASE("uint16_t") {
             using T = uint16_t;
+            CHECK(is_valid_uint16_t(static_cast<T>(100)));
             CHECK(is_within_bounds_unsigned(static_cast<T>(100)));
             CHECK_FALSE(is_within_bounds_unsigned(std::numeric_limits<T>::max()));
         }
         SUBCASE("uint32_t") {
             using T = uint32_t;
+            CHECK(is_valid_uint32_t(static_cast<T>(100)));
             CHECK(is_within_bounds_unsigned(static_cast<T>(100)));
             CHECK_FALSE(is_within_bounds_unsigned(std::numeric_limits<T>::max()));
         }
         SUBCASE("uint64_t") {
             using T = uint64_t;
+            CHECK(is_valid_uint64_t(static_cast<T>(100)));
             CHECK(is_within_bounds_unsigned(static_cast<T>(100)));
             CHECK_FALSE(is_within_bounds_unsigned(std::numeric_limits<T>::max()));
         }
@@ -129,22 +145,24 @@ TEST_SUITE("Salix::core::ValidationUtils") {
         CHECK_FALSE(is_valid_unsigned_int(std::numeric_limits<unsigned int>::max()));
     }
 
-    // REFACTORED: Use SUBCASEs instead of TEMPLATE_TEST_CASE
     TEST_CASE("floating point validation") {
         SUBCASE("float") {
             using T = float;
+            CHECK(is_valid_floating_point(static_cast<T>(3.14f)));
             CHECK(is_finite(static_cast<T>(3.14)));
             CHECK_FALSE(is_finite(std::numeric_limits<T>::quiet_NaN()));
             CHECK_FALSE(is_finite(std::numeric_limits<T>::infinity()));
         }
         SUBCASE("double") {
             using T = double;
+            CHECK(is_valid_double(static_cast<T>(3.14f)));
             CHECK(is_finite(static_cast<T>(3.14)));
             CHECK_FALSE(is_finite(std::numeric_limits<T>::quiet_NaN()));
             CHECK_FALSE(is_finite(std::numeric_limits<T>::infinity()));
         }
         SUBCASE("long double") {
             using T = long double;
+            CHECK(is_valid_long_double(static_cast<T>(3.14f)));
             CHECK(is_finite(static_cast<T>(3.14)));
             CHECK_FALSE(is_finite(std::numeric_limits<T>::quiet_NaN()));
             CHECK_FALSE(is_finite(std::numeric_limits<T>::infinity()));
@@ -162,6 +180,8 @@ TEST_SUITE("Salix::core::ValidationUtils") {
             const auto nan_val = std::numeric_limits<T>::quiet_NaN();
             const auto inf_val = std::numeric_limits<T>::infinity();
 
+            std::complex<T> value = {2.0f, -1.0f};
+            CHECK(is_valid_complex_float(value));
             CHECK(is_valid_complex_float({1.0f, -2.5f}));
             CHECK_FALSE(is_valid_complex_float({nan_val, 1.0f}));
             CHECK_FALSE(is_valid_complex_float({1.0f, nan_val}));
