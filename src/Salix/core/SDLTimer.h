@@ -1,10 +1,11 @@
 // Salix/core/SDLTimer.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <Salix/core/ITimer.h>
 
 namespace Salix {
 
-    class SDLTimer : public ITimer {
+    class SALIX_API SDLTimer : public ITimer {
     public:
         SDLTimer();
         
