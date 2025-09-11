@@ -6,7 +6,7 @@
 
 namespace Salix {
 
-    class ChronoTimer : public ITimer {
+    class SALIX_API ChronoTimer : public ITimer {
     public:
         ChronoTimer();
 
