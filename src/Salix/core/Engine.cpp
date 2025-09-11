@@ -69,6 +69,8 @@
 
 // 3rd-party includes
 #include <Windows.h>
+#include <timeapi.h>
+#pragma comment(lib, "winmm.lib")
 #include <SDL.h>
 #include <SDL_ttf.h>
 
@@ -149,11 +151,14 @@ namespace Salix {
             FreeLibrary(pimpl->editor_dll_handle);
             pimpl->editor_dll_handle = nullptr;
         }
+        // Release the 1ms timer resolution
+        timeEndPeriod(1);
         SDL_Quit(); // SDL shutdown last
     }
 
     bool Engine::initialize(const ApplicationConfig& config) {
-
+        // Request 1ms timer resolution
+        timeBeginPeriod(1);
         pimpl->app_config = std::make_unique<ApplicationConfig>(config);
         // Force High-DPI support to be enabled. This must be called BEFORE SDL_Init().
         SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0"); 
