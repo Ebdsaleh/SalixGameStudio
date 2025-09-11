@@ -10,8 +10,6 @@ namespace Salix {
     public:
         ChronoTimer();
 
-        // --- UPDATED METHODS ---
-        // These now correctly match the ITimer interface.
         void set_target_fps(int fps) override;
         void tick_start() override;
         void tick_end() override;
