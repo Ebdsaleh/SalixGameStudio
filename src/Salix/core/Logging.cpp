@@ -1,6 +1,7 @@
 // Salix/core/Logging.cpp
 #include <Salix/core/Logging.h>
 #include <iomanip>
+#include <cassert>
 
 namespace Salix {
 
@@ -11,7 +12,8 @@ void LogMessage(LogLevel level, const std::string& message, const char* file, in
     auto now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
     
     // Format time
-    std::tm now_tm = *std::localtime(&now_time);
+    std::tm now_tm; 
+    localtime_s(&now_tm, &now_time); 
     std::ostringstream timestamp;
     timestamp << std::put_time(&now_tm, "%H:%M:%S") 
               << '.' << std::setfill('0') << std::setw(3) << now_ms.count();

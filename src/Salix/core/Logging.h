@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <chrono>
 #include <ctime>
+#include <cassert>
 
 namespace Salix {
     enum class LogLevel {
