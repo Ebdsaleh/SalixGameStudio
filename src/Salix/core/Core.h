@@ -5,7 +5,6 @@
 //              handling DLL import/export.
 // =================================================================================
 #pragma once
-#include <Salix/core/EngineInfo.h>
 #include <filesystem>
 #ifdef _WIN32
     // --- FOR THE ENGINE ---
