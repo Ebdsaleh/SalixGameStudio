@@ -12,7 +12,7 @@ namespace Salix {
        
         // Implement here due to the simple nature of the object.
         template <class Archive>
-        void serialize(Archive &) {
+        void serialize(Archive & archive) {
             archive (
                 cereal::make_nvp("x", x),
                 cereal::make_nvp("y", y)
