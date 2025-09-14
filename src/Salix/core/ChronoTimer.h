@@ -14,6 +14,8 @@ namespace Salix {
         void tick_start() override;
         void tick_end() override;
         float get_delta_time() const override;
+        // Add the override for our new testable method
+        std::chrono::duration<float, std::milli> calculate_sleep_duration() override;
 
         // --- STATIC HELPER FUNCTIONS ---
         // These are useful utilities and can remain.
