@@ -16,7 +16,7 @@ namespace Salix {
         Vector2() = default;
         // Constructor that takes x and y values
         Vector2(float x_in, float y_in) : x(x_in), y(y_in) {}
-
+        
         // Calculates the magnitude (length) of the vector.
         float length() const;
 
@@ -160,7 +160,7 @@ namespace Salix {
             result_x = divisor / a.x;
         } else {
             std::cerr << "Warning: Division by zero on X-axis!" << std::endl;
-            
+            result_x = 0.0f; 
         }
 
         float result_y = 0.0f;
@@ -168,6 +168,7 @@ namespace Salix {
             result_y = divisor / a.y;
         } else {
             std::cerr << "Warning: Division by zero on Y-axis!" << std::endl;
+            result_y = 0.0f;
         }
 
         return Vector2 { result_x, result_y };
