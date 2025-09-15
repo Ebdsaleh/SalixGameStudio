@@ -69,7 +69,8 @@ TEST_SUITE("Salix::core::SDLTimer") {
             auto start_time = std::chrono::high_resolution_clock::now();
             timer.tick_start();
             // Simulate a long frame by sleeping for 20ms.
-            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            // Use the RELIABLE SDL_Delay to simulate the long frame
+            SDL_Delay(20);
             timer.tick_end(); // Should not add any extra delay.
             auto end_time = std::chrono::high_resolution_clock::now();
 
