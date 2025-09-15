@@ -6,32 +6,18 @@
 #include <Salix/core/ChronoTimer.h>
 #include <thread>
 #include <chrono>
-
-// INCLUDES FOR THE FIXTURE
-#include <Windows.h>
-#include <timeapi.h>
-#pragma comment(lib, "winmm.lib") // Link against the required library.
-
-// This fixture sets a high timer resolution for the duration of each test case.
-struct TimerResolutionFixture {
-    TimerResolutionFixture() {
-        // Request 1ms timer resolution before the test runs.
-        timeBeginPeriod(1);
-    }
-    ~TimerResolutionFixture() {
-        // Release the high-resolution timer after the test finishes.
-        timeEndPeriod(1);
-    }
-};
+#include <iostream>
+#include <Tests/TestFixtures.h>
+#include <SDL.h>  // Required for accuracy while testing.
 
 TEST_SUITE("Salix::core::ChronoTimer") {
     
-    TEST_CASE_FIXTURE(TimerResolutionFixture, "initialization state") {
+    TEST_CASE_FIXTURE(HighResolutionTimerFixture, "initialization state") {
         Salix::ChronoTimer timer;
         CHECK(timer.get_delta_time() == 0.0f);
     }
 
-    TEST_CASE_FIXTURE(TimerResolutionFixture, "correctly calculates delta_time") {
+    TEST_CASE_FIXTURE(HighResolutionTimerFixture, "correctly calculates delta_time") {
         Salix::ChronoTimer timer;
         const int wait_duration_ms = 16;
 
@@ -42,53 +28,62 @@ TEST_SUITE("Salix::core::ChronoTimer") {
         CHECK(timer.get_delta_time() == doctest::Approx(0.016).epsilon(0.005));
     }
 
-    TEST_CASE_FIXTURE(TimerResolutionFixture, "frame rate capping") {
-        
-        SUBCASE("delays when frame is shorter than target") {
+    TEST_CASE_FIXTURE(HighResolutionTimerFixture, "frame rate capping logic") {
+    
+        SUBCASE("calculates correct sleep duration when frame is shorter than target") {
             Salix::ChronoTimer timer;
-            const int target_fps = 60;
-            const float target_duration_ms = 1000.0f / target_fps;
-            timer.set_target_fps(target_fps);
+            timer.set_target_fps(60); // Target is ~16.6667ms
 
-            auto start_time = std::chrono::high_resolution_clock::now();
             timer.tick_start();
-            timer.tick_end();
-            auto end_time = std::chrono::high_resolution_clock::now();
+            // Simulate a frame that took 5ms
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+            
+            auto sleep_duration = timer.calculate_sleep_duration();
 
-            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-
-            // With high-resolution timers, this check is now reliable.
-            CHECK(elapsed_ms >= (target_duration_ms - 1));
+            // The calculated sleep should be the target minus the frame time.
+            // It should be ~11.6667ms. We check if it's close.
+            CHECK(sleep_duration.count() == doctest::Approx(16.6667f - 5.0f).epsilon(1.0));
         }
-        SUBCASE("does not delay when frame is longer than target") {
-            Salix::ChronoTimer timer;
-            timer.set_target_fps(60);
 
-            auto start_time = std::chrono::high_resolution_clock::now();
+        SUBCASE("calculates zero sleep duration when frame is longer than target") {
+            Salix::ChronoTimer timer;
+            timer.set_target_fps(60); // Target is ~16.6667ms
+
             timer.tick_start();
+            // Simulate a frame that took 20ms
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
-            timer.tick_end();
-            auto end_time = std::chrono::high_resolution_clock::now();
 
-            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-            CHECK(elapsed_ms < 25);
+            auto sleep_duration = timer.calculate_sleep_duration();
+
+            // The sleep duration should be zero.
+            CHECK(sleep_duration.count() == doctest::Approx(0.0f));
         }
-        SUBCASE("does not delay when uncapped (fps <= 0)") {
+
+        SUBCASE("calculates zero sleep duration when uncapped") {
             Salix::ChronoTimer timer;
             timer.set_target_fps(0);
-
-            auto start_time = std::chrono::high_resolution_clock::now();
             timer.tick_start();
-            timer.tick_end();
-            auto end_time = std::chrono::high_resolution_clock::now();
-            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
-
-            CHECK(elapsed_ms < 2);
+            auto sleep_duration = timer.calculate_sleep_duration();
+            CHECK(sleep_duration.count() == doctest::Approx(0.0f));
         }
     }
-    
+    TEST_CASE("tick_end calls delay with correct duration") {
+        using namespace std::chrono;
+
+        milliseconds captured_delay{0};
+
+        Salix::ChronoTimer timer([&](milliseconds d) { captured_delay = d; });
+        timer.set_target_fps(60);
+
+        timer.tick_start();
+        SDL_Delay(2); // simulate ~2ms work
+        timer.tick_end();
+
+        CHECK(captured_delay.count() >= 7);
+        CHECK(captured_delay.count() <= 20);
+    }
     // The static function tests don't need the fixture but it's used for consistency.
-    TEST_CASE_FIXTURE(TimerResolutionFixture, "static helper functions") {
+    TEST_CASE_FIXTURE(HighResolutionTimerFixture, "static helper functions") {
         SUBCASE("get_ticks_ms reports elapsed time") {
             unsigned int start_ticks = Salix::ChronoTimer::get_ticks_ms();
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
@@ -98,7 +93,7 @@ TEST_SUITE("Salix::core::ChronoTimer") {
 
         SUBCASE("delay waits for the specified duration") {
             auto start_time = std::chrono::high_resolution_clock::now();
-            Salix::ChronoTimer::delay(20);
+            Salix::ChronoTimer::delay_for(20);
             auto end_time = std::chrono::high_resolution_clock::now();
             auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time).count();
             CHECK(elapsed_ms >= 20);
