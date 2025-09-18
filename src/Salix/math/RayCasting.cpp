@@ -10,17 +10,17 @@
 
 namespace Salix {
 
-    Ray Raycast::CreateRayFromScreen(
+     Ray Raycast::CreateRayFromScreen(
         ICamera* camera,
-        const ImVec2& mouse_pos,
-        const ImVec2& viewport_pos,
-        const ImVec2& viewport_size) {
-        // --- 1. Convert to NDC ---
-        ImVec2 mouse_relative = { mouse_pos.x - viewport_pos.x, mouse_pos.y - viewport_pos.y };
+        const Vector2& mouse_pos,
+        const Vector2& viewport_pos,
+        const Vector2& viewport_size) {
+        
+        // 1. Convert to NDC using Salix::Vector2
+        Vector2 mouse_relative = { mouse_pos.x - viewport_pos.x, mouse_pos.y - viewport_pos.y };
         float ndc_x = (2.0f * mouse_relative.x) / viewport_size.x - 1.0f;
         float ndc_y = 1.0f - (2.0f * mouse_relative.y) / viewport_size.y;
 
-        // --- 2. Unproject near and far points from clip space to world space ---
         const glm::mat4& proj = camera->get_projection_matrix();
         const glm::mat4& view = camera->get_view_matrix();
         
@@ -32,31 +32,28 @@ namespace Salix {
         glm::vec4 near_point_world = inv_view_proj * near_point_clip;
         glm::vec4 far_point_world  = inv_view_proj * far_point_clip;
 
-        // Perform perspective divide
         near_point_world /= near_point_world.w;
         far_point_world  /= far_point_world.w;
 
-        // --- 3. Create the final ray ---
-        // CORRECTED: The direction must point from the near plane TOWARDS the far plane.
         glm::vec3 ray_dir = glm::normalize(glm::vec3(far_point_world) - glm::vec3(near_point_world));
-        
-        // The origin is the camera's position, derived from the inverse view matrix.
         glm::vec3 ray_origin = glm::vec3(glm::inverse(view)[3]);
 
         return { ray_origin, ray_dir };
     }
 
+    // --- THIS IS NOW A THIN WRAPPER FOR IMGUI CONVENIENCE ---
     Ray Raycast::CreateRayFromScreen(
         ICamera* camera,
-        const Vector2& mouse_pos,
-        const Vector2& viewport_pos,
-        const Vector2& viewport_size)
+        const ImVec2& mouse_pos,
+        const ImVec2& viewport_pos,
+        const ImVec2& viewport_size)
     {
+        // Convert ImVec2 to Salix::Vector2 and call the core function
         return CreateRayFromScreen(
             camera,
-            ImVec2(mouse_pos.x, mouse_pos.y),
-            ImVec2(viewport_pos.x, viewport_pos.y),
-            ImVec2(viewport_size.x, viewport_size.y)
+            Vector2(mouse_pos.x, mouse_pos.y),
+            Vector2(viewport_pos.x, viewport_pos.y),
+            Vector2(viewport_size.x, viewport_size.y)
         );
     }
 

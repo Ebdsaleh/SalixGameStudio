@@ -22,19 +22,23 @@ namespace Salix {
     // A static utility class for raycasting and picking operations
     class SALIX_API Raycast {
     public:
-        // Creates a world-space ray from a camera and screen coordinates.
-        static Ray CreateRayFromScreen(
-            ICamera* camera,
-            const ImVec2& mouse_pos,      // Mouse position in absolute screen coordinates
-            const ImVec2& viewport_pos,   // Top-left corner of the viewport panel
-            const ImVec2& viewport_size   // Width and height of the viewport panel
-        );
-
+        // --- CORE ENGINE METHOD ---
+        // Creates a world-space ray. This is the primary, engine-facing function.
         static Ray CreateRayFromScreen(
             ICamera* camera,
             const Vector2& mouse_pos,
             const Vector2& viewport_pos,
             const Vector2& viewport_size
+        );
+
+        // --- EDITOR CONVENIENCE OVERLOAD ---
+        // An overload for use with ImGui that wraps the core engine function.
+        // This keeps the ImGui dependency out of the main engine API.
+        static Ray CreateRayFromScreen(
+            ICamera* camera,
+            const ImVec2& mouse_pos,
+            const ImVec2& viewport_pos,
+            const ImVec2& viewport_size
         );
 
 
