@@ -165,16 +165,15 @@ namespace Salix::ValidationUtils {
     // Checks if a float, double, or long double is a normal, finite number.
     template<typename T>
     inline bool is_finite(const T& value) {
-
-        if (is_type<float>(value) ||
-            is_type<double>(value) ||
-            is_type<long double>(value)) {
-            // This check only works for floating-point types.
-            static_assert(is_floating_point<T>(), "is_finite can only be used with float, double or long double.");
+        // Use 'if constexpr' to perform the check at COMPILE TIME.
+        if constexpr (is_floating_point<T>()) {
+            // This code block will only be compiled if T is a float, double, or long double.
             return !std::isnan(value) && !std::isinf(value);
+        } else {
+            // This code block will be compiled for all other types (like int).
+            return false;
         }
-        return false;
-    } 
+    }
 
     // A dedicated template for complex types.
     template<typename T>
