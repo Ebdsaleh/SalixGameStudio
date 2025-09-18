@@ -213,4 +213,102 @@ TEST_SUITE("Salix::core::ValidationUtils") {
             CHECK_FALSE(is_valid_complex_long_double({1.0L, inf_val}));
         }
     }
+
+    TEST_CASE("least-width integer validation") {
+        // --- Signed Least Integers ---
+        SUBCASE("int_least8_t") {
+            CHECK(is_valid_intleast8_t(static_cast<int_least8_t>(100)));
+            CHECK_FALSE(is_valid_intleast8_t(static_cast<int_least8_t>(-100)));
+        }
+        SUBCASE("int_least16_t") {
+            CHECK(is_valid_intleast16_t(static_cast<int_least16_t>(30000)));
+            CHECK_FALSE(is_valid_intleast16_t(static_cast<int_least16_t>(-30000)));
+        }
+        SUBCASE("int_least32_t") {
+            CHECK(is_valid_intleast32_t(static_cast<int_least32_t>(2000000)));
+            CHECK_FALSE(is_valid_intleast32_t(static_cast<int_least32_t>(-2000000)));
+        }
+        SUBCASE("int_least64_t") {
+            CHECK(is_valid_intleast64_t(static_cast<int_least64_t>(1000000000)));
+            CHECK_FALSE(is_valid_intleast64_t(static_cast<int_least64_t>(-1000000000)));
+        }
+
+        // --- Unsigned Least Integers ---
+        SUBCASE("uint_least8_t") {
+            CHECK(is_valid_uint_least8_t(static_cast<uint_least8_t>(200)));
+            CHECK_FALSE(is_valid_uint_least8_t(std::numeric_limits<uint_least8_t>::max()));
+        }
+        SUBCASE("uint_least16_t") {
+            CHECK(is_valid_uint_least16_t(static_cast<uint_least16_t>(60000)));
+            CHECK_FALSE(is_valid_uint_least16_t(std::numeric_limits<uint_least16_t>::max()));
+        }
+        SUBCASE("uint_least32_t") {
+            CHECK(is_valid_uint_least32_t(static_cast<uint_least32_t>(4000000000)));
+            CHECK_FALSE(is_valid_uint_least32_t(std::numeric_limits<uint_least32_t>::max()));
+        }
+        SUBCASE("uint_least64_t") {
+            // This subcase was calling the wrong function (16_t instead of 64_t)
+            CHECK(is_valid_uint_least64_t(static_cast<uint_least64_t>(1000000000000)));
+            CHECK_FALSE(is_valid_uint_least64_t(std::numeric_limits<uint_least64_t>::max()));
+        }
+    }
+
+    TEST_CASE("fast-width integer validation") {
+        // --- Signed Fast Integers ---
+        SUBCASE("int_fast8_t") {
+            CHECK(is_valid_int_fast8_t(static_cast<int_fast8_t>(100)));
+            CHECK_FALSE(is_valid_int_fast8_t(static_cast<int_fast8_t>(-100)));
+        }
+        SUBCASE("int_fast16_t") {
+            CHECK(is_valid_int_fast16_t(static_cast<int_fast16_t>(30000)));
+            CHECK_FALSE(is_valid_int_fast16_t(static_cast<int_fast16_t>(-30000)));
+        }
+        SUBCASE("int_fast32_t") {
+            CHECK(is_valid_int_fast32_t(static_cast<int_fast32_t>(2000000)));
+            CHECK_FALSE(is_valid_int_fast32_t(static_cast<int_fast32_t>(-2000000)));
+        }
+        SUBCASE("int_fast64_t") {
+            CHECK(is_valid_int_fast64_t(static_cast<int_fast64_t>(1000000000)));
+            CHECK_FALSE(is_valid_int_fast64_t(static_cast<int_fast64_t>(-1000000000)));
+        }
+
+        // --- Unsigned Fast Integers ---
+        SUBCASE("uint_fast8_t") {
+            CHECK(is_valid_uint_fast8_t(static_cast<uint_fast8_t>(200)));
+            CHECK_FALSE(is_valid_uint_fast8_t(std::numeric_limits<uint_fast8_t>::max()));
+        }
+        SUBCASE("uint_fast16_t") {
+            CHECK(is_valid_uint_fast16_t(static_cast<uint_fast16_t>(60000)));
+            CHECK_FALSE(is_valid_uint_fast16_t(std::numeric_limits<uint_fast16_t>::max()));
+        }
+        SUBCASE("uint_fast32_t") {
+            CHECK(is_valid_uint_fast32_t(static_cast<uint_fast32_t>(4000000000)));
+            CHECK_FALSE(is_valid_uint_fast32_t(std::numeric_limits<uint_fast32_t>::max()));
+        }
+        SUBCASE("uint_fast64_t") {
+            CHECK(is_valid_uint_fast64_t(static_cast<uint_fast64_t>(1000000000000)));
+            CHECK_FALSE(is_valid_uint_fast64_t(std::numeric_limits<uint_fast64_t>::max()));
+        }
+    }
+
+    TEST_CASE("maximum-width integer validation") {
+        SUBCASE("intmax_t") {
+            CHECK(is_valid_intmax_t(static_cast<intmax_t>(999999)));
+            CHECK_FALSE(is_valid_intmax_t(static_cast<intmax_t>(-999999)));
+            // Add a direct check for the invalid boundary condition
+            CHECK_FALSE(is_valid_intmax_t(std::numeric_limits<intmax_t>::max()));
+        }
+        SUBCASE("uintmax_t") {
+            CHECK(is_valid_uintmax_t(static_cast<uintmax_t>(999999)));
+            // Test the public function directly for better practice
+            CHECK_FALSE(is_valid_uintmax_t(std::numeric_limits<uintmax_t>::max()));
+        }
+    }
+
+    TEST_CASE("template helper edge cases") {
+        SUBCASE("is_finite with non-float type returns false") {
+            // This test covers the final branch of the is_finite template.
+            CHECK_FALSE(is_finite(10)); // Call with an integer
+        }
+    }
 }
