@@ -13,8 +13,7 @@
 // to update glm
 
 
-// You may need to wrap this in your Salix namespace depending on your structure,
-// but putting it in the glm namespace is a common practice.
+// Putting this in the glm namespace as is common practice.
 namespace glm {
     inline std::ostream& operator<<(std::ostream& os, const mat4& m) {
         os << glm::to_string(m);
