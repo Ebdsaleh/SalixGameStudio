@@ -44,9 +44,14 @@ namespace Salix {
         auto end = clock::now() + duration;
 
         if (duration > margin) {
-            std::this_thread::sleep_for(duration - margin);
+            // Cast the duration to an integer-based type before passing it to the
+            // less-precise sleep_for. This is much more reliable across platforms.
+            auto sleep_duration = std::chrono::duration_cast<std::chrono::milliseconds>(duration - margin);
+            std::this_thread::sleep_for(sleep_duration);
         }
 
+        // The high-precision spin-wait will correctly handle the remaining time,
+        // including any fractional milliseconds we truncated off for the sleep.
         while (clock::now() < end) {
             // spin
         }
