@@ -11,7 +11,7 @@
 // to ensure a clean state, though you could also use setup/teardown fixtures.
 struct SDLTimerFixture {
     SDLTimerFixture() { SDL_Init(SDL_INIT_TIMER); }
-    ~SDLTimerFixture() { SDL_Quit(); }
+    ~SDLTimerFixture() { /*SDL_Quit();*/ }
 };
 
 TEST_SUITE("Salix::core::SDLTimer") {
