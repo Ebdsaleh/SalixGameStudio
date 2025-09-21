@@ -148,8 +148,16 @@ namespace Salix {
 
             // --- PRIVATE HELPER FUNCTIONS (implemented in .cpp) ---
             void add_element_internal(std::unique_ptr<Element> element);
-            Element* get_element_internal(const std::type_info& type_info);
-            const Element* get_element_internal(const std::type_info& type_info) const;          
+            #ifdef SALIX_TESTS_ENABLED
+            public:
+                Element* get_element_internal(const std::type_info& type_info);
+                const Element* get_element_internal(const std::type_info& type_info) const;
+            #else
+            private:
+                Element* get_element_internal(const std::type_info& type_info);
+                const Element* get_element_internal(const std::type_info& type_info) const;
+            #endif
+                  
             Entity* parent = nullptr;
             std::vector<Entity*> children;
         };

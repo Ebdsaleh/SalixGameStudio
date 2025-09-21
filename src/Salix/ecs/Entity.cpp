@@ -31,11 +31,11 @@ namespace Salix {
         InitContext context;
         BoxCollider* box_collider = nullptr;
         Pimpl() = default;
-        template<class Archive>
+        /*template<class Archive>
         void serialize (Archive & archive) {
             archive(cereal::make_nvp("name", name), cereal::make_nvp("id", id),
             cereal::make_nvp("elements", all_elements) );
-        }
+        } */
     };
 
     // --- Constructor and Destructor ---
@@ -126,17 +126,18 @@ namespace Salix {
     }
 
     void Entity::purge() {
-        // 1. First, detach all children from this entity.
-        // We make a copy of the children list because `release_from_parent`
-        // will modify the original list.
+        // This logic now mirrors the working destructor for orphaning children.
         auto children_copy = pimpl->children;
         for (auto* child : children_copy) {
-            if (child && child->parent) {
-                child->release_from_parent();
+            if (child) {
+                // This is the proven way to detach the child correctly, making it a root object.
+                child->set_parent(nullptr);
             }
         }
+        // After orphaning, the parent's own children list will be empty.
+        pimpl->children.clear();
         
-        // 2. Now that all children are detached, we can mark this entity for purging.
+        // Finally, flag only this entity for purging by the Scene::maintain() loop.
         pimpl->is_purged_flag = true;
     }
 
@@ -405,9 +406,9 @@ namespace Salix {
         );
     }
 
-    template void Entity::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);
-    template void Entity::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
-    template void Entity::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
-    template void Entity::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &); 
+    template void SALIX_API Entity::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive &);
+    template void SALIX_API Entity::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive &);
+    template void SALIX_API Entity::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
+    template void SALIX_API Entity::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &); 
 
 } // namespace Salix
