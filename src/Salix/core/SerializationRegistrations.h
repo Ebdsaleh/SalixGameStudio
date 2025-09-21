@@ -19,6 +19,7 @@
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/ecs/CppScript.h> // The engine knows about the CppScript base class
+#include <Salix/ecs/BoxCollider.h>
 #include <Salix/scripting/ScriptFactory.h>
 
 // --- Step 4: Register Your Engine's Concrete Types ---
@@ -26,6 +27,7 @@ CEREAL_REGISTER_TYPE(Salix::Transform);
 CEREAL_REGISTER_TYPE(Salix::Sprite2D);
 CEREAL_REGISTER_TYPE(Salix::ScriptElement);
 CEREAL_REGISTER_TYPE(Salix::CppScript); // Register the CppScript base class
+CEREAL_REGISTER_TYPE(Salix::BoxCollider);
 
 // --- Step 5: Define Polymorphic Relationships for Engine Types ---
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::Transform);
@@ -36,6 +38,7 @@ CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::RenderableElement, Salix::Renderable
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::RenderableElement2D, Salix::Sprite2D);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::ScriptElement);
 CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::ScriptElement, Salix::CppScript);
+CEREAL_REGISTER_POLYMORPHIC_RELATION(Salix::Element, Salix::BoxCollider);
 
 // --- Step 6: Provide Custom Save/Load Logic for CppScript ---
 // We are "re-opening" the cereal namespace to add our custom functions.
