@@ -26,6 +26,7 @@ namespace Salix {
     };
 
     enum class MouseScroll {
+        None,
         Forward,
         Backward
     };
