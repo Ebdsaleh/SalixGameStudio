@@ -248,6 +248,18 @@ namespace Salix {
         return one_key_was_just_released;
     }
 
+    bool SDLInputManager::any_of_combo_was_released(const std::vector<KeyCode>& keys) const {
+        if (keys.empty()) {
+            return false;
+        }
+        for (const KeyCode key : keys) {
+            if (key_states.at(key) == InputState::Released) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool SDLInputManager::multiple_are_up(const std::vector<KeyCode>& keys) const {
         if (keys.empty()) { return false; }
         for (const KeyCode key: keys) {
@@ -331,16 +343,43 @@ namespace Salix {
 
 
     bool SDLInputManager::multiple_were_released(const std::vector<MouseButton>& buttons) const {
-        if (buttons.empty()) { return false; }
-        bool at_least_one_button_was_released = false;
+        if (buttons.empty()) {
+            return false;
+        }
+
+        bool one_button_was_just_released = false;
 
         for (const MouseButton button : buttons) {
             const InputState state = mouse_button_states.at(button);
-            if (state == InputState::Down || state == InputState::Held) { return false; }
-            if (state == InputState::Released) { at_least_one_button_was_released = true;}
+
+            // If any button in the combo is still being pressed, the combo has not been released.
+            if (state == InputState::Down || state == InputState::Held) {
+                return false;
+            }
+
+            // Keep track that at least one of the buttons was in the "Released" state this frame.
+            if (state == InputState::Released) {
+                one_button_was_just_released = true;
+            }
         }
-        return at_least_one_button_was_released;
+
+        // Return true only if no buttons were held AND at least one was just released.
+        return one_button_was_just_released;
     }
+
+
+    bool SDLInputManager::any_of_combo_was_released(const std::vector<MouseButton>& buttons) const {
+        if (buttons.empty()) {
+            return false;
+        }
+        for (const MouseButton button : buttons) {
+            if (mouse_button_states.at(button) == InputState::Released) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 
     bool SDLInputManager::multiple_are_up(const std::vector<MouseButton>& buttons) const {
         if (buttons.empty()) {
@@ -363,14 +402,16 @@ namespace Salix {
 
     bool SDLInputManager::did_scroll(MouseScroll direction) {
         float scroll_delta = get_mouse_scroll_delta();
-        if (direction == MouseScroll::Forward) {
-            return scroll_delta > 0.0f;
+        switch (direction) {
+            case MouseScroll::Forward:
+                return scroll_delta > 0.0f;
+            case MouseScroll::Backward:
+                return scroll_delta < 0.0f;
+            default:
+                // This case handles any potential future additions to the enum
+                // and makes the function's logic complete, silencing compiler warnings.
+                return false;
         }
-
-        if (direction == MouseScroll::Backward) {
-            return scroll_delta < 0.0f;
-        }
-        return false;
     }
 
 

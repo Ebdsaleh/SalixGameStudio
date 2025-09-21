@@ -1,5 +1,6 @@
 // Salix/input/sdl/SDLInputManager.h
 #pragma once
+#include <Salix/core/Core.h>
 #include <Salix/input/IInputManager.h>
 #include <SDL.h>
 #include <vector>
@@ -8,7 +9,7 @@
 
 namespace Salix {
 
-    class SDLInputManager : public IInputManager {
+    class SALIX_API SDLInputManager : public IInputManager {
         public:
             SDLInputManager();
             ~SDLInputManager();
@@ -26,6 +27,7 @@ namespace Salix {
             bool multiple_are_held_down(const std::vector<KeyCode>& keys) const override;
             bool multiple_are_held_down_for(const std::vector<KeyCode>& keys, float duration) const override;
             bool multiple_were_released(const std::vector<KeyCode>& keys) const override;
+            bool any_of_combo_was_released(const std::vector<KeyCode>& keys) const override;
             bool multiple_are_up(const std::vector<KeyCode>& keys) const override;
 
             // Mouse Queries
@@ -39,6 +41,7 @@ namespace Salix {
             bool multiple_are_held_down(const std::vector<MouseButton>& buttons) const override;
             bool multiple_are_held_down_for(const std::vector<MouseButton>& buttons, float duration) const override;
             bool multiple_were_released(const std::vector<MouseButton>& buttons) const override;
+            bool any_of_combo_was_released(const std::vector<MouseButton>& buttons) const override;
             bool multiple_are_up(const std::vector<MouseButton>& buttons) const override;
 
             bool did_scroll(MouseScroll direction) override;
@@ -49,10 +52,13 @@ namespace Salix {
 
         private:
 
+        #ifdef SALIX_TESTS_ENABLED
+        public: // This block is only public when SALIX_TESTS_ENABLED is defined
+        #endif
             // A helper to convert SDL's keycode from an event to our abstract KeyCode.
             KeyCode to_salix_keycode(int sdl_keycode) const;
 
-
+        private:
             // --- The NEW State-Tracking Maps ---
             // These are the brains of the new system.
             std::map<KeyCode, InputState> key_states;

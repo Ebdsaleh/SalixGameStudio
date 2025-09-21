@@ -27,6 +27,7 @@ namespace Salix {
         bool multiple_are_held_down(const std::vector<KeyCode>& keys) const override;
         bool multiple_are_held_down_for(const std::vector<KeyCode>& keys, float duration) const override;
         bool multiple_were_released(const std::vector<KeyCode>& keys) const override;
+        bool any_of_combo_was_released(const std::vector<KeyCode>& keys) const override;
         bool multiple_are_up(const std::vector<KeyCode>& keys) const override;
 
         // Mouse Queries
@@ -39,6 +40,7 @@ namespace Salix {
         bool multiple_are_held_down(const std::vector<MouseButton>& buttons) const override;
         bool multiple_are_held_down_for(const std::vector<MouseButton>& buttons, float duration) const override;
         bool multiple_were_released(const std::vector<MouseButton>& buttons) const override;
+        bool any_of_combo_was_released(const std::vector<MouseButton>& buttons) const override;
         bool multiple_are_up(const std::vector<MouseButton>& buttons) const override;
 
         virtual bool did_scroll(MouseScroll direction) override;

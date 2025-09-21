@@ -178,6 +178,19 @@ namespace Salix {
         return true;
     }
 
+    bool ImGuiInputManager::any_of_combo_was_released(const std::vector<KeyCode>& keys) const {
+        if (keys.empty()) {
+            return false;
+        }
+        // Return true if any key in the list was just released this frame.
+        for (const KeyCode key : keys) {
+            if (ImGui::IsKeyReleased(SalixKeyCodeToImGuiKey(key))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     bool ImGuiInputManager::multiple_are_up(const std::vector<KeyCode>& keys) const {
         for (KeyCode key : keys) {
             if (!is_up(key)) return false;
@@ -242,6 +255,21 @@ namespace Salix {
             if (!was_released(button)) return false;
         }
         return true;
+    }
+
+    bool ImGuiInputManager::any_of_combo_was_released(const std::vector<MouseButton>& buttons) const {
+        if (buttons.empty()) {
+            return false;
+        }
+        // Return true if any button in the list was just released this frame.
+        for (const MouseButton button : buttons) {
+            // We need to use our helper to convert the button enum.
+            ImGuiMouseButton imgui_button = SalixMouseButtonToImGuiButton(button);
+            if (imgui_button != ImGuiMouseButton_COUNT && ImGui::IsMouseReleased(imgui_button)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     bool ImGuiInputManager::multiple_are_up(const std::vector<MouseButton>& buttons) const {

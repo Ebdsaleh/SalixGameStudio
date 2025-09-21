@@ -44,7 +44,11 @@ namespace Salix {
             virtual bool multiple_are_down(const std::vector<KeyCode>& keys) const = 0;
             virtual bool multiple_are_held_down(const std::vector<KeyCode>& keys) const = 0;
             virtual bool multiple_are_held_down_for(const std::vector<KeyCode>& keys, float duration) const = 0;
+            // Returns true ONLY if ALL specified keys were just released.
             virtual bool multiple_were_released(const std::vector<KeyCode>& keys) const = 0;
+            //Returns true if ANY of the specified keys were just released.
+            virtual bool any_of_combo_was_released(const std::vector<KeyCode>& keys) const = 0;
+
             virtual bool multiple_are_up(const std::vector<KeyCode>& keys) const = 0;
 
             // Mouse Queries
@@ -58,6 +62,7 @@ namespace Salix {
             virtual bool multiple_are_held_down(const std::vector<MouseButton>& buttons) const= 0;
             virtual bool multiple_are_held_down_for(const std::vector<MouseButton>& buttons, float duration) const = 0;
             virtual bool multiple_were_released(const std::vector<MouseButton>& buttons) const = 0;
+            virtual bool any_of_combo_was_released(const std::vector<MouseButton>& buttons) const = 0;
             virtual bool multiple_are_up(const std::vector<MouseButton>& buttons) const = 0;
 
             virtual bool did_scroll(MouseScroll direction) = 0;
