@@ -39,6 +39,7 @@ void check_vector3_approximate(const Salix::Vector3& result, const Salix::Vector
 TEST_SUITE("Salix::ecs::Transform") {
     TEST_CASE("initialization and default values") {
         // ARRANGE
+        Salix::SimpleGuid::reset_counter_for_testing();       
         std::unique_ptr<Salix::Transform> default_transform;
         default_transform = std::make_unique<Salix::Transform>();
         std::string class_name = "Transform";        //ASSERT: Check all default values.
