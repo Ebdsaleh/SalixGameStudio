@@ -6,8 +6,16 @@
 #include <iostream>
 class MockIRenderer : public Salix::IRenderer {
 public:
+    // For Sprite2D testing
+    int draw_sprite_call_count = 0;
+    Salix::SpriteFlip last_flip_state = Salix::SpriteFlip::None;
+    bool should_texture_load_fail = false;
+
     // This is the core function your AssetManager test depends on.
     Salix::ITexture* load_texture(const char* file_path) override {
+        if (should_texture_load_fail) {
+            return nullptr;
+        }
         // We're simulating a successful texture load here.
         std::cout << "MockIRenderer: Loading texture from path: " << file_path << std::endl;
         return new MockITexture();
@@ -44,7 +52,11 @@ public:
     void clear() override {}
     Salix::Color get_clear_color() const override { return {}; }
     void draw_texture(Salix::ITexture* texture, const Salix::Rect& dest_rect) override { (void)texture; (void)dest_rect; }
-    void draw_sprite(Salix::ITexture* texture, const Salix::Transform* transform, const Salix::Color& color, Salix::SpriteFlip flip) override { (void)texture; (void)transform; (void)color; (void)flip; }
+    void draw_sprite(Salix::ITexture* texture, const Salix::Transform* transform, const Salix::Color& color, Salix::SpriteFlip flip) override {
+         (void)texture; (void)transform; (void)color; (void)flip;
+          draw_sprite_call_count++;
+            last_flip_state = flip;
+        }
     void draw_wire_box(const glm::mat4& model_matrix, const Salix::Color& color) override { (void)model_matrix; (void)color; }
     void draw_line(const glm::vec3& start, const glm::vec3& end, const Salix::Color& color) override { (void)start; (void)end; (void)color; }
     const float get_line_width() const override { return 1.0f; }
