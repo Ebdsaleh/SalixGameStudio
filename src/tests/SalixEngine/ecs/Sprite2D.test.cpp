@@ -39,6 +39,7 @@ TEST_SUITE("Salix::ecs::Sprite2D") {
         int expected_texture_width = 0;
         int expected_texture_height = 0;
         Salix::ITexture* expected_texture = nullptr;
+        bool expected_visibility = true;
         SUBCASE("with methods") {
             // ASSERT
             CHECK(expected_use_entity_rotation == sprite->get_use_entity_rotation());
@@ -57,6 +58,7 @@ TEST_SUITE("Salix::ecs::Sprite2D") {
             CHECK(expected_texture_width == sprite->get_texture_width());
             CHECK(expected_texture_height == sprite->get_texture_height());
             CHECK(expected_texture == sprite->get_texture());
+            CHECK(expected_visibility == sprite->is_visible());
         }
         SUBCASE("with public members") {
             // ASSERT
