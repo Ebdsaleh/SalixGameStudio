@@ -19,24 +19,25 @@
 #include <cereal/archives/json.hpp> // For the JSON archive
 #include <sstream>                  // For std::stringstream
 
-// A helper for comparing Vector3 with tolerance
-// This is needed because floating point math can have tiny precision errors.
-void check_vector3_approximate(const Salix::Vector3& vec, float x, float y, float z) {
-    CHECK(vec.x == doctest::Approx(x)); 
-    CHECK(vec.y == doctest::Approx(y)); 
-    CHECK(vec.z == doctest::Approx(z));
-}
 
-// This helper function is overloaded to compare two Vector3 objects equality directly.
-// To make assertions much cleaner.
-void check_vector3_approximate(const Salix::Vector3& result, const Salix::Vector3& expected) {
-    CHECK(result.x == doctest::Approx(expected.x));
-    CHECK(result.y == doctest::Approx(expected.y));
-    CHECK(result.z == doctest::Approx(expected.z));
-}
 
 
 TEST_SUITE("Salix::ecs::Transform") {
+    // A helper for comparing Vector3 with tolerance
+    // This is needed because floating point math can have tiny precision errors.
+    inline void check_vector3_approximate(const Salix::Vector3& vec, float x, float y, float z) {
+        CHECK(vec.x == doctest::Approx(x)); 
+        CHECK(vec.y == doctest::Approx(y)); 
+        CHECK(vec.z == doctest::Approx(z));
+    }
+
+    // This helper function is overloaded to compare two Vector3 objects equality directly.
+    // To make assertions much cleaner.
+    inline void check_vector3_approximate(const Salix::Vector3& result, const Salix::Vector3& expected) {
+        CHECK(result.x == doctest::Approx(expected.x));
+        CHECK(result.y == doctest::Approx(expected.y));
+        CHECK(result.z == doctest::Approx(expected.z));
+    }
     TEST_CASE("initialization and default values") {
         // ARRANGE
         Salix::SimpleGuid::reset_counter_for_testing();       
