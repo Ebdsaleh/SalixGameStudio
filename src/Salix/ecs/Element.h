@@ -46,7 +46,9 @@ namespace Salix {
             
             template <class Archive>
             void serialize(Archive& archive) {
-                archive(cereal::make_nvp("id", id));
+                archive(
+                    cereal::make_nvp("id", id),
+                    cereal::make_nvp("name", name));
                 /// The base class of the hierarchy has no parent to serialize.
                 // Since it has no data of its own, this function is empty.
                 // It MUST exist, however, to complete the polymorphic chain.
