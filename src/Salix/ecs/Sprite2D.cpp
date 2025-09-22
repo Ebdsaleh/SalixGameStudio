@@ -131,9 +131,9 @@ namespace Salix {
         );
     }
 
-    template void Sprite2D::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive& );
-    template void Sprite2D::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive& );
-    template void Sprite2D::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
-    template void Sprite2D::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
+    template void SALIX_API Sprite2D::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive& );
+    template void SALIX_API Sprite2D::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive& );
+    template void SALIX_API Sprite2D::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
+    template void SALIX_API Sprite2D::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
 
 } // namespace Salix
