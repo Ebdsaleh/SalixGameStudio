@@ -25,7 +25,7 @@
 #include <Editor/EditorContext.h>
 #include <Editor/camera/EditorCamera.h>
 #include <Editor/ArchetypeInstantiator.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Transform.h> // Needed for focus_on
 #include <memory>
 #include <vector>
@@ -144,7 +144,7 @@ namespace Salix {
                 );
             }
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                Entity* live_entity_to_focus = context->preview_scene->get_entity_by_id(archetype.id);
+                Entity* live_entity_to_focus = context->preview_realm->get_entity_by_id(archetype.id);
                 if (live_entity_to_focus && live_entity_to_focus->get_transform()) {
                     context->editor_camera->focus_on(live_entity_to_focus->get_transform(), 3.0f);
                 }
@@ -705,7 +705,7 @@ namespace Salix {
     void WorldTreePanel::on_panel_gui_update() {
         if (!pimpl->context || !pimpl->context->editor_realm_manager) return;
 
-        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.8f, 1.0f), "Scene: (YAML Mode)");
+        ImGui::TextColored(ImVec4(0.5f, 1.0f, 0.8f, 1.0f), "Realm: (YAML Mode)");
         ImGui::TextDisabled("\tEntities: %zu", pimpl->context->editor_realm_manager->get_realm_size());
         ImGui::Separator();
 

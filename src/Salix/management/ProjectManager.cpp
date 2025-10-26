@@ -10,7 +10,7 @@
 #include <Salix/management/Project.h>
 #include <Salix/management/FileManager.h>
 #include <Salix/management/ProjectConfig.h>
-#include <Salix/management/SceneData.h>
+#include <Salix/management/RealmData.h>
 #include <Salix/core/InitContext.h>
 #include <filesystem>  
 #include <fstream>     
@@ -18,12 +18,12 @@
 #include <string>
 #include <iomanip>     
 // For std::setw if you want formatted JSON output
-// Cereal headers required for ProjectConfig and SceneData manifest
+// Cereal headers required for ProjectConfig and RealmData manifest
 #include <cereal/cereal.hpp>
 // Cereal archives
 #include <cereal/archives/json.hpp>
-// For JSON archives (ProjectConfig & SceneData manifest)
-// Cereal types (needed for std::string, std::vector inside ProjectConfig/SceneData)
+// For JSON archives (ProjectConfig & RealmData manifest)
+// Cereal types (needed for std::string, std::vector inside ProjectConfig/RealmData)
 #include <cereal/types/string.hpp>         
 #include <cereal/types/vector.hpp>         
 #include <cereal/types/array.hpp>
@@ -96,7 +96,7 @@ namespace Salix {
 
         std::cout << "ProjectManager: Creating new project at '" << project_root.string() << "'" << std::endl;
 
-        if (!FileManager::create_directories((project_root / "Assets" / "Scenes").string())) return false;
+        if (!FileManager::create_directories((project_root / "Assets" / "Realms").string())) return false;
         if (!FileManager::create_directories((project_root / "Assets" / "Scripts").string())) return false;
         if (!FileManager::create_directories((project_root / "Assets" / "Images").string())) return false;
         if (!FileManager::create_directories((project_root / "Assets" / "Audio").string())) return false;
@@ -115,7 +115,7 @@ namespace Salix {
             }
             project_file << "// Salix Game Studio Project File\n";
             project_file << "ProjectName: " << project_name << "\n";
-            project_file << "StartingScene: MainLevel\n";
+            project_file << "StartingRealm: MainLevel\n";
             project_file.close();
         }
 
@@ -131,7 +131,7 @@ namespace Salix {
         std::filesystem::path project_root = root_path / project_name;
         std::filesystem::path dest_assets_dir = project_root / "Assets";
         std::filesystem::path dest_scripts_dir = dest_assets_dir / "Scripts";
-        std::filesystem::path dest_scenes_dir = dest_assets_dir / "Scenes";
+        std::filesystem::path dest_realms_dir = dest_assets_dir / "Realms";
         std::filesystem::path dest_images_dir = dest_assets_dir / "Images";
         std::filesystem::path dest_audio_dir = dest_assets_dir / "Audio";
         std::filesystem::path dest_models_dir = dest_assets_dir / "Models";
@@ -145,7 +145,7 @@ namespace Salix {
         std::cout << "ProjectManager: Creating new project '" << project_name << "' at '" << project_path << "'" << std::endl;
 
         // --- 2. Create Destination Directory Structure ---
-        if (!FileManager::create_directories(dest_scenes_dir.string())) return false;
+        if (!FileManager::create_directories(dest_realms_dir.string())) return false;
         if (!FileManager::create_directories((dest_scripts_dir).string())) return false;
         if (!FileManager::create_directories(dest_images_dir.string())) return false;
         if (!FileManager::create_directories(dest_audio_dir.string())) return false;
@@ -211,17 +211,17 @@ namespace Salix {
         // project_config.build_settings.engine_version = project_config.build_settings.engine_version; 
         project_config.build_settings.game_dll_name = project_name + ".dll";
 
-        bool default_scene_exists_in_config = false;
-        for (const auto& scene_info: project_config.project_data.scenes) {
-            if (scene_info.name == "Default") {
-                default_scene_exists_in_config = true;
+        bool default_realm_exists_in_config = false;
+        for (const auto& realm_info: project_config.project_data.realms) {
+            if (realm_info.name == "Default") {
+                default_realm_exists_in_config = true;
                 break;
             }
         }
-        if (!default_scene_exists_in_config) {
-            project_config.project_data.scenes.emplace_back("Default", "Assets/Scenes/Default.scene");
+        if (!default_realm_exists_in_config) {
+            project_config.project_data.realms.emplace_back("Default", "Assets/Realms/Default.realm");
         }
-        project_config.project_data.starting_scene = "Default";
+        project_config.project_data.starting_realm = "Default";
 
         std::filesystem::path project_file_dest = project_root / project_file_name;
         std::ofstream new_project_file_os(project_file_dest);
@@ -243,22 +243,22 @@ namespace Salix {
         // --- 4. Copying default asset templates (unchanged) ---
         std::cout << "ProjectManager: Copying default asset templates..." << std::endl;
 
-        std::filesystem::path scene_template_src = "src/Salix/resources/templates/default/Assets/Scenes/Default.scene";
-        //std::filesystem::path scene_manifest_template_src = "src/Salix/resources/templates/default/Assets/Scenes/Default.scene.manifest";
+        std::filesystem::path realm_template_src = "src/Salix/resources/templates/default/Assets/Realms/Default.realm";
+        //std::filesystem::path realm_manifest_template_src = "src/Salix/resources/templates/default/Assets/Realms/Default.realm.manifest";
         std::filesystem::path sprite_template_src = "src/Salix/resources/templates/default/Assets/Images/Sprites/test.png";
         
-        std::filesystem::path scene_template_dest = dest_scenes_dir / "Default.scene";
-        //std::filesystem::path scene_manifest_dest = dest_scenes_dir / "Default.scene.manifest";
+        std::filesystem::path realm_template_dest = dest_realms_dir / "Default.realm";
+        //std::filesystem::path realm_manifest_dest = dest_realms_dir / "Default.realm.manifest";
         std::filesystem::path sprite_template_dest = dest_images_dir / "test.png";
 
-        if ( !FileManager::copy_file(scene_template_src.string(), scene_template_dest.string() ) ){
-            std::cerr << "ProjectManager Error: Failed to copy default scene template." << std::endl;
+        if ( !FileManager::copy_file(realm_template_src.string(), realm_template_dest.string() ) ){
+            std::cerr << "ProjectManager Error: Failed to copy default realm template." << std::endl;
             return false;
         }
         
         // The manifest file might play a part at a later implementation but it's not required for now.
-        /* if ( !FileManager::copy_file(scene_manifest_template_src.string(), scene_manifest_dest.string()) ) {
-            std::cerr << "ProjectManager Error: Failed to copy default scene manifest template." << std::endl;
+        /* if ( !FileManager::copy_file(realm_manifest_template_src.string(), realm_manifest_dest.string()) ) {
+            std::cerr << "ProjectManager Error: Failed to copy default realm manifest template." << std::endl;
             return false;
         }
         */
@@ -319,19 +319,19 @@ namespace Salix {
             loaded_config.project_data.project_path
         );
 
-        // Now, populate the Project with loaded scene paths and starting scene info
-        // Your Project::add_scene_path method signature is `const std::string& path_to_scene_file`.
+        // Now, populate the Project with loaded realm paths and starting realm info
+        // Your Project::add_realm_path method signature is `const std::string& path_to_realm_file`.
         // If you later change it to accept name, you'd modify this line accordingly.
-        for (const auto& scene_info : loaded_config.project_data.scenes) {
-            pimpl->active_project->add_scene_path(scene_info.name, scene_info.path);
+        for (const auto& realm_info : loaded_config.project_data.realms) {
+            pimpl->active_project->add_realm_path(realm_info.name, realm_info.path);
         }
-        pimpl->active_project->set_starting_scene(loaded_config.project_data.starting_scene);
+        pimpl->active_project->set_starting_realm(loaded_config.project_data.starting_realm);
 
 
         // --- KICK OFF THE CHAIN OF COMMAND ---
         if (pimpl->active_project) {
-            // The Project will now initialize itself, which includes creating the SceneManager
-            // and telling it to load the starting scene.
+            // The Project will now initialize itself, which includes creating the RealmManager
+            // and telling it to load the starting realm.
             pimpl->active_project->initialize(pimpl->context); // Pass the asset manager
         }
         std::cout << "ProjectManager: Successfully loaded project '" << loaded_config.project_data.project_name << "'." << std::endl;
@@ -376,19 +376,19 @@ namespace Salix {
             loaded_config.project_data.project_path
         );
 
-        // Now, populate the Project with loaded scene paths and starting scene info
-        // Your Project::add_scene_path method signature is `const std::string& path_to_scene_file`.
+        // Now, populate the Project with loaded realm paths and starting realm info
+        // Your Project::add_realm_path method signature is `const std::string& path_to_realm_file`.
         // If you later change it to accept name, you'd modify this line accordingly.
-        for (const auto& scene_info : loaded_config.project_data.scenes) {
-            pimpl->active_project->add_scene_path(scene_info.name, scene_info.path);
+        for (const auto& realm_info : loaded_config.project_data.realms) {
+            pimpl->active_project->add_realm_path(realm_info.name, realm_info.path);
         }
-        pimpl->active_project->set_starting_scene(loaded_config.project_data.starting_scene);
+        pimpl->active_project->set_starting_realm(loaded_config.project_data.starting_realm);
 
 
         // --- KICK OFF THE CHAIN OF COMMAND ---
         if (pimpl->active_project) {
-            // The Project will now initialize itself, which includes creating the SceneManager
-            // and telling it to load the starting scene.
+            // The Project will now initialize itself, which includes creating the RealmManager
+            // and telling it to load the starting realm.
             std::cout << "ProjectManager::load_project_from_file - active_project set to '" <<
                 pimpl->active_project->get_name() << "'..." << std::endl;
             pimpl->active_project->initialize(pimpl->context); // Pass the asset manager

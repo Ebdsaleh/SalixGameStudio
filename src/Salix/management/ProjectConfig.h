@@ -10,10 +10,10 @@
 
 namespace Salix {
 
-    // Helper struct for scenes within the project config (SceneInfo remains the same)
-    struct SceneInfo {
+    // Helper struct for realms within the project config (RealmInfo remains the same)
+    struct RealmInfo {
         std::string name;
-        std::string path; // Relative path to the scene file
+        std::string path; // Relative path to the realm file
 
         template<class Archive>
         void serialize(Archive & archive) {
@@ -23,8 +23,8 @@ namespace Salix {
             );
         }
 
-        SceneInfo() = default;
-        SceneInfo(const std::string& n, const std::string& p) : name(n), path(p) {}
+        RealmInfo() = default;
+        RealmInfo(const std::string& n, const std::string& p) : name(n), path(p) {}
     };
 
     // Helper struct for build settings (BuildSettings remains the same)
@@ -51,8 +51,8 @@ namespace Salix {
         std::string project_path;
         std::string project_file_name; // This will map to "project_file" in JSON
         std::string project_name;
-        std::vector<SceneInfo> scenes; // List of all scenes in the project
-        std::string starting_scene;    // Name of the scene to load on startup
+        std::vector<RealmInfo> realms; // List of all realms in the project
+        std::string starting_realm;    // Name of the realm to load on startup
 
         template<class Archive>
         void serialize(Archive & archive) {
@@ -60,8 +60,8 @@ namespace Salix {
             archive( cereal::make_nvp("project_path", project_path) );
             archive( cereal::make_nvp("project_file", project_file_name) ); // <-- ALIAS for "project_file" in JSON
             archive( cereal::make_nvp("project_name", project_name) );
-            archive( cereal::make_nvp("scenes", scenes) );
-            archive( cereal::make_nvp("starting_scene", starting_scene) );
+            archive( cereal::make_nvp("realms", realms) );
+            archive( cereal::make_nvp("starting_realm", starting_realm) );
         }
         ProjectData() = default;
     };

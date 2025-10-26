@@ -3,12 +3,12 @@
 #include <Salix/management/Project.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/scripting/ScriptFactory.h> // Include the script factory.
-#include <Salix/management/SceneManager.h>
+#include <Salix/management/RealmManager.h>
 #include <Salix/management/FileManager.h>
 #include <Salix/management/ProjectConfig.h>
 #include <Salix/assets/AssetManager.h>
 #include <Salix/ecs/Transform.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/core/SerializationRegistrations.h>
@@ -29,12 +29,12 @@
 
 namespace Salix {
     struct Project::Pimpl {
-        std::unique_ptr<SceneManager> scene_manager; // runtime, does not get serialized.
+        std::unique_ptr<RealmManager> realm_manager; // runtime, does not get serialized.
         std::string name;
         std::string root_path;
         std::string project_file_name;
-        std::string starting_scene;
-        std::map<std::string, std::string> scene_paths;
+        std::string starting_realm;
+        std::map<std::string, std::string> realm_paths;
         InitContext context;
 
         // --- Build Settings (to match BuildSettings in ProjectConfig) ---
@@ -50,14 +50,14 @@ namespace Salix {
             archive(cereal::make_nvp("name", name));
             archive(cereal::make_nvp("root_path", root_path));
             archive(cereal::make_nvp("project_file_name", project_file_name)); 
-            archive(cereal::make_nvp("scene_paths", scene_paths));
-            archive(cereal::make_nvp("starting_scene", starting_scene));
+            archive(cereal::make_nvp("realm_paths", realm_paths));
+            archive(cereal::make_nvp("starting_realm", starting_realm));
             archive(cereal::make_nvp("engine_version", engine_version));
             archive(cereal::make_nvp("game_dll_name", game_dll_name));
             // Don't serialize AssetManager* (raw pointer to external object)
-            // Don't serialize scene_manager directly here in Pimpl,
+            // Don't serialize realm_manager directly here in Pimpl,
             // as it's typically managed/created at runtime (as per the flow).
-            // If you did want to serialize scene_manager itself, it would also need
+            // If you did want to serialize realm_manager itself, it would also need
             // its full type visible.
         }
             
@@ -67,18 +67,18 @@ namespace Salix {
     Project::Project() : pimpl(std::make_unique<Pimpl>()) {
         pimpl->name = "TestProject";
         pimpl->root_path = "Sandbox/TestProject";
-        pimpl->project_file_name = pimpl->name + ".salixproj"; // <--- ADD THIS (derive from name)
-        pimpl->engine_version = "0.1.0-Alpha"; // <--- ADD THIS (default, will be overwritten by loaded_config in PM)
-        pimpl->game_dll_name = pimpl->name + ".dll"; // <--- ADD THIS (derive, will be overwritten)
+        pimpl->project_file_name = pimpl->name + ".salixproj"; // (derive from name)
+        pimpl->engine_version = "0.1.0-Alpha"; // (default, will be overwritten by loaded_config in PM)
+        pimpl->game_dll_name = pimpl->name + ".dll"; //  (derive, will be overwritten)
     }
     
     Project::Project(const std::string& project_name, const std::string& project_root_path) 
         : pimpl(std::make_unique<Pimpl>()) {
         pimpl->name = project_name;
         pimpl->root_path = project_root_path;
-        pimpl->project_file_name = project_name + ".salixproj"; // <--- ADD THIS (derive from name)
-        pimpl->engine_version = "0.1.0-Alpha"; // <--- ADD THIS (default, will be overwritten by loaded_config in PM)
-        pimpl->game_dll_name = project_name + ".dll"; // <--- ADD THIS (derive, will be overwritten)
+        pimpl->project_file_name = project_name + ".salixproj"; // (derive from name)
+        pimpl->engine_version = "0.1.0-Alpha"; // (default, will be overwritten by loaded_config in PM)
+        pimpl->game_dll_name = project_name + ".dll"; // (derive, will be overwritten)
     }
 
     Project::~Project() = default;
@@ -91,13 +91,13 @@ namespace Salix {
             std::cerr << "Project::initialize - AssetManager pointer is null_ptr, cancelling Project initialization." <<
                 std::endl;
         }
-        pimpl->scene_manager = std::make_unique<SceneManager>();
-        pimpl->scene_manager->initialize(pimpl->context);
-        pimpl->scene_manager->set_project_root_path(pimpl->root_path);
+        pimpl->realm_manager = std::make_unique<RealmManager>();
+        pimpl->realm_manager->initialize(pimpl->context);
+        pimpl->realm_manager->set_project_root_path(pimpl->root_path);
 
-        // Populate SceneManager with lightweight scene shells
-        for (const auto& pair : pimpl->scene_paths) {
-            pimpl->scene_manager->create_scene(pair.first, pair.second);
+        // Populate realmManager with lightweight realm shells
+        for (const auto& pair : pimpl->realm_paths) {
+            pimpl->realm_manager->create_realm(pair.first, pair.second);
         }
         
         // Now that the project is set up, load its specific game logic DLL.
@@ -114,71 +114,73 @@ namespace Salix {
     }
 
     void Project::shutdown() {
-        if (pimpl->scene_manager) {
-            pimpl->scene_manager->shutdown();
-            pimpl->scene_manager.reset();
+        if (pimpl->realm_manager) {
+            pimpl->realm_manager->shutdown();
+            pimpl->realm_manager.reset();
         }
     }
 
     void Project::update(float delta_time) {
-        if (pimpl->scene_manager) {
-            pimpl->scene_manager->update(delta_time);
+        if (pimpl->realm_manager) {
+            pimpl->realm_manager->update(delta_time);
         }
     }
 
     void Project::render(IRenderer* renderer) {
-        if (pimpl->scene_manager) {
-            pimpl->scene_manager->render(renderer);
+        if (pimpl->realm_manager) {
+            pimpl->realm_manager->render(renderer);
         }
     }
 
-    void Project::set_starting_scene(const std::string& scene_name) {
-        pimpl->starting_scene = scene_name;
+    void Project::set_starting_realm(const std::string& realm_name) {
+        pimpl->starting_realm = realm_name;
     }
     
-    void Project::add_scene_path(const std::string& scene_name, const std::string& path_to_scene_file) {
-        pimpl->scene_paths[scene_name] = path_to_scene_file; // Store in the map
+    void Project::add_realm_path(const std::string& realm_name, const std::string& path_to_realm_file) {
+        pimpl->realm_paths[realm_name] = path_to_realm_file; // Store in the map
     }
 
-    bool Project::remove_scene_path(const std::string& path_to_scene_file) {
-        if(!FileManager::path_exists(path_to_scene_file)) { // This check is for the file itself, not the map entry
-            std::cerr << "Project::remove_scene_path - Failed to remove scene path: '" <<
-            path_to_scene_file << "', file does not exist on disk." << std::endl;
+    bool Project::remove_realm_path(const std::string& path_to_realm_file) {
+        if(!FileManager::path_exists(path_to_realm_file)) { // This check is for the file itself, not the map entry
+            std::cerr << "Project::remove_realm_path - Failed to remove realm path: '" <<
+            path_to_realm_file << "', file does not exist on disk." << std::endl;
             // Optionally, still attempt to remove from map even if file doesn't exist on disk,
             // if this method means "remove from project list".
         }
 
         // Iterate the map to find the entry by value (path) and remove by key (name)
-        for (auto it = pimpl->scene_paths.begin(); it != pimpl->scene_paths.end(); ++it) {
-            if (it->second == path_to_scene_file) {
-                pimpl->scene_paths.erase(it); // Erase by iterator
-                std::cout << "Project: Removed scene path '" << path_to_scene_file << "' from project." << std::endl;
-                return true; // Scene path found and removed from map
+        for (auto it = pimpl->realm_paths.begin(); it != pimpl->realm_paths.end(); ++it) {
+            if (it->second == path_to_realm_file) {
+                pimpl->realm_paths.erase(it); // Erase by iterator
+                std::cout << "Project: Removed realm path '" << path_to_realm_file << "' from project." << std::endl;
+                return true; // realm path found and removed from map
             }
         }
-        std::cerr << "Project::remove_scene_path - Scene path '" << path_to_scene_file << "' not found in project map." << std::endl;
-        return false; // Scene path not found in the map
+        std::cerr << "Project::remove_realm_path - realm path '" << path_to_realm_file << "' not found in project map." << std::endl;
+        return false; // realm path not found in the map
     }
     
     // --- Public Getter Methods ---
-    SceneManager* Project::get_scene_manager() const {
-        return pimpl->scene_manager.get();
+    RealmManager* Project::get_realm_manager() const {
+        return pimpl->realm_manager.get();
     }
 
     const std::string& Project::get_name() const {
-
         return pimpl->name;
     }
+
     const std::string& Project::get_path() const {
         return pimpl->root_path;
     }
-    const std::string& Project::get_starting_scene() const {
-        return pimpl->starting_scene;
-    }
-    const std::map<std::string, std::string>& Project::get_scene_paths() const {
-        return pimpl->scene_paths;
+
+    const std::string& Project::get_starting_realm() const {
+        return pimpl->starting_realm;
     }
 
+    const std::map<std::string, std::string>& Project::get_realm_paths() const {
+        return pimpl->realm_paths;
+    }
+    
     const std::string& Project::get_engine_version() const {
         return pimpl->engine_version;
     }
@@ -191,34 +193,34 @@ namespace Salix {
         return pimpl->project_file_name;
     }
 
-    bool Project::load_starting_scene() {
-        if (pimpl->starting_scene.empty()) {
-        std::cerr << "Project Error: No starting scene specified!" << std::endl;
+    bool Project::load_starting_realm() {
+        if (pimpl->starting_realm.empty()) {
+        std::cerr << "Project Error: No starting realm specified!" << std::endl;
         return false;
     }
-        // This now attempts to load the scene from disk and returns the result
-        return pimpl->scene_manager->set_active_scene(pimpl->starting_scene);
+        // This now attempts to load the realm from disk and returns the result
+        return pimpl->realm_manager->set_active_realm(pimpl->starting_realm);
     }
 
-    void Project::create_and_save_default_scene() {
-        if (!pimpl->scene_manager) {
+    void Project::create_and_save_default_realm() {
+        if (!pimpl->realm_manager) {
         return;
     }
 
-    std::cout << "Project: Creating default content for scene 'Default'..." << std::endl;
+    std::cout << "Project: Creating default content for realm 'Default'..." << std::endl;
 
-    // 1. Ensure the "Default" scene is the active one.
-    //    This is necessary so that save_active_scene() knows what to save.
-    pimpl->scene_manager->set_active_scene("Default");
-    Scene* default_scene = pimpl->scene_manager->get_active_scene();
+    // 1. Ensure the "Default" realm is the active one.
+    //    This is necessary so that save_active_realm() knows what to save.
+    pimpl->realm_manager->set_active_realm("Default");
+    Realm* default_realm = pimpl->realm_manager->get_active_realm();
 
-    if (!default_scene) {
-        std::cerr << "Project Error: Could not find 'Default' scene shell to populate." << std::endl;
+    if (!default_realm) {
+        std::cerr << "Project Error: Could not find 'Default' realm shell to populate." << std::endl;
         return;
     }
 
     // 2. Create the default "Player" entity and its components.
-    Entity* player = default_scene->create_entity("Player");
+    Entity* player = default_realm->create_entity("Player");
     Transform* transform = player->get_transform();
     Sprite2D* sprite = player->add_element<Sprite2D>();
 
@@ -242,8 +244,8 @@ namespace Salix {
     }
     // -------------------------
 
-    // 4. Tell the SceneManager to save the now-populated active scene to its file.
-    pimpl->scene_manager->save_active_scene();
+    // 4. Tell the realmManager to save the now-populated active realm to its file.
+    pimpl->realm_manager->save_active_realm();
 
     }
     template<class Archive>
@@ -252,8 +254,8 @@ namespace Salix {
         cereal::make_nvp("name", pimpl->name),
         cereal::make_nvp("root_path", pimpl->root_path),
         cereal::make_nvp("project_file_name", pimpl->project_file_name),
-        cereal::make_nvp("scene_paths", pimpl->scene_paths),
-        cereal::make_nvp("starting_scene", pimpl->starting_scene),
+        cereal::make_nvp("realm_paths", pimpl->realm_paths),
+        cereal::make_nvp("starting_realm", pimpl->starting_realm),
         cereal::make_nvp("engine_version", pimpl->engine_version),
         cereal::make_nvp("game_dll_name", pimpl->game_dll_name)
     );

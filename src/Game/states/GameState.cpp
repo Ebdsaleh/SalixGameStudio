@@ -9,11 +9,11 @@
 #include <Salix/core/EngineMode.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
-#include <Salix/management/SceneManager.h>
+#include <Salix/management/RealmManager.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/ecs/Sprite2D.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/input/IInputManager.h>
 #include <iostream>
 #include <filesystem>
@@ -88,16 +88,16 @@ namespace Salix {
                 return;
             }
 
-            SceneManager* scene_manager = current_project->get_scene_manager();
-            scene_manager->set_active_scene(current_project->get_starting_scene());
+            RealmManager* realm_manager = current_project->get_realm_manager();
+            realm_manager->set_active_realm(current_project->get_starting_realm());
 
-            std::cout << "[GameState] Loading active scene..." << std::endl;
-            bool loaded = scene_manager->load_active_scene();
+            std::cout << "[GameState] Loading active realm..." << std::endl;
+            bool loaded = realm_manager->load_active_realm();
 
             if (!loaded) {
-                std::cerr << "[GameState] Warning: Scene load failed. Creating default scene." << std::endl;
-                current_project->create_and_save_default_scene();
-                scene_manager->get_active_scene()->load_assets(context);
+                std::cerr << "[GameState] Warning: Realm load failed. Creating default realm." << std::endl;
+                current_project->create_and_save_default_realm();
+                realm_manager->get_active_realm()->load_assets(context);
             }
 
             std::cout << "GameState setup complete. Starting game loop..." << std::endl;

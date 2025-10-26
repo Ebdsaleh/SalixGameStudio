@@ -10,7 +10,7 @@
 #include <Editor/EditorAPI.h>
 #include <Editor/GridSettings.h>
 #include <Salix/core/SimpleGuid.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Editor/panels/WorldTreeNode.h>
 #include <Salix/reflection/EditorDataMode.h>
 #include <vector>
@@ -37,12 +37,12 @@ namespace Salix {
     class ITheme;
     class IThemeManager;
     class IFontManager;
-    class SceneManager;
+    class RealmManager;
 
     // Editor Systems
     class PanelManager;
     class ProjectManager;
-    struct SceneSettings;
+    struct RealmSettings;
     struct EntityArchetype;
     
     // Game World Data
@@ -64,20 +64,20 @@ namespace Salix {
         ITheme* active_theme = nullptr;
         IThemeManager* theme_manager = nullptr;
         IFontManager* font_manager = nullptr;
-        SceneManager* scene_manager = nullptr;
+        RealmManager* realm_manager = nullptr;
         // Pointers to editor-specific manager classes
         PanelManager* panel_manager = nullptr;
         ProjectManager* project_manager = nullptr;
         EditorCamera* editor_camera = nullptr;
         // Pointers to the active game world data
         Project* active_project = nullptr;
-        Scene* active_scene = nullptr; // used for RealmPortalPanel for future play in editor functionality.
-        std::unique_ptr<Scene> preview_scene;
+        Realm* active_realm = nullptr; // used for RealmPortalPanel for future play in editor functionality.
+        std::unique_ptr<Realm> preview_realm;
         Camera* main_camera = nullptr;
         Element* selected_element = nullptr;
         Entity* selected_entity = nullptr;
         GridSettings grid_settings; 
-        SceneSettings scene_settings;
+        RealmSettings realm_settings;
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         EditorDataMode data_mode = EditorDataMode::Yaml;

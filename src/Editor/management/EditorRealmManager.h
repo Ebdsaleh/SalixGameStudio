@@ -65,6 +65,6 @@ namespace Salix {
         std::unique_ptr<Pimpl> pimpl;
         
         void synchronize();
-        void sync_preview_scene();
+        void sync_preview_realm();
     };
 }

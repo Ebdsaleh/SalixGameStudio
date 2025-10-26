@@ -18,7 +18,7 @@
 #include <Salix/rendering/DummyCamera.h>
 #include <Salix/rendering/ICamera.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Sprite2D.h>
@@ -46,7 +46,7 @@ namespace Salix {
         bool is_panel_focused_this_frame = false;
         std::unique_ptr<DummyCamera> failsafe_camera;
         ICamera* game_camera = nullptr;  
-        void draw_scene();
+        void draw_realm();
         
     };
 
@@ -185,26 +185,26 @@ namespace Salix {
 
 
     void RealmPortalPanel::on_render() {
-        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->active_scene) {
+        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->active_realm) {
             return;
         }
 
         // --- 1. Proactively Find the Active Camera ---
-        // REASONING: At the start of every render, we check the scene's state.
+        // REASONING: At the start of every render, we check the realm's state.
         // This is safer than relying on event handlers alone.
-        SimpleGuid active_cam_id = pimpl->context->active_scene->get_main_camera_entity_id();
+        SimpleGuid active_cam_id = pimpl->context->active_realm->get_main_camera_entity_id();
         if (active_cam_id.is_valid()) {
-            Entity* cam_entity = pimpl->context->active_scene->get_entity_by_id(active_cam_id);
+            Entity* cam_entity = pimpl->context->active_realm->get_entity_by_id(active_cam_id);
             if (cam_entity) {
                 // If the entity exists, get its camera.
                 pimpl->game_camera = cam_entity->get_element<Camera>();
             } else {
                 // If the entity DOESN'T exist, the ID is stale. Clear everything.
                 pimpl->game_camera = nullptr;
-                pimpl->context->active_scene->set_main_camera_entity(SimpleGuid::invalid());
+                pimpl->context->active_realm->set_main_camera_entity(SimpleGuid::invalid());
             }
         } else {
-            // If the scene has no active camera ID, ensure our pointer is also clear.
+            // If the realm has no active camera ID, ensure our pointer is also clear.
             pimpl->game_camera = nullptr;
         }
 
@@ -233,8 +233,8 @@ namespace Salix {
         renderer->set_active_camera(camera_to_use);
         
         if (camera_to_use->get_is_active()) {
-           // --- Draw the Scene ---
-            pimpl->draw_scene();
+           // --- Draw the Realm ---
+            pimpl->draw_realm();
         }
 
         // --- End The Render Pass ---
@@ -249,14 +249,14 @@ struct RenderJob {
     int sorting_layer;
 };
 
-    void RealmPortalPanel::Pimpl::draw_scene() {
-        Scene* active_scene = context->active_scene;
+    void RealmPortalPanel::Pimpl::draw_realm() {
+        Realm* active_realm = context->active_realm;
         IRenderer* renderer = context->renderer;
-        if (!renderer || !active_scene) return;
+        if (!renderer || !active_realm) return;
 
         // --- STEP 1: COLLECT all visible sprites into a render queue ---
         std::vector<RenderJob> render_queue;
-        for (Entity* entity : active_scene->get_entities()) {
+        for (Entity* entity : active_realm->get_entities()) {
             if (!entity || entity->is_purged() || !entity->is_visible()) continue;
             Transform* transform = entity->get_transform();
             if (!transform) continue;
@@ -328,17 +328,17 @@ struct RenderJob {
         if (event.get_event_type() == EventType::EditorOnMainCameraChanged) {
             auto& e = static_cast<OnMainCameraChangedEvent&>(event);
             
-            Scene* scene_to_use = pimpl->context->active_scene;
-            // Safety check to ensure the scene exists.
-            if (!scene_to_use) {
+            Realm* realm_to_use = pimpl->context->active_realm;
+            // Safety check to ensure the realm exists.
+            if (!realm_to_use) {
                 return;
             }
             
-            // 1. Update the Scene's data to record which entity is the main camera.
-            scene_to_use->set_main_camera_entity(e.entity_id);
+            // 1. Update the Realm's data to record which entity is the main camera.
+            realm_to_use->set_main_camera_entity(e.entity_id);
 
-            // 2. Find the new live camera entity within the scene.
-            Entity* camera_entity = scene_to_use->get_entity_by_id(e.entity_id);
+            // 2. Find the new live camera entity within the realm.
+            Entity* camera_entity = realm_to_use->get_entity_by_id(e.entity_id);
             
             // 3. Update the panel's internal pointer to the live Camera component.
             if (camera_entity) {

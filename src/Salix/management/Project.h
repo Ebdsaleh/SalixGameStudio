@@ -10,7 +10,7 @@
 namespace Salix {
 
     // Forward declarations
-    class SceneManager;
+    class RealmManager;
     class IRenderer;
     class AssetManager;
     class FileManager;
@@ -30,24 +30,24 @@ namespace Salix {
         
         // These methods allow the ProjectManager to populate this object with
         // data that would normally be read from a project file.
-        void set_starting_scene(const std::string& scene_name);
-        void add_scene_path(const std::string& scene_name,  const std::string& path_to_scene_file);
-        bool remove_scene_path(const std::string& path_to_scene_file);
+        void set_starting_realm(const std::string& realm_name);
+        void add_realm_path(const std::string& realm_name,  const std::string& path_to_realm_file);
+        bool remove_realm_path(const std::string& path_to_realm_file);
 
         // --- Public Getters ---
-        SceneManager* get_scene_manager() const;
+        RealmManager* get_realm_manager() const;
         const std::string& get_name() const;
         const std::string& get_path() const;
-        const std::string& get_starting_scene() const;
-        const std::map<std::string, std::string>& get_scene_paths() const;
+        const std::string& get_starting_realm() const;
+        const std::map<std::string, std::string>& get_realm_paths() const;
         // NEW: Getters for Build Settings & Project File Name
         const std::string& get_engine_version() const;
         const std::string& get_game_dll_name() const;
         const std::string& get_project_file_name() const;
         // Returns true on success, false on failure
-        bool load_starting_scene();
-        // Creates the default scene content and saves it to a file.
-        void create_and_save_default_scene();
+        bool load_starting_realm();
+        // Creates the default realm content and saves it to a file.
+        void create_and_save_default_realm();
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl>pimpl;

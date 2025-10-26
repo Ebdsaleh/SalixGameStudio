@@ -21,7 +21,7 @@
 #include <Editor/reflection/ui/TypeDrawer.h>
 #include <Salix/reflection/ui/TypeDrawerLive.h>
 #include <Salix/ecs/Camera.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Entity.h>
@@ -174,13 +174,13 @@ namespace Salix {
         bool was_just_activated = std::get<bool>(handle.get_value());
 
         if (was_just_activated) {
-            Scene* scene = context->preview_scene.get();
-            if (scene) {
-                // Tell the Scene which entity is now the main camera.
-                scene->set_main_camera_entity(archetype.owner_id);
+            Realm* realm = context->preview_realm.get();
+            if (realm) {
+                // Tell the Realm which entity is now the main camera.
+                realm->set_main_camera_entity(archetype.owner_id);
 
                 // Loop through ALL entities to find and deactivate other cameras.
-                for (Entity* entity : scene->get_entities()) {
+                for (Entity* entity : realm->get_entities()) {
                     // Don't deactivate the camera we just turned on.
                     if (entity->get_id() != archetype.owner_id) {
                         if (Camera* other_camera = entity->get_element<Camera>()) {
@@ -239,8 +239,8 @@ namespace Salix {
                             // Update the archetype's data
                             selected_archetype->is_visible = is_visible;
 
-                            // Also update the live entity in the preview scene for immediate feedback
-                            Entity* live_entity = pimpl->context->preview_scene->get_entity_by_id(selected_archetype->id);
+                            // Also update the live entity in the preview realm for immediate feedback
+                            Entity* live_entity = pimpl->context->preview_realm->get_entity_by_id(selected_archetype->id);
                             if (live_entity) {
                                 live_entity->set_visible(is_visible);
                             }

@@ -2,7 +2,7 @@
 #pragma once
 #include <Editor/EditorAPI.h>
 #include <Salix/math/Color.h>
-#include <Editor/SceneSettings.h>
+#include <Editor/RealmSettings.h>
 #include <algorithm>
 
 namespace Salix {
@@ -53,8 +53,8 @@ namespace Salix {
             }
         }
 
-        float get_effective_size(const SceneSettings& scene) const {
-            return scene.use_scene_bounds ? size : std::numeric_limits<float>::max();
+        float get_effective_size(const RealmSettings& realm) const {
+            return realm.use_realm_bounds ? size : std::numeric_limits<float>::max();
         }
         // Simplified static default - now just returns default-constructed object
         static constexpr GridSettings Default() {

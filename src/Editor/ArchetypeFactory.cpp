@@ -9,7 +9,7 @@
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/ecs/Element.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <vector>
 #include <Salix/math/Vector3.h>
 #include <Salix/math/Color.h>
@@ -121,7 +121,7 @@ namespace Salix {
         }
 
         // 3. --- World Transform Preservation using Live Entity ---
-        Entity* source_live_entity = context->preview_scene->get_entity_by_id(source.id);
+        Entity* source_live_entity = context->preview_realm->get_entity_by_id(source.id);
         if (source_live_entity && source_live_entity->get_transform()) {
             Transform* source_transform = source_live_entity->get_transform();
             Vector3 world_pos = source_transform->get_world_position();

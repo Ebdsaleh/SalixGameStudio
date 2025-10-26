@@ -16,7 +16,7 @@
 #include <Salix/core/SDLTimer.h>
 // Scene related 
 #include <Salix/ecs/Camera.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/RenderableElement.h>
@@ -29,7 +29,7 @@
 #include <Salix/management/FileManager.h>
 #include <Salix/management/ProjectManager.h>
 #include <Salix/management/Project.h>
-#include <Salix/management/SceneManager.h>
+#include <Salix/management/RealmManager.h>
 #include <Editor/management/RealmLoader.h>
 #include <Editor/management/RealmSnapshot.h>
 // Editor-specific systems
@@ -298,12 +298,12 @@ namespace Salix {
             }
         }
          // Make the active_scene pointer refer to our preview_scene for the editor's lifetime.
-        pimpl->editor_context->active_scene = pimpl->editor_context->preview_scene.get();
+        pimpl->editor_context->active_realm = pimpl->editor_context->preview_realm.get();
         for (auto& entity : pimpl->editor_context->editor_realm_manager->get_realm()) {
             for (auto& element : entity.elements){
                 if (element.type_name == "Camera" && element.data["active"].as<bool>() == true){
                     SimpleGuid entity_camera_id = entity.id;
-                    pimpl->editor_context->active_scene->set_active_camera_entity(entity_camera_id);
+                    pimpl->editor_context->active_realm->set_active_camera_entity(entity_camera_id);
                     // This event notifies all panels (like RealmPortalPanel)
                     // about the initial active camera that was just set from the YAML file.
                     pimpl->editor_context->event_manager->dispatch(
@@ -483,26 +483,26 @@ namespace Salix {
         }
 
         // c. Now that pointers are safe, run scene maintenance to delete purged entities.
-        if (pimpl->editor_context->preview_scene) {
-            pimpl->editor_context->preview_scene->maintain();
+        if (pimpl->editor_context->preview_realm) {
+            pimpl->editor_context->preview_realm->maintain();
         }
 
         // d. Rebuild the scene if the archetype data was changed. It's now safe.
         if (pimpl->editor_context->realm_is_dirty) {
-            Scene* preview_scene = pimpl->editor_context->preview_scene.get();
+            Realm* preview_realm = pimpl->editor_context->preview_realm.get();
             auto& realm_archetypes = pimpl->editor_context->editor_realm_manager->get_realm();
             
-            preview_scene->clear_all_entities();
+            preview_realm->clear_all_entities();
             if (!realm_archetypes.empty()) {
-                ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_scene, *pimpl->editor_context->init_context);
+                ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_realm, *pimpl->editor_context->init_context);
             }
             pimpl->editor_context->realm_is_dirty = false;
         }
 
         // e. Update the scene's scripts (if in game mode).
-        if (pimpl->editor_context->preview_scene) {
+        if (pimpl->editor_context->preview_realm) {
             if (pimpl->editor_context->init_context->engine_mode == EngineMode::Game) {
-                pimpl->editor_context->preview_scene->update(delta_time);
+                pimpl->editor_context->preview_realm->update(delta_time);
             }
         }
     }

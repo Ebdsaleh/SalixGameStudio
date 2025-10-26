@@ -1,7 +1,7 @@
 // Editor/ArchetypeInstantiator.cpp
 #include <Salix/serialization/YamlConverters.h>
 #include <Editor/ArchetypeInstantiator.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Sprite2D.h>
@@ -12,11 +12,11 @@
 
 namespace Salix {
 
-    void ArchetypeInstantiator::instantiate(const Salix::EntityArchetype& archetype, Salix::Scene* scene, const Salix::InitContext& context) {
-        if (!scene) return;
+    void ArchetypeInstantiator::instantiate(const Salix::EntityArchetype& archetype, Salix::Realm* realm, const Salix::InitContext& context) {
+        if (!realm) return;
         
         // 1. Create the live entity. Its constructor adds the default Transform and BoxCollider.
-        Salix::Entity* live_entity = scene->create_entity(archetype.id, archetype.name);
+        Salix::Entity* live_entity = realm->create_entity(archetype.id, archetype.name);
         // Debug prints
         std::cout << "[DEBUG] --- Instantiating Archetype: " << archetype.name << " (Archetype ID: " << archetype.id.get_value() << ") ---" << std::endl;
         std::cout << "[DEBUG] >>> Live Entity created with ID: " << live_entity->get_id().get_value() << std::endl;
@@ -158,13 +158,13 @@ namespace Salix {
         
     }
 
-    void ArchetypeInstantiator::print_all_entity_ids(Salix::Scene* scene, const std::string& context_message) {
-        if (!scene) {
+    void ArchetypeInstantiator::print_all_entity_ids(Salix::Realm* realm, const std::string& context_message) {
+        if (!realm) {
             std::cout << "DEBUG [" << context_message << "]: Scene is nullptr." << std::endl;
             return;
         }
 
-        std::vector<Entity*> entities = scene->get_entities();
+        std::vector<Entity*> entities = realm->get_entities();
         std::cout << "DEBUG [" << context_message << "]: Scene contains " << entities.size() << " entities." << std::endl;
 
         for (const auto* entity : entities) {
@@ -175,15 +175,15 @@ namespace Salix {
     }
 
    
-    void ArchetypeInstantiator::instantiate_realm(const std::vector<Salix::EntityArchetype>& realm, Salix::Scene* scene, const Salix::InitContext& context) {
-    if (!scene) return;
+    void ArchetypeInstantiator::instantiate_realm(const std::vector<Salix::EntityArchetype>& archetype_realm, Salix::Realm* realm, const Salix::InitContext& context) {
+    if (!realm) return;
     
     std::map<SimpleGuid, Entity*> live_entity_map;
 
     // --- PASS 1: Create all entities and their corresponding elements ---
     // We create the raw objects but do NOT apply any properties yet.
-    for (const auto& archetype : realm) {
-        Entity* live_entity = scene->create_entity(archetype.id, archetype.name);
+    for (const auto& archetype : archetype_realm) {
+        Entity* live_entity = realm->create_entity(archetype.id, archetype.name);
         live_entity_map[archetype.id] = live_entity;
 
         Element* default_transform = live_entity->get_element_by_type_name("Transform");
@@ -210,7 +210,7 @@ namespace Salix {
 
     // --- PASS 2: Apply all properties from archetypes to the live objects ---
     // Now that all objects exist, we can safely set their data (position, rotation, etc.).
-    for (const auto& archetype : realm) {
+    for (const auto& archetype : archetype_realm) {
         Entity* live_entity = live_entity_map.at(archetype.id);
         live_entity->set_visible(archetype.is_visible);
 
@@ -256,7 +256,7 @@ namespace Salix {
     // --- PASS 3: Set up the parent-child hierarchy ---
     // This is the final step. Now that all transforms have their correct local values,
     // the set_parent function can perform its math correctly on a fully-formed scene.
-    for (const auto& archetype : realm) {
+    for (const auto& archetype : archetype_realm) {
         if (archetype.parent_id.is_valid()) {
             Entity* child_entity = live_entity_map.count(archetype.id) ? live_entity_map.at(archetype.id) : nullptr;
             Entity* parent_entity = live_entity_map.count(archetype.parent_id) ? live_entity_map.at(archetype.parent_id) : nullptr;

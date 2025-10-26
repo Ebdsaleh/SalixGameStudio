@@ -12,7 +12,7 @@
 #include <Salix/reflection/EditorDataMode.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
-#include <Salix/ecs/Scene.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
 #include <Salix/ecs/Sprite2D.h>
@@ -150,9 +150,9 @@ namespace Salix {
          // The preview scene also needs a context to function properly
 
         // --- Create the scene and give it to the context ---
-        pimpl->context->preview_scene = std::make_unique<Scene>("Preview");
-        if (pimpl->context->preview_scene) {
-            pimpl->context->preview_scene->set_context(*pimpl->context->init_context);
+        pimpl->context->preview_realm = std::make_unique<Realm>("Preview");
+        if (pimpl->context->preview_realm) {
+            pimpl->context->preview_realm->set_context(*pimpl->context->init_context);
         }
         
         pimpl->context->event_manager->subscribe(EventCategory::Editor, this);
@@ -276,7 +276,7 @@ namespace Salix {
 
                     // Find the selected entity in the correct scene (Preview or Live)
                     if (context->data_mode == EditorDataMode::Yaml) {
-                        selected_entity = context->preview_scene->get_entity_by_id(context->selected_entity_id);
+                        selected_entity = context->preview_realm->get_entity_by_id(context->selected_entity_id);
                     }
                     /*
                     else if (context->data_mode == EditorDataMode::Live) {
@@ -511,7 +511,7 @@ namespace Salix {
     if (is_locked || !selected_archetype) return;
 
     // --- STEP 1: GET THE LIVE ENTITY AND ITS TRANSFORM ---
-    Entity* live_entity = context->preview_scene->get_entity_by_id(selected_archetype->id);
+    Entity* live_entity = context->preview_realm->get_entity_by_id(selected_archetype->id);
     if (!live_entity) return;
     
     Transform* live_transform = live_entity->get_transform();
@@ -687,7 +687,7 @@ namespace Salix {
         // --- Fire the selection event (This is the same for both modes) ---
         if (context->event_manager) {
             context->selected_entity_id = closest_hit_id;
-            context->selected_entity = context->preview_scene->get_entity_by_id(context->selected_entity_id);
+            context->selected_entity = context->preview_realm->get_entity_by_id(context->selected_entity_id);
             
             context->event_manager->dispatch(
                 std::make_unique<EntitySelectedEvent>(closest_hit_id, context->selected_entity)
@@ -695,7 +695,7 @@ namespace Salix {
         }
         
         if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && closest_hit_id.is_valid()) {
-            Entity* entity_to_focus = context->preview_scene->get_entity_by_id(closest_hit_id);
+            Entity* entity_to_focus = context->preview_realm->get_entity_by_id(closest_hit_id);
             if (entity_to_focus && entity_to_focus->get_transform()) {
                 context->editor_camera->focus_on(entity_to_focus->get_transform(), 3.0f);
             }
@@ -713,10 +713,10 @@ namespace Salix {
             return;
         }
         if (pimpl->context->data_mode == EditorDataMode::Live) {
-            if (!pimpl->context->active_scene) return;
+            if (!pimpl->context->active_realm) return;
         }
         else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            assert(pimpl->context->preview_scene != nullptr && "Cannot render, preview_scene is nullptr");
+            assert(pimpl->context->preview_realm != nullptr && "Cannot render, preview_scene is nullptr");
             
         }
         
@@ -765,18 +765,18 @@ namespace Salix {
 
 
     void RealmDesignerPanel::Pimpl::draw_scene() {
-        Scene* active_scene = nullptr;
+        Realm* active_realm = nullptr;
         if (context->data_mode == EditorDataMode::Yaml) { 
-            active_scene = context->preview_scene.get();
+            active_realm = context->preview_realm.get();
         }
         
 
         IRenderer* renderer = context->renderer;
-        if (!renderer || !active_scene) return;
+        if (!renderer || !active_realm) return;
 
         // --- STEP 1: COLLECT all visible sprites into a render queue ---
         std::vector<RenderJob> render_queue;
-        for (Entity* entity : active_scene->get_entities()) {
+        for (Entity* entity : active_realm->get_entities()) {
             if (!entity || entity->is_purged() || !entity->is_visible()) continue;
             
             Transform* transform = entity->get_transform();
@@ -888,11 +888,11 @@ namespace Salix {
 
     void RealmDesignerPanel::Pimpl::handle_property_value_changed_event(const PropertyValueChangedEvent& e) {
         // 1. Initial safety checks.
-        if (context->data_mode != EditorDataMode::Yaml || !context->preview_scene) {
+        if (context->data_mode != EditorDataMode::Yaml || !context->preview_realm) {
             return;
         }
 
-        Entity* entity_to_update = context->preview_scene->get_entity_by_id(e.entity_id);
+        Entity* entity_to_update = context->preview_realm->get_entity_by_id(e.entity_id);
         if (!entity_to_update) return;
 
         Element* element_to_update = entity_to_update->get_element_by_id(e.element_id);
@@ -942,10 +942,10 @@ namespace Salix {
 
     
     void RealmDesignerPanel::Pimpl::handle_hierarchy_changed_event(const OnHierarchyChangedEvent& e) {
-        Entity* dragged_live_entity = context->preview_scene->get_entity_by_id(e.entity_id);
+        Entity* dragged_live_entity = context->preview_realm->get_entity_by_id(e.entity_id);
         assert(dragged_live_entity != nullptr && "FATAL: Dragged Entity not found in live scene during hierarchy change!");
         
-        Entity* target_live_entity = context->preview_scene->get_entity_by_id(e.parent_id);
+        Entity* target_live_entity = context->preview_realm->get_entity_by_id(e.parent_id);
 
         if (!dragged_live_entity) return;
 
@@ -1011,19 +1011,19 @@ namespace Salix {
    
 
     void RealmDesignerPanel::Pimpl::handle_root_entity_added_event(const OnRootEntityAddedEvent& e) {
-        if (context->preview_scene) {
-            ArchetypeInstantiator::instantiate(e.archetype, context->preview_scene.get(), *context->init_context);
+        if (context->preview_realm) {
+            ArchetypeInstantiator::instantiate(e.archetype, context->preview_realm.get(), *context->init_context);
             
         }
     }
 
     void RealmDesignerPanel::Pimpl::handle_entity_added_event(const OnEntityAddedEvent& e) {
-        if (context->preview_scene) {
-            ArchetypeInstantiator::instantiate(e.archetype, context->preview_scene.get(), *context->init_context);
+        if (context->preview_realm) {
+            ArchetypeInstantiator::instantiate(e.archetype, context->preview_realm.get(), *context->init_context);
             
             if (e.archetype.parent_id.is_valid()) {
-                Entity* live_child = context->preview_scene->get_entity_by_id(e.archetype.id);
-                Entity* live_parent = context->preview_scene->get_entity_by_id(e.archetype.parent_id);
+                Entity* live_child = context->preview_realm->get_entity_by_id(e.archetype.id);
+                Entity* live_parent = context->preview_realm->get_entity_by_id(e.archetype.parent_id);
                 if (live_child && live_parent) {
                     live_child->set_parent(live_parent);
                 }
@@ -1036,14 +1036,14 @@ namespace Salix {
     }
 
     void RealmDesignerPanel::Pimpl::handle_child_entity_added_event(const OnChildEntityAddedEvent& e) {
-        if (!context || !context->preview_scene) return;
+        if (!context || !context->preview_realm) return;
 
         // 1. Instantiate the new archetype to create the live entity in the preview scene.
-        ArchetypeInstantiator::instantiate(e.archetype, context->preview_scene.get(), *context->init_context);
+        ArchetypeInstantiator::instantiate(e.archetype, context->preview_realm.get(), *context->init_context);
 
         // 2. Find the newly created live entity and its live parent.
-        Entity* live_child = context->preview_scene->get_entity_by_id(e.archetype.id);
-        Entity* live_parent = context->preview_scene->get_entity_by_id(e.archetype.parent_id);
+        Entity* live_child = context->preview_realm->get_entity_by_id(e.archetype.id);
+        Entity* live_parent = context->preview_realm->get_entity_by_id(e.archetype.parent_id);
         // 3. If both exist, set the parent to establish the correct transform hierarchy.
         if (live_child && live_parent) {
             live_child->set_parent(live_parent);
@@ -1062,8 +1062,8 @@ namespace Salix {
     }
 
     void RealmDesignerPanel::Pimpl::handle_entity_purged_event(const OnEntityPurgedEvent& e) {
-        if (context->preview_scene) {
-            Entity* entity_to_purge = context->preview_scene->get_entity_by_id(e.entity_id);
+        if (context->preview_realm) {
+            Entity* entity_to_purge = context->preview_realm->get_entity_by_id(e.entity_id);
             assert(entity_to_purge != nullptr && "FATAL: Entity to 'purge' was not found in the live preview scene!"); // Sanity Check
             if (entity_to_purge) {
                 entity_to_purge->simple_purge();
@@ -1072,14 +1072,14 @@ namespace Salix {
     }
 
     void RealmDesignerPanel::Pimpl::handle_entity_family_added_event(const OnEntityFamilyAddedEvent& e) {
-        if (context->preview_scene) {
+        if (context->preview_realm) {
             for (const auto& archetype : e.archetypes) {
-                ArchetypeInstantiator::instantiate(archetype, context->preview_scene.get(), *context->init_context);
+                ArchetypeInstantiator::instantiate(archetype, context->preview_realm.get(), *context->init_context);
             }
             for (const auto& archetype : e.archetypes) {
                 if (archetype.parent_id.is_valid()) {
-                    Entity* live_child = context->preview_scene->get_entity_by_id(archetype.id);
-                    Entity* live_parent = context->preview_scene->get_entity_by_id(archetype.parent_id);
+                    Entity* live_child = context->preview_realm->get_entity_by_id(archetype.id);
+                    Entity* live_parent = context->preview_realm->get_entity_by_id(archetype.parent_id);
                     if (live_child && live_parent) {
                         live_child->set_parent(live_parent);
                     }
@@ -1090,9 +1090,9 @@ namespace Salix {
     
 
     void RealmDesignerPanel::Pimpl::handle_entity_family_purged_event(const OnEntityFamilyPurgedEvent& e) {
-        if (context->preview_scene) {
+        if (context->preview_realm) {
             for (const auto& entity_id : e.entity_ids) {
-                Entity* entity_to_purge = context->preview_scene->get_entity_by_id(entity_id);
+                Entity* entity_to_purge = context->preview_realm->get_entity_by_id(entity_id);
                 if (entity_to_purge) {
                     entity_to_purge->purge();
                 }
@@ -1102,10 +1102,10 @@ namespace Salix {
 
 
     void RealmDesignerPanel::Pimpl::handle_element_added_event(const OnElementAddedEvent& e) {
-        if (!context || !context->preview_scene) return;
+        if (!context || !context->preview_realm) return;
 
         // 1. Find the live parent entity in the preview scene.
-        Entity* live_parent_entity = context->preview_scene->get_entity_by_id(e.parent_entity_id);
+        Entity* live_parent_entity = context->preview_realm->get_entity_by_id(e.parent_entity_id);
         if (!live_parent_entity) return;
 
         // 2. Create the new live element using the archetype's type name.
@@ -1235,13 +1235,13 @@ namespace Salix {
         if (!renderer) return;
         // Define a color for the bounding boxes
         Color box_color = {0.0f, 1.0f, 0.0f, 1.0f}; // Green
-        Scene* active_scene = nullptr;
+        Realm* active_realm = nullptr;
         
         if (context->data_mode == EditorDataMode::Yaml) {
-            active_scene = context->preview_scene.get();
+            active_realm = context->preview_realm.get();
         }
 
-        for (Entity* entity : active_scene->get_entities()) {
+        for (Entity* entity : active_realm->get_entities()) {
             if (!entity || entity->is_purged()) continue;
             Transform* transform = entity->get_transform(); 
             BoxCollider* collider = entity->get_element<BoxCollider>(); 

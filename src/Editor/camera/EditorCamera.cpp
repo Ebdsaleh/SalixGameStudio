@@ -216,12 +216,12 @@ namespace Salix {
         pimpl->should_draw_boundary_warning = false;
         
         // 2. Early exit if bounds checking is disabled
-        if (!pimpl->context || !pimpl->context->scene_settings.use_scene_bounds) {
+        if (!pimpl->context || !pimpl->context->realm_settings.use_realm_bounds) {
             return;
         }
 
         // 3. Cache frequently accessed values
-        const float max_dist = pimpl->context->scene_settings.scene_size * 0.9f;
+        const float max_dist = pimpl->context->realm_settings.realm_size * 0.9f;
         const Vector3& current_pos = pimpl->transform.get_position();
         
         // 4. Check bounds without modifying position first

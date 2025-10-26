@@ -787,17 +787,17 @@ namespace Salix {
         }
     }
 
-    void EditorRealmManager::sync_preview_scene() {
-        if (!pimpl->context || !pimpl->context->preview_scene) return;
+    void EditorRealmManager::sync_preview_realm() {
+        if (!pimpl->context || !pimpl->context->preview_realm) return;
 
         // This is the logic moved from RealmDesignerPanel
-        Scene* preview_scene = pimpl->context->preview_scene.get();
+        Realm* preview_realm = pimpl->context->preview_realm.get();
         auto& realm_archetypes = get_realm(); // Use the public getter
 
-        preview_scene->clear_all_entities();
+        preview_realm->clear_all_entities();
         
         if (!realm_archetypes.empty()) {
-            ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_scene, *pimpl->context->init_context);
+            ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_realm, *pimpl->context->init_context);
         }
     }
 } // namespace Salix

@@ -16,7 +16,7 @@ add_library(SalixEngine SHARED
     ecs/Camera.cpp
     ecs/CppScript.cpp
     ecs/Entity.cpp
-    ecs/Scene.cpp
+    ecs/Realm.cpp
     ecs/Sprite2D.cpp
     ecs/Transform.cpp
     events/EventManager.cpp
@@ -37,7 +37,7 @@ add_library(SalixEngine SHARED
     management/FileManager.cpp
     management/Project.cpp
     management/ProjectManager.cpp
-    management/SceneManager.cpp
+    management/RealmManager.cpp
     management/SettingsManager.cpp
     math/Color.cpp
     math/Rect.cpp
