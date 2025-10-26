@@ -214,6 +214,9 @@ namespace Salix {
             return true;
 
         } catch (const YAML::Exception& e) {
+            // Note: This catch block handles rare internal YAML::Emitter errors during serialization.
+            // It's difficult to trigger reliably with standard ApplicationConfig data in unit tests.
+            // File I/O errors during saving are handled by the check before this try block.
             std::cerr << "SettingsManager Error: Failed to save YAML file '" << yaml_path << "'. Error: " << e.what() << std::endl;
             return false;
         }
