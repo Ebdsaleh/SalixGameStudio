@@ -19,22 +19,18 @@ namespace Salix {
     }
 
     bool FileManager::create_directory(const std::string& path) {
-        // First, check if it already exists. If so, it's a success.
-        if (path_exists(path)) {
-            return true;
-        }
-
-        // Try to create the directory. This function returns true on success.
-        // We use a try-catch block to handle potential errors from the OS.
+        // Let create_directory handle the atomic check.
         try {
+            // create_directory returns true if created, false if it already existed.
             if (std::filesystem::create_directory(path)) {
                 std::cout << "FileManager: Created directory at '" << path << "'" << std::endl;
-                return true;
             }
+            // If we get here, it means either we created it (true) or it already existed (false).
+            // Both scenarios are considered "Success" for this function's purpose.
+            return true;
         }
         catch (const std::filesystem::filesystem_error& e) {
             std::cerr << "FileManager Error: Could not create directory '" << path << "'. " << e.what() << std::endl;
-            return false;
         }
         return false;
     }
@@ -50,9 +46,8 @@ namespace Salix {
         catch (const std::filesystem::filesystem_error& e) {
             std::cerr << "FileManager Error: Could not create directories for path '" <<
                 path << "'. " << e.what() << std::endl;
-
-            return false;
         }
+        return false;
     }
 
     bool FileManager::copy_file(const std::string& source, const std::string& destination) {
@@ -66,8 +61,8 @@ namespace Salix {
         catch (const std::filesystem::filesystem_error& e) {
             std::cerr << "FileManager Error: Could not copy file from '" << source 
                 << "' to '" << destination << "'. " << e.what() << std::endl;
-            return false;
         }
+        return false;
     }
     
      std::string FileManager::read_file_content(const std::string& file_path) {
@@ -96,13 +91,17 @@ namespace Salix {
     // Gets the size of a file
     size_t FileManager::get_file_size(const std::string& file_path) {
         try {
-            if (std::filesystem::exists(file_path) && std::filesystem::is_regular_file(file_path)) {
-                return std::filesystem::file_size(file_path);
-            }
+            // Purposefully removed the exists() and is_regular_file() checks.
+            // std::filesystem::file_size throws an exception if the path 
+            // is invalid, doesn't exist, or is a directory.
+            // This allows the catch block to handle all failure cases naturally.
+            return std::filesystem::file_size(file_path);
         } catch (const std::filesystem::filesystem_error& e) {
+            // Passing a directory path or a non-existent path in your tests 
+            // will now trigger this error handling.
             std::cerr << "FileManager::get_file_size Error: " << e.what() << std::endl;
         }
-        return 0; // Return 0 if file doesn't exist, is not regular, or error occurs
+        return 0;
     }
 
     // Generates a hex dump string of file content
@@ -146,12 +145,11 @@ namespace Salix {
 
     // Checks if a file exists and is a regular file
     bool FileManager::is_regular_file_and_exists(const std::string& file_path) {
-        try {
-            return std::filesystem::is_regular_file(file_path);
-        } catch (const std::filesystem::filesystem_error& e) {
-            std::cerr << "FileManager::is_regular_file_and_exists Error: " << e.what() << std::endl;
-            return false;
-        }
+        std::error_code ec;
+        // Using the (path, ec) overload prevents exceptions. 
+        // It returns true if it's a regular file.
+        // It returns false if it's not, or if ANY error occurs (setting 'ec').
+        return std::filesystem::is_regular_file(file_path, ec);
     }
 
      std::string FileManager::convert_to_relative(const std::string& project_root, const std::string& absolute_path)
@@ -193,8 +191,9 @@ namespace Salix {
         // This can happen if the paths are on different drives.
         // We fall back to the absolute path in case of an error.
         std::cerr << "FileManager Error: Could not make path relative. " << e.what() << std::endl;
-        return absolute_path;
+        
     }
+    return absolute_path;
 }
 
 } // namespace Salix
