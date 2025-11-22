@@ -699,6 +699,7 @@ namespace Salix {
                     case PropertyType::Color:     return *static_cast<Color*>(data_ptr);
                     case PropertyType::Point:     return *static_cast<Point*>(data_ptr);
                     case PropertyType::Rect:      return *static_cast<Rect*>(data_ptr);
+                    case PropertyType::GlmMat4:   return *static_cast<glm::mat4*>(data_ptr);
                     // Note: Enums are read as integers by the reflection system
                     case PropertyType::Enum:      return *static_cast<int*>(data_ptr);
                     case PropertyType::EnumClass: return *static_cast<int*>(data_ptr);
