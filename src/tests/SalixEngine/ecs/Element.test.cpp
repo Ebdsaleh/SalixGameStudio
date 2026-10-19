@@ -210,3 +210,109 @@ TEST_SUITE("Salix::ecs::ElementExtended") {
         CHECK(original.get_owner() == &parent);
     }
 }
+
+// Value and ownership contracts for the existing canonical suite.
+#include <cstdint>
+namespace { struct LifecycleElement647 : MockElement {
+    int initialized=0,loaded=0,updated=0,shut_down=0;
+    float delta=0.f;
+    void initialize() override {++initialized;}
+    void on_load(const Salix::InitContext&) override {++loaded;}
+    void update(float dt) override {++updated;delta=dt;}
+    void shutdown() override {++shut_down;}
+}; }
+TEST_SUITE("Salix::ecs::ElementBatch647") {
+    TEST_CASE("component renaming leaves its generated GUID unchanged") {
+        MockElement component;
+        const auto identity=component.get_id();
+        component.set_name("Renamed");
+        CHECK(component.get_id()==identity);
+        CHECK(component.get_name()=="Renamed");
+    }
+
+    TEST_CASE("two freshly created components have distinct identifiers and owners") {
+        MockElement a,b;
+        CHECK(a.get_id()!=b.get_id());
+        CHECK(a.get_owner()==nullptr);
+        CHECK(b.get_owner()==nullptr);
+    }
+
+    TEST_CASE("assigning an explicit identity updates the raw ID view") {
+        MockElement element;
+        auto* raw=element.get_id_as_ptr();REQUIRE(raw!=nullptr);
+        element.set_id(Salix::SimpleGuid::from_value(45321098ULL));
+        CHECK(raw==element.get_id_as_ptr());
+        CHECK(*raw==45321098ULL);
+    }
+
+    TEST_CASE("resetting an element identity to invalid preserves its name and visibility") {
+        MockElement element;
+        element.set_name("CameraCollision");
+        element.set_visibility(false);
+        element.set_id(Salix::SimpleGuid::invalid());
+        CHECK_FALSE(element.get_id().is_valid());
+        CHECK(element.get_name()=="CameraCollision");
+        CHECK_FALSE(element.is_visible());
+    }
+
+    TEST_CASE("reassigning an owner pointer does not modify the owner's GUID") {
+        Salix::Entity parent,other;
+        const auto first_id=parent.get_id(),second_id=other.get_id();
+        MockElement element;
+        element.set_owner(&parent);element.set_owner(&other);
+        CHECK(element.get_owner()==&other);
+        CHECK(parent.get_id()==first_id);
+        CHECK(other.get_id()==second_id);
+    }
+
+    TEST_CASE("JSON persistence restores an explicit GUID beyond 32 bits") {
+        MockElement original;
+        original.set_id(Salix::SimpleGuid::from_value((std::uint64_t{1}<<40)+5));
+        std::stringstream stream;{cereal::JSONOutputArchive out(stream);out(original);}
+        MockElement restored;{cereal::JSONInputArchive in(stream);in(restored);}
+        CHECK(restored.get_id()==original.get_id());
+    }
+
+    TEST_CASE("binary persistence does not adopt the original component owner") {
+        Salix::Entity owner;
+        MockElement original;original.set_owner(&owner);original.set_name("OwnerlessPersist");
+        std::stringstream stream;{cereal::BinaryOutputArchive out(stream);out(original);}
+        MockElement restored;{cereal::BinaryInputArchive in(stream);in(restored);}
+        CHECK(restored.get_owner()==nullptr);
+        CHECK(restored.get_name()=="OwnerlessPersist");
+    }
+
+    TEST_CASE("JSON loading changes identifier and label but not runtime visibility") {
+        MockElement original;original.set_name("Persisted");
+        original.set_id(Salix::SimpleGuid::from_value(23003344ULL));
+        std::stringstream stream;{cereal::JSONOutputArchive out(stream);out(original);}
+        MockElement restored;restored.set_visibility(false);
+        {cereal::JSONInputArchive in(stream);in(restored);}
+        CHECK(restored.get_id()==original.get_id());
+        CHECK(restored.get_name()=="Persisted");
+        CHECK_FALSE(restored.is_visible());
+    }
+
+    TEST_CASE("lifecycle calls dispatch through base pointer into a derived probe") {
+        LifecycleElement647 probe;
+        Salix::Element* base=&probe;
+        Salix::InitContext context{};
+        base->initialize();base->on_load(context);base->update(0.25f);base->shutdown();
+        CHECK(probe.initialized==1);
+        CHECK(probe.loaded==1);
+        CHECK(probe.updated==1);
+        CHECK(probe.shut_down==1);
+        CHECK(probe.delta==doctest::Approx(0.25f));
+    }
+
+    TEST_CASE("a second lifecycle sequence never regenerates the component identifier") {
+        LifecycleElement647 probe;
+        const auto id=probe.get_id();
+        Salix::InitContext context{};
+        probe.initialize();probe.update(0.f);probe.on_load(context);probe.shutdown();
+        probe.initialize();probe.update(-0.5f);
+        CHECK(probe.initialized==2);
+        CHECK(probe.updated==2);
+        CHECK(probe.get_id()==id);
+    }
+}
