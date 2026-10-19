@@ -283,19 +283,20 @@ TEST_SUITE("Salix::management::FileManager") {
             CHECK(success == false);
         }
 
-        SUBCASE("convert_to_relative_path throws on different drives (Windows specific)") {
-            // This test targets the catch block in convert_to_relative_path.
-            // On Windows, you cannot create a relative path between C:/ and D:/.
-            // On Linux/Mac, this might not throw (it just routes via root), so we verify it doesn't crash.
-            
-            std::string root = "C:/Project";
-            std::string target = "D:/Assets/File.png";
-            
-            // This should hit the catch block on Windows and return the absolute path.
-            std::string result = Salix::FileManager::convert_to_relative_path(root, target);
-            
-            // We expect it to return the original absolute path if it failed or couldn't relate them.
-            CHECK(!result.empty()); 
+        SUBCASE("convert_to_relative_path preserves cross-drive absolute paths on Windows") {
+            // Windows has no relative path between distinct drive roots.
+            // std::filesystem::relative may return an empty path without throwing.
+            const std::string root = "C:/Project";
+            const std::string target = "D:/Assets/File.png";
+            const std::string result = Salix::FileManager::convert_to_relative_path(root, target);
+
+#ifdef _WIN32
+            // Preserve the original path so the caller can still access/import it.
+            CHECK(result == target);
+#else
+            // C: and D: are not Windows volumes on other platforms.
+            CHECK(!result.empty());
+#endif
         }
         
         SUBCASE("get_file_size handles errors gracefully") {
