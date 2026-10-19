@@ -111,6 +111,16 @@ namespace Salix {
         std::cout << "ImGuiInputManager: Destructor." << std::endl;
     }
 
+    #ifdef SALIX_TESTS_ENABLED
+    ImGuiContext* ImGuiInputManager::get_context_for_testing() {
+        return ImGui::GetCurrentContext();
+    }
+
+    void ImGuiInputManager::set_context_for_testing(ImGuiContext* context) {
+        ImGui::SetCurrentContext(context);
+    }
+    #endif
+
     void ImGuiInputManager::update(float delta_time) {
         // ImGui's internal input state is already updated by SDLImGui::new_frame()
         // (which calls ImGui_ImplSDL2_NewFrame() and ImGui::NewFrame()).
