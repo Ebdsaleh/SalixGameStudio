@@ -295,3 +295,97 @@ TEST_SUITE("Salix::math::RayCastingAdditional") {
         CHECK(imgui_ray.direction.z == doctest::Approx(vector_ray.direction.z));
     }
 }
+
+// Regression coverage for additional system invariants; original tests retained.
+TEST_SUITE("Salix::math::RayCastingBatch647") {
+    TEST_CASE("a diagonal normalized ray enters a cube through its shared corner") {
+        const Salix::Ray ray{{-5.f,-5.f,-5.f},glm::normalize(glm::vec3(1.f,1.f,1.f))};
+        float distance=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),distance));
+        CHECK(distance==doctest::Approx(4.f*glm::sqrt(3.f)));
+    }
+
+    TEST_CASE("a parallel off-axis ray never alters the distance sentinel") {
+        const Salix::Ray ray{{-10.f,4.f,0.f},{1.f,0.f,0.f}};
+        float distance=314.f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),distance));
+        CHECK(distance==314.f);
+    }
+
+    TEST_CASE("a ray pointing away from a displaced AABB misses") {
+        const Salix::Ray ray{{0.f,0.f,0.f},{0.f,0.f,-1.f}};
+        float distance=28.f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f,-1.f,5.f),glm::vec3(1.f,1.f,7.f),distance));
+        CHECK(distance==28.f);
+    }
+
+    TEST_CASE("two boxes along a ray yield increasing pick distances") {
+        const Salix::Ray ray{{0.f,0.f,-10.f},{0.f,0.f,1.f}};
+        float near_distance=-1.f,far_distance=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f,-1.f,-5.f),glm::vec3(1.f,1.f,-3.f),near_distance));
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f,-1.f,2.f),glm::vec3(1.f,1.f,4.f),far_distance));
+        CHECK(near_distance==doctest::Approx(5.f));
+        CHECK(far_distance==doctest::Approx(12.f));
+        CHECK(near_distance<far_distance);
+    }
+
+    TEST_CASE("opposing normalized rays hit opposing faces at equal distances") {
+        const Salix::Ray a{{0.f,0.f,-6.f},{0.f,0.f,1.f}};
+        const Salix::Ray b{{0.f,0.f,6.f},{0.f,0.f,-1.f}};
+        float first=-1.f,second=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(a,glm::vec3(-2.f),glm::vec3(2.f),first));
+        REQUIRE(Salix::Raycast::IntersectsAABB(b,glm::vec3(-2.f),glm::vec3(2.f),second));
+        CHECK(first==doctest::Approx(4.f));
+        CHECK(second==doctest::Approx(first));
+    }
+
+    TEST_CASE("moving the AABB closer by two units shifts the entry distance by two") {
+        const Salix::Ray ray{{0.f,0.f,-10.f},{0.f,0.f,1.f}};
+        float first=-1.f,second=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f,-1.f,-1.f),glm::vec3(1.f),first));
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f,-1.f,-3.f),glm::vec3(1.f,1.f,-1.f),second));
+        CHECK(first==doctest::Approx(9.f));
+        CHECK(second==doctest::Approx(7.f));
+    }
+
+    TEST_CASE("Salix Vector3 bounds agree with GLM bounds for an asymmetric box") {
+        const Salix::Ray ray{{3.f,-1.f,-8.f},{0.f,0.f,1.f}};
+        float native=-1.f,glm_value=-1.f;
+        const auto lower=Salix::Vector3(1.f,-2.f,-4.f),upper=Salix::Vector3(5.f,1.f,2.f);
+        const bool a=Salix::Raycast::IntersectsAABB(ray,lower,upper,native);
+        const bool b=Salix::Raycast::IntersectsAABB(ray,lower.to_glm(),upper.to_glm(),glm_value);
+        CHECK(a==b);
+        REQUIRE(a);
+        CHECK(native==doctest::Approx(4.f));
+        CHECK(glm_value==doctest::Approx(native));
+    }
+
+    TEST_CASE("translation of an OBB along Z changes its entry distance") {
+        const Salix::Ray ray{{0.f,0.f,-12.f},{0.f,0.f,1.f}};
+        float first=-1.f,second=-1.f;
+        const auto identity=glm::mat4(1.f);
+        const auto translated=glm::translate(identity,glm::vec3(0.f,0.f,4.f));
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray,identity,glm::vec3(1.f),first));
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray,translated,glm::vec3(1.f),second));
+        CHECK(first==doctest::Approx(11.f));
+        CHECK(second==doctest::Approx(15.f));
+    }
+
+    TEST_CASE("a ray offset outside a translated OBB misses without corrupting output") {
+        const Salix::Ray ray{{8.f,0.f,-10.f},{0.f,0.f,1.f}};
+        const auto transform=glm::translate(glm::mat4(1.f),glm::vec3(0.f,0.f,2.f));
+        float distance=777.f;
+        CHECK_FALSE(Salix::Raycast::IntersectsOBB(ray,transform,glm::vec3(1.f),distance));
+        CHECK(distance==777.f);
+    }
+
+    TEST_CASE("an unrotated OBB and equivalent AABB agree on the front-face hit") {
+        const Salix::Ray ray{{0.f,0.f,-8.f},{0.f,0.f,1.f}};
+        const auto transform=glm::translate(glm::mat4(1.f),glm::vec3(0.f,0.f,2.f));
+        float aabb=-1.f,obb=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-2.f,-1.f,1.f),glm::vec3(2.f,1.f,3.f),aabb));
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray,transform,glm::vec3(2.f,1.f,1.f),obb));
+        CHECK(obb==doctest::Approx(aabb));
+        CHECK(obb==doctest::Approx(9.f));
+    }
+}
