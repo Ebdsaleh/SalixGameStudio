@@ -334,8 +334,9 @@ struct RenderJob {
                 return;
             }
             
-            // 1. Update the Realm's data to record which entity is the main camera.
-            realm_to_use->set_main_camera_entity(e.entity_id);
+            // Select AND activate the camera component. Recording only its ID
+            // left the Portal using its inactive fallback after YAML changes.
+            realm_to_use->set_active_camera_entity(e.entity_id);
 
             // 2. Find the new live camera entity within the realm.
             Entity* camera_entity = realm_to_use->get_entity_by_id(e.entity_id);
