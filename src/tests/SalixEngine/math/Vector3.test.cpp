@@ -683,3 +683,82 @@ TEST_SUITE("Salix::math::Vector3Additional") {
         CHECK(loaded.to_glm().z == source.z);
     }
 }
+
+// Cross-product identities, GLM interoperability and archive preservation.
+#include <cereal/types/vector.hpp>
+#include <vector>
+TEST_SUITE("Salix::math::Vector3Additional20261019") {
+    TEST_CASE("vector3 extended three-dimensional magnitude agrees with dot of a vector with itself") {
+        const Salix::Vector3 v(-2.f,3.f,6.f);
+        CHECK(v.length() == doctest::Approx(7.f));
+        CHECK(Salix::dot(v,v) == doctest::Approx(v.length()*v.length()));
+    }
+
+    TEST_CASE("vector3 extended cross product is orthogonal to both arbitrary nonparallel inputs") {
+        const Salix::Vector3 a(2.f,-3.f,5.f), b(7.f,11.f,-1.f);
+        const auto n = Salix::cross(a,b);
+        CHECK(Salix::dot(n,a) == doctest::Approx(0.f));
+        CHECK(Salix::dot(n,b) == doctest::Approx(0.f));
+    }
+
+    TEST_CASE("vector3 extended cyclic unit axes preserve right-handed cross-product orientation") {
+        const Salix::Vector3 x(1.f,0.f,0.f), y(0.f,1.f,0.f), z(0.f,0.f,1.f);
+        CHECK(Salix::cross(x,y) == z);
+        CHECK(Salix::cross(y,z) == x);
+        CHECK(Salix::cross(z,x) == y);
+    }
+
+    TEST_CASE("vector3 extended cross product flips direction when operands exchange order") {
+        const Salix::Vector3 a(1.f,2.f,3.f), b(4.f,-5.f,6.f);
+        const auto ab=Salix::cross(a,b), ba=Salix::cross(b,a);
+        CHECK(ab == ba * -1.f);
+    }
+
+    TEST_CASE("vector3 extended linear interpolation maintains collinearity over opposite extremes") {
+        const Salix::Vector3 a(-10.f,20.f,5.f), b(10.f,-20.f,-5.f);
+        const auto mid=Salix::Vector3::lerp(a,b,0.5f);
+        CHECK(mid == Salix::Vector3(0.f,0.f,0.f));
+        CHECK(Salix::Vector3::lerp(a,b,0.25f) == a * 0.5f);
+    }
+
+    TEST_CASE("vector3 extended normalizing a negative Z unit direction never changes its orientation") {
+        Salix::Vector3 v(0.f,0.f,-500.f);
+        v.normalize();
+        CHECK(v == Salix::Vector3(0.f,0.f,-1.f));
+        CHECK(v.length() == doctest::Approx(1.f));
+    }
+
+    TEST_CASE("vector3 extended GLM interoperation roundtrips signed fractions") {
+        const Salix::Vector3 value(0.125f,-40.5f,7.25f);
+        const auto as_glm = value.to_glm();
+        CHECK(as_glm.x == doctest::Approx(value.x));
+        CHECK(as_glm.y == doctest::Approx(value.y));
+        CHECK(Salix::Vector3::from_glm(as_glm) == value);
+    }
+
+    TEST_CASE("vector3 extended roundtrip arithmetic preserves every coordinate under component division") {
+        const Salix::Vector3 base(3.f,-8.f,2.f), multiplier(-2.f,0.5f,4.f);
+        CHECK((base * multiplier) / multiplier == base);
+        CHECK((base + multiplier) - multiplier == base);
+    }
+
+    TEST_CASE("vector3 extended binary archive roundtrip preserves a unit axis and its negative") {
+        std::vector<Salix::Vector3> source{Salix::Vector3(0.f,0.f,1.f),Salix::Vector3(0.f,0.f,-1.f)};
+        std::stringstream data;
+        { cereal::BinaryOutputArchive output(data); output(source); }
+        std::vector<Salix::Vector3> restored;
+        { cereal::BinaryInputArchive input(data); input(restored); }
+        REQUIRE(restored.size()==2);
+        CHECK(restored[0]==source[0]);
+        CHECK(restored[1]==source[1]);
+    }
+
+    TEST_CASE("vector3 extended YAML decode replaces old values with a negative three-axis vector") {
+        Salix::Vector3 value(20.f,30.f,40.f);
+        const YAML::Node yaml=YAML::Load("{x: -2.5, y: -8, z: -0.125}");
+        yaml >> value;
+        CHECK(value.x == doctest::Approx(-2.5f));
+        CHECK(value.y == doctest::Approx(-8.f));
+        CHECK(value.z == doctest::Approx(-0.125f));
+    }
+}
