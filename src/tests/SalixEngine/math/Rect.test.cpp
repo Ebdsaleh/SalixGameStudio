@@ -107,3 +107,91 @@ TEST_SUITE("Salix::math::Rect") {
         CHECK( ss.str() == "{ x: 10, y: 20, w: 30, h: 40 }");
     }
 }
+
+// Additional contract tests: signed extents, typed conversion and archive fidelity.
+#include <cereal/archives/binary.hpp>
+#include <string>
+#include <utility>
+
+TEST_SUITE("Salix::math::RectAdditional") {
+    TEST_CASE("rect negative fractional coordinates truncate toward zero in integer rectangles") {
+        const Salix::RectI value(-1.9, -2.1, 3.9, -4.9);
+        CHECK(value.x == -1);
+        CHECK(value.y == -2);
+        CHECK(value.w == 3);
+        CHECK(value.h == -4);
+    }
+
+    TEST_CASE("rect negative extents remain signed instead of silently normalizing geometry") {
+        const Salix::RectF value(12.f, 15.f, -3.f, -7.f);
+        CHECK(value.w == -3.f);
+        CHECK(value.h == -7.f);
+        CHECK(value.x == 12.f);
+        CHECK(value.y == 15.f);
+    }
+
+    TEST_CASE("rect converting integer rectangles to double preserves all coordinates") {
+        const Salix::RectI original(-100, 250, 16, 80);
+        const Salix::RectD converted(original);
+        CHECK(converted.x == -100.0);
+        CHECK(converted.y == 250.0);
+        CHECK(converted.w == 16.0);
+        CHECK(converted.h == 80.0);
+    }
+
+    TEST_CASE("rect converting fractional double rectangles to float preserves halves") {
+        const Salix::RectD original(-3.5, 8.25, 12.5, -7.75);
+        const Salix::RectF converted(original);
+        CHECK(converted.x == doctest::Approx(-3.5f));
+        CHECK(converted.y == doctest::Approx(8.25f));
+        CHECK(converted.w == doctest::Approx(12.5f));
+        CHECK(converted.h == doctest::Approx(-7.75f));
+    }
+
+    TEST_CASE("rect equality distinguishes each independently modified field") {
+        const Salix::RectI baseline(1, 2, 3, 4);
+        CHECK(baseline != Salix::RectI(5, 2, 3, 4));
+        CHECK(baseline != Salix::RectI(1, 5, 3, 4));
+        CHECK(baseline != Salix::RectI(1, 2, 5, 4));
+        CHECK(baseline != Salix::RectI(1, 2, 3, 5));
+        CHECK_FALSE(baseline != Salix::RectI(1, 2, 3, 4));
+    }
+
+    TEST_CASE("rect default floating and double rectangles are zero-valued") {
+        const Salix::RectF floating;
+        const Salix::RectD double_precision;
+        CHECK(floating == Salix::RectF(0.f, 0.f, 0.f, 0.f));
+        CHECK(double_precision == Salix::RectD(0.0, 0.0, 0.0, 0.0));
+    }
+
+    TEST_CASE("rect JSON roundtrip preserves signed and fractional rectangle members") {
+        const Salix::RectF original(-0.5f, 100.25f, 2.75f, -8.125f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive archive(stream); archive(original); }
+        Salix::RectF restored;
+        { cereal::JSONInputArchive archive(stream); archive(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("rect binary roundtrip preserves negative coordinates and dimensions") {
+        const Salix::RectI original(-88, 555, -21, 32);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive archive(stream); archive(original); }
+        Salix::RectI restored;
+        { cereal::BinaryInputArchive archive(stream); archive(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("rect stream output includes signed decimals and retains all labels") {
+        const Salix::RectF value(-1.5f, 0.25f, 3.5f, -4.75f);
+        std::ostringstream stream;
+        stream << value;
+        CHECK(stream.str() == "{ x: -1.5, y: 0.25, w: 3.5, h: -4.75 }");
+    }
+
+    TEST_CASE("rect rectangle constructors reject nonarithmetic fields at compile time") {
+        CHECK(std::is_constructible_v<Salix::RectI, int, float, double, short>);
+        CHECK_FALSE((std::is_constructible_v<Salix::RectI, int, std::string, int, int>));
+        CHECK(std::is_constructible_v<Salix::RectD, const Salix::RectI&>);
+    }
+}
