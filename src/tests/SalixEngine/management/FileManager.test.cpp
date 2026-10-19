@@ -439,42 +439,86 @@ TEST_SUITE("Salix::management::FileManagerAdditional20261019") {
 // Additional stable contracts for the 847+ coverage batch.
 TEST_SUITE("Salix::management::FileManagerBatch847") {
     TEST_CASE("file manager reads embedded NUL bytes without truncation") {
-        const std::string path=test_dir+"/nul.bin"; const std::string bytes("A\0B\0C",5); create_dummy_file(path,bytes); const auto loaded=Salix::FileManager::read_file_content(path); REQUIRE(loaded.size()==5); CHECK(loaded==bytes);
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string bytes("A\0B\0C", 5);
+        temp.write("nul.bin", bytes);
+        const auto loaded = Salix::FileManager::read_file_content(temp.file("nul.bin"));
+        REQUIRE(loaded.size() == 5);
+        CHECK(loaded == bytes);
     }
 
     TEST_CASE("file manager reports exact size for binary data containing high bytes") {
-        const std::string path=test_dir+"/high.bin"; const std::string bytes("\x00\x7f\x80\xff",4); create_dummy_file(path,bytes); CHECK(Salix::FileManager::get_file_size(path)==4);
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string bytes("\x00\x7f\x80\xff", 4);
+        temp.write("high.bin", bytes);
+        CHECK(Salix::FileManager::get_file_size(temp.file("high.bin")) == 4);
     }
 
     TEST_CASE("file manager copy overwrites an existing destination atomically from caller perspective") {
-        const std::string src=test_dir+"/src-overwrite.bin",dst=test_dir+"/dst-overwrite.bin"; create_dummy_file(src,"new-data"); create_dummy_file(dst,"old"); REQUIRE(Salix::FileManager::copy_file(src,dst)); CHECK(Salix::FileManager::read_file_content(dst)=="new-data");
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("src-overwrite.bin", "new-data");
+        temp.write("dst-overwrite.bin", "old");
+        REQUIRE(Salix::FileManager::copy_file(temp.file("src-overwrite.bin"), temp.file("dst-overwrite.bin")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("dst-overwrite.bin")) == "new-data");
     }
 
     TEST_CASE("file manager failed copy leaves an existing destination unchanged") {
-        const std::string dst=test_dir+"/protected.txt"; create_dummy_file(dst,"keep-me"); CHECK_FALSE(Salix::FileManager::copy_file(test_dir+"/missing-source.txt",dst)); CHECK(Salix::FileManager::read_file_content(dst)=="keep-me");
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("protected.txt", "keep-me");
+        CHECK_FALSE(Salix::FileManager::copy_file(temp.file("missing-source.txt"), temp.file("protected.txt")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("protected.txt")) == "keep-me");
     }
 
     TEST_CASE("file manager regular file predicate rejects directories but accepts empty files") {
-        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(test_dir)); CHECK(Salix::FileManager::is_regular_file_and_exists(empty_test_file));
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("empty.txt", "");
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(temp.root.string()));
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("empty.txt")));
     }
 
     TEST_CASE("file manager reading a missing file returns an empty string without creating it") {
-        const std::string missing=test_dir+"/never-created.bin"; CHECK(Salix::FileManager::read_file_content(missing).empty()); CHECK_FALSE(std::filesystem::exists(missing));
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto missing = temp.file("never-created.bin");
+        CHECK(Salix::FileManager::read_file_content(missing).empty());
+        CHECK_FALSE(std::filesystem::exists(missing));
     }
 
     TEST_CASE("file manager hex dump emits printable ASCII and dots for control bytes") {
-        const std::string path=test_dir+"/hex-contract.bin"; create_dummy_file(path,std::string("A\nB",3)); const auto dump=Salix::FileManager::generate_hex_dump(path); CHECK(dump.find("41 0a 42")!=std::string::npos); CHECK(dump.find("A.B")!=std::string::npos);
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("hex-contract.bin", std::string("A\nB", 3));
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("hex-contract.bin"));
+        CHECK(dump.find("41 0a 42") != std::string::npos);
+        CHECK(dump.find("A.B") != std::string::npos);
     }
 
     TEST_CASE("file manager hex dump marks an unreadable missing file as empty or unreadable") {
-        const auto dump=Salix::FileManager::generate_hex_dump(test_dir+"/missing.hex"); CHECK(dump.find("File is empty or could not be read.")!=std::string::npos); CHECK(dump.find("---END HEX DUMP---")!=std::string::npos);
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("missing.hex"));
+        CHECK(dump.find("File is empty or could not be read.") != std::string::npos);
+        CHECK(dump.find("---END HEX DUMP---") != std::string::npos);
     }
 
     TEST_CASE("file manager string relative conversion normalizes mixed separators inside root") {
-        const std::string root="C:\\Project"; const std::string absolute="C:/Project/Assets\\Sprites/player.png"; CHECK(Salix::FileManager::convert_to_relative(root,absolute)=="Assets/Sprites/player.png");
+        const std::string root = "C:\\Project";
+        const std::string absolute = "C:/Project/Assets\\Sprites/player.png";
+        CHECK(Salix::FileManager::convert_to_relative(root, absolute) == "Assets/Sprites/player.png");
     }
 
     TEST_CASE("file manager nested directory creation remains successful when repeated") {
-        const std::string nested=test_dir+"/a/b/c"; REQUIRE(Salix::FileManager::create_directories(nested)); REQUIRE(std::filesystem::is_directory(nested)); CHECK(Salix::FileManager::create_directories(nested)); CHECK(std::filesystem::is_directory(nested));
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto nested = temp.root / "a" / "b" / "c";
+        REQUIRE(Salix::FileManager::create_directories(nested.string()));
+        REQUIRE(std::filesystem::is_directory(nested));
+        CHECK(Salix::FileManager::create_directories(nested.string()));
+        CHECK(std::filesystem::is_directory(nested));
     }
 }
