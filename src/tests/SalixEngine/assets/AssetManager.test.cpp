@@ -79,3 +79,131 @@ TEST_SUITE("Salix::assets::AssetManager") {
         }
     }
 }
+
+// Asset caching contracts: counting mock texture loads; no disk assets are accessed.
+#include <filesystem>
+#include <vector>
+class CountingAssetRenderer final : public MockIRenderer {
+public:
+    int calls = 0;
+    std::vector<std::string> paths;
+    Salix::ITexture* load_texture(const char* filename) override {
+        ++calls;
+        paths.emplace_back(filename);
+        return MockIRenderer::load_texture(filename);
+    }
+};
+TEST_SUITE("Salix::assets::AssetManagerExtended") {
+    TEST_CASE("asset manager same logical texture path is loaded only once and pointer is reused") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("assets/ui/health.png");
+        auto* second = assets.get_texture("assets/ui/health.png");
+        REQUIRE(first != nullptr);
+        CHECK(first == second);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("asset manager lexical dot path aliases reuse the same cached texture") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("assets/ui/icon.png");
+        auto* second = assets.get_texture("assets/./ui/icon.png");
+        REQUIRE(first != nullptr);
+        CHECK(first == second);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("asset manager lexical parent traversal within relative path maps to same cache key") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("assets/ui/icon.png");
+        auto* second = assets.get_texture("assets/other/../ui/icon.png");
+        REQUIRE(first != nullptr);
+        CHECK(first == second);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("asset manager different paths remain different cache entries") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("assets/sprite-a.png");
+        auto* second = assets.get_texture("assets/sprite-b.png");
+        REQUIRE(first != nullptr);
+        REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("asset manager failed renderer load is not cached and allows retry") {
+        CountingAssetRenderer renderer;
+        renderer.should_texture_load_fail = true;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        CHECK(assets.get_texture("assets/retry.png") == nullptr);
+        CHECK(renderer.calls == 1);
+        renderer.should_texture_load_fail = false;
+        REQUIRE(assets.get_texture("assets/retry.png") != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("asset manager repeated failed texture requests retry rather than caching null") {
+        CountingAssetRenderer renderer;
+        renderer.should_texture_load_fail = true;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        CHECK(assets.get_texture("assets/unavailable.png") == nullptr);
+        CHECK(assets.get_texture("assets/unavailable.png") == nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("asset manager shutdown flushes cached textures before next texture request") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("assets/clear.png") != nullptr);
+        REQUIRE(assets.get_texture("assets/clear.png") != nullptr);
+        CHECK(renderer.calls == 1);
+        assets.shutdown();
+        REQUIRE(assets.get_texture("assets/clear.png") != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("asset manager reinitializing with a new renderer after shutdown uses new backend") {
+        CountingAssetRenderer first, second;
+        Salix::AssetManager assets;
+        assets.initialize(&first);
+        REQUIRE(assets.get_texture("assets/switch.png") != nullptr);
+        assets.shutdown();
+        assets.initialize(&second);
+        REQUIRE(assets.get_texture("assets/switch.png") != nullptr);
+        CHECK(first.calls == 1);
+        CHECK(second.calls == 1);
+    }
+
+    TEST_CASE("asset manager each AssetManager instance owns an independent texture cache") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager first, second;
+        first.initialize(&renderer);
+        second.initialize(&renderer);
+        REQUIRE(first.get_texture("assets/shared.png") != nullptr);
+        REQUIRE(second.get_texture("assets/shared.png") != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("asset manager renderer receives lexically normalized relative texture path") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("assets/gui/../gui/button.png") != nullptr);
+        REQUIRE(renderer.paths.size() == 1);
+        const std::filesystem::path loaded(renderer.paths.front());
+        CHECK(loaded.filename().string() == "button.png");
+        CHECK(loaded.parent_path().filename().string() == "gui");
+        CHECK(renderer.calls == 1);
+    }
+}
