@@ -694,3 +694,47 @@ TEST_SUITE("Salix::ecs::EntityAdditional") {
         CHECK(observer->last_delta == doctest::Approx(0.25f));
     }
 }
+
+
+// Runtime-facing isolated contracts for the 847+ coverage batch.
+TEST_SUITE("Salix::ecs::EntityBatch847") {
+    TEST_CASE("entity empty name assignment preserves persistent identity and mandatory components") {
+        Salix::Entity e; const auto id=e.get_id(); e.set_name(""); CHECK(e.get_name().empty()); CHECK(e.get_id()==id); CHECK(e.get_transform()!=nullptr); CHECK(e.get_element<Salix::BoxCollider>()!=nullptr);
+    }
+
+    TEST_CASE("entity release from parent is idempotent for a root entity") {
+        Salix::Entity e; REQUIRE(e.get_parent()==nullptr); CHECK_NOTHROW(e.release_from_parent()); CHECK_NOTHROW(e.release_from_parent()); CHECK(e.get_parent()==nullptr); CHECK(e.is_root());
+    }
+
+    TEST_CASE("entity self parenting is rejected without mutating root state") {
+        Salix::Entity e; e.set_parent(&e); CHECK(e.get_parent()==nullptr); CHECK(e.get_children().empty()); CHECK(e.get_transform()->get_parent()==nullptr);
+    }
+
+    TEST_CASE("entity grandchild recognizes every ancestor but not an unrelated sibling") {
+        Salix::Entity root,parent,child,sibling; parent.set_parent(&root); child.set_parent(&parent); sibling.set_parent(&root); CHECK(child.is_child_of(&parent)); CHECK(child.is_child_of(&root)); CHECK_FALSE(child.is_child_of(&sibling)); CHECK_FALSE(root.is_child_of(&child));
+    }
+
+    TEST_CASE("entity assigning the same parent twice keeps one child edge") {
+        Salix::Entity parent,child; child.set_parent(&parent); child.set_parent(&parent); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children().front()==&child); CHECK(child.get_parent()==&parent);
+    }
+
+    TEST_CASE("entity parent child insertion order is stable for multiple children") {
+        Salix::Entity parent,a,b,c; a.set_parent(&parent); b.set_parent(&parent); c.set_parent(&parent); const auto& children=parent.get_children(); REQUIRE(children.size()==3); CHECK(children[0]==&a); CHECK(children[1]==&b); CHECK(children[2]==&c);
+    }
+
+    TEST_CASE("entity invalid element identifier lookup always returns null") {
+        Salix::Entity e; CHECK(e.get_element_by_id(Salix::SimpleGuid::invalid())==nullptr);
+    }
+
+    TEST_CASE("entity empty element name and type queries never match mandatory components") {
+        Salix::Entity e; CHECK(e.get_element_by_name("")==nullptr); CHECK(e.get_element_by_type_name("")==nullptr); CHECK(e.get_elements_by_type_name("").empty());
+    }
+
+    TEST_CASE("entity const element enumeration mirrors mutable enumeration order") {
+        Salix::Entity e; const auto mutable_elements=e.get_all_elements(); const Salix::Entity& ce=e; const auto const_elements=ce.get_all_elements(); REQUIRE(mutable_elements.size()==const_elements.size()); REQUIRE(mutable_elements.size()>=2); for(std::size_t i=0;i<mutable_elements.size();++i) CHECK(mutable_elements[i]==const_elements[i]);
+    }
+
+    TEST_CASE("entity simple purge preserves hierarchy links until maintenance or explicit detach") {
+        Salix::Entity parent,child; child.set_parent(&parent); child.simple_purge(); CHECK(child.is_purged()); CHECK(child.get_parent()==&parent); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children().front()==&child); CHECK(child.get_element_by_type_name("Transform")==nullptr);
+    }
+}
