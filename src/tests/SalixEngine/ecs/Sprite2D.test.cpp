@@ -317,3 +317,119 @@ TEST_SUITE("Salix::ecs::Sprite2D") {
         CHECK(loaded_sprite->get_texture_path() == "path/to/my/texture.png");
     }
 }
+
+// Sprite property mutability and archive fidelity without real graphics resources.
+#include <cereal/archives/binary.hpp>
+#include <sstream>
+TEST_SUITE("Salix::ecs::Sprite2DAdditional") {
+    TEST_CASE("sprite mutable color reference updates state observable through const interface") {
+        Salix::Sprite2D sprite;
+        sprite.get_color() = Salix::Color(0.1f, 0.2f, 0.3f, 0.4f);
+        const auto& read_only = static_cast<const Salix::Sprite2D&>(sprite);
+        CHECK(read_only.get_color() == Salix::Color(0.1f, 0.2f, 0.3f, 0.4f));
+    }
+
+    TEST_CASE("sprite offset reference and setter retain negative positional offsets") {
+        Salix::Sprite2D sprite;
+        sprite.set_offset(Salix::Vector2(-7.5f, 20.25f));
+        CHECK(sprite.get_offset() == Salix::Vector2(-7.5f, 20.25f));
+        sprite.get_offset().x = 9.5f;
+        CHECK(static_cast<const Salix::Sprite2D&>(sprite).get_offset().x == 9.5f);
+    }
+
+    TEST_CASE("sprite pivot supports all four normalized anchor corners") {
+        Salix::Sprite2D sprite;
+        const Salix::Vector2 anchors[] = { {0.f, 0.f}, {1.f, 0.f}, {0.f, 1.f}, {1.f, 1.f} };
+        for (const auto& pivot : anchors) {
+            sprite.set_pivot(pivot);
+            CHECK(sprite.get_pivot() == pivot);
+        }
+    }
+
+    TEST_CASE("sprite horizontal and vertical flip flags can be toggled independently") {
+        Salix::Sprite2D sprite;
+        sprite.set_flip_h(true);
+        CHECK(sprite.get_flip_h());
+        CHECK_FALSE(sprite.get_flip_v());
+        sprite.set_flip_v(true);
+        CHECK(sprite.get_flip_h());
+        CHECK(sprite.get_flip_v());
+        sprite.set_flip_h(false);
+        CHECK_FALSE(sprite.get_flip_h());
+        CHECK(sprite.get_flip_v());
+    }
+
+    TEST_CASE("sprite sorting layers preserve negative and large relative ordering") {
+        Salix::Sprite2D background, foreground;
+        background.set_sorting_layer(-200);
+        foreground.set_sorting_layer(200);
+        CHECK(background.get_sorting_layer() < foreground.get_sorting_layer());
+        foreground.get_sorting_layer() = -201;
+        CHECK(foreground.get_sorting_layer() < background.get_sorting_layer());
+    }
+
+    TEST_CASE("sprite local rotation and entity-rotation flag are separate properties") {
+        Salix::Sprite2D sprite;
+        sprite.set_local_rotation(-270.f);
+        sprite.set_use_entity_rotation(true);
+        CHECK(sprite.get_local_rotation() == -270.f);
+        CHECK(sprite.get_use_entity_rotation());
+        sprite.get_use_entity_rotation() = false;
+        CHECK_FALSE(static_cast<const Salix::Sprite2D&>(sprite).get_use_entity_rotation());
+        CHECK(sprite.get_local_rotation() == -270.f);
+    }
+
+    TEST_CASE("sprite setting a texture path does not load assets until on_load") {
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("art/ui/atlas.png");
+        CHECK(sprite.get_texture_path() == "art/ui/atlas.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("sprite empty texture path on_load requires no asset manager or renderer") {
+        Salix::Sprite2D sprite;
+        Salix::InitContext context{};
+        sprite.set_texture_path("");
+        CHECK_NOTHROW(sprite.on_load(context));
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("sprite null rendering inputs keep draw count zero and never require a texture") {
+        Salix::Sprite2D sprite;
+        MockIRenderer renderer;
+        sprite.render(&renderer);
+        sprite.render(nullptr);
+        CHECK(renderer.draw_sprite_call_count == 0);
+        CHECK(sprite.get_texture() == nullptr);
+    }
+
+    TEST_CASE("sprite binary roundtrip restores flipping layering tint rotation and texture path") {
+        Salix::Sprite2D original;
+        original.set_use_entity_rotation(true);
+        original.set_flip_h(true);
+        original.set_flip_v(true);
+        original.set_sorting_layer(-21);
+        original.set_local_rotation(135.f);
+        original.set_offset(Salix::Vector2(12.5f, -8.25f));
+        original.set_pivot(Salix::Vector2(0.f, 1.f));
+        original.set_color(Salix::Color(0.2f, 0.6f, 0.8f, 0.3f));
+        original.set_texture_path("textures/menu.png");
+        std::stringstream bytes;
+        { cereal::BinaryOutputArchive archive(bytes); archive(original); }
+        Salix::Sprite2D restored;
+        { cereal::BinaryInputArchive archive(bytes); archive(restored); }
+        CHECK(restored.get_use_entity_rotation());
+        CHECK(restored.get_flip_h());
+        CHECK(restored.get_flip_v());
+        CHECK(restored.get_sorting_layer() == -21);
+        CHECK(restored.get_local_rotation() == 135.f);
+        CHECK(restored.get_offset() == original.get_offset());
+        CHECK(restored.get_pivot() == original.get_pivot());
+        CHECK(restored.get_color() == original.get_color());
+        CHECK(restored.get_texture_path() == original.get_texture_path());
+    }
+}
