@@ -519,3 +519,46 @@ TEST_SUITE("Salix::input::sdl::SDLInputManager") {
         }
     }
 }
+
+// Runtime-facing isolated contracts for the 847+ coverage batch.
+TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch847") {
+    TEST_CASE("SDL input maps alphabetic key endpoints and middle letters exactly") {
+        Salix::SDLInputManager m; CHECK(m.to_salix_keycode(SDLK_a)==Salix::KeyCode::A); CHECK(m.to_salix_keycode(SDLK_m)==Salix::KeyCode::M); CHECK(m.to_salix_keycode(SDLK_z)==Salix::KeyCode::Z);
+    }
+
+    TEST_CASE("SDL input maps numeric row keys independently of alphabetic keys") {
+        Salix::SDLInputManager m; CHECK(m.to_salix_keycode(SDLK_0)==Salix::KeyCode::Alpha0); CHECK(m.to_salix_keycode(SDLK_5)==Salix::KeyCode::Alpha5); CHECK(m.to_salix_keycode(SDLK_9)==Salix::KeyCode::Alpha9);
+    }
+
+    TEST_CASE("SDL input maps function key range without collapsing endpoints") {
+        Salix::SDLInputManager m; CHECK(m.to_salix_keycode(SDLK_F1)==Salix::KeyCode::F1); CHECK(m.to_salix_keycode(SDLK_F6)==Salix::KeyCode::F6); CHECK(m.to_salix_keycode(SDLK_F12)==Salix::KeyCode::F12);
+    }
+
+    TEST_CASE("SDL input maps navigation modifier and punctuation examples") {
+        Salix::SDLInputManager m; CHECK(m.to_salix_keycode(SDLK_LEFT)==Salix::KeyCode::Left); CHECK(m.to_salix_keycode(SDLK_RCTRL)==Salix::KeyCode::RightControl); CHECK(m.to_salix_keycode(SDLK_SEMICOLON)==Salix::KeyCode::SemiColon); CHECK(m.to_salix_keycode(SDLK_PRINTSCREEN)==Salix::KeyCode::PrintScreen);
+    }
+
+    TEST_CASE("SDL input maps an unknown SDL keycode to None") {
+        Salix::SDLInputManager m; CHECK(m.to_salix_keycode(SDLK_UNKNOWN)==Salix::KeyCode::None);
+    }
+
+    TEST_CASE("SDL input mouse movement truncates signed fractions and tolerates null outputs") {
+        Salix::SDLInputManager m; SDL_Event raw{}; Salix::MouseMovedEvent moved(-12.75f,8.9f,raw); m.process_event(moved); int x=0,y=0; m.get_mouse_position(&x,&y); CHECK(x==-12); CHECK(y==8); CHECK_NOTHROW(m.get_mouse_position(nullptr,nullptr));
+    }
+
+    TEST_CASE("SDL input scroll state clears on the next update frame") {
+        Salix::SDLInputManager m; SDL_Event raw{}; Salix::MouseScrolledEvent scroll(0.f,2.5f,raw); m.process_event(scroll); CHECK(m.get_mouse_scroll_delta()==doctest::Approx(2.5f)); m.update(0.016f); CHECK(m.get_mouse_scroll_delta()==0.f); CHECK_FALSE(m.did_scroll(Salix::MouseScroll::Forward));
+    }
+
+    TEST_CASE("SDL input repeated press while held does not retrigger the Down state") {
+        Salix::SDLInputManager m; SDL_Event raw{}; Salix::KeyPressedEvent first(SDLK_c,false,raw); m.process_event(first); REQUIRE(m.is_down(Salix::KeyCode::C)); m.update(0.016f); REQUIRE(m.is_held_down(Salix::KeyCode::C)); Salix::KeyPressedEvent repeat(SDLK_c,true,raw); m.process_event(repeat); CHECK(m.is_held_down(Salix::KeyCode::C)); CHECK_FALSE(m.is_down(Salix::KeyCode::C));
+    }
+
+    TEST_CASE("SDL input key hold duration resets after release completes") {
+        Salix::SDLInputManager m; SDL_Event raw{}; Salix::KeyPressedEvent down(SDLK_d,false,raw); m.process_event(down); m.update(0.1f); REQUIRE(m.is_held_down_for(Salix::KeyCode::D,0.09f)); Salix::KeyReleasedEvent up(SDLK_d,raw); m.process_event(up); m.update(0.016f); CHECK(m.is_up(Salix::KeyCode::D)); CHECK_FALSE(m.is_held_down_for(Salix::KeyCode::D,0.001f));
+    }
+
+    TEST_CASE("SDL input mouse hold duration resets independently after release") {
+        Salix::SDLInputManager m; SDL_Event raw{}; Salix::MouseButtonPressedEvent down(SDL_BUTTON_LEFT,raw); m.process_event(down); m.update(0.2f); REQUIRE(m.is_held_down_for(Salix::MouseButton::Left,0.19f)); Salix::MouseButtonReleasedEvent up(SDL_BUTTON_LEFT,raw); m.process_event(up); m.update(0.016f); CHECK(m.is_up(Salix::MouseButton::Left)); CHECK_FALSE(m.is_held_down_for(Salix::MouseButton::Left,0.001f));
+    }
+}
