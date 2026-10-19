@@ -13,6 +13,14 @@ namespace Salix {
         ImGuiInputManager();
         virtual ~ImGuiInputManager() override;
 
+        #ifdef SALIX_TESTS_ENABLED
+        // Test-only bridge: SalixEngine.dll and SalixEngine_tests.exe may each
+        // link their own ImGui globals. Synchronize the current test context
+        // without constructing a window or altering production runtime APIs.
+        static ImGuiContext* get_context_for_testing();
+        static void set_context_for_testing(ImGuiContext* context);
+        #endif
+
         void update(float delta_time) override;
         void process_event(IEvent& event) override;
 
