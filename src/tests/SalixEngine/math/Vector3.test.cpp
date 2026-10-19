@@ -762,3 +762,46 @@ TEST_SUITE("Salix::math::Vector3Additional20261019") {
         CHECK(value.z == doctest::Approx(-0.125f));
     }
 }
+
+// Deterministic geometry and persistence boundary scenarios.
+TEST_SUITE("Salix::Batch747::Vector3Batch747") {
+    TEST_CASE("vector3 cross of a vector with itself has no normal component") {
+        const Salix::Vector3 v(-4.f,9.f,2.f);CHECK(Salix::cross(v,v)==Salix::Vector3(0.f,0.f,0.f));
+    }
+
+    TEST_CASE("vector3 signed scalar triple product agrees with right handed volume") {
+        const Salix::Vector3 x(2.f,0.f,0.f),y(0.f,3.f,0.f),z(0.f,0.f,4.f);CHECK(Salix::dot(x,Salix::cross(y,z))==doctest::Approx(24.f));CHECK(Salix::dot(y,Salix::cross(x,z))==doctest::Approx(-24.f));
+    }
+
+    TEST_CASE("vector3 cross of parallel signed multiples has zero length") {
+        const Salix::Vector3 a(2.f,-3.f,4.f),b(-6.f,9.f,-12.f);CHECK(Salix::cross(a,b).length()==0.f);
+    }
+
+    TEST_CASE("vector3 component-wise division by zero only clears the affected middle axis") {
+        const auto q=Salix::Vector3(20.f,3.f,-8.f)/Salix::Vector3(-5.f,0.f,2.f);CHECK(q==Salix::Vector3(-4.f,0.f,-4.f));
+    }
+
+    TEST_CASE("vector3 reciprocal division handles a missing Z while preserving X and Y") {
+        const auto v=12.f/Salix::Vector3(-3.f,4.f,0.f);CHECK(v==Salix::Vector3(-4.f,3.f,0.f));
+    }
+
+    TEST_CASE("vector3 normalization of zero vector leaves all coordinates finite") {
+        Salix::Vector3 v(0.f,0.f,0.f);v.normalize();CHECK(v==Salix::Vector3(0.f,0.f,0.f));CHECK(std::isfinite(v.x));CHECK(std::isfinite(v.y));CHECK(std::isfinite(v.z));
+    }
+
+    TEST_CASE("vector3 scalar broadcast constructor does not change static unit basis") {
+        const Salix::Vector3 scalar(7);CHECK(scalar==Salix::Vector3(7.f,7.f,7.f));CHECK(Salix::Vector3::One==Salix::Vector3(1.f,1.f,1.f));
+    }
+
+    TEST_CASE("vector3 GLM constructor roundtrips without interchanging Y and Z") {
+        const glm::vec3 source(-1.25f,3.5f,-7.75f);const Salix::Vector3 result(source);CHECK(result.x==source.x);CHECK(result.y==source.y);CHECK(result.z==source.z);CHECK(result.to_glm()==source);
+    }
+
+    TEST_CASE("vector3 YAML map with absent Z clears old third coordinate") {
+        Salix::Vector3 v(100.f,200.f,300.f);const YAML::Node n=YAML::Load("{x: -1.5, y: 2.25}");n >> v;CHECK(v==Salix::Vector3(-1.5f,2.25f,0.f));
+    }
+
+    TEST_CASE("vector3 JSON output records named axes separately for stable persistence") {
+        Salix::Vector3 v(-0.5f,2.25f,4.f);std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(v);}const auto encoded=ss.str();CHECK(encoded.find("\"x\"")!=std::string::npos);CHECK(encoded.find("\"y\"")!=std::string::npos);CHECK(encoded.find("\"z\"")!=std::string::npos);
+    }
+}
