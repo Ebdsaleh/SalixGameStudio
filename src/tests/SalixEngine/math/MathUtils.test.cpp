@@ -259,3 +259,71 @@ TEST_SUITE("Salix::math::MathUtilsExtended") {
         CHECK(Salix::inv_sqrt(9.f) == doctest::Approx(1.f / 3.f).epsilon(0.02));
     }
 }
+
+// Stable interpolation and interval laws used by transforms and animations.
+TEST_SUITE("Salix::math::MathUtilsAdditional20261019") {
+    TEST_CASE("math extended lerp clamps negative interpolation before evaluating far endpoints") {
+        CHECK(Salix::lerp<float>(-100.f, 100.f, -0.01f) == doctest::Approx(-100.f));
+        CHECK(Salix::lerp<float>(-100.f, 100.f, 1.01f) == doctest::Approx(100.f));
+    }
+
+    TEST_CASE("math extended lerp restores endpoints under reversed ordering") {
+        for (float t : {0.f, 0.25f, 0.5f, 0.75f, 1.f}) {
+            const float forward = Salix::lerp<float>(-8.f, 32.f, t);
+            const float backward = Salix::lerp<float>(32.f, -8.f, 1.f - t);
+            CHECK(forward == doctest::Approx(backward));
+        }
+    }
+
+    TEST_CASE("math extended inverse lerp interprets the midpoint of a negative interval") {
+        CHECK(Salix::inverse_lerp(-100.f, -20.f, -60.f) == doctest::Approx(0.5f));
+        CHECK(Salix::inverse_lerp(-20.f, -100.f, -60.f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("math extended remapping with equal-width ranges is translation") {
+        for (float v : {-20.f, -5.f, 0.f, 20.f}) {
+            CHECK(Salix::remap(v, -20.f, 20.f, 80.f, 120.f) == doctest::Approx(v + 100.f));
+        }
+    }
+
+    TEST_CASE("math extended smooth step across a non-unit range reaches exact endpoints") {
+        CHECK(Salix::smooth_step(-7.f, 3.f, -7.f) == doctest::Approx(0.f));
+        CHECK(Salix::smooth_step(-7.f, 3.f, 3.f) == doctest::Approx(1.f));
+        CHECK(Salix::smooth_step(-7.f, 3.f, -2.f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("math extended smoother step clamps a negative domain before and after boundaries") {
+        CHECK(Salix::smoother_step(-20.f, -10.f, -25.f) == doctest::Approx(0.f));
+        CHECK(Salix::smoother_step(-20.f, -10.f, -5.f) == doctest::Approx(1.f));
+        CHECK(Salix::smoother_step(-20.f, -10.f, -15.f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("math extended cubic interpolation preserves constant control points at many times") {
+        for (float t : {0.f, 0.1f, 0.3f, 0.5f, 0.9f, 1.f}) {
+            CHECK(Salix::cubic_interpolate(14.f,14.f,14.f,14.f,t) == doctest::Approx(14.f));
+        }
+    }
+
+    TEST_CASE("math extended cubic interpolation is affine under translating every control point") {
+        const float original = Salix::cubic_interpolate(-5.f,0.f,15.f,25.f,0.3f);
+        const float shifted = Salix::cubic_interpolate(95.f,100.f,115.f,125.f,0.3f);
+        CHECK(shifted == doctest::Approx(original + 100.f));
+    }
+
+    TEST_CASE("math extended wrap respects a shifted positive interval and its upper edge") {
+        CHECK(Salix::wrap(15.f, 5.f, 15.f) == doctest::Approx(5.f));
+        CHECK(Salix::wrap(4.f, 5.f, 15.f) == doctest::Approx(14.f));
+        CHECK(Salix::wrap(45.f, 5.f, 15.f) == doctest::Approx(5.f));
+    }
+
+    TEST_CASE("math extended saturate is monotonic and does not change values in unit interval") {
+        float previous = -1.f;
+        for (float x : {-3.f,-1.f,0.f,0.125f,0.5f,0.875f,1.f,2.f}) {
+            const float y = Salix::saturate(x);
+            CHECK(y >= previous);
+            CHECK(y >= 0.f);
+            CHECK(y <= 1.f);
+            previous = y;
+        }
+    }
+}
