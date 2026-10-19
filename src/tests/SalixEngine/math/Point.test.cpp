@@ -226,3 +226,46 @@ TEST_SUITE("Salix::math::PointBatch647") {
         CHECK(source.y==0);
     }
 }
+
+// Deterministic geometry and persistence boundary scenarios.
+TEST_SUITE("Salix::Batch747::PointBatch747") {
+    TEST_CASE("point JSON uses explicit named axes instead of positional-only fields") {
+        Salix::Point p{-25,128};std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(p);}CHECK(ss.str().find("\"x\"")!=std::string::npos);CHECK(ss.str().find("\"y\"")!=std::string::npos);
+    }
+
+    TEST_CASE("point equality distinguishes diagonal mirror coordinates") {
+        const Salix::Point p{12,-12},q{-12,12};CHECK(p!=q);CHECK_FALSE(p==q);
+    }
+
+    TEST_CASE("point equality distinguishes swapped coordinates even when the sum agrees") {
+        const Salix::Point p{1,99},q{99,1};CHECK(p!=q);CHECK(p.x+p.y==q.x+q.y);
+    }
+
+    TEST_CASE("point clearing one copied coordinate does not clear its independent source") {
+        Salix::Point first{3,7},second=first;second.x=0;CHECK(first==Salix::Point{3,7});CHECK(second==Salix::Point{0,7});
+    }
+
+    TEST_CASE("point self assignment preserves both axes of a signed location") {
+        Salix::Point p{-256,32767};p=p;CHECK(p.x==-256);CHECK(p.y==32767);
+    }
+
+    TEST_CASE("point output stream can concatenate two coordinates without corrupting formatting") {
+        std::ostringstream out;out<<Salix::Point{1,-2}<<" | "<<Salix::Point{-3,4};CHECK(out.str()=="{ x: 1, y: -2 } | { x: -3, y: 4 }");
+    }
+
+    TEST_CASE("point JSON consecutive archive values restore two separate positions") {
+        Salix::Point a{-9,5},b{27,-4};std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(a,b);}Salix::Point x,y;{cereal::JSONInputArchive in(ss);in(x,y);}CHECK(x==a);CHECK(y==b);
+    }
+
+    TEST_CASE("point binary consecutive archive values restore two separate positions") {
+        Salix::Point a{0,-300},b{-10,0};std::stringstream ss;{cereal::BinaryOutputArchive out(ss);out(a,b);}Salix::Point x,y;{cereal::BinaryInputArchive in(ss);in(x,y);}CHECK(x==a);CHECK(y==b);
+    }
+
+    TEST_CASE("point vector JSON archive preserves repeated equal positions without deduplication") {
+        std::vector<Salix::Point> source{Salix::Point{2,3},Salix::Point{2,3},Salix::Point{-1,8}};std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(source);}std::vector<Salix::Point> loaded;{cereal::JSONInputArchive in(ss);in(loaded);}REQUIRE(loaded.size()==3);CHECK(loaded[0]==loaded[1]);CHECK(loaded[2]==source[2]);
+    }
+
+    TEST_CASE("point binary archive output remains deterministic for identical values") {
+        Salix::Point source{42,-99};std::stringstream a,b;{cereal::BinaryOutputArchive out(a);out(source);}{cereal::BinaryOutputArchive out(b);out(source);}CHECK(a.str()==b.str());
+    }
+}
