@@ -64,4 +64,37 @@ TEST_SUITE("Salix::management::RealmManager") {
         manager.set_project_root_path("");
         CHECK(manager.get_project_root_path() == "C:/GameProject");
     }
+
+    TEST_CASE("replacing a selected realm retains a valid active realm pointer") {
+        Salix::RealmManager manager;
+        Salix::Realm* initial = manager.create_realm("Battle", "Scenes/Battle-old.json");
+        REQUIRE(initial != nullptr);
+        REQUIRE(manager.set_active_realm("Battle"));
+        REQUIRE(manager.get_active_realm() == initial);
+
+        Salix::Realm* replacement = manager.create_realm("Battle", "Scenes/Battle-new.json");
+        REQUIRE(replacement != nullptr);
+        // Do not dereference the old realm if it was destroyed.
+        REQUIRE(manager.get_active_realm() == replacement);
+        CHECK(manager.get_active_realm()->get_name() == "Battle");
+        CHECK(manager.get_active_realm()->get_path() == "Scenes/Battle-new.json");
+        manager.update(0.016f);
+        manager.render(nullptr);
+    }
+
+    TEST_CASE("replacing a non-active realm preserves the active selection") {
+        Salix::RealmManager manager;
+        Salix::Realm* menu = manager.create_realm("Menu", "Scenes/Menu.json");
+        REQUIRE(menu != nullptr);
+        REQUIRE(manager.create_realm("Battle", "Scenes/Battle-old.json") != nullptr);
+        REQUIRE(manager.set_active_realm("Menu"));
+
+        Salix::Realm* replacement = manager.create_realm("Battle", "Scenes/Battle-new.json");
+        REQUIRE(replacement != nullptr);
+        CHECK(manager.get_active_realm() == menu);
+        CHECK(menu->get_path() == "Scenes/Menu.json");
+        REQUIRE(manager.set_active_realm("Battle"));
+        CHECK(manager.get_active_realm() == replacement);
+    }
+
 }
