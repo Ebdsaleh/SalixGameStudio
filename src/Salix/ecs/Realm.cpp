@@ -18,7 +18,7 @@ namespace Salix {
         std::vector<std::unique_ptr<Entity>> entities;
         ICamera* active_camera = nullptr;
         SimpleGuid main_camera_entity_id = SimpleGuid::invalid();
-        InitContext context;
+        InitContext context{};
     };
 
     // Constructors
@@ -140,6 +140,15 @@ namespace Salix {
             }
         }
 
+        // Remove the selected camera handle before its owning entity is destroyed.
+        if (pimpl->main_camera_entity_id.is_valid()) {
+            Entity* selected = get_entity_by_id(pimpl->main_camera_entity_id);
+            if (selected && selected->is_purged()) {
+                pimpl->active_camera = nullptr;
+                pimpl->main_camera_entity_id = SimpleGuid::invalid();
+            }
+        }
+
         // Now, erase the purged entities
         auto it = std::remove_if(pimpl->entities.begin(), pimpl->entities.end(), 
             [](const std::unique_ptr<Entity>& entity) {
@@ -178,6 +187,9 @@ namespace Salix {
     }
 
     void Realm::clear_all_entities() {
+        // Camera pointers are non-owning; discard them before their entities.
+        pimpl->active_camera = nullptr;
+        pimpl->main_camera_entity_id = SimpleGuid::invalid();
         pimpl->entities.clear();
     }
 
@@ -238,7 +250,8 @@ namespace Salix {
             }
         }
 
-        // 2. Set the NEW active camera's ID.
+        // 2. Discard the old raw pointer, including for invalid selections.
+        pimpl->active_camera = nullptr;
         pimpl->main_camera_entity_id = entity_id;
 
         // 3. Activate the NEW camera component (if the new ID is valid).
