@@ -562,3 +562,46 @@ TEST_SUITE("Salix::math::Vector2Additional20261019") {
         CHECK(value.y == doctest::Approx(7.5f));
     }
 }
+
+// Deterministic geometry and persistence boundary scenarios.
+TEST_SUITE("Salix::Batch747::Vector2Batch747") {
+    TEST_CASE("vector2 dot and cross are zero for the zero displacement") {
+        const Salix::Vector2 z(0.f,0.f), v(-123.f,45.f);CHECK(Salix::dot(z,v)==0.f);CHECK(Salix::cross(z,v)==0.f);CHECK(Salix::cross(v,z)==0.f);
+    }
+
+    TEST_CASE("vector2 parallel negative vectors have zero signed area") {
+        const Salix::Vector2 a(3.f,-7.f), b(-6.f,14.f);CHECK(Salix::cross(a,b)==0.f);CHECK(Salix::dot(a,b)==doctest::Approx(-116.f));
+    }
+
+    TEST_CASE("vector2 four perpendicular rotations restore the original signed displacement") {
+        const Salix::Vector2 a(-7.f,12.f);CHECK(Salix::perp(Salix::perp(Salix::perp(Salix::perp(a))))==a);
+    }
+
+    TEST_CASE("vector2 scalar-first subtraction changes signs independently across axes") {
+        const Salix::Vector2 v(-6.f,9.f);CHECK(4.f-v==Salix::Vector2(10.f,-5.f));CHECK(v-4.f==Salix::Vector2(-10.f,5.f));
+    }
+
+    TEST_CASE("vector2 component division applies the zero rule independently to Y") {
+        const auto result=Salix::Vector2(-15.f,8.f)/Salix::Vector2(3.f,0.f);CHECK(result.x==doctest::Approx(-5.f));CHECK(result.y==0.f);
+    }
+
+    TEST_CASE("vector2 scalar-over-vector reciprocal handles both signed components") {
+        const auto v=24.f/Salix::Vector2(-6.f,8.f);CHECK(v.x==doctest::Approx(-4.f));CHECK(v.y==doctest::Approx(3.f));
+    }
+
+    TEST_CASE("vector2 normalization of a negatively scaled direction retains unit magnitude") {
+        Salix::Vector2 v=Salix::Vector2(8.f,15.f)*-2.f;v.normalize();CHECK(v.length()==doctest::Approx(1.f));CHECK(v.x==doctest::Approx(-8.f/17.f));CHECK(v.y==doctest::Approx(-15.f/17.f));
+    }
+
+    TEST_CASE("vector2 three-quarter interpolation preserves distinct axis trajectories") {
+        const auto v=Salix::Vector2::lerp(Salix::Vector2(-4.f,12.f),Salix::Vector2(8.f,-8.f),0.75f);CHECK(v.x==doctest::Approx(5.f));CHECK(v.y==doctest::Approx(-3.f));
+    }
+
+    TEST_CASE("vector2 YAML empty mapping zeros both old channels on decode") {
+        Salix::Vector2 v(100.f,-200.f);const YAML::Node node=YAML::Load("{}");node >> v;CHECK(v==Salix::Vector2(0.f,0.f));
+    }
+
+    TEST_CASE("vector2 JSON array of consecutive values restores ordering and signed axes") {
+        Salix::Vector2 a(3.125f,-7.5f),b(-0.25f,16.f);std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(a,b);}Salix::Vector2 x,y;{cereal::JSONInputArchive in(ss);in(x,y);}CHECK(x==a);CHECK(y==b);
+    }
+}
