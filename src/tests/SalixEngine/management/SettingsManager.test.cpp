@@ -10,6 +10,7 @@
 #include <sstream>
 #include <chrono>
 #include <thread>
+#include <iterator>
 #include <yaml-cpp/yaml.h>
 
 // Helper to create a temporary config file for a test
