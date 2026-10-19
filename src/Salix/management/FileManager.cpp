@@ -184,7 +184,13 @@ namespace Salix {
         //    This function is designed to handle all edge cases correctly.
         std::filesystem::path relative_p = std::filesystem::relative(abs_p, root_p);
         
-        // 3. Return the path as a standardized string with forward slashes.
+        // Different Windows drive roots cannot be represented by a relative path.
+        // std::filesystem::relative can return an empty path without throwing.
+        if (relative_p.empty()) {
+            return absolute_path;
+        }
+
+        // Return the path as a standardized string with forward slashes.
         return relative_p.generic_string();
     }
     catch (const std::filesystem::filesystem_error& e) {
