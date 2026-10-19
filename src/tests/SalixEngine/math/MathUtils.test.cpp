@@ -327,3 +327,46 @@ TEST_SUITE("Salix::math::MathUtilsAdditional20261019") {
         }
     }
 }
+
+// Boundary behavior pinned against the implementation and public API.
+TEST_SUITE("Salix::Batch747::MathUtilsBatch747") {
+    TEST_CASE("math signed half-turn converts to radians and back without losing sign") {
+        const float degrees=-180.f; const float radians=degrees*Salix::DEG2RAD; CHECK(radians==doctest::Approx(-Salix::PI)); CHECK(radians*Salix::RAD2DEG==doctest::Approx(degrees));
+    }
+
+    TEST_CASE("math lerp clamps both extrapolation signs for negative targets") {
+        CHECK(Salix::lerp(25.f,-75.f,-0.5f)==doctest::Approx(25.f)); CHECK(Salix::lerp(25.f,-75.f,1.5f)==doctest::Approx(-75.f)); CHECK(Salix::lerp(25.f,-75.f,0.25f)==doctest::Approx(0.f));
+    }
+
+    TEST_CASE("math inverse lerp exposes ordered positions beyond both boundaries") {
+        CHECK(Salix::inverse_lerp(-20.f,20.f,-40.f)==doctest::Approx(-0.5f)); CHECK(Salix::inverse_lerp(-20.f,20.f,40.f)==doctest::Approx(1.5f));
+    }
+
+    TEST_CASE("math remap sends both source endpoints to reversed destination endpoints") {
+        CHECK(Salix::remap(-2.f,-2.f,6.f,100.f,-100.f)==doctest::Approx(100.f)); CHECK(Salix::remap(6.f,-2.f,6.f,100.f,-100.f)==doctest::Approx(-100.f)); CHECK(Salix::remap(2.f,-2.f,6.f,100.f,-100.f)==doctest::Approx(0.f));
+    }
+
+    TEST_CASE("math cubic and quintic smoothstep evaluate known quarter positions") {
+        CHECK(Salix::smooth_step(0.f,1.f,0.25f)==doctest::Approx(0.15625f)); CHECK(Salix::smoother_step(0.f,1.f,0.25f)==doctest::Approx(0.103515625f));
+    }
+
+    TEST_CASE("math easing returns exact zeros before an offset interval and ones after") {
+        for(float x:{-12.f,-5.f,2.f}) {CHECK(Salix::smooth_step(3.f,9.f,x)==0.f);CHECK(Salix::smoother_step(3.f,9.f,x)==0.f);} for(float x:{9.f,12.f,100.f}) {CHECK(Salix::smooth_step(3.f,9.f,x)==1.f);CHECK(Salix::smoother_step(3.f,9.f,x)==1.f);}
+    }
+
+    TEST_CASE("math Catmull Rom interpolates a uniformly spaced negative segment") {
+        CHECK(Salix::cubic_interpolate(-20.f,-10.f,0.f,10.f,0.25f)==doctest::Approx(-7.5f)); CHECK(Salix::cubic_interpolate(-20.f,-10.f,0.f,10.f,0.75f)==doctest::Approx(-2.5f));
+    }
+
+    TEST_CASE("math wrap period preserves fractional positions over many cycles") {
+        for(float offset:{-12.f,-6.f,0.f,6.f,12.f}) CHECK(Salix::wrap(-2.25f+offset,-3.f,3.f)==doctest::Approx(-2.25f));
+    }
+
+    TEST_CASE("math ping pong samples both slopes of a noninteger cycle") {
+        CHECK(Salix::ping_pong(0.75f,2.f)==doctest::Approx(0.75f));CHECK(Salix::ping_pong(2.75f,2.f)==doctest::Approx(1.25f));CHECK(Salix::ping_pong(4.75f,2.f)==doctest::Approx(0.75f));
+    }
+
+    TEST_CASE("math custom epsilon is inclusive and rejects values just outside it") {
+        CHECK(Salix::nearly_equal(1.f,1.125f,0.125f));CHECK_FALSE(Salix::nearly_equal(1.f,1.25f,0.125f));CHECK(Salix::inv_sqrt(4.f)==doctest::Approx(0.5f).epsilon(0.01));
+    }
+}
