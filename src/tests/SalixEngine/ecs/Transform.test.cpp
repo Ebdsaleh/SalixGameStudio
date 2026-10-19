@@ -877,3 +877,101 @@ TEST_SUITE("Salix::ecs::TransformAdditional") {
         CHECK(child.get_world_position().z == doctest::Approx(old_world.z));
     }
 }
+
+// Root/child transform invariants and stale parent-link protection.
+TEST_SUITE("Salix::ecs::TransformAdditional20261019") {
+    TEST_CASE("transform extended nonuniform local scale remains independent from position and rotation") {
+        Salix::Transform transform;
+        transform.set_position(5.f,-7.f,3.f);
+        transform.set_rotation(0.f,0.f,0.f);
+        transform.set_scale(2.f,3.f,4.f);
+        CHECK(transform.get_scale() == Salix::Vector3(2.f,3.f,4.f));
+        CHECK(transform.get_position() == Salix::Vector3(5.f,-7.f,3.f));
+    }
+
+    TEST_CASE("transform extended translation of a root transform accumulates signed displacements") {
+        Salix::Transform transform;
+        transform.set_position(7.f,2.f,-1.f);
+        transform.translate(-9.f,3.f,5.f);
+        transform.translate(2.f,-5.f,-4.f);
+        CHECK(transform.get_position() == Salix::Vector3(0.f,0.f,0.f));
+    }
+
+    TEST_CASE("transform extended root model-matrix translation agrees with world-position getter") {
+        Salix::Transform transform;
+        transform.set_position(-7.f,8.f,9.f);
+        const glm::mat4 model=transform.get_model_matrix();
+        const auto world=transform.get_world_position();
+        CHECK(model[3].x == doctest::Approx(world.x));
+        CHECK(model[3].y == doctest::Approx(world.y));
+        CHECK(model[3].z == doctest::Approx(world.z));
+    }
+
+    TEST_CASE("transform extended rotation increments change no position or scale") {
+        Salix::Transform transform;
+        transform.set_position(5.f,6.f,7.f);
+        transform.set_scale(2.f,4.f,8.f);
+        transform.rotate(15.f,-25.f,90.f);
+        CHECK(transform.get_position() == Salix::Vector3(5.f,6.f,7.f));
+        CHECK(transform.get_scale() == Salix::Vector3(2.f,4.f,8.f));
+        CHECK(transform.get_rotation() == Salix::Vector3(15.f,-25.f,90.f));
+    }
+
+    TEST_CASE("transform extended identity transform converts local coordinates to identical world coordinates") {
+        Salix::Transform transform;
+        const Salix::Vector3 point(-3.f,2.f,8.f);
+        CHECK(transform.local_to_world_position(point) == point);
+        CHECK(transform.world_to_local_position(point) == point);
+    }
+
+    TEST_CASE("transform extended translating a parent updates a child's world position but not its local position") {
+        Salix::Transform parent,child;
+        child.set_parent(&parent);
+        child.set_position(2.f,3.f,4.f);
+        parent.translate(10.f,-5.f,1.f);
+        CHECK(child.get_position() == Salix::Vector3(2.f,3.f,4.f));
+        CHECK(child.get_world_position() == Salix::Vector3(12.f,-2.f,5.f));
+    }
+
+    TEST_CASE("transform extended nested hierarchy preserves identity of every parent edge") {
+        Salix::Transform grandparent,parent,child;
+        parent.set_parent(&grandparent);
+        child.set_parent(&parent);
+        CHECK(child.get_parent()==&parent);
+        CHECK(parent.get_parent()==&grandparent);
+        CHECK(child.is_child_of(&grandparent));
+        CHECK_FALSE(grandparent.is_child_of(&child));
+    }
+
+    TEST_CASE("transform extended setting the same parent twice creates no duplicate child links") {
+        Salix::Transform parent,child;
+        child.set_parent(&parent);
+        child.set_parent(&parent);
+        REQUIRE(parent.get_children().size()==1);
+        CHECK(parent.get_children().front()==&child);
+        CHECK(child.get_parent()==&parent);
+    }
+
+    TEST_CASE("transform extended reparenting a child between roots removes its stale original link") {
+        Salix::Transform a,b,child;
+        child.set_parent(&a);
+        REQUIRE(a.get_children().size()==1);
+        child.set_parent(&b);
+        CHECK(a.get_children().empty());
+        REQUIRE(b.get_children().size()==1);
+        CHECK(b.get_children().front()==&child);
+    }
+
+    TEST_CASE("transform extended released child preserves previous world position after translated parent") {
+        Salix::Transform parent,child;
+        parent.set_position(15.f,-7.f,3.f);
+        child.set_parent(&parent);
+        child.set_position(2.f,4.f,-1.f);
+        const auto world=child.get_world_position();
+        child.release_from_parent();
+        CHECK(child.get_parent()==nullptr);
+        CHECK(child.get_world_position().x == doctest::Approx(world.x));
+        CHECK(child.get_world_position().y == doctest::Approx(world.y));
+        CHECK(child.get_world_position().z == doctest::Approx(world.z));
+    }
+}
