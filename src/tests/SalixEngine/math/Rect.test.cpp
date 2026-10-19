@@ -195,3 +195,88 @@ TEST_SUITE("Salix::math::RectAdditional") {
         CHECK((std::is_constructible_v<Salix::RectD, const Salix::RectI&>));
     }
 }
+
+// Rectangle value semantics, precision-preserving archives and signed extents.
+TEST_SUITE("Salix::math::RectExtended") {
+    TEST_CASE("rect extended double precision rectangles preserve subunit coordinates") {
+        const Salix::RectD rect(-1.125, 0.0625, 5.375, -8.875);
+        CHECK(rect.x == -1.125);
+        CHECK(rect.y == 0.0625);
+        CHECK(rect.w == 5.375);
+        CHECK(rect.h == -8.875);
+    }
+
+    TEST_CASE("rect extended copying rectangles preserves value state without aliasing") {
+        Salix::RectI original(-20, 15, 12, 9);
+        Salix::RectI copy(original);
+        copy.w = 0;
+        CHECK(original.w == 12);
+        CHECK(copy != original);
+        CHECK(copy.x == original.x);
+    }
+
+    TEST_CASE("rect extended assignment replaces all members of destination rectangle") {
+        const Salix::RectI src(4, -9, -7, 21);
+        Salix::RectI dst(8, 8, 8, 8);
+        dst = src;
+        CHECK(dst == src);
+        CHECK(dst.x == 4);
+        CHECK(dst.y == -9);
+        CHECK(dst.w == -7);
+        CHECK(dst.h == 21);
+    }
+
+    TEST_CASE("rect extended conversion from floats to ints truncates negative fractions toward zero") {
+        const Salix::RectF original(-1.75f, -2.25f, -3.875f, -4.125f);
+        const Salix::RectI result(original);
+        CHECK(result == Salix::RectI(-1, -2, -3, -4));
+    }
+
+    TEST_CASE("rect extended int to double and back conversion preserves representable coordinates") {
+        const Salix::RectI original(-300, 200, 640, 480);
+        const Salix::RectD doubles(original);
+        const Salix::RectI restored(doubles);
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("rect extended zero width and height still participate in strict value equality") {
+        const Salix::RectI empty(5, 7, 0, 0);
+        CHECK(empty == Salix::RectI(5, 7, 0, 0));
+        CHECK(empty != Salix::RectI(5, 8, 0, 0));
+        CHECK(empty != Salix::RectI(5, 7, 0, 1));
+    }
+
+    TEST_CASE("rect extended negative rectangle extents are distinct from their positive counterparts") {
+        const Salix::RectI flipped(0, 0, -64, -32);
+        const Salix::RectI normal(0, 0, 64, 32);
+        CHECK(flipped != normal);
+        CHECK(flipped.w == -64);
+        CHECK(flipped.h == -32);
+    }
+
+    TEST_CASE("rect extended binary serialization of double rectangle roundtrips exact values") {
+        Salix::RectD original(-0.125, 22.5, 12345.75, -333.0625);
+        std::stringstream bytes;
+        { cereal::BinaryOutputArchive out(bytes); out(original); }
+        Salix::RectD restored;
+        { cereal::BinaryInputArchive in(bytes); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("rect extended JSON serialization uses named coordinate fields for portability") {
+        Salix::RectI original(17, -8, 99, 201);
+        std::stringstream json;
+        { cereal::JSONOutputArchive out(json); out(original); }
+        const std::string data = json.str();
+        CHECK(data.find("\"x\"") != std::string::npos);
+        CHECK(data.find("\"y\"") != std::string::npos);
+        CHECK(data.find("\"w\"") != std::string::npos);
+        CHECK(data.find("\"h\"") != std::string::npos);
+    }
+
+    TEST_CASE("rect extended rectangle stream output handles zero negative dimensions and signs") {
+        std::ostringstream stream;
+        stream << Salix::RectI(0, -7, 0, -10);
+        CHECK(stream.str() == "{ x: 0, y: -7, w: 0, h: -10 }");
+    }
+}
