@@ -280,3 +280,80 @@ TEST_SUITE("Salix::math::RectExtended") {
         CHECK(stream.str() == "{ x: 0, y: -7, w: 0, h: -10 }");
     }
 }
+
+// Value and ownership contracts for the existing canonical suite.
+#include <vector>
+#include <cereal/types/vector.hpp>
+TEST_SUITE("Salix::math::RectBatch647") {
+    TEST_CASE("a double-to-float-to-double roundtrip retains dyadic fractional rectangles") {
+        Salix::RectD original(-1.125,2.25,7.5,-8.75);
+        const Salix::RectF as_float(original);
+        const Salix::RectD restored(as_float);
+        CHECK(restored==original);
+    }
+
+    TEST_CASE("integer conversion of signed fractional extents truncates toward zero") {
+        Salix::RectD real(-8.75,3.5,-20.25,10.99);
+        const Salix::RectI converted(real);
+        CHECK(converted==Salix::RectI(-8,3,-20,10));
+    }
+
+    TEST_CASE("mixed numeric constructors preserve independently typed components") {
+        Salix::RectD value(-4,3.25f,5ULL,-0.5);
+        CHECK(value.x==-4.);
+        CHECK(value.y==3.25);
+        CHECK(value.w==5.);
+        CHECK(value.h==-0.5);
+    }
+
+    TEST_CASE("rectangle equality depends on the position even for zero-area rectangles") {
+        const Salix::RectI a(0,0,0,0),b(1,0,0,0),c(0,1,0,0);
+        CHECK(a!=b);
+        CHECK(a!=c);
+        CHECK(b!=c);
+    }
+
+    TEST_CASE("rectangle assignment does not alias copied value fields") {
+        Salix::RectI a(2,4,6,8),b=a;
+        b.w=100;b.h=-50;
+        CHECK(a.w==6);
+        CHECK(a.h==8);
+        CHECK(b!=a);
+    }
+
+    TEST_CASE("serialized JSON includes all four independently named members") {
+        Salix::RectD original(-2.5,4.125,8.25,-16.5);
+        std::stringstream stream;{cereal::JSONOutputArchive out(stream);out(original);}
+        const std::string json=stream.str();
+        for(const char* key:{"\"x\"","\"y\"","\"w\"","\"h\""})CHECK(json.find(key)!=std::string::npos);
+    }
+
+    TEST_CASE("JSON roundtrip maintains negative and positive double precision dimensions") {
+        Salix::RectD original(-0.125,0.375,-9.625,1200.5);
+        std::stringstream stream;{cereal::JSONOutputArchive out(stream);out(original);}
+        Salix::RectD restored;{cereal::JSONInputArchive in(stream);in(restored);}
+        CHECK(restored==original);
+    }
+
+    TEST_CASE("binary archive roundtrips multiple rectangles without losing order") {
+        std::vector<Salix::RectI> values{Salix::RectI(1,2,3,4),Salix::RectI(-4,-3,-2,-1)};
+        std::stringstream stream;{cereal::BinaryOutputArchive out(stream);out(values);}
+        std::vector<Salix::RectI> loaded;{cereal::BinaryInputArchive in(stream);in(loaded);}
+        REQUIRE(loaded.size()==2);
+        CHECK(loaded[0]==values[0]);
+        CHECK(loaded[1]==values[1]);
+    }
+
+    TEST_CASE("a float rectangle retains the same signed values in its stream representation") {
+        std::ostringstream out;out<<Salix::RectF(-2.5f,0.f,3.25f,-4.f);
+        CHECK(out.str()=="{ x: -2.5, y: 0, w: 3.25, h: -4 }");
+    }
+
+    TEST_CASE("restoring JSON into a populated rectangle replaces every coordinate") {
+        Salix::RectI original(-20,-10,30,40),target(1,2,3,4);
+        std::stringstream data;{cereal::JSONOutputArchive out(data);out(original);}
+        {cereal::JSONInputArchive in(data);in(target);}
+        CHECK(target==original);
+        CHECK(original==Salix::RectI(-20,-10,30,40));
+    }
+}
