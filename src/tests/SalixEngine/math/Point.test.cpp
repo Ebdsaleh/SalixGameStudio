@@ -242,7 +242,7 @@ TEST_SUITE("Salix::Batch747::PointBatch747") {
     }
 
     TEST_CASE("point clearing one copied coordinate does not clear its independent source") {
-        Salix::Point first{3,7},second=first;second.x=0;CHECK(first==Salix::Point{3,7});CHECK(second==Salix::Point{0,7});
+        Salix::Point first{3,7},second=first;second.x=0;CHECK((first==Salix::Point{3,7}));CHECK((second==Salix::Point{0,7}));
     }
 
     TEST_CASE("point self assignment preserves both axes of a signed location") {
