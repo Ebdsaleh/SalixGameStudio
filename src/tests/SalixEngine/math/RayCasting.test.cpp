@@ -208,3 +208,90 @@ TEST_SUITE("Salix::math::RayCastingRegression") {
         CHECK(distance == 99.f);
     }
 }
+
+// Signed axis slabs, inside-origin exit faces and offset viewport equivalence.
+TEST_SUITE("Salix::math::RayCastingAdditional") {
+    TEST_CASE("ray positive X ray reaches first X slab at predicted distance") {
+        const Salix::Ray ray{{-7.f, 0.f, 0.f}, {1.f, 0.f, 0.f}};
+        float distance = -1.f;
+        CHECK(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-2.f, -1.f, -1.f), glm::vec3(2.f, 1.f, 1.f), distance));
+        CHECK(distance == doctest::Approx(5.f));
+    }
+
+    TEST_CASE("ray negative X ray reaches far-side X slab from the right") {
+        const Salix::Ray ray{{7.f, 0.f, 0.f}, {-1.f, 0.f, 0.f}};
+        float distance = -1.f;
+        CHECK(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-2.f, -1.f, -1.f), glm::vec3(2.f, 1.f, 1.f), distance));
+        CHECK(distance == doctest::Approx(5.f));
+    }
+
+    TEST_CASE("ray positive Y ray intersects an elongated vertical box at lower face") {
+        const Salix::Ray ray{{0.f, -8.f, 0.f}, {0.f, 1.f, 0.f}};
+        float distance = -1.f;
+        CHECK(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.f, -3.f, -1.f), glm::vec3(1.f, 3.f, 1.f), distance));
+        CHECK(distance == doctest::Approx(5.f));
+    }
+
+    TEST_CASE("ray negative Y ray intersects at the upper face from above") {
+        const Salix::Ray ray{{0.f, 8.f, 0.f}, {0.f, -1.f, 0.f}};
+        float distance = -1.f;
+        CHECK(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.f, -3.f, -1.f), glm::vec3(1.f, 3.f, 1.f), distance));
+        CHECK(distance == doctest::Approx(5.f));
+    }
+
+    TEST_CASE("ray positive Z ray encounters a box whose near face is negative") {
+        const Salix::Ray ray{{0.f, 0.f, -9.f}, {0.f, 0.f, 1.f}};
+        float distance = -1.f;
+        CHECK(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.f, -1.f, -4.f), glm::vec3(1.f, 1.f, 2.f), distance));
+        CHECK(distance == doctest::Approx(5.f));
+    }
+
+    TEST_CASE("ray negative Z ray encounters a box whose near face is positive") {
+        const Salix::Ray ray{{0.f, 0.f, 9.f}, {0.f, 0.f, -1.f}};
+        float distance = -1.f;
+        CHECK(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.f, -1.f, -4.f), glm::vec3(1.f, 1.f, 2.f), distance));
+        CHECK(distance == doctest::Approx(7.f));
+    }
+
+    TEST_CASE("ray rays originating within asymmetric box use forward exit face") {
+        const Salix::Ray ray_x{{0.f, 0.f, 0.f}, {1.f, 0.f, 0.f}};
+        const Salix::Ray ray_y{{0.f, 0.f, 0.f}, {0.f, -1.f, 0.f}};
+        float x = -1.f, y = -1.f;
+        CHECK(Salix::Raycast::IntersectsAABB(ray_x, glm::vec3(-2.f, -3.f, -4.f), glm::vec3(5.f, 6.f, 7.f), x));
+        CHECK(Salix::Raycast::IntersectsAABB(ray_y, glm::vec3(-2.f, -3.f, -4.f), glm::vec3(5.f, 6.f, 7.f), y));
+        CHECK(x == doctest::Approx(5.f));
+        CHECK(y == doctest::Approx(3.f));
+    }
+
+    TEST_CASE("ray ray with parallel axis outside slab is rejected without altering output") {
+        const Salix::Ray ray{{0.f, 8.f, -5.f}, {0.f, 0.f, 1.f}};
+        float distance = 314.f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.f, -1.f, -1.f), glm::vec3(1.f, 1.f, 1.f), distance));
+        CHECK(distance == 314.f);
+    }
+
+    TEST_CASE("ray translated oriented box along X reports correct near face") {
+        const Salix::Ray ray{{-5.f, 0.f, 0.f}, {1.f, 0.f, 0.f}};
+        const glm::mat4 transform = glm::translate(glm::mat4(1.f), glm::vec3(10.f, 0.f, 0.f));
+        float distance = -1.f;
+        CHECK(Salix::Raycast::IntersectsOBB(ray, transform, glm::vec3(2.f, 1.f, 1.f), distance));
+        CHECK(distance == doctest::Approx(13.f));
+    }
+
+    TEST_CASE("ray viewport offset produces identical center ray in both coordinate overloads") {
+        MockICamera camera;
+        const glm::mat4 view = glm::lookAt(glm::vec3(0.f, 0.f, 5.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 1.f, 0.f));
+        const glm::mat4 projection = glm::perspective(glm::radians(60.f), 4.f / 3.f, 0.1f, 100.f);
+        const_cast<glm::mat4&>(camera.get_view_matrix()) = view;
+        const_cast<glm::mat4&>(camera.get_projection_matrix()) = projection;
+        const auto vector_ray = Salix::Raycast::CreateRayFromScreen(&camera, Salix::Vector2(500.f, 350.f), Salix::Vector2(100.f, 50.f), Salix::Vector2(800.f, 600.f));
+        const auto imgui_ray = Salix::Raycast::CreateRayFromScreen(&camera, ImVec2(500.f, 350.f), ImVec2(100.f, 50.f), ImVec2(800.f, 600.f));
+        CHECK(vector_ray.origin.z == doctest::Approx(5.f));
+        CHECK(vector_ray.direction.x == doctest::Approx(0.f).epsilon(0.001));
+        CHECK(vector_ray.direction.y == doctest::Approx(0.f).epsilon(0.001));
+        CHECK(vector_ray.direction.z == doctest::Approx(-1.f));
+        CHECK(imgui_ray.direction.x == doctest::Approx(vector_ray.direction.x));
+        CHECK(imgui_ray.direction.y == doctest::Approx(vector_ray.direction.y));
+        CHECK(imgui_ray.direction.z == doctest::Approx(vector_ray.direction.z));
+    }
+}
