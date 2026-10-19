@@ -357,3 +357,46 @@ TEST_SUITE("Salix::math::RectBatch647") {
         CHECK(original==Salix::RectI(-20,-10,30,40));
     }
 }
+
+// Typed value and archive boundary tests added without touching runtime assets.
+TEST_SUITE("Salix::Batch747::RectBatch747") {
+    TEST_CASE("rectangle arithmetic constructor accepts boolean extents as zero and one") {
+        const Salix::RectI r(-7,4,true,false);CHECK(r.x==-7);CHECK(r.y==4);CHECK(r.w==1);CHECK(r.h==0);
+    }
+
+    TEST_CASE("rectangle double coordinate conversion to float preserves exact power of two fractions") {
+        const Salix::RectD src(-0.0625,1.125,4.5,-8.25);const Salix::RectF out(src);CHECK(out==Salix::RectF(-0.0625f,1.125f,4.5f,-8.25f));
+    }
+
+    TEST_CASE("rectangle converting signed decimal fractions into integers truncates each member individually") {
+        const Salix::RectD src(-0.99,-3.01,5.99,-8.99);const Salix::RectI out(src);CHECK(out==Salix::RectI(0,-3,5,-8));
+    }
+
+    TEST_CASE("rectangle integral construction retains large representable signed dimensions") {
+        const Salix::RectI r(-1048576,1048576,32768,-32768);CHECK(r.x==-1048576);CHECK(r.y==1048576);CHECK(r.w==32768);CHECK(r.h==-32768);
+    }
+
+    TEST_CASE("rectangle independent copies of floating extents do not share mutable storage") {
+        Salix::RectF a(-2.f,3.f,4.f,-5.f),b=a;b.x=100.f;b.h=0.f;CHECK(a==Salix::RectF(-2.f,3.f,4.f,-5.f));CHECK(b!=a);
+    }
+
+    TEST_CASE("rectangle four-field equality is transitive across separately constructed double values") {
+        const Salix::RectD a(2.125,-3.5,100.25,-1.125),b=a,c=b;CHECK(a==b);CHECK(b==c);CHECK(a==c);CHECK_FALSE(a!=c);
+    }
+
+    TEST_CASE("rectangle flipping width sign cannot preserve equality even at the same position") {
+        const Salix::RectD positive(-4.,7.,16.,9.),flipped(-4.,7.,-16.,9.);CHECK(positive!=flipped);CHECK(positive.x==flipped.x);CHECK(positive.y==flipped.y);
+    }
+
+    TEST_CASE("rectangle binary consecutive archives restore float and integer values separately") {
+        Salix::RectI ints(-1,2,-3,4);Salix::RectF floats(0.125f,-0.5f,3.25f,10.f);std::stringstream ss;{cereal::BinaryOutputArchive out(ss);out(ints,floats);}Salix::RectI a;Salix::RectF b;{cereal::BinaryInputArchive in(ss);in(a,b);}CHECK(a==ints);CHECK(b==floats);
+    }
+
+    TEST_CASE("rectangle JSON vector retains duplicate rectangles and a final negative-width rectangle") {
+        std::vector<Salix::RectI> a{Salix::RectI(1,2,3,4),Salix::RectI(1,2,3,4),Salix::RectI(1,2,-3,4)};std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(a);}std::vector<Salix::RectI> b;{cereal::JSONInputArchive in(ss);in(b);}REQUIRE(b.size()==3);CHECK(b[0]==b[1]);CHECK(b[1]!=b[2]);
+    }
+
+    TEST_CASE("rectangle serializing and restoring an empty double rectangle replaces populated destination") {
+        Salix::RectD empty(0.,0.,0.,0.),target(1.,2.,3.,4.);std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(empty);}{cereal::JSONInputArchive in(ss);in(target);}CHECK(target==empty);
+    }
+}
