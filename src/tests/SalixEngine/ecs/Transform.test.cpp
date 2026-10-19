@@ -767,3 +767,113 @@ TEST_SUITE("Salix::ecs::Transform") {
     }
     
 }
+
+// Hierarchy translation and transform-space conversion regression contracts.
+#include <glm/glm.hpp>
+TEST_SUITE("Salix::ecs::TransformAdditional") {
+    TEST_CASE("transform Vector3 translation composes relative movement in every axis") {
+        Salix::Transform t;
+        t.set_position(5.f, -8.f, 2.f);
+        t.translate(Salix::Vector3(-2.f, 3.f, 6.f));
+        CHECK(t.get_position() == Salix::Vector3(3.f, -5.f, 8.f));
+    }
+
+    TEST_CASE("transform GLM translation overload matches world position without a parent") {
+        Salix::Transform t;
+        t.translate(glm::vec3(2.5f, -4.f, 1.25f));
+        CHECK(t.get_position() == Salix::Vector3(2.5f, -4.f, 1.25f));
+        CHECK(t.get_world_position() == Salix::Vector3(2.5f, -4.f, 1.25f));
+    }
+
+    TEST_CASE("transform all rotation overloads update the same local Euler storage") {
+        Salix::Transform t;
+        t.set_rotation(2.f, 4.f, 8.f);
+        t.rotate(Salix::Vector3(1.f, 3.f, -2.f));
+        t.rotate(4.f, -1.f, 1.f);
+        t.rotate(glm::vec3(-3.f, 2.f, 5.f));
+        CHECK(t.get_rotation() == Salix::Vector3(4.f, 8.f, 12.f));
+    }
+
+    TEST_CASE("transform unparented world setters roundtrip position scale and rotation") {
+        Salix::Transform t;
+        t.set_world_position(Salix::Vector3(7.f, -3.f, 11.f));
+        t.set_world_scale(Salix::Vector3(2.f, 3.f, 4.f));
+        t.set_world_rotation(Salix::Vector3(0.f, 0.f, 0.f));
+        CHECK(t.get_position() == Salix::Vector3(7.f, -3.f, 11.f));
+        CHECK(t.get_scale() == Salix::Vector3(2.f, 3.f, 4.f));
+        CHECK(t.get_world_position() == Salix::Vector3(7.f, -3.f, 11.f));
+    }
+
+    TEST_CASE("transform root transformed local point accounts for translation and nonuniform scaling") {
+        Salix::Transform t;
+        t.set_position(10.f, 20.f, 30.f);
+        t.set_scale(2.f, 3.f, 4.f);
+        const auto world = t.get_world_position_of_local_point(Salix::Vector3(1.f, -2.f, 2.f));
+        CHECK(world == Salix::Vector3(12.f, 14.f, 38.f));
+        const auto original = t.get_local_position_of_world_point(world);
+        CHECK(original.x == doctest::Approx(1.f));
+        CHECK(original.y == doctest::Approx(-2.f));
+        CHECK(original.z == doctest::Approx(2.f));
+    }
+
+    TEST_CASE("transform parent space world conversion includes parent translation") {
+        Salix::Transform parent, child;
+        parent.set_position(10.f, 20.f, 30.f);
+        child.set_parent(&parent);
+        CHECK(child.local_to_world_position(Salix::Vector3(2.f, -5.f, 1.f)) == Salix::Vector3(12.f, 15.f, 31.f));
+        CHECK(child.world_to_local_position(Salix::Vector3(12.f, 15.f, 31.f)) == Salix::Vector3(2.f, -5.f, 1.f));
+    }
+
+    TEST_CASE("transform world position setter derives correct local position with translated parent") {
+        Salix::Transform parent, child;
+        parent.set_position(100.f, -20.f, 7.f);
+        child.set_parent(&parent);
+        child.set_world_position(Salix::Vector3(108.f, -18.f, 3.f));
+        CHECK(child.get_position() == Salix::Vector3(8.f, 2.f, -4.f));
+        CHECK(child.get_world_position() == Salix::Vector3(108.f, -18.f, 3.f));
+    }
+
+    TEST_CASE("transform three level translation hierarchy composes world position") {
+        Salix::Transform root, middle, leaf;
+        root.set_position(1.f, 2.f, 3.f);
+        middle.set_parent(&root);
+        leaf.set_parent(&middle);
+        middle.set_position(4.f, 5.f, 6.f);
+        leaf.set_position(7.f, 8.f, 9.f);
+        CHECK(leaf.get_world_position() == Salix::Vector3(12.f, 15.f, 18.f));
+        CHECK(leaf.is_child_of(&root));
+        CHECK(leaf.is_child_of(&middle));
+    }
+
+    TEST_CASE("transform reparenting between translations preserves absolute location") {
+        Salix::Transform first, second, child;
+        first.set_position(3.f, 5.f, 7.f);
+        second.set_position(-10.f, 9.f, 1.f);
+        child.set_position(20.f, 30.f, 40.f);
+        child.set_parent(&first);
+        const auto before = child.get_world_position();
+        child.set_parent(&second);
+        const auto after = child.get_world_position();
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+        CHECK(first.get_children().empty());
+        REQUIRE(second.get_children().size() == 1);
+        CHECK(second.get_children().front() == &child);
+    }
+
+    TEST_CASE("transform releasing from translated parent preserves world translation and removes link") {
+        Salix::Transform parent, child;
+        parent.set_position(5.f, 10.f, 15.f);
+        child.set_position(7.f, 8.f, 9.f);
+        child.set_parent(&parent);
+        child.set_position(1.f, 2.f, 3.f);
+        const auto old_world = child.get_world_position();
+        child.release_from_parent();
+        CHECK(child.get_parent() == nullptr);
+        CHECK(parent.get_children().empty());
+        CHECK(child.get_world_position().x == doctest::Approx(old_world.x));
+        CHECK(child.get_world_position().y == doctest::Approx(old_world.y));
+        CHECK(child.get_world_position().z == doctest::Approx(old_world.z));
+    }
+}
