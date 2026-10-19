@@ -6,7 +6,7 @@ include("${CMAKE_SOURCE_DIR}/vendor/doctest/scripts/cmake/doctest.cmake")
 option(ENABLE_COVERAGE "Enable code coverage generation with OpenCppCoverage" OFF)
 
 function(create_salix_test_suite MODULE_NAME)
-    file(GLOB_RECURSE TEST_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_NAME}/*.test.cpp")
+    file(GLOB_RECURSE TEST_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${MODULE_NAME}/*.test.cpp")
 
     if(TEST_SOURCES)
         set(EXECUTABLE_NAME "${MODULE_NAME}_tests")
