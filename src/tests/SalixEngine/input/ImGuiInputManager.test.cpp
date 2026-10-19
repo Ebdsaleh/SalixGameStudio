@@ -150,3 +150,46 @@ TEST_SUITE("Salix::input::ImGuiInputManagerExtended") {
         CHECK_FALSE(manager.any_of_combo_was_released(none));
     }
 }
+
+// Isolated virtual-dispatch and GUI-input state behavioral contracts.
+TEST_SUITE("Salix::Batch747::ImGuiInputBatch747") {
+    TEST_CASE("imgui test context bridge points to the owned context throughout a fixture lifetime") {
+        InputManagerContext fixture;CHECK(Salix::ImGuiInputManager::get_context_for_testing()==fixture.owned);CHECK(ImGui::GetCurrentContext()==fixture.owned);
+    }
+
+    TEST_CASE("imgui scroll sign detection handles positive subunit wheel deltas") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;ImGui::GetIO().MouseWheel=0.125f;CHECK(m.did_scroll(Salix::MouseScroll::Forward));CHECK_FALSE(m.did_scroll(Salix::MouseScroll::Backward));CHECK(m.get_mouse_scroll_delta()==0.125f);
+    }
+
+    TEST_CASE("imgui scroll sign detection handles negative subunit wheel deltas") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;ImGui::GetIO().MouseWheel=-0.125f;CHECK_FALSE(m.did_scroll(Salix::MouseScroll::Forward));CHECK(m.did_scroll(Salix::MouseScroll::Backward));CHECK(m.get_mouse_scroll_delta()==-0.125f);
+    }
+
+    TEST_CASE("imgui changing wheel delta back to zero clears both direction flags") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;ImGui::GetIO().MouseWheel=2.f;CHECK(m.did_scroll(Salix::MouseScroll::Forward));ImGui::GetIO().MouseWheel=0.f;CHECK_FALSE(m.did_scroll(Salix::MouseScroll::Forward));CHECK_FALSE(m.did_scroll(Salix::MouseScroll::Backward));
+    }
+
+    TEST_CASE("imgui update does not consume a recorded fractional scroll signal") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;ImGui::GetIO().MouseWheel=0.625f;m.update(1.f/30.f);CHECK(m.get_mouse_scroll_delta()==doctest::Approx(0.625f));m.update(1.f/60.f);CHECK(m.did_scroll(Salix::MouseScroll::Forward));
+    }
+
+    TEST_CASE("imgui mouse position rounds negative subpixel offsets toward zero") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;ImGui::GetIO().MousePos=ImVec2(-0.875f,-0.125f);int x=77,y=99;m.get_mouse_position(&x,&y);CHECK(x==0);CHECK(y==0);
+    }
+
+    TEST_CASE("imgui mouse coordinates query does not modify their float source position") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;ImGui::GetIO().MousePos=ImVec2(42.75f,-9.5f);int x=0,y=0;m.get_mouse_position(&x,&y);CHECK(x==42);CHECK(y==-9);CHECK(ImGui::GetIO().MousePos.x==doctest::Approx(42.75f));CHECK(ImGui::GetIO().MousePos.y==doctest::Approx(-9.5f));
+    }
+
+    TEST_CASE("imgui mouse position may be queried repeatedly after changing the raw coordinates") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;int x=0,y=0;ImGui::GetIO().MousePos=ImVec2(3.f,4.f);m.get_mouse_position(&x,&y);CHECK(x==3);CHECK(y==4);ImGui::GetIO().MousePos=ImVec2(-8.f,20.f);m.get_mouse_position(&x,&y);CHECK(x==-8);CHECK(y==20);
+    }
+
+    TEST_CASE("imgui manager update preserves quit state while wheel deltas change") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;for(float wheel:{-1.f,0.f,1.f}){ImGui::GetIO().MouseWheel=wheel;m.update(0.125f);CHECK_FALSE(m.wants_to_quit());}
+    }
+
+    TEST_CASE("imgui raw engine event does not overwrite the GUI mouse coordinates") {
+        InputManagerContext fixture;Salix::ImGuiInputManager m;ImGui::GetIO().MousePos=ImVec2(-24.5f,56.75f);Salix::MockEvent raw;m.process_event(raw);int x=0,y=0;m.get_mouse_position(&x,&y);CHECK(x==-24);CHECK(y==56);CHECK_FALSE(m.wants_to_quit());
+    }
+}
