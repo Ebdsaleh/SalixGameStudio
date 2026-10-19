@@ -434,3 +434,47 @@ TEST_SUITE("Salix::management::FileManagerAdditional20261019") {
         CHECK(std::filesystem::path(string_relative).generic_string()=="assets/level.dat");
     }
 }
+
+
+// Additional stable contracts for the 847+ coverage batch.
+TEST_SUITE("Salix::management::FileManagerBatch847") {
+    TEST_CASE("file manager reads embedded NUL bytes without truncation") {
+        const std::string path=test_dir+"/nul.bin"; const std::string bytes("A\0B\0C",5); create_dummy_file(path,bytes); const auto loaded=Salix::FileManager::read_file_content(path); REQUIRE(loaded.size()==5); CHECK(loaded==bytes);
+    }
+
+    TEST_CASE("file manager reports exact size for binary data containing high bytes") {
+        const std::string path=test_dir+"/high.bin"; const std::string bytes("\x00\x7f\x80\xff",4); create_dummy_file(path,bytes); CHECK(Salix::FileManager::get_file_size(path)==4);
+    }
+
+    TEST_CASE("file manager copy overwrites an existing destination atomically from caller perspective") {
+        const std::string src=test_dir+"/src-overwrite.bin",dst=test_dir+"/dst-overwrite.bin"; create_dummy_file(src,"new-data"); create_dummy_file(dst,"old"); REQUIRE(Salix::FileManager::copy_file(src,dst)); CHECK(Salix::FileManager::read_file_content(dst)=="new-data");
+    }
+
+    TEST_CASE("file manager failed copy leaves an existing destination unchanged") {
+        const std::string dst=test_dir+"/protected.txt"; create_dummy_file(dst,"keep-me"); CHECK_FALSE(Salix::FileManager::copy_file(test_dir+"/missing-source.txt",dst)); CHECK(Salix::FileManager::read_file_content(dst)=="keep-me");
+    }
+
+    TEST_CASE("file manager regular file predicate rejects directories but accepts empty files") {
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(test_dir)); CHECK(Salix::FileManager::is_regular_file_and_exists(empty_test_file));
+    }
+
+    TEST_CASE("file manager reading a missing file returns an empty string without creating it") {
+        const std::string missing=test_dir+"/never-created.bin"; CHECK(Salix::FileManager::read_file_content(missing).empty()); CHECK_FALSE(std::filesystem::exists(missing));
+    }
+
+    TEST_CASE("file manager hex dump emits printable ASCII and dots for control bytes") {
+        const std::string path=test_dir+"/hex-contract.bin"; create_dummy_file(path,std::string("A\nB",3)); const auto dump=Salix::FileManager::generate_hex_dump(path); CHECK(dump.find("41 0a 42")!=std::string::npos); CHECK(dump.find("A.B")!=std::string::npos);
+    }
+
+    TEST_CASE("file manager hex dump marks an unreadable missing file as empty or unreadable") {
+        const auto dump=Salix::FileManager::generate_hex_dump(test_dir+"/missing.hex"); CHECK(dump.find("File is empty or could not be read.")!=std::string::npos); CHECK(dump.find("---END HEX DUMP---")!=std::string::npos);
+    }
+
+    TEST_CASE("file manager string relative conversion normalizes mixed separators inside root") {
+        const std::string root="C:\\Project"; const std::string absolute="C:/Project/Assets\\Sprites/player.png"; CHECK(Salix::FileManager::convert_to_relative(root,absolute)=="Assets/Sprites/player.png");
+    }
+
+    TEST_CASE("file manager nested directory creation remains successful when repeated") {
+        const std::string nested=test_dir+"/a/b/c"; REQUIRE(Salix::FileManager::create_directories(nested)); REQUIRE(std::filesystem::is_directory(nested)); CHECK(Salix::FileManager::create_directories(nested)); CHECK(std::filesystem::is_directory(nested));
+    }
+}
