@@ -5,7 +5,8 @@
 
 #include <doctest.h>
 #include <Salix/core/EngineInfo.h>
-#include <string>\n#include <algorithm>
+#include <string>
+#include <algorithm>
 
 TEST_SUITE("Salix::core::EngineInfo") {
     TEST_CASE("get_engine_version returns correct version string") {
