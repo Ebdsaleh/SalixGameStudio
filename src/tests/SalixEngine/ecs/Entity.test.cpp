@@ -557,3 +557,140 @@ TEST_SUITE("Salix::ecs::EntityRegression") {
         CHECK_FALSE(root.is_child_of(&grandchild));
     }
 }
+
+// More entity identity, hierarchy, component type, and reload invariants.
+#include <Salix/core/InitContext.h>
+namespace {
+    class AdditionalEntityProbe final : public Salix::Element {
+    public:
+        int initialized = 0;
+        int loads = 0;
+        int updates = 0;
+        float last_delta = 0.f;
+        const char* get_class_name() const override { return "AdditionalEntityProbe"; }
+        void initialize() override { ++initialized; }
+        void on_load(const Salix::InitContext&) override { ++loads; }
+        void update(float delta) override { ++updates; last_delta = delta; }
+    };
+}
+TEST_SUITE("Salix::ecs::EntityAdditional") {
+    TEST_CASE("entity additional renaming an entity does not regenerate its persistent GUID") {
+        Salix::Entity entity;
+        const auto id = entity.get_id();
+        entity.set_name("Player / Localized Name");
+        CHECK(entity.get_name() == "Player / Localized Name");
+        CHECK(entity.get_id() == id);
+        CHECK(entity.get_transform() != nullptr);
+    }
+
+    TEST_CASE("entity additional reassigning entity ID does not modify owned component GUIDs") {
+        Salix::Entity entity;
+        REQUIRE(entity.get_transform() != nullptr);
+        const auto transform_id = entity.get_transform()->get_id();
+        const auto collider_id = entity.get_element<Salix::BoxCollider>()->get_id();
+        entity.set_id(Salix::SimpleGuid::from_value(44332211));
+        CHECK(entity.get_id().get_value() == 44332211ULL);
+        CHECK(entity.get_transform()->get_id() == transform_id);
+        CHECK(entity.get_element<Salix::BoxCollider>()->get_id() == collider_id);
+    }
+
+    TEST_CASE("entity additional entity visibility toggling preserves ownership and parent relationships") {
+        Salix::Entity parent, child;
+        child.set_parent(&parent);
+        const auto count = child.get_all_elements().size();
+        child.set_visible(false);
+        CHECK_FALSE(child.is_visible());
+        CHECK(child.get_parent() == &parent);
+        CHECK(child.get_all_elements().size() == count);
+        child.set_visible(true);
+        CHECK(child.is_visible());
+    }
+
+    TEST_CASE("entity additional type query lists both colliders in insertion order after adding a second") {
+        Salix::Entity entity;
+        const auto existing = entity.get_elements_by_type_name("BoxCollider");
+        REQUIRE(existing.size() == 1);
+        auto* second = entity.add_element<Salix::BoxCollider>();
+        REQUIRE(second != nullptr);
+        const auto colliders = entity.get_elements_by_type_name("BoxCollider");
+        REQUIRE(colliders.size() == 2);
+        CHECK(colliders[0] == existing[0]);
+        CHECK(colliders[1] == second);
+    }
+
+    TEST_CASE("entity additional renaming a component changes name lookup but preserves type lookup") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        REQUIRE(transform != nullptr);
+        transform->set_name("RootNodeTransform");
+        CHECK(entity.get_element_by_name("RootNodeTransform") == transform);
+        CHECK(entity.get_element_by_type_name("Transform") == transform);
+        CHECK(entity.get_element_by_name("Transform") == nullptr);
+    }
+
+    TEST_CASE("entity additional element ID lookup follows explicitly restored component identity") {
+        Salix::Entity entity;
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        REQUIRE(collider != nullptr);
+        const auto old = collider->get_id();
+        const auto assigned = Salix::SimpleGuid::from_value(77112233ULL);
+        collider->set_id(assigned);
+        CHECK(entity.get_element_by_id(assigned) == collider);
+        CHECK(entity.get_element_by_id(old) == nullptr);
+    }
+
+    TEST_CASE("entity additional simple purge hides element lookups without immediately destroying ownership") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        REQUIRE(transform != nullptr);
+        const auto id = transform->get_id();
+        const auto count = entity.get_all_elements().size();
+        entity.simple_purge();
+        CHECK(entity.is_purged());
+        CHECK(entity.get_element_by_id(id) == nullptr);
+        CHECK(entity.get_element_by_type_name("Transform") == nullptr);
+        CHECK(entity.get_elements_by_type_name("BoxCollider").empty());
+        CHECK(entity.get_all_elements().size() == count);
+    }
+
+    TEST_CASE("entity additional purging parent orphans children without flagging descendants") {
+        Salix::Entity root, child, sibling;
+        child.set_parent(&root);
+        sibling.set_parent(&root);
+        root.purge();
+        CHECK(root.is_purged());
+        CHECK(root.get_children().empty());
+        CHECK(child.get_parent() == nullptr);
+        CHECK(sibling.get_parent() == nullptr);
+        CHECK_FALSE(child.is_purged());
+        CHECK_FALSE(sibling.is_purged());
+        CHECK(child.get_transform()->get_parent() == nullptr);
+    }
+
+    TEST_CASE("entity additional purging only a leaf never flags its still-alive parent") {
+        Salix::Entity root, leaf;
+        leaf.set_parent(&root);
+        leaf.purge();
+        CHECK(leaf.is_purged());
+        CHECK_FALSE(root.is_purged());
+        CHECK(root.get_children().size() == 1);
+        CHECK(root.get_children()[0] == &leaf);
+    }
+
+    TEST_CASE("entity additional deserialization load restores element owners and reinitializes live components") {
+        Salix::Entity entity;
+        auto* observer = entity.add_element<AdditionalEntityProbe>();
+        REQUIRE(observer != nullptr);
+        REQUIRE(entity.get_transform() != nullptr);
+        CHECK(observer->initialized == 1);
+        Salix::InitContext context{};
+        entity.on_load(context);
+        CHECK(observer->initialized == 2);
+        CHECK(observer->loads == 1);
+        CHECK(observer->get_owner() == &entity);
+        CHECK(entity.get_transform()->get_owner() == &entity);
+        entity.update(0.25f);
+        CHECK(observer->updates == 1);
+        CHECK(observer->last_delta == doctest::Approx(0.25f));
+    }
+}
