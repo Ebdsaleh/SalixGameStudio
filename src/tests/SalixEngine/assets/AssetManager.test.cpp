@@ -207,3 +207,100 @@ TEST_SUITE("Salix::assets::AssetManagerExtended") {
         CHECK(renderer.calls == 1);
     }
 }
+
+// Regression coverage for additional system invariants; original tests retained.
+TEST_SUITE("Salix::assets::AssetManagerBatch647") {
+    TEST_CASE("loading several textures caches each unique path once") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        for(const auto* p:{"assets/one.png","assets/two.png","assets/three.png"}) REQUIRE(manager.get_texture(p)!=nullptr);
+        CHECK(renderer.calls==3);
+        for(const auto* p:{"assets/three.png","assets/two.png","assets/one.png"}) REQUIRE(manager.get_texture(p)!=nullptr);
+        CHECK(renderer.calls==3);
+    }
+
+    TEST_CASE("a dot segment and normalized filename share a texture cache entry") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        auto* a=manager.get_texture("assets/sprites/./character.png");
+        auto* b=manager.get_texture("assets/sprites/character.png");
+        REQUIRE(a!=nullptr);
+        CHECK(a==b);
+        CHECK(renderer.calls==1);
+    }
+
+    TEST_CASE("repeated parent navigation normalizes to the same asset") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        auto* a=manager.get_texture("assets/ui/button.png");
+        auto* b=manager.get_texture("assets/images/../misc/../ui/button.png");
+        REQUIRE(a!=nullptr);
+        CHECK(a==b);
+        CHECK(renderer.calls==1);
+    }
+
+    TEST_CASE("a failed request for one asset does not poison another cached asset") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        renderer.should_texture_load_fail=true;
+        CHECK(manager.get_texture("assets/failed.png")==nullptr);
+        renderer.should_texture_load_fail=false;
+        auto* valid=manager.get_texture("assets/good.png");
+        REQUIRE(valid!=nullptr);
+        CHECK(manager.get_texture("assets/good.png")==valid);
+        CHECK(renderer.calls==2);
+    }
+
+    TEST_CASE("recovery after load failure caches only the successful retry") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        renderer.should_texture_load_fail=true;
+        CHECK(manager.get_texture("assets/recover2.png")==nullptr);
+        renderer.should_texture_load_fail=false;
+        auto* result=manager.get_texture("assets/recover2.png");
+        REQUIRE(result!=nullptr);
+        CHECK(manager.get_texture("assets/recover2.png")==result);
+        CHECK(renderer.calls==2);
+    }
+
+    TEST_CASE("shutdown permits fresh loading of previously cached assets") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        REQUIRE(manager.get_texture("assets/reload.png")!=nullptr);
+        CHECK(renderer.calls==1);
+        manager.shutdown();
+        REQUIRE(manager.get_texture("assets/reload.png")!=nullptr);
+        CHECK(renderer.calls==2);
+    }
+
+    TEST_CASE("clearing one manager cannot evict another manager cache") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager first,second; first.initialize(&renderer); second.initialize(&renderer);
+        REQUIRE(first.get_texture("assets/shared2.png")!=nullptr);
+        auto* retained=second.get_texture("assets/shared2.png"); REQUIRE(retained!=nullptr);
+        first.shutdown();
+        CHECK(second.get_texture("assets/shared2.png")==retained);
+        CHECK(renderer.calls==2);
+    }
+
+    TEST_CASE("cache identity does not change when unrelated textures are loaded") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        auto* first=manager.get_texture("assets/first.png"); REQUIRE(first!=nullptr);
+        REQUIRE(manager.get_texture("assets/second.png")!=nullptr);
+        REQUIRE(manager.get_texture("assets/third.png")!=nullptr);
+        CHECK(manager.get_texture("assets/first.png")==first);
+        CHECK(renderer.calls==3);
+    }
+
+    TEST_CASE("a single cached path is still cached when renderer later begins failing") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        auto* first=manager.get_texture("assets/persistent.png"); REQUIRE(first!=nullptr);
+        renderer.should_texture_load_fail=true;
+        CHECK(manager.get_texture("assets/persistent.png")==first);
+        CHECK(renderer.calls==1);
+    }
+
+    TEST_CASE("renderer records normalized asset paths without dot-dot segments") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        REQUIRE(manager.get_texture("assets/a/../b/./icon.png")!=nullptr);
+        REQUIRE(renderer.paths.size()==1);
+        auto normalized=std::filesystem::path(renderer.paths.front()).lexically_normal();
+        CHECK(normalized==std::filesystem::path(renderer.paths.front()));
+        CHECK(normalized.filename().string()=="icon.png");
+        CHECK(normalized.parent_path().filename().string()=="b");
+    }
+}
