@@ -301,3 +301,46 @@ TEST_SUITE("Salix::core::SimpleGuidExtended") {
         for (std::size_t i = 0; i < source.size(); ++i) CHECK(loaded[i] == source[i]);
     }
 }
+
+// Typed value and archive boundary tests added without touching runtime assets.
+TEST_SUITE("Salix::Batch747::GuidBatch747") {
+    TEST_CASE("guid invalid identity roundtrips independently via JSON and binary") {
+        auto src=Salix::SimpleGuid::invalid();std::stringstream json,bin;{cereal::JSONOutputArchive out(json);out(src);}{cereal::BinaryOutputArchive out(bin);out(src);}Salix::SimpleGuid a,b;{cereal::JSONInputArchive in(json);in(a);}{cereal::BinaryInputArchive in(bin);in(b);}CHECK_FALSE(a.is_valid());CHECK_FALSE(b.is_valid());CHECK(a==b);
+    }
+
+    TEST_CASE("guid value constructor preserves a bit exactly at bit sixty three") {
+        const auto v=Salix::SimpleGuid::from_value(uint64_t{1}<<63);CHECK(v.is_valid());CHECK(v.get_value()==(uint64_t{1}<<63));
+    }
+
+    TEST_CASE("guid nonadjacent high bits preserve strict ordering without signed comparisons") {
+        const auto a=Salix::SimpleGuid::from_value(uint64_t{1}<<40),b=Salix::SimpleGuid::from_value(uint64_t{1}<<60);CHECK(a<b);CHECK_FALSE(b<a);CHECK(a!=b);
+    }
+
+    TEST_CASE("guid two independently decoded identical values compare equal and hash the same") {
+        const auto a=Salix::SimpleGuid::from_value((uint64_t{1}<<52)+23ULL),b=Salix::SimpleGuid::from_value((uint64_t{1}<<52)+23ULL);CHECK(a==b);CHECK(std::hash<Salix::SimpleGuid>{}(a)==std::hash<Salix::SimpleGuid>{}(b));
+    }
+
+    TEST_CASE("guid invalid key is distinct from a valid key in unordered maps") {
+        std::unordered_map<Salix::SimpleGuid,int> counts;counts[Salix::SimpleGuid::invalid()]=4;counts[Salix::SimpleGuid::from_value(1ULL)]=7;REQUIRE(counts.size()==2);CHECK(counts.at(Salix::SimpleGuid::invalid())==4);CHECK(counts.at(Salix::SimpleGuid::from_value(1ULL))==7);
+    }
+
+    TEST_CASE("guid ordered collection sorts values straddling the signed 64 bit boundary") {
+        std::vector<Salix::SimpleGuid> values{Salix::SimpleGuid::from_value(uint64_t{1}<<63),Salix::SimpleGuid::from_value(3ULL),Salix::SimpleGuid::from_value((uint64_t{1}<<63)-1ULL)};std::sort(values.begin(),values.end());CHECK(values[0].get_value()==3ULL);CHECK(values[1].get_value()==((uint64_t{1}<<63)-1ULL));CHECK(values[2].get_value()==(uint64_t{1}<<63));
+    }
+
+    TEST_CASE("guid JSON sequence preserves repeated keys without merging identities") {
+        std::vector<Salix::SimpleGuid> originals{Salix::SimpleGuid::from_value(100ULL),Salix::SimpleGuid::from_value(100ULL),Salix::SimpleGuid::from_value(200ULL)};std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(originals);}std::vector<Salix::SimpleGuid> result;{cereal::JSONInputArchive in(ss);in(result);}REQUIRE(result.size()==3);CHECK(result[0]==result[1]);CHECK(result[1]!=result[2]);
+    }
+
+    TEST_CASE("guid binary sequence retains zero and high bit IDs in separate positions") {
+        std::vector<Salix::SimpleGuid> originals{Salix::SimpleGuid::invalid(),Salix::SimpleGuid::from_value(uint64_t{1}<<63),Salix::SimpleGuid::invalid()};std::stringstream ss;{cereal::BinaryOutputArchive out(ss);out(originals);}std::vector<Salix::SimpleGuid> decoded;{cereal::BinaryInputArchive in(ss);in(decoded);}REQUIRE(decoded.size()==3);CHECK(decoded[0]==decoded[2]);CHECK(decoded[1].is_valid());
+    }
+
+    TEST_CASE("guid copy assignment cannot change a previously retained original identity") {
+        const auto source=Salix::SimpleGuid::from_value(54321ULL);auto copy=source;copy=Salix::SimpleGuid::invalid();CHECK(source.is_valid());CHECK(source.get_value()==54321ULL);CHECK_FALSE(copy.is_valid());
+    }
+
+    TEST_CASE("guid binary serialization bytes are stable for a fixed loaded identity") {
+        auto id=Salix::SimpleGuid::from_value((uint64_t{1}<<43)+99ULL);std::stringstream a,b;{cereal::BinaryOutputArchive out(a);out(id);}{cereal::BinaryOutputArchive out(b);out(id);}CHECK(a.str()==b.str());
+    }
+}
