@@ -167,4 +167,67 @@ TEST_SUITE("Salix::ecs::Realm") {
         CHECK(realm.get_active_camera() == camera);
         CHECK(camera->get_is_active());
     }
+
+    TEST_CASE("switching cameras deactivates old selection and invalid ID clears it") {
+        Salix::Realm realm;
+        Salix::Entity* first_entity = realm.create_entity("FirstCamera");
+        Salix::Entity* second_entity = realm.create_entity("SecondCamera");
+        REQUIRE(first_entity != nullptr);
+        REQUIRE(second_entity != nullptr);
+        Salix::Camera* first = first_entity->add_element<Salix::Camera>();
+        Salix::Camera* second = second_entity->add_element<Salix::Camera>();
+        REQUIRE(first != nullptr);
+        REQUIRE(second != nullptr);
+
+        realm.set_active_camera_entity(first_entity->get_id());
+        REQUIRE(realm.get_active_camera() == first);
+        CHECK(first->get_is_active());
+
+        realm.set_active_camera_entity(second_entity->get_id());
+        CHECK_FALSE(first->get_is_active());
+        REQUIRE(realm.get_active_camera() == second);
+        CHECK(second->get_is_active());
+
+        realm.set_active_camera_entity(Salix::SimpleGuid::invalid());
+        CHECK(realm.get_active_camera() == nullptr);
+        CHECK(realm.get_main_camera_entity_id() == Salix::SimpleGuid::invalid());
+        CHECK_FALSE(second->get_is_active());
+    }
+
+    TEST_CASE("purging a selected camera clears its non-owning pointer") {
+        Salix::Realm realm;
+        Salix::Entity* camera_entity = realm.create_entity("CameraToRemove");
+        Salix::Entity* survivor = realm.create_entity("Survivor");
+        REQUIRE(camera_entity != nullptr);
+        REQUIRE(survivor != nullptr);
+        Salix::Camera* camera = camera_entity->add_element<Salix::Camera>();
+        REQUIRE(camera != nullptr);
+        const Salix::SimpleGuid removed_id = camera_entity->get_id();
+        const Salix::SimpleGuid survivor_id = survivor->get_id();
+        realm.set_active_camera_entity(removed_id);
+        REQUIRE(realm.get_active_camera() == camera);
+
+        camera_entity->simple_purge();
+        realm.maintain();
+        CHECK(realm.get_entity_by_id(removed_id) == nullptr);
+        CHECK(realm.get_active_camera() == nullptr);
+        CHECK(realm.get_main_camera_entity_id() == Salix::SimpleGuid::invalid());
+        CHECK(realm.get_entity_by_id(survivor_id) == survivor);
+    }
+
+    TEST_CASE("clearing all entities also resets active camera state") {
+        Salix::Realm realm;
+        Salix::Entity* camera_entity = realm.create_entity("MainCamera");
+        REQUIRE(camera_entity != nullptr);
+        Salix::Camera* camera = camera_entity->add_element<Salix::Camera>();
+        REQUIRE(camera != nullptr);
+        realm.set_active_camera_entity(camera_entity->get_id());
+        REQUIRE(realm.get_active_camera() == camera);
+
+        realm.clear_all_entities();
+        CHECK(realm.get_entities().empty());
+        CHECK(realm.get_active_camera() == nullptr);
+        CHECK(realm.get_main_camera_entity_id() == Salix::SimpleGuid::invalid());
+    }
+
 }
