@@ -28,11 +28,23 @@ TEST_SUITE("Salix::input::ImGuiInputManager") {
 #include <Tests/SalixEngine/mocking/events/MockEventSystem.h>
 namespace {
 struct InputManagerContext {
-    ImGuiContext* previous = ImGui::GetCurrentContext();
+    ImGuiContext* previous_test = ImGui::GetCurrentContext();
+    ImGuiContext* previous_engine = Salix::ImGuiInputManager::get_context_for_testing();
     ImGuiContext* owned = ImGui::CreateContext();
+
+    InputManagerContext() {
+        // A copy of ImGui's global current-context pointer may live in
+        // SalixEngine.dll when it is statically linked into both modules.
+        // Ensure the exported input manager sees this same owned context.
+        Salix::ImGuiInputManager::set_context_for_testing(owned);
+    }
+
     ~InputManagerContext() {
+        // Restore the engine's context before destroying the owned context:
+        // no dangling DLL-side GImGui survives between CTest cases.
+        Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
         ImGui::DestroyContext(owned);
-        ImGui::SetCurrentContext(previous);
+        ImGui::SetCurrentContext(previous_test);
     }
 };
 }
