@@ -307,3 +307,130 @@ TEST_SUITE("Salix::management::FileManager") {
         }
     }
 }
+
+// Isolated FileManager fixture: never deletes or overwrites user/project paths.
+#include <chrono>
+#include <system_error>
+#include <iterator>
+namespace {
+    struct FileManagerOwnedTemp20261019 {
+        std::filesystem::path root;
+        bool owned=false;
+
+        FileManagerOwnedTemp20261019() {
+            std::error_code ec;
+            auto base=std::filesystem::temp_directory_path(ec);
+            if(ec) return;
+            const auto tick=std::chrono::steady_clock::now().time_since_epoch().count();
+            for(int i=0;i<32;++i) {
+                root=base/("salix-fm-20261019-"+std::to_string(tick)+"-"+std::to_string(i));
+                ec.clear();
+                if(std::filesystem::create_directory(root,ec)) {owned=true;return;}
+                if(ec) break;
+            }
+            root.clear();
+        }
+        FileManagerOwnedTemp20261019(const FileManagerOwnedTemp20261019&)=delete;
+        FileManagerOwnedTemp20261019& operator=(const FileManagerOwnedTemp20261019&)=delete;
+        ~FileManagerOwnedTemp20261019() {
+            if(!owned) return;
+            std::error_code ec;
+            std::filesystem::remove_all(root,ec);
+        }
+        std::string file(const char* name) const {return (root/name).string();}
+        void write(const char* name,const std::string& data) const {
+            std::ofstream out(file(name),std::ios::binary);
+            out.write(data.data(),static_cast<std::streamsize>(data.size()));
+        }
+    };
+}
+TEST_SUITE("Salix::management::FileManagerAdditional20261019") {
+    TEST_CASE("file manager isolated owned directory creation supports arbitrarily nested names") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto nested=temp.root/"one"/"two"/"three";
+        CHECK(Salix::FileManager::create_directories(nested.string()));
+        CHECK(std::filesystem::is_directory(nested));
+        CHECK(Salix::FileManager::create_directories(nested.string()));
+    }
+
+    TEST_CASE("file manager isolated single directory creation accepts a preexisting owned directory") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        CHECK(Salix::FileManager::create_directory(temp.root.string()));
+        CHECK(std::filesystem::is_directory(temp.root));
+    }
+
+    TEST_CASE("file manager isolated file obstruction cannot silently become a directory tree") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("blocker","data");
+        CHECK_FALSE(Salix::FileManager::create_directories((temp.root/"blocker"/"nested").string()));
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("blocker")));
+    }
+
+    TEST_CASE("file manager isolated binary file read retains embedded null and high bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string bytes{char(0),char(1),char(127),char(255),'X'};
+        temp.write("binary.dat",bytes);
+        CHECK(Salix::FileManager::read_file_content(temp.file("binary.dat"))==bytes);
+        CHECK(Salix::FileManager::get_file_size(temp.file("binary.dat"))==bytes.size());
+    }
+
+    TEST_CASE("file manager isolated empty file is distinguished from a missing regular file") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("empty.dat","");
+        CHECK(Salix::FileManager::path_exists(temp.file("empty.dat")));
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("empty.dat")));
+        CHECK(Salix::FileManager::get_file_size(temp.file("empty.dat"))==0);
+        CHECK_FALSE(Salix::FileManager::path_exists(temp.file("missing.dat")));
+    }
+
+    TEST_CASE("file manager isolated copying onto an existing file replaces destination without changing source") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("source.dat","replacement");
+        temp.write("target.dat","old");
+        CHECK(Salix::FileManager::copy_file(temp.file("source.dat"),temp.file("target.dat")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("target.dat"))=="replacement");
+        CHECK(Salix::FileManager::read_file_content(temp.file("source.dat"))=="replacement");
+    }
+
+    TEST_CASE("file manager isolated missing copy source leaves destination absent") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        CHECK_FALSE(Salix::FileManager::copy_file(temp.file("absent.dat"),temp.file("output.dat")));
+        CHECK_FALSE(Salix::FileManager::path_exists(temp.file("output.dat")));
+    }
+
+    TEST_CASE("file manager isolated hex dump encodes control bytes and printable bytes separately") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("bytes.dat",std::string{'A','\n','B'});
+        const auto dump=Salix::FileManager::generate_hex_dump(temp.file("bytes.dat"));
+        CHECK(dump.find("Length: 3 bytes")!=std::string::npos);
+        CHECK(dump.find("41 0a 42")!=std::string::npos);
+        CHECK(dump.find("A.B")!=std::string::npos);
+    }
+
+    TEST_CASE("file manager isolated hex dump emits an ASCII group at the sixteen-byte boundary") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("line.dat","0123456789ABCDEF");
+        const auto dump=Salix::FileManager::generate_hex_dump(temp.file("line.dat"));
+        CHECK(dump.find("Length: 16 bytes")!=std::string::npos);
+        CHECK(dump.find("0123456789ABCDEF")!=std::string::npos);
+    }
+
+    TEST_CASE("file manager isolated relative conversion reports owned nested paths without touching files") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto child=temp.root/"assets"/"level.dat";
+        const auto relative=Salix::FileManager::convert_to_relative_path(temp.root.string(),child.string());
+        CHECK(std::filesystem::path(relative).generic_string()=="assets/level.dat");
+        const auto string_relative=Salix::FileManager::convert_to_relative(temp.root.string(),child.string());
+        CHECK(std::filesystem::path(string_relative).generic_string()=="assets/level.dat");
+    }
+}
