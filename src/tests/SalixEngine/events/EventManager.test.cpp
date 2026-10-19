@@ -256,3 +256,132 @@ TEST_SUITE("Salix::events::EventManagerAdditional") {
         CHECK(listener.event_received);
     }
 }
+
+// Queue timing and listener-ownership regressions without live Editor objects.
+TEST_SUITE("Salix::events::EventManagerAdditional20261019") {
+    TEST_CASE("events extended large queue remains deferred until processing and then drains entirely") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int count=0;
+        listener.on_event_handler=[&](Salix::IEvent&){ ++count; };
+        manager.subscribe(Salix::EventCategory::Application,&listener);
+        for(int i=0;i<32;++i) manager.dispatch(std::make_unique<Salix::MockEvent>());
+        CHECK(count==0);
+        CHECK_FALSE(manager.is_queue_empty());
+        manager.process_queue();
+        CHECK(count==32);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("events extended second process without new dispatch must not replay delivered events") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int count=0;
+        listener.on_event_handler=[&](Salix::IEvent&){ ++count; };
+        manager.subscribe(Salix::EventCategory::Application,&listener);
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue();
+        manager.process_queue();
+        CHECK(count==1);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("events extended unsubscribing before queued delivery prevents any notifications") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        manager.subscribe(Salix::EventCategory::Application,&listener);
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.unsubscribe(Salix::EventCategory::Application,&listener);
+        manager.process_queue();
+        CHECK_FALSE(listener.event_received);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("events extended subscribing after an event is queued makes it visible at processing time") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.subscribe(Salix::EventCategory::Application,&listener);
+        manager.process_queue();
+        CHECK(listener.event_received);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("events extended duplicating a subscription cannot multiply event deliveries") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int count=0;
+        listener.on_event_handler=[&](Salix::IEvent&){ ++count; };
+        for(int i=0;i<5;++i)manager.subscribe(Salix::EventCategory::Application,&listener);
+        for(int i=0;i<3;++i)manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue();
+        CHECK(count==3);
+    }
+
+    TEST_CASE("events extended self unsubscription during delivery applies to later queued events") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int count=0;
+        listener.on_event_handler=[&](Salix::IEvent&){ ++count; manager.unsubscribe(Salix::EventCategory::Application,&listener); };
+        manager.subscribe(Salix::EventCategory::Application,&listener);
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue();
+        CHECK(count==1);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("events extended two distinct managers keep deferred queues independent") {
+        Salix::EventManager first,second;
+        Salix::MockListener listener_a,listener_b;
+        first.subscribe(Salix::EventCategory::Application,&listener_a);
+        second.subscribe(Salix::EventCategory::Application,&listener_b);
+        first.dispatch(std::make_unique<Salix::MockEvent>());
+        CHECK(second.is_queue_empty());
+        second.process_queue();
+        CHECK_FALSE(listener_b.event_received);
+        first.process_queue();
+        CHECK(listener_a.event_received);
+    }
+
+    TEST_CASE("events extended blocking a queued event does not prevent later normal delivery") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int count=0;
+        listener.on_event_handler=[&](Salix::IEvent&){ ++count; };
+        manager.subscribe(Salix::EventCategory::Application,&listener);
+        manager.dispatch(std::make_unique<Salix::MockBlockingEvent>());
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue();
+        CHECK(count==1);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("events extended a handled event stops later listeners but the next event still arrives") {
+        Salix::EventManager manager;
+        Salix::MockListener first,second;
+        int first_calls=0,second_calls=0;
+        first.on_event_handler=[&](Salix::IEvent& event){ ++first_calls; if(first_calls==1)event.handled=true; };
+        second.on_event_handler=[&](Salix::IEvent&){ ++second_calls; };
+        manager.subscribe(Salix::EventCategory::Application,&first);
+        manager.subscribe(Salix::EventCategory::Application,&second);
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue();
+        CHECK(first_calls==2);
+        CHECK(second_calls==1);
+    }
+
+    TEST_CASE("events extended dispatching by reference clones an event before stack lifetime ends") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int count=0;
+        listener.on_event_handler=[&](Salix::IEvent&){ ++count; };
+        manager.subscribe(Salix::EventCategory::Application,&listener);
+        { const Salix::MockEvent local; manager.dispatch(local); }
+        CHECK(count==0);
+        manager.process_queue();
+        CHECK(count==1);
+        CHECK(manager.is_queue_empty());
+    }
+}
