@@ -487,3 +487,78 @@ TEST_SUITE("Salix::math::Vector2Regression") {
         CHECK(loaded.y == 0.f);
     }
 }
+
+// Signed vector geometry, interpolation and data roundtrip invariants.
+TEST_SUITE("Salix::math::Vector2Additional20261019") {
+    TEST_CASE("vector2 extended length is invariant under swapping axes and negating both coordinates") {
+        const Salix::Vector2 a(5.f,-12.f), b(-12.f,5.f), c(-5.f,12.f);
+        CHECK(a.length() == doctest::Approx(13.f));
+        CHECK(b.length() == doctest::Approx(a.length()));
+        CHECK(c.length() == doctest::Approx(a.length()));
+    }
+
+    TEST_CASE("vector2 extended dot product is symmetric over signed inputs") {
+        const Salix::Vector2 a(2.f,-7.f), b(-3.f,4.f);
+        CHECK(Salix::dot(a,b) == Salix::dot(b,a));
+        CHECK(Salix::dot(a,b) == doctest::Approx(-34.f));
+    }
+
+    TEST_CASE("vector2 extended two perpendicular axes have zero dot and unit orientation") {
+        const Salix::Vector2 x(1.f,0.f), y(0.f,1.f);
+        CHECK(Salix::dot(x,y) == 0.f);
+        CHECK(Salix::cross(x,y) == 1.f);
+        CHECK(Salix::cross(y,x) == -1.f);
+    }
+
+    TEST_CASE("vector2 extended length scales by absolute scalar factor") {
+        const Salix::Vector2 a(-3.f,4.f);
+        CHECK((a * -2.f).length() == doctest::Approx(10.f));
+        CHECK((a * 0.5f).length() == doctest::Approx(2.5f));
+    }
+
+    TEST_CASE("vector2 extended perpendicular rotation applied twice negates the original vector") {
+        const Salix::Vector2 original(4.f,-9.f);
+        CHECK(Salix::perp(Salix::perp(original)) == Salix::Vector2(-4.f,9.f));
+        CHECK(Salix::dot(original,Salix::perp(original)) == 0.f);
+    }
+
+    TEST_CASE("vector2 extended interpolation quarter points compose to the correct midpoint") {
+        const Salix::Vector2 a(-16.f,8.f), b(16.f,-8.f);
+        const auto left = Salix::Vector2::lerp(a,b,0.25f);
+        const auto right = Salix::Vector2::lerp(a,b,0.75f);
+        CHECK(Salix::Vector2::lerp(left,right,0.5f) == Salix::Vector2(0.f,0.f));
+    }
+
+    TEST_CASE("vector2 extended normalizing a negative-axis vector preserves direction") {
+        Salix::Vector2 v(-15.f,0.f);
+        v.normalize();
+        CHECK(v == Salix::Vector2(-1.f,0.f));
+        CHECK(v.length() == doctest::Approx(1.f));
+    }
+
+    TEST_CASE("vector2 extended normalization does not alter values after a second normalization") {
+        Salix::Vector2 v(5.f,12.f);
+        v.normalize();
+        const auto first=v;
+        v.normalize();
+        CHECK(v.x == doctest::Approx(first.x));
+        CHECK(v.y == doctest::Approx(first.y));
+    }
+
+    TEST_CASE("vector2 extended cereal JSON roundtrip preserves fractions with opposite signs") {
+        Salix::Vector2 source(-8.125f,256.5f);
+        std::stringstream buffer;
+        { cereal::JSONOutputArchive writer(buffer); writer(source); }
+        Salix::Vector2 restored;
+        { cereal::JSONInputArchive reader(buffer); reader(restored); }
+        CHECK(restored == source);
+    }
+
+    TEST_CASE("vector2 extended YAML reloading replaces both previously set coordinates") {
+        Salix::Vector2 value(40.f,50.f);
+        YAML::Node node = YAML::Load("{x: -1.25, y: 7.5}");
+        node >> value;
+        CHECK(value.x == doctest::Approx(-1.25f));
+        CHECK(value.y == doctest::Approx(7.5f));
+    }
+}
