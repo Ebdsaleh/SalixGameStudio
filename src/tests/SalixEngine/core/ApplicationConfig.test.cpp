@@ -137,3 +137,47 @@ TEST_SUITE("Salix::core::ApplicationConfigExtended") {
         CHECK(restored.gui_settings.global_dpi_scaling == doctest::Approx(1.5f));
     }
 }
+
+
+// Additional stable contracts for the 847+ coverage batch.
+TEST_SUITE("Salix::core::ApplicationConfigBatch847") {
+    TEST_CASE("application config zero target FPS leaves all backend selections untouched") {
+        Salix::ApplicationConfig c; c.target_fps=0; CHECK(c.target_fps==0); CHECK(c.renderer_type==Salix::RendererType::SDL); CHECK(c.gui_type==Salix::GuiType::ImGui); CHECK(c.timer_type==Salix::TimerType::SDL);
+    }
+
+    TEST_CASE("application config negative target FPS is stored without mutating startup state") {
+        Salix::ApplicationConfig c; c.initial_state=Salix::AppStateType::Game; c.target_fps=-1; CHECK(c.target_fps==-1); CHECK(c.initial_state==Salix::AppStateType::Game);
+    }
+
+    TEST_CASE("window width and height can independently represent zero sized startup surfaces") {
+        Salix::ApplicationConfig c; c.window_config.width=0; c.window_config.height=0; CHECK(c.window_config.width==0); CHECK(c.window_config.height==0); CHECK(c.window_config.title=="SalixGameStudio");
+    }
+
+    TEST_CASE("window title supports empty and multiline values without altering dimensions") {
+        Salix::ApplicationConfig c; c.window_config.width=640; c.window_config.height=480; c.window_config.title=""; CHECK(c.window_config.title.empty()); c.window_config.title="Line1\nLine2"; CHECK(c.window_config.title=="Line1\nLine2"); CHECK(c.window_config.width==640); CHECK(c.window_config.height==480);
+    }
+
+    TEST_CASE("GUI ratios may be configured beyond unit range without cross modifying scales") {
+        Salix::GuiSettings g; g.dialog_width_ratio=1.5f; g.dialog_height_ratio=-0.25f; CHECK(g.dialog_width_ratio==doctest::Approx(1.5f)); CHECK(g.dialog_height_ratio==doctest::Approx(-0.25f)); CHECK(g.font_scaling==doctest::Approx(1.f)); CHECK(g.global_dpi_scaling==doctest::Approx(1.f));
+    }
+
+    TEST_CASE("GUI scaling values preserve zero and negative assignments independently") {
+        Salix::GuiSettings g; g.font_scaling=0.f; g.global_dpi_scaling=-2.f; CHECK(g.font_scaling==0.f); CHECK(g.global_dpi_scaling==-2.f); CHECK(g.dialog_width_ratio==doctest::Approx(0.7f));
+    }
+
+    TEST_CASE("copy assignment replaces every window dimension and GUI ratio") {
+        Salix::ApplicationConfig a,b; a.window_config.width=333; a.window_config.height=777; a.gui_settings.dialog_width_ratio=0.2f; a.gui_settings.dialog_height_ratio=0.9f; b=a; CHECK(b.window_config.width==333); CHECK(b.window_config.height==777); CHECK(b.gui_settings.dialog_width_ratio==doctest::Approx(0.2f)); CHECK(b.gui_settings.dialog_height_ratio==doctest::Approx(0.9f));
+    }
+
+    TEST_CASE("mutating copied GUI settings never aliases the source configuration") {
+        Salix::ApplicationConfig source; source.gui_settings.font_scaling=1.25f; Salix::ApplicationConfig copy=source; copy.gui_settings.font_scaling=3.f; copy.gui_settings.global_dpi_scaling=2.f; CHECK(source.gui_settings.font_scaling==doctest::Approx(1.25f)); CHECK(source.gui_settings.global_dpi_scaling==doctest::Approx(1.f));
+    }
+
+    TEST_CASE("all top level enum selections survive copy construction together") {
+        Salix::ApplicationConfig source; source.renderer_type=Salix::RendererType::OpenGL; source.initial_state=Salix::AppStateType::Options; source.gui_type=Salix::GuiType::None; source.timer_type=Salix::TimerType::Chrono; const Salix::ApplicationConfig copy(source); CHECK(copy.renderer_type==source.renderer_type); CHECK(copy.initial_state==source.initial_state); CHECK(copy.gui_type==source.gui_type); CHECK(copy.timer_type==source.timer_type);
+    }
+
+    TEST_CASE("fresh configuration remains unchanged after another instance is fully mutated") {
+        Salix::ApplicationConfig a,b; a.window_config.title="Mutated"; a.window_config.width=1; a.window_config.height=2; a.target_fps=240; a.renderer_type=Salix::RendererType::OpenGL; a.initial_state=Salix::AppStateType::Editor; a.gui_type=Salix::GuiType::None; a.timer_type=Salix::TimerType::Chrono; CHECK(b.window_config.title=="SalixGameStudio"); CHECK(b.window_config.width==1280); CHECK(b.window_config.height==720); CHECK(b.target_fps==60); CHECK(b.renderer_type==Salix::RendererType::SDL);
+    }
+}
