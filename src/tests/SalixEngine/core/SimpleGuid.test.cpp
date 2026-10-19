@@ -194,3 +194,110 @@ TEST_SUITE("Salix::core::SimpleGuidRegression") {
         CHECK(from_binary == second);
     }
 }
+
+// Persistent identity collections and 64-bit archive bounds.
+#include <algorithm>
+#include <limits>
+#include <unordered_map>
+#include <vector>
+#include <cereal/types/vector.hpp>
+TEST_SUITE("Salix::core::SimpleGuidExtended") {
+    TEST_CASE("guid extended high-bit UUID values remain distinct from their low 32-bit parts") {
+        const auto high = Salix::SimpleGuid::from_value((uint64_t{1} << 48) | 12345ULL);
+        const auto low = Salix::SimpleGuid::from_value(12345ULL);
+        CHECK(high.is_valid());
+        CHECK(high != low);
+        CHECK(high.get_value() == ((uint64_t{1} << 48) | 12345ULL));
+    }
+
+    TEST_CASE("guid extended maximum unsigned ID is valid without creating or advancing a new ID") {
+        const auto max_guid = Salix::SimpleGuid::from_value(std::numeric_limits<uint64_t>::max());
+        CHECK(max_guid.is_valid());
+        CHECK(max_guid.get_value() == std::numeric_limits<uint64_t>::max());
+        CHECK(max_guid > Salix::SimpleGuid::invalid());
+    }
+
+    TEST_CASE("guid extended invalid zero sorts below every valid identifier") {
+        const auto none = Salix::SimpleGuid::invalid();
+        const auto lowest = Salix::SimpleGuid::from_value(1ULL);
+        const auto largest = Salix::SimpleGuid::from_value(9000ULL);
+        CHECK(none < lowest);
+        CHECK(lowest < largest);
+        CHECK_FALSE(lowest < none);
+    }
+
+    TEST_CASE("guid extended copy construction retains original identity without linking storage") {
+        const auto original = Salix::SimpleGuid::from_value(404ULL);
+        Salix::SimpleGuid copy(original);
+        CHECK(copy == original);
+        copy = Salix::SimpleGuid::from_value(405ULL);
+        CHECK(copy != original);
+        CHECK(original.get_value() == 404ULL);
+    }
+
+    TEST_CASE("guid extended sorting unsorted identities yields numeric stable ascending order") {
+        std::vector<Salix::SimpleGuid> items{
+            Salix::SimpleGuid::from_value(99ULL),
+            Salix::SimpleGuid::invalid(),
+            Salix::SimpleGuid::from_value(7ULL),
+            Salix::SimpleGuid::from_value(14ULL)};
+        std::sort(items.begin(), items.end());
+        REQUIRE(items.size() == 4);
+        CHECK(items[0].get_value() == 0ULL);
+        CHECK(items[1].get_value() == 7ULL);
+        CHECK(items[2].get_value() == 14ULL);
+        CHECK(items[3].get_value() == 99ULL);
+    }
+
+    TEST_CASE("guid extended unordered map retrieves payload by copied identity value") {
+        std::unordered_map<Salix::SimpleGuid, std::string> names;
+        const auto id = Salix::SimpleGuid::from_value(999U);
+        names.emplace(id, "player");
+        const auto duplicate = Salix::SimpleGuid::from_value(999U);
+        CHECK(names.at(duplicate) == "player");
+        CHECK(names.count(Salix::SimpleGuid::from_value(1000U)) == 0);
+    }
+
+    TEST_CASE("guid extended JSON archive roundtrip preserves an ID beyond signed 32-bit range") {
+        auto original = Salix::SimpleGuid::from_value((uint64_t{1} << 33) + 17ULL);
+        std::stringstream json;
+        { cereal::JSONOutputArchive out(json); out(original); }
+        Salix::SimpleGuid loaded;
+        { cereal::JSONInputArchive in(json); in(loaded); }
+        CHECK(loaded == original);
+        CHECK(loaded.get_value() == ((uint64_t{1} << 33) + 17ULL));
+    }
+
+    TEST_CASE("guid extended binary archive roundtrip preserves maximum unsigned 64-bit value") {
+        auto original = Salix::SimpleGuid::from_value(std::numeric_limits<uint64_t>::max());
+        std::stringstream bytes;
+        { cereal::BinaryOutputArchive out(bytes); out(original); }
+        Salix::SimpleGuid loaded;
+        { cereal::BinaryInputArchive in(bytes); in(loaded); }
+        CHECK(loaded == original);
+    }
+
+    TEST_CASE("guid extended vector of IDs survives binary persistence in original order") {
+        std::vector<Salix::SimpleGuid> source{
+            Salix::SimpleGuid::from_value(7), Salix::SimpleGuid::invalid(),
+            Salix::SimpleGuid::from_value((uint64_t{1} << 42) + 1ULL)};
+        std::stringstream bytes;
+        { cereal::BinaryOutputArchive out(bytes); out(source); }
+        std::vector<Salix::SimpleGuid> loaded;
+        { cereal::BinaryInputArchive in(bytes); in(loaded); }
+        REQUIRE(loaded.size() == source.size());
+        for (std::size_t i = 0; i < source.size(); ++i) CHECK(loaded[i] == source[i]);
+    }
+
+    TEST_CASE("guid extended vector of IDs survives JSON persistence including invalid sentinels") {
+        std::vector<Salix::SimpleGuid> source{
+            Salix::SimpleGuid::invalid(), Salix::SimpleGuid::from_value(125),
+            Salix::SimpleGuid::from_value(500)};
+        std::stringstream json;
+        { cereal::JSONOutputArchive out(json); out(source); }
+        std::vector<Salix::SimpleGuid> loaded;
+        { cereal::JSONInputArchive in(json); in(loaded); }
+        REQUIRE(loaded.size() == source.size());
+        for (std::size_t i = 0; i < source.size(); ++i) CHECK(loaded[i] == source[i]);
+    }
+}
