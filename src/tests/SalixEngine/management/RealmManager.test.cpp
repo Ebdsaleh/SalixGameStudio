@@ -353,3 +353,47 @@ TEST_SUITE("Salix::management::RealmManagerBatch647") {
         CHECK(manager.get_active_realm()==active);
     }
 }
+
+
+// Runtime-facing isolated contracts for the 847+ coverage batch.
+TEST_SUITE("Salix::management::RealmManagerBatch847") {
+    TEST_CASE("realm manager repeated initialization does not select a realm implicitly") {
+        Salix::RealmManager manager; Salix::InitContext a{},b{}; manager.initialize(a); manager.initialize(b); CHECK(manager.get_active_realm()==nullptr);
+    }
+
+    TEST_CASE("realm manager shutdown is idempotent on an empty manager") {
+        Salix::RealmManager manager; manager.shutdown(); CHECK(manager.get_active_realm()==nullptr); manager.shutdown(); CHECK(manager.get_active_realm()==nullptr);
+    }
+
+    TEST_CASE("realm manager selecting the same realm repeatedly preserves pointer identity") {
+        Salix::RealmManager manager; auto* realm=manager.create_realm("Stable","Stable.json"); REQUIRE(realm!=nullptr); REQUIRE(manager.set_active_realm("Stable")); auto* first=manager.get_active_realm(); REQUIRE(manager.set_active_realm("Stable")); CHECK(manager.get_active_realm()==first); CHECK(first==realm);
+    }
+
+    TEST_CASE("realm manager replacing an inactive realm does not steal active selection") {
+        Salix::RealmManager manager; auto* active=manager.create_realm("Active","A.json"); REQUIRE(active!=nullptr); REQUIRE(manager.create_realm("Other","One.json")!=nullptr); REQUIRE(manager.set_active_realm("Active")); auto* replacement=manager.create_realm("Other","Two.json"); REQUIRE(replacement!=nullptr); CHECK(manager.get_active_realm()==active); CHECK(replacement->get_path()=="Two.json");
+    }
+
+    TEST_CASE("realm manager project root survives realm shutdown because it is manager configuration") {
+        Salix::RealmManager manager; manager.set_project_root_path("C:/Projects/Salix"); REQUIRE(manager.create_realm("Temp","Temp.json")!=nullptr); REQUIRE(manager.set_active_realm("Temp")); manager.shutdown(); CHECK(manager.get_active_realm()==nullptr); CHECK(manager.get_project_root_path()=="C:/Projects/Salix");
+    }
+
+    TEST_CASE("realm manager can create and select fresh realms after shutdown") {
+        Salix::RealmManager manager; REQUIRE(manager.create_realm("Old","Old.json")!=nullptr); REQUIRE(manager.set_active_realm("Old")); manager.shutdown(); auto* fresh=manager.create_realm("Fresh","Fresh.json"); REQUIRE(fresh!=nullptr); REQUIRE(manager.set_active_realm("Fresh")); CHECK(manager.get_active_realm()==fresh);
+    }
+
+    TEST_CASE("realm manager failed empty selection is harmless before any realm exists") {
+        Salix::RealmManager manager; CHECK_FALSE(manager.set_active_realm("")); CHECK(manager.get_active_realm()==nullptr); CHECK_NOTHROW(manager.update(-1.f)); CHECK_NOTHROW(manager.render(nullptr));
+    }
+
+    TEST_CASE("realm manager active realm metadata may change without invalidating selection") {
+        Salix::RealmManager manager; auto* realm=manager.create_realm("Mutable","Before.json"); REQUIRE(realm!=nullptr); REQUIRE(manager.set_active_realm("Mutable")); realm->set_name("Display Name"); realm->set_path("After.json"); CHECK(manager.get_active_realm()==realm); CHECK(manager.get_active_realm()->get_name()=="Display Name"); CHECK(manager.get_active_realm()->get_path()=="After.json");
+    }
+
+    TEST_CASE("realm manager replacing active realm resets its entity collection with the new object") {
+        Salix::RealmManager manager; auto* old=manager.create_realm("World","Old.json"); REQUIRE(old!=nullptr); REQUIRE(old->create_entity("OldEntity")!=nullptr); REQUIRE(manager.set_active_realm("World")); auto* replacement=manager.create_realm("World","New.json"); REQUIRE(replacement!=nullptr); CHECK(manager.get_active_realm()==replacement); CHECK(replacement->get_entities().empty()); CHECK(replacement->get_path()=="New.json");
+    }
+
+    TEST_CASE("realm manager failed missing file load leaves an empty manager empty") {
+        Salix::RealmManager manager; CHECK_FALSE(manager.load_realm("realm_manager_batch847_file_that_does_not_exist.json")); CHECK(manager.get_active_realm()==nullptr); CHECK_FALSE(manager.set_active_realm("realm_manager_batch847_file_that_does_not_exist"));
+    }
+}
