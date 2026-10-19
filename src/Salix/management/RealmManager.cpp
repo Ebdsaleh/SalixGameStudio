@@ -10,7 +10,7 @@ namespace Salix {
     struct RealmManager::Pimpl {
         std::map<std::string, std::unique_ptr<Realm>> realms;
         Realm* active_realm = nullptr;
-        InitContext context;
+        InitContext context{};
         std::string project_root_path;
     };
 
@@ -62,12 +62,22 @@ namespace Salix {
 
     Realm* RealmManager::create_realm(const std::string& realm_name, const std::string& realm_path) {
         if (realm_name.empty() || realm_path.empty()) return nullptr;
-        std::unique_ptr<Realm> new_realm;
-        new_realm = std::make_unique<Realm>();
+        // Replacing a selected realm deletes the former object. Preserve
+        // selection by retargeting the active pointer to the replacement.
+        const auto existing = pimpl->realms.find(realm_name);
+        const bool replacing_active = existing != pimpl->realms.end()
+            && pimpl->active_realm == existing->second.get();
+
+        auto new_realm = std::make_unique<Realm>();
         new_realm->set_name(realm_name);
         new_realm->set_path(realm_path);
         pimpl->realms[realm_name] = std::move(new_realm);
-        return pimpl->realms[realm_name].get();
+
+        Realm* const created = pimpl->realms[realm_name].get();
+        if (replacing_active) {
+            pimpl->active_realm = created;
+        }
+        return created;
     }
 
     bool RealmManager::save_active_realm() {
