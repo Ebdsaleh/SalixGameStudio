@@ -297,26 +297,10 @@ namespace Salix {
                 std::cerr << "EditorState::initialize - Invalid EditorDataMode detected!" << std::endl;
             }
         }
-         // Make the active_scene pointer refer to our preview_scene for the editor's lifetime.
-        pimpl->editor_context->active_realm = pimpl->editor_context->preview_realm.get();
-        for (auto& entity : pimpl->editor_context->editor_realm_manager->get_realm()) {
-            for (auto& element : entity.elements){
-                if (element.type_name == "Camera" && element.data["active"].as<bool>() == true){
-                    SimpleGuid entity_camera_id = entity.id;
-                    pimpl->editor_context->active_realm->set_active_camera_entity(entity_camera_id);
-                    // This event notifies all panels (like RealmPortalPanel)
-                    // about the initial active camera that was just set from the YAML file.
-                    pimpl->editor_context->event_manager->dispatch(
-                        std::make_unique<OnMainCameraChangedEvent>(entity_camera_id)
-                    );
-                    
-
-                    break; // We found the one active camera, no need to keep searching
-                }
-                
-            }
-        }
-        
+         // The preview realm has no live entities yet. Select and activate the
+         // YAML game camera only AFTER the first rebuild has instantiated it.
+         pimpl->editor_context->active_realm = pimpl->editor_context->preview_realm.get();
+         
     }
 
 
@@ -489,13 +473,9 @@ namespace Salix {
 
         // d. Rebuild the scene if the archetype data was changed. It's now safe.
         if (pimpl->editor_context->realm_is_dirty) {
-            Realm* preview_realm = pimpl->editor_context->preview_realm.get();
-            auto& realm_archetypes = pimpl->editor_context->editor_realm_manager->get_realm();
-            
-            preview_realm->clear_all_entities();
-            if (!realm_archetypes.empty()) {
-                ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_realm, *pimpl->editor_context->init_context);
-            }
+            // Rebuild the live preview and restore the YAML-selected main
+            // camera together, before the Portal's render pass starts.
+            pimpl->editor_context->editor_realm_manager->sync_preview_realm();
             pimpl->editor_context->realm_is_dirty = false;
         }
 
