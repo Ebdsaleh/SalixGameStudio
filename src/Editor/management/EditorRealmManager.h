@@ -60,11 +60,14 @@ namespace Salix {
         bool realm_map_is_empty();
         bool does_entity_name_exist(const std::string& name) const;
 
+        // Called by EditorState after deferred events and realm maintenance.
+        // Keep preview rebuilding behind the manager's public interface.
+        void sync_preview_realm();
+
     private:
         struct Pimpl;
         std::unique_ptr<Pimpl> pimpl;
         
         void synchronize();
-        void sync_preview_realm();
     };
 }
