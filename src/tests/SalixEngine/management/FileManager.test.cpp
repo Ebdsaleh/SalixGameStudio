@@ -372,7 +372,7 @@ TEST_SUITE("Salix::management::FileManagerAdditional20261019") {
     TEST_CASE("file manager isolated binary file read retains embedded null and high bytes") {
         FileManagerOwnedTemp20261019 temp;
         REQUIRE(temp.owned);
-        const std::string bytes{char(0),char(1),char(127),char(255),'X'};
+        const std::string bytes("\x00\x01\x7f\xffX", 5);
         temp.write("binary.dat",bytes);
         CHECK(Salix::FileManager::read_file_content(temp.file("binary.dat"))==bytes);
         CHECK(Salix::FileManager::get_file_size(temp.file("binary.dat"))==bytes.size());
