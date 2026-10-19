@@ -97,3 +97,116 @@ TEST_SUITE("Salix::ecs::Element") {
         CHECK(loaded_element->get_id() == original_id);
     }
 }
+
+// Component identity, runtime ownership and serialization boundaries.
+#include <cereal/archives/binary.hpp>
+#include <cstdint>
+TEST_SUITE("Salix::ecs::ElementExtended") {
+    TEST_CASE("element class type and user-facing name remain separate identities") {
+        MockElement element;
+        CHECK(std::string(element.get_class_name()) == "MockElement");
+        CHECK(element.get_name() == "Element");
+        element.set_name("Changed for Editor");
+        CHECK(element.get_name() == "Changed for Editor");
+        CHECK(std::string(element.get_class_name()) == "MockElement");
+    }
+
+    TEST_CASE("element visibility can cycle off on off without modifying identity") {
+        MockElement element;
+        const auto id = element.get_id();
+        element.set_visibility(false);
+        CHECK_FALSE(element.is_visible());
+        element.set_visibility(true);
+        CHECK(element.is_visible());
+        element.set_visibility(false);
+        CHECK_FALSE(element.is_visible());
+        CHECK(element.get_id() == id);
+    }
+
+    TEST_CASE("element empty component names can be assigned without losing class information") {
+        MockElement element;
+        element.set_name("");
+        CHECK(element.get_name().empty());
+        CHECK(std::string(element.get_class_name()) == "MockElement");
+    }
+
+    TEST_CASE("element non-owning owner reference can be replaced and cleared") {
+        Salix::Entity first, second;
+        MockElement component;
+        component.set_owner(&first);
+        CHECK(component.get_owner() == &first);
+        component.set_owner(&second);
+        CHECK(component.get_owner() == &second);
+        component.set_owner(nullptr);
+        CHECK(component.get_owner() == nullptr);
+    }
+
+    TEST_CASE("element raw ID pointer views same storage as public GUID value") {
+        MockElement component;
+        const uint64_t* raw = component.get_id_as_ptr();
+        REQUIRE(raw != nullptr);
+        CHECK(*raw == component.get_id().get_value());
+        component.set_id(Salix::SimpleGuid::from_value(900003ULL));
+        CHECK(raw == component.get_id_as_ptr());
+        CHECK(*raw == 900003ULL);
+    }
+
+    TEST_CASE("element setting invalid ID makes component unidentifiable but retains metadata") {
+        MockElement component;
+        component.set_name("InspectorLabel");
+        component.set_id(Salix::SimpleGuid::invalid());
+        CHECK_FALSE(component.get_id().is_valid());
+        CHECK(component.get_id_as_ptr() != nullptr);
+        CHECK(*component.get_id_as_ptr() == 0ULL);
+        CHECK(component.get_name() == "InspectorLabel");
+    }
+
+    TEST_CASE("element virtual lifecycle methods are callable via base element pointer") {
+        MockElement component;
+        Salix::Element* polymorphic = &component;
+        Salix::InitContext context{};
+        CHECK_NOTHROW(polymorphic->initialize());
+        CHECK_NOTHROW(polymorphic->on_load(context));
+        CHECK_NOTHROW(polymorphic->update(-0.25f));
+        CHECK_NOTHROW(polymorphic->shutdown());
+        CHECK(polymorphic->get_owner() == nullptr);
+    }
+
+    TEST_CASE("element JSON archive restores name and GUID but retains destination visibility") {
+        MockElement original;
+        original.set_name("Saved");
+        original.set_id(Salix::SimpleGuid::from_value(99113ULL));
+        std::stringstream buffer;
+        { cereal::JSONOutputArchive out(buffer); out(original); }
+        MockElement loaded;
+        loaded.set_visibility(false);
+        { cereal::JSONInputArchive in(buffer); in(loaded); }
+        CHECK(loaded.get_name() == "Saved");
+        CHECK(loaded.get_id() == original.get_id());
+        CHECK_FALSE(loaded.is_visible());
+    }
+
+    TEST_CASE("element binary archive restores GUID and component label") {
+        MockElement original;
+        original.set_name("BinaryComponent");
+        original.set_id(Salix::SimpleGuid::from_value(8190ULL));
+        std::stringstream buffer;
+        { cereal::BinaryOutputArchive out(buffer); out(original); }
+        MockElement loaded;
+        { cereal::BinaryInputArchive in(buffer); in(loaded); }
+        CHECK(loaded.get_name() == original.get_name());
+        CHECK(loaded.get_id() == original.get_id());
+    }
+
+    TEST_CASE("element serializing a component does not serialize its runtime owner pointer") {
+        Salix::Entity parent;
+        MockElement original;
+        original.set_owner(&parent);
+        std::stringstream buffer;
+        { cereal::BinaryOutputArchive out(buffer); out(original); }
+        MockElement loaded;
+        { cereal::BinaryInputArchive in(buffer); in(loaded); }
+        CHECK(loaded.get_owner() == nullptr);
+        CHECK(original.get_owner() == &parent);
+    }
+}
