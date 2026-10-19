@@ -103,3 +103,100 @@ TEST_SUITE("Salix::core::Logging") {
         }
     }
 }
+
+// Diagnostic severity, source-location rules and macro evaluation contracts.
+#include <algorithm>
+TEST_SUITE("Salix::core::LoggingExtended") {
+    TEST_CASE("logging info output includes message and excludes call-site filename") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "editor ready", "PrivateTest.cpp", 123);
+        CHECK(output.str().find("[INFO] editor ready") != std::string::npos);
+        CHECK(output.str().find("PrivateTest.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("logging warning output uses WARN label and omits source location") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::WARNING, "cache is cold", "PrivateTest.cpp", 18);
+        CHECK(output.str().find("[WARN] cache is cold") != std::string::npos);
+        CHECK(output.str().find("PrivateTest.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("logging error output includes explicit filename and line number") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "scene failed", "SceneLoader.cpp", 47);
+        CHECK(output.str().find("[ERROR] [SceneLoader.cpp:47] scene failed") != std::string::npos);
+    }
+
+    TEST_CASE("logging debug output includes supplied nested source path") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "heartbeat", "src/Salix/core/Engine.cpp", 225);
+        CHECK(output.str().find("[DEBUG] [src/Salix/core/Engine.cpp:225] heartbeat") != std::string::npos);
+    }
+
+    TEST_CASE("logging empty messages preserve level and location without crashing") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "", "Empty.cpp", 0);
+        CHECK(output.str().find("[ERROR] [Empty.cpp:0] ") != std::string::npos);
+        CHECK_FALSE(output.str().empty());
+    }
+
+    TEST_CASE("logging each log call writes a separate completed newline") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "first");
+        Salix::LogMessage(Salix::LogLevel::INFO, "second");
+        const auto logs = output.str();
+        CHECK(logs.find("first\n") != std::string::npos);
+        CHECK(logs.find("second\n") != std::string::npos);
+        CHECK(std::count(logs.begin(), logs.end(), '\n') == 2);
+    }
+
+    TEST_CASE("logging macro expression accepts stream manipulators and formatted numbers") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        LOG_INFO("value=" << std::hex << 255);
+        CHECK(output.str().find("value=ff") != std::string::npos);
+        CHECK(output.str().find("[INFO]") != std::string::npos);
+    }
+
+    TEST_CASE("logging macro debug preserves filename and evaluates one expression once") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        int evaluations = 0;
+        LOG_DEBUG("visit " << ++evaluations);
+        CHECK(evaluations == 1);
+        CHECK(output.str().find("visit 1") != std::string::npos);
+        CHECK(output.str().find("Logging.test.cpp") != std::string::npos);
+    }
+
+    TEST_CASE("logging assert macro with true condition does not log or evaluate message") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        int message_evaluations = 0;
+        LOG_ASSERT(true, (++message_evaluations, "not needed"));
+        CHECK(message_evaluations == 0);
+        CHECK(output.str().empty());
+    }
+
+    TEST_CASE("logging log sequence preserves severity order and distinct payloads") {
+        std::stringstream output;
+        CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "init");
+        Salix::LogMessage(Salix::LogLevel::WARNING, "warning");
+        Salix::LogMessage(Salix::LogLevel::ERROR, "failure", "Engine.cpp", 66);
+        const std::string data = output.str();
+        const auto first = data.find("[INFO] init");
+        const auto middle = data.find("[WARN] warning");
+        const auto last = data.find("[ERROR] [Engine.cpp:66] failure");
+        REQUIRE(first != std::string::npos);
+        REQUIRE(middle != std::string::npos);
+        REQUIRE(last != std::string::npos);
+        CHECK(first < middle);
+        CHECK(middle < last);
+    }
+}
