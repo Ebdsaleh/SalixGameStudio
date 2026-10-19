@@ -433,3 +433,111 @@ TEST_SUITE("Salix::ecs::Sprite2DAdditional") {
         CHECK(restored.get_texture_path() == original.get_texture_path());
     }
 }
+
+// Additional behaviour and lifecycle tests; existing cases preserved.
+TEST_SUITE("Salix::ecs::Sprite2DBatch647") {
+    TEST_CASE("texture loading exposes the mocked texture's dimensions") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets,"art/sprite.png");
+        REQUIRE(sprite.get_texture()!=nullptr);
+        CHECK(sprite.get_texture_width()==16);
+        CHECK(sprite.get_texture_height()==16);
+    }
+
+    TEST_CASE("two sprites referencing the same asset reuse the cached texture") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::Sprite2D one,two;
+        one.load_texture(&assets,"art/shared.png");
+        two.load_texture(&assets,"art/shared.png");
+        REQUIRE(one.get_texture()!=nullptr);
+        CHECK(one.get_texture()==two.get_texture());
+    }
+
+    TEST_CASE("loading a failed texture leaves no active texture or dimensions") {
+        MockIRenderer renderer; renderer.should_texture_load_fail=true;
+        Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/missing.png");
+        CHECK(sprite.get_texture()==nullptr);
+        CHECK(sprite.get_texture_width()==0);
+        CHECK(sprite.get_texture_height()==0);
+        CHECK(sprite.get_texture_path()=="art/missing.png");
+    }
+
+    TEST_CASE("retrying a failed texture load recovers when the backend succeeds") {
+        MockIRenderer renderer; renderer.should_texture_load_fail=true;
+        Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/retry.png");
+        REQUIRE(sprite.get_texture()==nullptr);
+        renderer.should_texture_load_fail=false;
+        sprite.load_texture(&assets,"art/retry.png");
+        REQUIRE(sprite.get_texture()!=nullptr);
+        CHECK(sprite.get_texture_width()==16);
+    }
+
+    TEST_CASE("clearing an already loaded texture resets the runtime dimensions") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/first.png");
+        REQUIRE(sprite.get_texture()!=nullptr);
+        sprite.load_texture(&assets,"");
+        CHECK(sprite.get_texture()==nullptr);
+        CHECK(sprite.get_texture_width()==0);
+        CHECK(sprite.get_texture_height()==0);
+    }
+
+    TEST_CASE("on_load uses a stored path to acquire a texture through AssetManager") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::InitContext context{};context.asset_manager=&assets;
+        Salix::Sprite2D sprite;sprite.set_texture_path("assets/sheet.png");
+        sprite.on_load(context);
+        REQUIRE(sprite.get_texture()!=nullptr);
+        CHECK(sprite.get_texture_path()=="assets/sheet.png");
+        CHECK(sprite.get_texture_height()==16);
+    }
+
+    TEST_CASE("a loaded but unowned sprite does not invoke the draw call") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::Sprite2D sprite;sprite.load_texture(&assets,"art/no-owner.png");
+        REQUIRE(sprite.get_texture()!=nullptr);
+        sprite.render(&renderer);
+        CHECK(renderer.draw_sprite_call_count==0);
+    }
+
+    TEST_CASE("an attached sprite renders exactly once per explicit draw") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::Entity entity;
+        auto* sprite=entity.add_element<Salix::Sprite2D>();REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/owned.png");REQUIRE(sprite->get_texture()!=nullptr);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count==1);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count==2);
+    }
+
+    TEST_CASE("sprite flip combinations select the matching renderer state") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        Salix::Entity entity;auto* sprite=entity.add_element<Salix::Sprite2D>();REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/flips.png");REQUIRE(sprite->get_texture()!=nullptr);
+        sprite->set_flip_h(true);sprite->set_flip_v(false);sprite->render(&renderer);
+        CHECK(renderer.last_flip_state==Salix::SpriteFlip::Horizontal);
+        sprite->set_flip_v(true);sprite->render(&renderer);
+        CHECK(renderer.last_flip_state==Salix::SpriteFlip::Both);
+        sprite->set_flip_h(false);sprite->render(&renderer);
+        CHECK(renderer.last_flip_state==Salix::SpriteFlip::Vertical);
+        CHECK(renderer.draw_sprite_call_count==3);
+    }
+
+    TEST_CASE("serializing an unloaded sprite does not materialize a texture at load time") {
+        Salix::Sprite2D source;source.set_texture_path("assets/portable.png");
+        source.set_flip_h(true);source.set_sorting_layer(23);
+        std::stringstream stream;
+        {cereal::JSONOutputArchive out(stream);out(source);}
+        Salix::Sprite2D restored;
+        {cereal::JSONInputArchive in(stream);in(restored);}
+        CHECK(restored.get_texture_path()=="assets/portable.png");
+        CHECK(restored.get_flip_h());
+        CHECK(restored.get_sorting_layer()==23);
+        CHECK(restored.get_texture()==nullptr);
+        CHECK(restored.get_texture_width()==0);
+    }
+}
