@@ -402,3 +402,126 @@ TEST_SUITE("Salix::ecs::RealmLifecycleRegression") {
         CHECK(realm.get_main_camera_entity_id() == without_camera->get_id());
     }
 }
+
+// Realm entity identity and maintenance; no camera-selection or Editor changes.
+TEST_SUITE("Salix::ecs::RealmAdditional20261019") {
+    TEST_CASE("realm extended create assigns separate stable IDs even when labels are identical") {
+        Salix::Realm realm;
+        auto* a=realm.create_entity("Opponent");
+        auto* b=realm.create_entity("Opponent");
+        REQUIRE(a!=nullptr);
+        REQUIRE(b!=nullptr);
+        CHECK(a!=b);
+        CHECK(a->get_id()!=b->get_id());
+        CHECK(realm.get_entity_by_id(a->get_id())==a);
+        CHECK(realm.get_entity_by_id(b->get_id())==b);
+    }
+
+    TEST_CASE("realm extended entity lookup remains consistent after renaming another entity") {
+        Salix::Realm realm;
+        auto* first=realm.create_entity("Before");
+        auto* second=realm.create_entity("Other");
+        REQUIRE(first!=nullptr);
+        REQUIRE(second!=nullptr);
+        first->set_name("After");
+        CHECK(realm.get_entity_by_name("Before")==nullptr);
+        CHECK(realm.get_entity_by_name("After")==first);
+        CHECK(realm.get_entity_by_name("Other")==second);
+    }
+
+    TEST_CASE("realm extended lookup of a missing GUID does not mutate the entity collection") {
+        Salix::Realm realm;
+        REQUIRE(realm.create_entity("Resident")!=nullptr);
+        const auto before=realm.get_entities().size();
+        CHECK(realm.get_entity_by_id(Salix::SimpleGuid::invalid())==nullptr);
+        CHECK(realm.get_entity_by_id(Salix::SimpleGuid::from_value(999999999ULL))==nullptr);
+        CHECK(realm.get_entities().size()==before);
+    }
+
+    TEST_CASE("realm extended an explicitly assigned entity GUID survives unrelated insertions") {
+        Salix::Realm realm;
+        const auto id=Salix::SimpleGuid::from_value(1234567ULL);
+        auto* entity=realm.create_entity(id,"Tracked");
+        REQUIRE(entity!=nullptr);
+        REQUIRE(realm.create_entity("Other")!=nullptr);
+        CHECK(entity->get_id()==id);
+        CHECK(realm.get_entity_by_id(id)==entity);
+    }
+
+    TEST_CASE("realm extended clearing entities is idempotent and leaves realm metadata alone") {
+        Salix::Realm realm("Map","Scenes/Map.json");
+        REQUIRE(realm.create_entity("First")!=nullptr);
+        realm.clear_all_entities();
+        realm.clear_all_entities();
+        CHECK(realm.get_entities().empty());
+        CHECK(realm.get_name()=="Map");
+        CHECK(realm.get_path()=="Scenes/Map.json");
+    }
+
+    TEST_CASE("realm extended new entities can be created after a complete clear") {
+        Salix::Realm realm;
+        REQUIRE(realm.create_entity("Before")!=nullptr);
+        realm.clear_all_entities();
+        auto* after=realm.create_entity("After");
+        REQUIRE(after!=nullptr);
+        CHECK(realm.get_entity_by_name("Before")==nullptr);
+        CHECK(realm.get_entity_by_id(after->get_id())==after);
+        CHECK(realm.get_entities().size()==1);
+    }
+
+    TEST_CASE("realm extended maintain on an empty realm does not create a hidden entity") {
+        Salix::Realm realm;
+        realm.maintain();
+        realm.maintain();
+        CHECK(realm.get_entities().empty());
+        CHECK(realm.get_entity_by_name("Anything")==nullptr);
+    }
+
+    TEST_CASE("realm extended maintenance removes one purged entity in the middle and preserves order") {
+        Salix::Realm realm;
+        auto* a=realm.create_entity("A");
+        auto* b=realm.create_entity("B");
+        auto* c=realm.create_entity("C");
+        REQUIRE(a!=nullptr);
+        REQUIRE(b!=nullptr);
+        REQUIRE(c!=nullptr);
+        const auto doomed=b->get_id();
+        b->simple_purge();
+        realm.maintain();
+        const auto remaining=realm.get_entities();
+        REQUIRE(remaining.size()==2);
+        CHECK(remaining[0]==a);
+        CHECK(remaining[1]==c);
+        CHECK(realm.get_entity_by_id(doomed)==nullptr);
+    }
+
+    TEST_CASE("realm extended maintain can process a second purge on a later frame") {
+        Salix::Realm realm;
+        auto* first=realm.create_entity("First");
+        auto* second=realm.create_entity("Second");
+        REQUIRE(first!=nullptr);
+        REQUIRE(second!=nullptr);
+        const auto first_id=first->get_id();
+        const auto second_id=second->get_id();
+        first->simple_purge();
+        realm.maintain();
+        CHECK(realm.get_entity_by_id(second_id)==second);
+        second->simple_purge();
+        realm.maintain();
+        CHECK(realm.get_entity_by_id(first_id)==nullptr);
+        CHECK(realm.get_entity_by_id(second_id)==nullptr);
+        CHECK(realm.get_entities().empty());
+    }
+
+    TEST_CASE("realm extended updating an empty and later populated realm preserves entity identity") {
+        Salix::Realm realm;
+        realm.update(0.f);
+        auto* player=realm.create_entity("Player");
+        REQUIRE(player!=nullptr);
+        const auto id=player->get_id();
+        realm.update(0.016f);
+        realm.update(0.f);
+        CHECK(realm.get_entity_by_id(id)==player);
+        CHECK(realm.get_entities().size()==1);
+    }
+}
