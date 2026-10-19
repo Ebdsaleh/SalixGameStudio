@@ -6,6 +6,9 @@
 #include <Editor/EditorContext.h>
 #include <Editor/ArchetypeFactory.h>
 #include <Editor/ArchetypeInstantiator.h>
+#include <Editor/events/OnMainCameraChangedEvent.h>
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Camera.h>
 #include <Editor/events/OnRootEntityAddedEvent.h>
 #include <Editor/events/PropertyValueChangedEvent.h>
 #include <Editor/events/OnChildEntityAddedEvent.h>
@@ -788,16 +791,49 @@ namespace Salix {
     }
 
     void EditorRealmManager::sync_preview_realm() {
-        if (!pimpl->context || !pimpl->context->preview_realm) return;
+        if (!pimpl->context || !pimpl->context->preview_realm ||
+            !pimpl->context->init_context) return;
 
-        // This is the logic moved from RealmDesignerPanel
         Realm* preview_realm = pimpl->context->preview_realm.get();
-        auto& realm_archetypes = get_realm(); // Use the public getter
+        const auto& realm_archetypes = get_realm();
 
+        // Clearing entities invalidates every borrowed component pointer, as
+        // well as Realm's main-camera selection. Never retain an old camera.
+        pimpl->context->main_camera = nullptr;
         preview_realm->clear_all_entities();
-        
+
         if (!realm_archetypes.empty()) {
-            ArchetypeInstantiator::instantiate_realm(realm_archetypes, preview_realm, *pimpl->context->init_context);
+            ArchetypeInstantiator::instantiate_realm(
+                realm_archetypes, preview_realm, *pimpl->context->init_context);
+        }
+
+        // Select the game camera only AFTER live Camera components exist.
+        // The YAML archetypes are the source of truth in EditorDataMode::Yaml.
+        SimpleGuid selected_camera_id = SimpleGuid::invalid();
+        for (const auto& entity : realm_archetypes) {
+            for (const auto& element : entity.elements) {
+                if (element.type_name != "Camera") continue;
+                const YAML::Node active_value = element.data["active"];
+                if (active_value && active_value.as<bool>(false)) {
+                    selected_camera_id = entity.id;
+                    break;
+                }
+            }
+            if (selected_camera_id.is_valid()) break;
+        }
+
+        preview_realm->set_active_camera_entity(selected_camera_id);
+
+        if (selected_camera_id.is_valid()) {
+            Entity* camera_entity = preview_realm->get_entity_by_id(selected_camera_id);
+            if (camera_entity) {
+                pimpl->context->main_camera = camera_entity->get_element<Camera>();
+            }
+        }
+
+        if (pimpl->context->event_manager) {
+            pimpl->context->event_manager->dispatch(
+                std::make_unique<OnMainCameraChangedEvent>(selected_camera_id));
         }
     }
 } // namespace Salix
