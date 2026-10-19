@@ -147,3 +147,82 @@ TEST_SUITE("Salix::math::PointExtended") {
         CHECK(destination.y == -99);
     }
 }
+
+// Persistence, identity and lifecycle invariants.
+#include <limits>
+#include <vector>
+#include <cereal/types/vector.hpp>
+TEST_SUITE("Salix::math::PointBatch647") {
+    TEST_CASE("signed minimum and maximum coordinates serialize through JSON losslessly") {
+        Salix::Point original{std::numeric_limits<int>::min(),std::numeric_limits<int>::max()};
+        std::stringstream data;{cereal::JSONOutputArchive out(data);out(original);}
+        Salix::Point restored;{cereal::JSONInputArchive in(data);in(restored);}
+        CHECK(restored==original);
+    }
+
+    TEST_CASE("binary encoding retains the signed integer extrema") {
+        Salix::Point original{std::numeric_limits<int>::max(),std::numeric_limits<int>::min()};
+        std::stringstream data;{cereal::BinaryOutputArchive out(data);out(original);}
+        Salix::Point restored;{cereal::BinaryInputArchive in(data);in(restored);}
+        CHECK(restored==original);
+    }
+
+    TEST_CASE("Point equality is reflexive and symmetric for negative values") {
+        Salix::Point a{-14,27},b{-14,27};
+        CHECK(a==a);CHECK(a==b);CHECK(b==a);
+        CHECK_FALSE(a!=b);
+    }
+
+    TEST_CASE("copying coordinates and then editing one cannot modify the original") {
+        Salix::Point original{-200,300};
+        Salix::Point copied=original;copied.x=25;copied.y=-35;
+        CHECK(original.x==-200);
+        CHECK(original.y==300);
+        CHECK(copied!=original);
+    }
+
+    TEST_CASE("assignment replaces both components of an existing point") {
+        const Salix::Point desired{0,-88};
+        Salix::Point target{123,777};
+        target=desired;
+        CHECK(target==desired);
+        CHECK(target.x==0);
+        CHECK(target.y==-88);
+    }
+
+    TEST_CASE("stream output preserves a negative X and zero Y") {
+        std::ostringstream out;out<<Salix::Point{-55,0};
+        CHECK(out.str()=="{ x: -55, y: 0 }");
+    }
+
+    TEST_CASE("stream output preserves the largest representable positive X") {
+        std::ostringstream out;out<<Salix::Point{std::numeric_limits<int>::max(),-1};
+        CHECK(out.str().find(std::to_string(std::numeric_limits<int>::max()))!=std::string::npos);
+        CHECK(out.str().find("y: -1")!=std::string::npos);
+    }
+
+    TEST_CASE("a vector of points persists in the original order using binary archive") {
+        std::vector<Salix::Point> points{{0,0},{7,-8},{-90,200}};
+        std::stringstream data;{cereal::BinaryOutputArchive out(data);out(points);}
+        std::vector<Salix::Point> loaded;{cereal::BinaryInputArchive in(data);in(loaded);}
+        REQUIRE(loaded.size()==points.size());
+        for(size_t i=0;i<points.size();++i)CHECK(loaded[i]==points[i]);
+    }
+
+    TEST_CASE("a vector of signed points persists in the original order using JSON") {
+        std::vector<Salix::Point> points{{-3,-2},{0,1},{500,-1000}};
+        std::stringstream data;{cereal::JSONOutputArchive out(data);out(points);}
+        std::vector<Salix::Point> loaded;{cereal::JSONInputArchive in(data);in(loaded);}
+        REQUIRE(loaded.size()==points.size());
+        for(size_t i=0;i<points.size();++i)CHECK(loaded[i]==points[i]);
+    }
+
+    TEST_CASE("loading JSON overwrites both fields but does not modify the source Point") {
+        Salix::Point source{-7,0},destination{50,99};
+        std::stringstream data;{cereal::JSONOutputArchive out(data);out(source);}
+        {cereal::JSONInputArchive in(data);in(destination);}
+        CHECK(destination==source);
+        CHECK(source.x==-7);
+        CHECK(source.y==0);
+    }
+}
