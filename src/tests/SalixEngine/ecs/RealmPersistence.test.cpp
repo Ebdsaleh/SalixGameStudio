@@ -13,6 +13,8 @@
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
+#include <memory>
 #include <string>
 #include <system_error>
 
