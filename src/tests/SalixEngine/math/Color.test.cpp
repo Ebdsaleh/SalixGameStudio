@@ -248,3 +248,92 @@ TEST_SUITE("Salix::math::ColorRegression") {
         CHECK(restored.a == 0.f);
     }
 }
+
+// Color arithmetic and archive contracts, independent of the graphics backend.
+#include <cereal/archives/binary.hpp>
+#include <initializer_list>
+TEST_SUITE("Salix::math::ColorAdditional") {
+    TEST_CASE("color arithmetic addition combines RGBA channels without implicit clamping") {
+        const Salix::Color a(0.5f, 0.25f, 0.f, 0.75f);
+        const Salix::Color b(0.75f, 0.25f, 0.5f, 0.5f);
+        const auto result = a + b;
+        CHECK(result.r == doctest::Approx(1.25f));
+        CHECK(result.g == doctest::Approx(0.5f));
+        CHECK(result.b == doctest::Approx(0.5f));
+        CHECK(result.a == doctest::Approx(1.25f));
+    }
+
+    TEST_CASE("color arithmetic subtraction restores each original channel after addition") {
+        const Salix::Color a(0.2f, 0.4f, 0.6f, 0.8f);
+        const Salix::Color b(0.1f, 0.3f, 0.2f, 0.1f);
+        const auto recovered = (a + b) - b;
+        CHECK(recovered.r == doctest::Approx(a.r));
+        CHECK(recovered.g == doctest::Approx(a.g));
+        CHECK(recovered.b == doctest::Approx(a.b));
+        CHECK(recovered.a == doctest::Approx(a.a));
+    }
+
+    TEST_CASE("color arithmetic color addition is commutative including the alpha channel") {
+        const Salix::Color a(0.25f, 0.125f, 0.5f, 0.125f);
+        const Salix::Color b(0.5f, 0.25f, 0.125f, 0.5f);
+        CHECK(a + b == b + a);
+    }
+
+    TEST_CASE("color arithmetic scalar multiplication has identical left and right overloads") {
+        const Salix::Color c(0.125f, 0.25f, 0.5f, 1.f);
+        CHECK(c * 2.f == 2.f * c);
+        CHECK(c * 2.f == Salix::Color(0.25f, 0.5f, 1.f, 2.f));
+    }
+
+    TEST_CASE("color arithmetic scalar zero suppresses all channels including alpha") {
+        const Salix::Color c(0.1f, 0.2f, 0.3f, 0.9f);
+        CHECK(c * 0.f == Salix::Color(0.f, 0.f, 0.f, 0.f));
+        CHECK(c * 1.f == c);
+    }
+
+    TEST_CASE("color arithmetic lerp preserves identical endpoints for every interpolation fraction") {
+        const Salix::Color c(0.125f, 0.25f, 0.5f, 0.875f);
+        for (float t : { -4.f, 0.f, 0.25f, 0.5f, 1.f, 5.f }) {
+            CHECK(Salix::Color::lerp(c, c, t) == c);
+        }
+    }
+
+    TEST_CASE("color arithmetic lerp symmetry t versus one minus t holds across RGB and alpha") {
+        const Salix::Color a(0.125f, 0.25f, 0.5f, 0.f);
+        const Salix::Color b(0.5f, 0.125f, 0.25f, 1.f);
+        const auto ab = Salix::Color::lerp(a, b, 0.25f);
+        const auto ba = Salix::Color::lerp(b, a, 0.75f);
+        CHECK(ab.r == doctest::Approx(ba.r));
+        CHECK(ab.g == doctest::Approx(ba.g));
+        CHECK(ab.b == doctest::Approx(ba.b));
+        CHECK(ab.a == doctest::Approx(ba.a));
+    }
+
+    TEST_CASE("color arithmetic transparent and opaque endpoints interpolate opacity independently") {
+        const Salix::Color transparent(0.f, 0.f, 0.f, 0.f);
+        const Salix::Color opaque(0.f, 0.f, 0.f, 1.f);
+        const auto partial = Salix::Color::lerp(transparent, opaque, 0.125f);
+        CHECK(partial.r == 0.f);
+        CHECK(partial.g == 0.f);
+        CHECK(partial.b == 0.f);
+        CHECK(partial.a == doctest::Approx(0.125f));
+    }
+
+    TEST_CASE("color arithmetic binary archive preserves all four floating point channel values") {
+        Salix::Color source(0.0625f, 0.375f, 0.625f, 0.9375f);
+        std::stringstream bytes;
+        { cereal::BinaryOutputArchive archive(bytes); archive(source); }
+        Salix::Color loaded;
+        { cereal::BinaryInputArchive archive(bytes); archive(loaded); }
+        CHECK(loaded == source);
+    }
+
+    TEST_CASE("color arithmetic integer color conversion maps quarter and three-quarter intensities") {
+        const auto c = Salix::Color::from_rgba_int(64, 128, 192, 32);
+        CHECK(c.r == doctest::Approx(64.f / 255.f));
+        CHECK(c.g == doctest::Approx(128.f / 255.f));
+        CHECK(c.b == doctest::Approx(192.f / 255.f));
+        CHECK(c.a == doctest::Approx(32.f / 255.f));
+        CHECK(c.to_imvec4().w == doctest::Approx(c.a));
+    }
+}
