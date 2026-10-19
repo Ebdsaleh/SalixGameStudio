@@ -200,3 +200,83 @@ TEST_SUITE("Salix::core::LoggingExtended") {
         CHECK(middle < last);
     }
 }
+
+// Additional diagnostic and deferred-delivery contracts.
+#include <algorithm>
+TEST_SUITE("Salix::core::LoggingBatch647") {
+    TEST_CASE("INFO macro evaluates a stateful message expression exactly once") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        int evaluations=0;LOG_INFO("render pass "<<++evaluations);
+        CHECK(evaluations==1);
+        CHECK(captured.str().find("[INFO] render pass 1")!=std::string::npos);
+    }
+
+    TEST_CASE("WARNING macro evaluates a stateful message expression exactly once") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        int evaluations=0;LOG_WARNING("retry "<<++evaluations);
+        CHECK(evaluations==1);
+        CHECK(captured.str().find("[WARN] retry 1")!=std::string::npos);
+    }
+
+    TEST_CASE("ERROR macro evaluates a stateful message expression exactly once") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        int evaluations=0;LOG_ERROR("failure "<<++evaluations);
+        CHECK(evaluations==1);
+        CHECK(captured.str().find("[ERROR]")!=std::string::npos);
+        CHECK(captured.str().find("failure 1")!=std::string::npos);
+    }
+
+    TEST_CASE("DEBUG macro evaluates stateful expression only once") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        int evaluations=0;LOG_DEBUG("iteration "<<++evaluations);
+        CHECK(evaluations==1);
+        CHECK(captured.str().find("iteration 1")!=std::string::npos);
+    }
+
+    TEST_CASE("INFO log does not add source location even with a supplied line number") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        Salix::LogMessage(Salix::LogLevel::INFO,"ready","PrivateSource.cpp",99);
+        const auto output=captured.str();
+        CHECK(output.find("[INFO] ready")!=std::string::npos);
+        CHECK(output.find("PrivateSource.cpp")==std::string::npos);
+    }
+
+    TEST_CASE("DEBUG log preserves an explicit source filename and exact line number") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        Salix::LogMessage(Salix::LogLevel::DEBUG,"configured","Camera.cpp",314);
+        CHECK(captured.str().find("[DEBUG] [Camera.cpp:314] configured")!=std::string::npos);
+    }
+
+    TEST_CASE("logging two sequential events writes two distinct completed lines") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        Salix::LogMessage(Salix::LogLevel::INFO,"first");
+        Salix::LogMessage(Salix::LogLevel::INFO,"second");
+        const std::string output=captured.str();
+        CHECK(std::count(output.begin(),output.end(),'\n')==2);
+        CHECK(output.find("first\n")<output.find("second\n"));
+    }
+
+    TEST_CASE("stream formatting from macro preserves hexadecimal and decimal independently") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        LOG_INFO("color="<<std::hex<<255);
+        LOG_INFO("opacity="<<std::dec<<100);
+        CHECK(captured.str().find("color=ff")!=std::string::npos);
+        CHECK(captured.str().find("opacity=100")!=std::string::npos);
+    }
+
+    TEST_CASE("a satisfied logging assertion neither emits output nor evaluates its message") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        int evaluated=0;
+        LOG_ASSERT(2+2==4,(++evaluated,"unreachable"));
+        CHECK(evaluated==0);
+        CHECK(captured.str().empty());
+    }
+
+    TEST_CASE("a message containing punctuation retains its payload verbatim") {
+        std::stringstream captured;CerrRedirect redirect(captured);
+        const std::string payload="Realm=Demo; Camera:0, Player@(-3,4)!";
+        Salix::LogMessage(Salix::LogLevel::WARNING,payload);
+        CHECK(captured.str().find(payload)!=std::string::npos);
+        CHECK(captured.str().find("[WARN]")!=std::string::npos);
+    }
+}
