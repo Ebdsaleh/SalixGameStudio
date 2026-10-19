@@ -372,3 +372,46 @@ Timer:
 		std::filesystem::remove("enum_test.cache");
 	}
 }
+
+// Integration boundaries for the 847+ coverage batch.
+TEST_SUITE("Salix::management::SettingsManagerBatch847") {
+    TEST_CASE("missing settings file preserves a caller's preconfigured values") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; c.window_config.title="Keep"; c.window_config.width=321; c.target_fps=144; c.renderer_type=Salix::RendererType::OpenGL; const std::string p="settings_batch847_missing.yaml"; std::filesystem::remove(p); std::filesystem::remove("settings_batch847_missing.cache"); REQUIRE(m.load_settings(p,c)); CHECK(c.window_config.title=="Keep"); CHECK(c.window_config.width==321); CHECK(c.target_fps==144); CHECK(c.renderer_type==Salix::RendererType::OpenGL);
+    }
+
+    TEST_CASE("partial YAML changes only the fields explicitly present") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; c.window_config.title="Original"; c.window_config.width=111; c.window_config.height=222; c.target_fps=75; const std::string p="settings_batch847_partial.yaml"; std::filesystem::remove("settings_batch847_partial.cache"); create_temp_config(p,"Window:\n  width: 900\n"); REQUIRE(m.load_settings(p,c)); CHECK(c.window_config.title=="Original"); CHECK(c.window_config.width==900); CHECK(c.window_config.height==222); CHECK(c.target_fps==75); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_partial.cache");
+    }
+
+    TEST_CASE("unknown enum strings leave the caller's existing selections intact") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; c.initial_state=Salix::AppStateType::Options; c.renderer_type=Salix::RendererType::OpenGL; c.gui_type=Salix::GuiType::None; c.timer_type=Salix::TimerType::Chrono; const std::string p="settings_batch847_unknown.yaml"; std::filesystem::remove("settings_batch847_unknown.cache"); create_temp_config(p,"Engine:\n  initial_state: Unknown\nRenderer:\n  type: Unknown\nGUI:\n  type: Unknown\nTimer:\n  type: Unknown\n"); REQUIRE(m.load_settings(p,c)); CHECK(c.initial_state==Salix::AppStateType::Options); CHECK(c.renderer_type==Salix::RendererType::OpenGL); CHECK(c.gui_type==Salix::GuiType::None); CHECK(c.timer_type==Salix::TimerType::Chrono); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_unknown.cache");
+    }
+
+    TEST_CASE("save and load roundtrip preserves every GUI scaling field") {
+        Salix::SettingsManager m; Salix::ApplicationConfig src; src.gui_settings.dialog_width_ratio=0.33f; src.gui_settings.dialog_height_ratio=0.44f; src.gui_settings.font_scaling=1.75f; src.gui_settings.global_dpi_scaling=2.25f; const std::string p="settings_batch847_gui.yaml"; std::filesystem::remove("settings_batch847_gui.cache"); REQUIRE(m.save_settings(p,src)); Salix::ApplicationConfig dst; REQUIRE(m.load_settings(p,dst)); CHECK(dst.gui_settings.dialog_width_ratio==doctest::Approx(0.33f)); CHECK(dst.gui_settings.dialog_height_ratio==doctest::Approx(0.44f)); CHECK(dst.gui_settings.font_scaling==doctest::Approx(1.75f)); CHECK(dst.gui_settings.global_dpi_scaling==doctest::Approx(2.25f)); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_gui.cache");
+    }
+
+    TEST_CASE("save and load roundtrip preserves signed window dimensions and target FPS") {
+        Salix::SettingsManager m; Salix::ApplicationConfig src; src.window_config.width=-640; src.window_config.height=0; src.target_fps=-1; const std::string p="settings_batch847_numbers.yaml"; std::filesystem::remove("settings_batch847_numbers.cache"); REQUIRE(m.save_settings(p,src)); Salix::ApplicationConfig dst; REQUIRE(m.load_settings(p,dst)); CHECK(dst.window_config.width==-640); CHECK(dst.window_config.height==0); CHECK(dst.target_fps==-1); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_numbers.cache");
+    }
+
+    TEST_CASE("quoted punctuation in the window title survives YAML persistence") {
+        Salix::SettingsManager m; Salix::ApplicationConfig src; src.window_config.title="Salix: \"Editor\" #1 / Test"; const std::string p="settings_batch847_title.yaml"; std::filesystem::remove("settings_batch847_title.cache"); REQUIRE(m.save_settings(p,src)); Salix::ApplicationConfig dst; REQUIRE(m.load_settings(p,dst)); CHECK(dst.window_config.title==src.window_config.title); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_title.cache");
+    }
+
+    TEST_CASE("saved settings document contains every expected top level section") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch847_sections.yaml"; REQUIRE(m.save_settings(p,c)); std::ifstream in(p); REQUIRE(in.is_open()); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>()); CHECK(text.find("Window:")!=std::string::npos); CHECK(text.find("Engine:")!=std::string::npos); CHECK(text.find("Renderer:")!=std::string::npos); CHECK(text.find("GUI:")!=std::string::npos); CHECK(text.find("Timer:")!=std::string::npos); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_sections.cache");
+    }
+
+    TEST_CASE("unsupported renderer selection serializes through the documented SDL fallback") {
+        Salix::SettingsManager m; Salix::ApplicationConfig src; src.renderer_type=Salix::RendererType::DirectX; const std::string p="settings_batch847_renderer_fallback.yaml"; std::filesystem::remove("settings_batch847_renderer_fallback.cache"); REQUIRE(m.save_settings(p,src)); Salix::ApplicationConfig dst; dst.renderer_type=Salix::RendererType::OpenGL; REQUIRE(m.load_settings(p,dst)); CHECK(dst.renderer_type==Salix::RendererType::SDL); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_renderer_fallback.cache");
+    }
+
+    TEST_CASE("malformed YAML returns false and does not create a binary cache") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch847_bad.yaml"; const std::string cache="settings_batch847_bad.cache"; std::filesystem::remove(cache); create_temp_config(p,"Window: [unterminated"); CHECK_FALSE(m.load_settings(p,c)); CHECK_FALSE(std::filesystem::exists(cache)); std::filesystem::remove(p);
+    }
+
+    TEST_CASE("a successful YAML load creates a reusable cache with the loaded title") {
+        Salix::SettingsManager m; Salix::ApplicationConfig first; const std::string p="settings_batch847_cache.yaml"; const std::string cache="settings_batch847_cache.cache"; std::filesystem::remove(cache); create_temp_config(p,"Window:\n  title: Cached Title\n"); REQUIRE(m.load_settings(p,first)); REQUIRE(std::filesystem::is_regular_file(cache)); CHECK(first.window_config.title=="Cached Title"); Salix::ApplicationConfig second; REQUIRE(m.load_settings(p,second)); CHECK(second.window_config.title=="Cached Title"); std::filesystem::remove(p); std::filesystem::remove(cache);
+    }
+}
