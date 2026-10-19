@@ -601,3 +601,85 @@ TEST_SUITE("Salix::math::Vector3Regression") {
         CHECK(restored == Salix::Vector3(4.f, 0.f, -3.f));
     }
 }
+
+// Vector-space algebra, normalization, identity and binary archive contracts.
+#include <cereal/archives/binary.hpp>
+TEST_SUITE("Salix::math::Vector3Additional") {
+    TEST_CASE("vector3 additional Pythagorean length holds for nonplanar three four twelve vector") {
+        const Salix::Vector3 value(3.f, 4.f, 12.f);
+        CHECK(value.length() == doctest::Approx(13.f));
+        CHECK(Salix::Vector3(-3.f, -4.f, -12.f).length() == doctest::Approx(13.f));
+    }
+
+    TEST_CASE("vector3 additional normalization preserves sign and makes non-axis direction unit length") {
+        Salix::Vector3 value(-2.f, 3.f, -6.f);
+        value.normalize();
+        CHECK(value.length() == doctest::Approx(1.f));
+        CHECK(value.x == doctest::Approx(-2.f / 7.f));
+        CHECK(value.y == doctest::Approx(3.f / 7.f));
+        CHECK(value.z == doctest::Approx(-6.f / 7.f));
+    }
+
+    TEST_CASE("vector3 additional lerp quarter-step interpolates each differently signed component") {
+        const Salix::Vector3 a(-8.f, 4.f, 12.f);
+        const Salix::Vector3 b(8.f, 12.f, -4.f);
+        const auto result = Salix::Vector3::lerp(a, b, 0.25f);
+        CHECK(result == Salix::Vector3(-4.f, 6.f, 8.f));
+    }
+
+    TEST_CASE("vector3 additional lerp reverse interpolation swaps endpoint and complement fraction") {
+        const Salix::Vector3 a(0.125f, -0.25f, 1.f);
+        const Salix::Vector3 b(0.625f, 0.5f, -1.f);
+        const auto forward = Salix::Vector3::lerp(a, b, 0.25f);
+        const auto reverse = Salix::Vector3::lerp(b, a, 0.75f);
+        CHECK(forward.x == doctest::Approx(reverse.x));
+        CHECK(forward.y == doctest::Approx(reverse.y));
+        CHECK(forward.z == doctest::Approx(reverse.z));
+    }
+
+    TEST_CASE("vector3 additional componentwise multiplication retains independent signs") {
+        const Salix::Vector3 a(-2.f, 3.f, -4.f);
+        const Salix::Vector3 b(-5.f, 0.f, 7.f);
+        CHECK(a * b == Salix::Vector3(10.f, 0.f, -28.f));
+        CHECK(a * Salix::Vector3::One == a);
+    }
+
+    TEST_CASE("vector3 additional scalar addition commutes and preserves all three axes") {
+        const Salix::Vector3 a(-7.f, 2.f, 11.f);
+        CHECK(a + 5.f == 5.f + a);
+        CHECK(a + 5.f == Salix::Vector3(-2.f, 7.f, 16.f));
+    }
+
+    TEST_CASE("vector3 additional scalar subtraction differs between scalar-first and vector-first") {
+        const Salix::Vector3 a(2.f, -3.f, 10.f);
+        CHECK(a - 5.f == Salix::Vector3(-3.f, -8.f, 5.f));
+        CHECK(5.f - a == Salix::Vector3(3.f, 8.f, -5.f));
+    }
+
+    TEST_CASE("vector3 additional compound arithmetic keeps object identity and composes reversibly") {
+        Salix::Vector3 value(2.f, -4.f, 6.f);
+        Salix::Vector3* const before = &value;
+        CHECK(&(value += Salix::Vector3(3.f, 2.f, -1.f)) == before);
+        CHECK(&(value -= Salix::Vector3(3.f, 2.f, -1.f)) == before);
+        CHECK(&(value *= 2.f) == before);
+        CHECK(&(value /= 2.f) == before);
+        CHECK(value == Salix::Vector3(2.f, -4.f, 6.f));
+    }
+
+    TEST_CASE("vector3 additional compound division by zero clears every component explicitly") {
+        Salix::Vector3 value(2.f, -4.f, 6.f);
+        value /= 0.f;
+        CHECK(value == Salix::Vector3(0.f, 0.f, 0.f));
+        CHECK(value.length() == 0.f);
+    }
+
+    TEST_CASE("vector3 additional binary serialization roundtrip preserves signed fractional vector components") {
+        Salix::Vector3 source(-0.125f, 128.5f, -1024.25f);
+        std::stringstream bytes;
+        { cereal::BinaryOutputArchive archive(bytes); archive(source); }
+        Salix::Vector3 loaded;
+        { cereal::BinaryInputArchive archive(bytes); archive(loaded); }
+        CHECK(loaded == source);
+        CHECK(loaded.to_glm().z == source.z);
+    }
+}
