@@ -214,7 +214,7 @@ TEST_SUITE("Salix::core::SimpleGuidExtended") {
         const auto max_guid = Salix::SimpleGuid::from_value(std::numeric_limits<uint64_t>::max());
         CHECK(max_guid.is_valid());
         CHECK(max_guid.get_value() == std::numeric_limits<uint64_t>::max());
-        CHECK(max_guid > Salix::SimpleGuid::invalid());
+        CHECK(Salix::SimpleGuid::invalid() < max_guid);
     }
 
     TEST_CASE("guid extended invalid zero sorts below every valid identifier") {
