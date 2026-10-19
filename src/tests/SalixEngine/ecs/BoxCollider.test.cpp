@@ -205,3 +205,102 @@ TEST_SUITE("Salix::ecs::BoxColliderAdditional") {
         CHECK(loaded.get_size() == source.get_size());
     }
 }
+
+// Persistence, identity and lifecycle invariants.
+#include <Salix/ecs/Entity.h>
+TEST_SUITE("Salix::ecs::BoxColliderBatch647") {
+    TEST_CASE("JSON preserves negative and nonuniform collision dimensions") {
+        Salix::BoxCollider original;original.set_size(Salix::Vector3(-2.f,3.5f,12.25f));
+        std::stringstream data;
+        {cereal::JSONOutputArchive writer(data);writer(original);}
+        Salix::BoxCollider loaded;
+        {cereal::JSONInputArchive reader(data);reader(loaded);}
+        CHECK(loaded.get_size()==Salix::Vector3(-2.f,3.5f,12.25f));
+    }
+
+    TEST_CASE("binary archive restores an explicitly assigned collider identifier") {
+        Salix::BoxCollider original;
+        original.set_id(Salix::SimpleGuid::from_value(12345678ULL));
+        std::stringstream bytes;
+        {cereal::BinaryOutputArchive writer(bytes);writer(original);}
+        Salix::BoxCollider restored;
+        {cereal::BinaryInputArchive reader(bytes);reader(restored);}
+        CHECK(restored.get_id()==original.get_id());
+    }
+
+    TEST_CASE("JSON load replaces preexisting size and name together") {
+        Salix::BoxCollider original;original.set_name("NewPhysics");
+        original.set_size(Salix::Vector3(3.f,4.f,5.f));
+        std::stringstream data;{cereal::JSONOutputArchive out(data);out(original);}
+        Salix::BoxCollider restored;restored.set_name("OldPhysics");restored.set_size(Salix::Vector3(9.f));
+        {cereal::JSONInputArchive in(data);in(restored);}
+        CHECK(restored.get_name()=="NewPhysics");
+        CHECK(restored.get_size()==Salix::Vector3(3.f,4.f,5.f));
+    }
+
+    TEST_CASE("deserialization does not transfer a runtime-only owner pointer") {
+        Salix::Entity entity;
+        Salix::BoxCollider original;original.set_owner(&entity);
+        std::stringstream bytes;{cereal::BinaryOutputArchive out(bytes);out(original);}
+        Salix::BoxCollider restored;{cereal::BinaryInputArchive in(bytes);in(restored);}
+        CHECK(restored.get_owner()==nullptr);
+        CHECK(original.get_owner()==&entity);
+    }
+
+    TEST_CASE("collision volume updates do not change the element identity") {
+        Salix::BoxCollider collider;
+        const auto id=collider.get_id();
+        collider.set_size(Salix::Vector3(-1.f,7.f,0.f));
+        collider.set_size(Salix::Vector3(12.f,14.f,16.f));
+        CHECK(collider.get_id()==id);
+        CHECK(collider.get_size()==Salix::Vector3(12.f,14.f,16.f));
+    }
+
+    TEST_CASE("component visibility remains independent of collision size") {
+        Salix::BoxCollider collider;collider.set_size(Salix::Vector3(8.f,2.f,1.f));
+        collider.set_visibility(false);collider.update(0.5f);
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_size()==Salix::Vector3(8.f,2.f,1.f));
+        collider.set_visibility(true);
+        CHECK(collider.is_visible());
+    }
+
+    TEST_CASE("two collider instances do not share their mutable size storage") {
+        Salix::BoxCollider a,b;
+        a.set_size(Salix::Vector3(2.f,4.f,6.f));
+        b.set_size(Salix::Vector3(5.f,7.f,9.f));
+        CHECK(a.get_size()!=b.get_size());
+        b.set_size(a.get_size());
+        CHECK(a.get_size()==b.get_size());
+        a.set_size(Salix::Vector3(0.f));
+        CHECK(b.get_size()==Salix::Vector3(2.f,4.f,6.f));
+    }
+
+    TEST_CASE("load without a renderer does not reset an explicitly assigned size") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(1.125f,-2.25f,9.5f));
+        Salix::InitContext context{};
+        collider.on_load(context);
+        CHECK(collider.get_size()==Salix::Vector3(1.125f,-2.25f,9.5f));
+    }
+
+    TEST_CASE("negative and zero time updates preserve an asymmetric volume") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(0.f,-8.f,16.f));
+        for(float delta:{-2.f,0.f,0.016f,1.f})collider.update(delta);
+        CHECK(collider.get_size()==Salix::Vector3(0.f,-8.f,16.f));
+    }
+
+    TEST_CASE("binary deserialization keeps new GUID and label but no old runtime visibility") {
+        Salix::BoxCollider original;original.set_name("SavedBounds");
+        original.set_id(Salix::SimpleGuid::from_value(987654ULL));
+        original.set_size(Salix::Vector3(6.f,7.f,8.f));
+        std::stringstream bytes;{cereal::BinaryOutputArchive out(bytes);out(original);}
+        Salix::BoxCollider restored;restored.set_visibility(false);
+        {cereal::BinaryInputArchive in(bytes);in(restored);}
+        CHECK(restored.get_id()==original.get_id());
+        CHECK(restored.get_name()=="SavedBounds");
+        CHECK(restored.get_size()==Salix::Vector3(6.f,7.f,8.f));
+        CHECK_FALSE(restored.is_visible());
+    }
+}
