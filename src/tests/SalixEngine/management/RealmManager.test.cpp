@@ -254,3 +254,102 @@ TEST_SUITE("Salix::management::RealmManagerAdditional") {
         CHECK(probe->loads == 2);
     }
 }
+
+// Additional behaviour and lifecycle tests; existing cases preserved.
+TEST_SUITE("Salix::management::RealmManagerBatch647") {
+    TEST_CASE("creating a realm does not implicitly make it active") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("New","Scenes/New.json")!=nullptr);
+        CHECK(manager.get_active_realm()==nullptr);
+        manager.update(0.016f);
+    }
+
+    TEST_CASE("switching between named realms keeps each realm object stable") {
+        Salix::RealmManager manager;
+        auto* first=manager.create_realm("First","First.json");
+        auto* second=manager.create_realm("Second","Second.json");
+        REQUIRE(first!=nullptr); REQUIRE(second!=nullptr);
+        REQUIRE(manager.set_active_realm("First"));
+        CHECK(manager.get_active_realm()==first);
+        REQUIRE(manager.set_active_realm("Second"));
+        CHECK(manager.get_active_realm()==second);
+        REQUIRE(manager.set_active_realm("First"));
+        CHECK(manager.get_active_realm()==first);
+    }
+
+    TEST_CASE("an invalid selection does not disrupt the active realm's metadata") {
+        Salix::RealmManager manager;
+        auto* first=manager.create_realm("First","First.json"); REQUIRE(first!=nullptr);
+        REQUIRE(manager.set_active_realm("First"));
+        CHECK_FALSE(manager.set_active_realm(""));
+        CHECK_FALSE(manager.set_active_realm("Missing"));
+        CHECK(manager.get_active_realm()==first);
+        CHECK(first->get_path()=="First.json");
+    }
+
+    TEST_CASE("replacing another named realm preserves both unrelated selection and path") {
+        Salix::RealmManager manager;
+        auto* active=manager.create_realm("Active","Active.json"); REQUIRE(active!=nullptr);
+        REQUIRE(manager.create_realm("Replace","One.json")!=nullptr);
+        REQUIRE(manager.set_active_realm("Active"));
+        auto* updated=manager.create_realm("Replace","Two.json");
+        REQUIRE(updated!=nullptr);
+        CHECK(updated->get_path()=="Two.json");
+        CHECK(manager.get_active_realm()==active);
+    }
+
+    TEST_CASE("replacing an active realm leaves selection valid and updates the path") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Live","Before.json")!=nullptr);
+        REQUIRE(manager.set_active_realm("Live"));
+        auto* replacement=manager.create_realm("Live","After.json");
+        REQUIRE(replacement!=nullptr);
+        CHECK(manager.get_active_realm()==replacement);
+        CHECK(manager.get_active_realm()->get_path()=="After.json");
+    }
+
+    TEST_CASE("empty name and path are rejected without changing selection") {
+        Salix::RealmManager manager;
+        auto* active=manager.create_realm("Good","Good.json"); REQUIRE(active!=nullptr);
+        REQUIRE(manager.set_active_realm("Good"));
+        CHECK(manager.create_realm("","missing.json")==nullptr);
+        CHECK(manager.create_realm("missing","")==nullptr);
+        CHECK(manager.get_active_realm()==active);
+    }
+
+    TEST_CASE("setting an empty project root preserves the last nonempty root") {
+        Salix::RealmManager manager;
+        manager.set_project_root_path("Projects/One");
+        manager.set_project_root_path("");
+        CHECK(manager.get_project_root_path()=="Projects/One");
+        manager.set_project_root_path("Projects/Two");
+        CHECK(manager.get_project_root_path()=="Projects/Two");
+    }
+
+    TEST_CASE("an uninitialized active realm fails asset loading without dereferencing pointers") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Pending","Pending.json")!=nullptr);
+        REQUIRE(manager.set_active_realm("Pending"));
+        CHECK_FALSE(manager.load_active_realm());
+        CHECK(manager.get_active_realm()!=nullptr);
+    }
+
+    TEST_CASE("after shutdown previously registered realm names cannot be selected") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Previous","Previous.json")!=nullptr);
+        REQUIRE(manager.set_active_realm("Previous"));
+        manager.shutdown();
+        CHECK(manager.get_active_realm()==nullptr);
+        CHECK_FALSE(manager.set_active_realm("Previous"));
+        REQUIRE(manager.create_realm("Fresh","Fresh.json")!=nullptr);
+        CHECK(manager.set_active_realm("Fresh"));
+    }
+
+    TEST_CASE("a failed load of a nonexistent realm file preserves active selection") {
+        Salix::RealmManager manager;
+        auto* active=manager.create_realm("Stable","Stable.json"); REQUIRE(active!=nullptr);
+        REQUIRE(manager.set_active_realm("Stable"));
+        CHECK_FALSE(manager.load_realm("nonexistent_sg_unlikely_20261019.json"));
+        CHECK(manager.get_active_realm()==active);
+    }
+}
