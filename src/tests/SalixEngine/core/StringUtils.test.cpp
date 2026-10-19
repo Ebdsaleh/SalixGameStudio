@@ -486,3 +486,74 @@ TEST_SUITE("Salix::core::StringUtilsRegression") {
         CHECK(Salix::StringUtils::convert_from_pascal_case("Sprite2D") == "Sprite 2D");
     }
 }
+
+// Character-boundary and identifier-normalization contracts for Editor labels.
+TEST_SUITE("Salix::core::StringUtilsAdditional20261019") {
+    TEST_CASE("strings mixed-case identifiers retain digits and punctuation during ASCII case conversion") {
+        const std::string input = "Sprite2D-v3!";
+        CHECK(Salix::StringUtils::to_upper(input) == "SPRITE2D-V3!");
+        CHECK(Salix::StringUtils::to_lower(input) == "sprite2d-v3!");
+        CHECK(input == "Sprite2D-v3!");
+    }
+
+    TEST_CASE("strings upper and lower conversion are idempotent on multiline ASCII") {
+        const std::string original = "Main Camera\nPLAYER_42\tUnchanged-7";
+        const auto upper = Salix::StringUtils::to_upper(original);
+        const auto lower = Salix::StringUtils::to_lower(original);
+        CHECK(Salix::StringUtils::to_upper(upper) == upper);
+        CHECK(Salix::StringUtils::to_lower(lower) == lower);
+    }
+
+    TEST_CASE("strings title case treats tabs and newlines as boundaries while keeping digits") {
+        CHECK(Salix::StringUtils::to_title_case("hELLO\tWoRLD\n3D ASSETS") == "Hello\tWorld\n3d Assets");
+        CHECK(Salix::StringUtils::to_title_case("a  B") == "A  B");
+    }
+
+    TEST_CASE("strings capitalizing does not start new words after spaces") {
+        CHECK(Salix::StringUtils::capitalize("eDITOR CAMERA MODE") == "Editor camera mode");
+        CHECK(Salix::StringUtils::capitalize("mAIN\tPORTAL") == "Main\tportal");
+    }
+
+    TEST_CASE("strings snake converter respects leading trailing and adjacent underscores") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("_root_") == "_root_");
+        CHECK(Salix::StringUtils::convert_from_snake_case("a__b") == "a__b");
+        CHECK(Salix::StringUtils::convert_from_snake_case("a_b__c_d") == "a b__c d");
+    }
+
+    TEST_CASE("strings snake classifier accepts numeric segments but rejects dots and dashes") {
+        CHECK(Salix::StringUtils::is_snake_case("lod_0"));
+        CHECK(Salix::StringUtils::is_snake_case("camera_2d"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("camera-2d"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("scene.json"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("camera__2d"));
+    }
+
+    TEST_CASE("strings snake substring detection differs from complete identifier validation") {
+        CHECK(Salix::StringUtils::contains_snake_case("x_camera_mode!"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("x_camera_mode!"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("_x_"));
+        CHECK(Salix::StringUtils::contains_snake_case("a_3"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case(""));
+    }
+
+    TEST_CASE("strings Pascal classifier checks capitalization without requiring a word boundary") {
+        CHECK(Salix::StringUtils::is_pascal_case("A"));
+        CHECK(Salix::StringUtils::is_pascal_case("JSON2"));
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("json2"));
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("Main_Camera"));
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("Main Camera"));
+    }
+
+    TEST_CASE("strings Pascal splitting handles a word following a numeric suffix") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("Camera2Target") == "Camera 2 Target");
+        CHECK(Salix::StringUtils::convert_from_pascal_case("Sprite2D") == "Sprite 2D");
+        CHECK(Salix::StringUtils::convert_from_pascal_case("PlayerModel") == "Player Model");
+    }
+
+    TEST_CASE("strings snake-aware case transformations preserve malformed separators") {
+        CHECK(Salix::StringUtils::to_upper("_camera_mode_", true) == "_CAMERA MODE_");
+        CHECK(Salix::StringUtils::to_lower("MAIN__CAMERA", true) == "main__camera");
+        CHECK(Salix::StringUtils::to_title_case("main_camera", true) == "Main Camera");
+        CHECK(Salix::StringUtils::capitalize("MAIN_CAMERA", true) == "Main camera");
+    }
+}
