@@ -408,7 +408,7 @@ TEST_SUITE("Salix::events::EventManagerBatch647") {
         manager.subscribe(Salix::EventCategory::Application,&second);
         manager.subscribe(Salix::EventCategory::Application,&third);
         manager.dispatch(std::make_unique<Salix::MockEvent>());manager.process_queue();
-        CHECK(calls==std::vector<int>{1,2,3});
+        CHECK((calls==std::vector<int>{1,2,3}));
     }
 
     TEST_CASE("a handler in the middle stops later listeners for the same event") {
@@ -500,7 +500,7 @@ TEST_SUITE("Salix::events::EventManagerBatch647") {
         manager.subscribe(Salix::EventCategory::Application,&listener);
         for(int value:{7,1,42,-3})manager.dispatch(std::make_unique<Batch647NumberedEvent>(value));
         manager.process_queue();
-        CHECK(observed==std::vector<int>{7,1,42,-3});
+        CHECK((observed==std::vector<int>{7,1,42,-3}));
     }
 
     TEST_CASE("stack event dispatch clones payload before its original scope ends") {
