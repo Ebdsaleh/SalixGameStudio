@@ -165,7 +165,7 @@ TEST_SUITE("Salix::math::RectAdditional") {
     }
 
     TEST_CASE("rect JSON roundtrip preserves signed and fractional rectangle members") {
-        const Salix::RectF original(-0.5f, 100.25f, 2.75f, -8.125f);
+        Salix::RectF original(-0.5f, 100.25f, 2.75f, -8.125f);
         std::stringstream stream;
         { cereal::JSONOutputArchive archive(stream); archive(original); }
         Salix::RectF restored;
@@ -174,7 +174,7 @@ TEST_SUITE("Salix::math::RectAdditional") {
     }
 
     TEST_CASE("rect binary roundtrip preserves negative coordinates and dimensions") {
-        const Salix::RectI original(-88, 555, -21, 32);
+        Salix::RectI original(-88, 555, -21, 32);
         std::stringstream stream;
         { cereal::BinaryOutputArchive archive(stream); archive(original); }
         Salix::RectI restored;
@@ -190,8 +190,8 @@ TEST_SUITE("Salix::math::RectAdditional") {
     }
 
     TEST_CASE("rect rectangle constructors reject nonarithmetic fields at compile time") {
-        CHECK(std::is_constructible_v<Salix::RectI, int, float, double, short>);
+        CHECK((std::is_constructible_v<Salix::RectI, int, float, double, short>));
         CHECK_FALSE((std::is_constructible_v<Salix::RectI, int, std::string, int, int>));
-        CHECK(std::is_constructible_v<Salix::RectD, const Salix::RectI&>);
+        CHECK((std::is_constructible_v<Salix::RectD, const Salix::RectI&>));
     }
 }
