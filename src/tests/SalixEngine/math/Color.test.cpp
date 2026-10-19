@@ -420,3 +420,46 @@ TEST_SUITE("Salix::math::ColorAdditional20261019") {
         CHECK(restored == source);
     }
 }
+
+// Boundary behavior pinned against the implementation and public API.
+TEST_SUITE("Salix::Batch747::ColorBatch747") {
+    TEST_CASE("color HSV orange at thirty degrees splits red and green halfway") {
+        const auto c=Salix::Color::from_hsv(30.f,1.f,1.f);check_color_approx(c,Salix::Color(1.f,0.5f,0.f));
+    }
+
+    TEST_CASE("color HSV chartreuse at ninety degrees splits green and red halfway") {
+        const auto c=Salix::Color::from_hsv(90.f,1.f,1.f);check_color_approx(c,Salix::Color(0.5f,1.f,0.f));
+    }
+
+    TEST_CASE("color HSV spring green at one hundred fifty degrees adds half blue") {
+        const auto c=Salix::Color::from_hsv(150.f,1.f,1.f);check_color_approx(c,Salix::Color(0.f,1.f,0.5f));
+    }
+
+    TEST_CASE("color HSV azure at two hundred ten degrees adds half green") {
+        const auto c=Salix::Color::from_hsv(210.f,1.f,1.f);check_color_approx(c,Salix::Color(0.f,0.5f,1.f));
+    }
+
+    TEST_CASE("color HSV violet at two hundred seventy degrees adds half red") {
+        const auto c=Salix::Color::from_hsv(270.f,1.f,1.f);check_color_approx(c,Salix::Color(0.5f,0.f,1.f));
+    }
+
+    TEST_CASE("color HSV rose at three hundred thirty degrees adds half blue") {
+        const auto c=Salix::Color::from_hsv(330.f,1.f,1.f);check_color_approx(c,Salix::Color(1.f,0.f,0.5f));
+    }
+
+    TEST_CASE("color negative HSV hue wraps to the corresponding positive hue") {
+        const auto a=Salix::Color::from_hsv(-30.f,1.f,1.f,0.3f);const auto b=Salix::Color::from_hsv(330.f,1.f,1.f,0.3f);check_color_approx(a,b);
+    }
+
+    TEST_CASE("color zero and negative saturation produce grayscale with user alpha") {
+        const auto a=Salix::Color::from_hsv(123.f,-0.1f,0.375f,0.625f);const auto b=Salix::Color::from_hsv(15.f,0.f,0.375f,0.625f);check_color_approx(a,b);check_color_approx(a,Salix::Color(0.375f,0.375f,0.375f,0.625f));
+    }
+
+    TEST_CASE("color HSV supports overbright value without silently clipping HDR") {
+        const auto c=Salix::Color::from_hsv(0.f,1.f,2.f,0.125f);check_color_approx(c,Salix::Color(2.f,0.f,0.f,0.125f));
+    }
+
+    TEST_CASE("color YAML missing alpha explicitly clears preexisting opacity instead of keeping white default") {
+        Salix::Color c(1.f,1.f,1.f,1.f);const YAML::Node n=YAML::Load("{r: 0.25, g: 0.5, b: 0.75}");n >> c;check_color_approx(c,Salix::Color(0.25f,0.5f,0.75f,0.f));
+    }
+}
