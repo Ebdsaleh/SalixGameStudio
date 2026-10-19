@@ -337,3 +337,86 @@ TEST_SUITE("Salix::math::ColorAdditional") {
         CHECK(c.to_imvec4().w == doctest::Approx(c.a));
     }
 }
+
+// HDR algebra, HSV invariants and alpha serialization contracts.
+TEST_SUITE("Salix::math::ColorAdditional20261019") {
+    TEST_CASE("color extended RGBA factory maps all four byte endpoints without cross-channel interference") {
+        const auto c=Salix::Color::from_rgba_int(0,255,0,128);
+        CHECK(c.r == 0.f);
+        CHECK(c.g == 1.f);
+        CHECK(c.b == 0.f);
+        CHECK(c.a == doctest::Approx(128.f/255.f));
+    }
+
+    TEST_CASE("color extended integer conversion is monotone across a channel's byte domain") {
+        float previous=-1.f;
+        for (int n : {0,1,32,64,128,200,255}) {
+            const auto c=Salix::Color::from_rgba_int(n,0,0);
+            CHECK(c.r>=previous);
+            previous=c.r;
+        }
+    }
+
+    TEST_CASE("color extended HSV black is independent of saturation and hue") {
+        const auto a=Salix::Color::from_hsv(30.f,1.f,0.f,0.25f);
+        const auto b=Salix::Color::from_hsv(230.f,0.f,0.f,0.25f);
+        CHECK(a == b);
+        CHECK(a.r == 0.f);
+        CHECK(a.g == 0.f);
+        CHECK(a.b == 0.f);
+    }
+
+    TEST_CASE("color extended HSV grayscale preserves opacity across hue changes") {
+        const auto x=Salix::Color::from_hsv(0.f,0.f,0.625f,0.75f);
+        const auto y=Salix::Color::from_hsv(320.f,0.f,0.625f,0.75f);
+        CHECK(x == y);
+        CHECK(x.a == doctest::Approx(0.75f));
+    }
+
+    TEST_CASE("color extended HSV hue one complete cycle later produces identical RGB") {
+        const auto a=Salix::Color::from_hsv(60.f,1.f,1.f);
+        const auto b=Salix::Color::from_hsv(420.f,1.f,1.f);
+        CHECK(b.r == doctest::Approx(a.r));
+        CHECK(b.g == doctest::Approx(a.g));
+        CHECK(b.b == doctest::Approx(a.b));
+    }
+
+    TEST_CASE("color extended linear interpolation keeps both endpoints when fraction is clamped") {
+        const Salix::Color start(0.1f,0.2f,0.3f,0.4f), end(0.6f,0.7f,0.8f,0.9f);
+        CHECK(Salix::Color::lerp(start,end,-3.f) == start);
+        CHECK(Salix::Color::lerp(start,end,3.f) == end);
+    }
+
+    TEST_CASE("color extended linear RGBA interpolation separates transparency from RGB tint") {
+        const Salix::Color start(0.25f,0.f,0.f,0.f), end(0.25f,0.f,0.f,1.f);
+        const auto result=Salix::Color::lerp(start,end,0.25f);
+        CHECK(result.r == doctest::Approx(0.25f));
+        CHECK(result.g == 0.f);
+        CHECK(result.a == doctest::Approx(0.25f));
+    }
+
+    TEST_CASE("color extended adding and subtracting colors retain unbounded HDR and alpha") {
+        const Salix::Color a(2.f,0.5f,1.5f,1.25f), b(1.f,0.25f,0.5f,0.75f);
+        const auto c=(a+b)-b;
+        CHECK(c == a);
+        CHECK((a+b).a == doctest::Approx(2.f));
+    }
+
+    TEST_CASE("color extended YAML decoding replaces a previously initialized alpha value") {
+        Salix::Color value(1.f,1.f,1.f,1.f);
+        const YAML::Node yaml=YAML::Load("{r: 0.125, g: 0.25, b: 0.5, a: 0.75}");
+        yaml >> value;
+        CHECK(value.r == doctest::Approx(0.125f));
+        CHECK(value.g == doctest::Approx(0.25f));
+        CHECK(value.a == doctest::Approx(0.75f));
+    }
+
+    TEST_CASE("color extended Cereal JSON roundtrip preserves non-byte-aligned opacity and tint") {
+        Salix::Color source(0.125f,0.375f,0.625f,0.875f);
+        std::stringstream data;
+        { cereal::JSONOutputArchive out(data); out(source); }
+        Salix::Color restored;
+        { cereal::JSONInputArchive in(data); in(restored); }
+        CHECK(restored == source);
+    }
+}
