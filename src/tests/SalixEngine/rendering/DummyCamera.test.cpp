@@ -150,3 +150,46 @@ TEST_SUITE("Salix::rendering::DummyCameraExtended") {
         CHECK(camera.get_orthographic_size() == 7.75f);
     }
 }
+
+// Isolated virtual-dispatch and GUI-input state behavioral contracts.
+TEST_SUITE("Salix::Batch747::DummyCameraBatch747") {
+    TEST_CASE("dummy camera can toggle active state repeatedly without altering projection") {
+        Salix::DummyCamera c;for(int i=0;i<5;++i){c.activate();CHECK(c.get_is_active());c.deactivate();CHECK_FALSE(c.get_is_active());}CHECK(c.get_projection_mode()==Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("dummy camera set active false overrides an earlier activate call") {
+        Salix::DummyCamera c;c.activate();c.set_is_active(false);CHECK_FALSE(c.get_is_active());CHECK(c.get_view_matrix()==glm::mat4(1.f));
+    }
+
+    TEST_CASE("dummy camera set active true overrides an earlier deactivate call") {
+        Salix::DummyCamera c;c.deactivate();c.set_is_active(true);CHECK(c.get_is_active());CHECK(c.get_projection_matrix()==glm::mat4(1.f));
+    }
+
+    TEST_CASE("dummy camera orthographic size accepts zero without changing perspective mode") {
+        Salix::DummyCamera c;c.set_orthographic_size(0.f);CHECK(c.get_orthographic_size()==0.f);CHECK(c.get_projection_mode()==Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("dummy camera last orthographic assignment wins across multiple updates") {
+        Salix::DummyCamera c;c.set_orthographic_size(1.25f);c.set_orthographic_size(2.5f);c.set_orthographic_size(7.75f);CHECK(c.get_orthographic_size()==7.75f);
+    }
+
+    TEST_CASE("dummy camera instance destruction cannot reset the next instance size") {
+        {Salix::DummyCamera temporary;temporary.set_orthographic_size(123.f);temporary.activate();}Salix::DummyCamera fresh;CHECK(fresh.get_orthographic_size()==10.f);CHECK_FALSE(fresh.get_is_active());
+    }
+
+    TEST_CASE("dummy camera two instances expose distinct internal view matrix storage") {
+        Salix::DummyCamera a,b;CHECK(&a.get_view_matrix()!=&b.get_view_matrix());CHECK(a.get_view_matrix()==b.get_view_matrix());
+    }
+
+    TEST_CASE("dummy camera two instances expose distinct internal projection matrix storage") {
+        Salix::DummyCamera a,b;CHECK(&a.get_projection_matrix()!=&b.get_projection_matrix());CHECK(a.get_projection_matrix()==b.get_projection_matrix());
+    }
+
+    TEST_CASE("dummy camera mode cannot be changed through its camera interface") {
+        Salix::DummyCamera concrete;Salix::ICamera& c=concrete;c.set_projection_mode(Salix::ProjectionMode::Orthographic);CHECK(c.get_projection_mode()==Salix::ProjectionMode::Perspective);c.set_projection_mode(Salix::ProjectionMode::Perspective);CHECK(c.get_projection_mode()==Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("dummy camera orthographic and active settings are independent across camera interface dispatch") {
+        Salix::DummyCamera concrete;Salix::ICamera& c=concrete;c.set_orthographic_size(0.25f);c.set_is_active(true);CHECK(concrete.get_orthographic_size()==0.25f);CHECK(c.get_is_active());c.deactivate();CHECK_FALSE(c.get_is_active());CHECK(concrete.get_orthographic_size()==0.25f);
+    }
+}
