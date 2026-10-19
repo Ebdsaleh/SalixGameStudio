@@ -557,3 +557,46 @@ TEST_SUITE("Salix::core::StringUtilsAdditional20261019") {
         CHECK(Salix::StringUtils::capitalize("MAIN_CAMERA", true) == "Main camera");
     }
 }
+
+// Boundary behavior pinned against the implementation and public API.
+TEST_SUITE("Salix::Batch747::StringUtilsBatch747") {
+    TEST_CASE("strings empty input is stable through every transformation and classifier") {
+        using S=Salix::StringUtils; CHECK(S::to_upper("").empty());CHECK(S::to_lower("").empty());CHECK(S::to_title_case("").empty());CHECK(S::capitalize("").empty());CHECK(S::convert_from_snake_case("").empty());CHECK(S::convert_from_pascal_case("").empty());CHECK_FALSE(S::is_snake_case(""));CHECK_FALSE(S::is_pascal_case(""));
+    }
+
+    TEST_CASE("strings case conversion preserves an embedded NUL byte and suffix") {
+        std::string source("ab\0Cd",5);const auto upper=Salix::StringUtils::to_upper(source);const auto lower=Salix::StringUtils::to_lower(source);REQUIRE(upper.size()==5);REQUIRE(lower.size()==5);CHECK(upper==std::string("AB\0CD",5));CHECK(lower==std::string("ab\0cd",5));
+    }
+
+    TEST_CASE("strings title case resets on repeated mixed whitespace without discarding separators") {
+        CHECK(Salix::StringUtils::to_title_case("hELLo  \twORLD\nagain")=="Hello  \tWorld\nAgain");
+    }
+
+    TEST_CASE("strings capitalization lowercases subsequent words without introducing title-case") {
+        CHECK(Salix::StringUtils::capitalize("sALIX ENGINE TEST")=="Salix engine test");
+    }
+
+    TEST_CASE("strings numeric snake segments are replaced only between alphanumeric neighbors") {
+        using S=Salix::StringUtils;CHECK(S::is_snake_case("file_12_version_3"));CHECK(S::convert_from_snake_case("file_12_version_3")=="file 12 version 3");CHECK_FALSE(S::is_snake_case("file__12"));
+    }
+
+    TEST_CASE("strings malformed snake separators remain distinguishable from valid internal segments") {
+        using S=Salix::StringUtils;CHECK(S::contains_snake_case("__good_name__"));CHECK_FALSE(S::is_snake_case("__good_name__"));CHECK(S::convert_from_snake_case("__good_name__")=="__good name__");
+    }
+
+    TEST_CASE("strings titlecase snake opt-in changes only valid separators") {
+        CHECK(Salix::StringUtils::to_title_case("HELLO_WORLD__TEST",true)=="Hello World__test");CHECK(Salix::StringUtils::to_title_case("HELLO_WORLD__TEST",false)=="Hello_world__test");
+    }
+
+    TEST_CASE("strings Pascal conversion preserves an uppercase acronym without inventing word boundaries") {
+        using S=Salix::StringUtils;CHECK(S::is_pascal_case("HTTPServer"));CHECK(S::convert_from_pascal_case("HTTPServer")=="HTTPServer");CHECK_FALSE(S::contains_pascal_case("HTTPServer"));
+    }
+
+    TEST_CASE("strings Pascal conversion separates a digit followed by a genuine capitalized word") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("Level12Alpha")=="Level 12 Alpha");CHECK(Salix::StringUtils::convert_from_pascal_case("Sprite2D")=="Sprite 2D");
+    }
+
+    TEST_CASE("strings Pascal validation rejects punctuation but accepts a single leading capital") {
+        using S=Salix::StringUtils;CHECK(S::is_pascal_case("A"));CHECK(S::is_pascal_case("A123"));CHECK_FALSE(S::is_pascal_case("A_Name"));CHECK_FALSE(S::is_pascal_case("A-Name"));CHECK_FALSE(S::is_pascal_case("1Name"));
+    }
+}
