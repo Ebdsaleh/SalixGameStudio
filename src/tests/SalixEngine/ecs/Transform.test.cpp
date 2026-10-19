@@ -975,3 +975,47 @@ TEST_SUITE("Salix::ecs::TransformAdditional20261019") {
         CHECK(child.get_world_position().z == doctest::Approx(world.z));
     }
 }
+
+
+// Runtime-facing isolated contracts for the 847+ coverage batch.
+TEST_SUITE("Salix::ecs::TransformBatch847") {
+    TEST_CASE("transform root set world position writes the same local coordinates") {
+        Salix::Transform t; t.set_world_position(Salix::Vector3(-7.f,8.f,9.f)); CHECK(t.get_position()==Salix::Vector3(-7.f,8.f,9.f)); CHECK(t.get_world_position()==Salix::Vector3(-7.f,8.f,9.f));
+    }
+
+    TEST_CASE("transform child world position setter compensates for translated parent") {
+        Salix::Transform parent,child; child.set_parent(&parent); parent.set_position(10.f,-5.f,3.f); child.set_world_position(Salix::Vector3(14.f,2.f,-1.f)); CHECK(child.get_position()==Salix::Vector3(4.f,7.f,-4.f)); CHECK(child.get_world_position()==Salix::Vector3(14.f,2.f,-1.f));
+    }
+
+    TEST_CASE("transform root world rotation setter matches local Euler angles") {
+        Salix::Transform t; t.set_world_rotation(Salix::Vector3(15.f,-30.f,45.f)); CHECK(t.get_rotation()==Salix::Vector3(15.f,-30.f,45.f));
+    }
+
+    TEST_CASE("transform root world scale setter matches local scale exactly") {
+        Salix::Transform t; t.set_world_scale(Salix::Vector3(2.f,3.f,4.f)); CHECK(t.get_scale()==Salix::Vector3(2.f,3.f,4.f)); CHECK(t.get_world_scale().x==doctest::Approx(2.f)); CHECK(t.get_world_scale().y==doctest::Approx(3.f)); CHECK(t.get_world_scale().z==doctest::Approx(4.f));
+    }
+
+    TEST_CASE("transform default directional basis is forward negative Z up positive Y right positive X") {
+        Salix::Transform t; const auto f=t.get_forward(),u=t.get_up(),r=t.get_right(); CHECK(f.x==doctest::Approx(0.f)); CHECK(f.y==doctest::Approx(0.f)); CHECK(f.z==doctest::Approx(-1.f)); CHECK(u.y==doctest::Approx(1.f)); CHECK(r.x==doctest::Approx(1.f));
+    }
+
+    TEST_CASE("transform glm translation overload accumulates with vector translation overload") {
+        Salix::Transform t; t.translate(glm::vec3(1.f,2.f,3.f)); t.translate(Salix::Vector3(-4.f,5.f,-6.f)); CHECK(t.get_position()==Salix::Vector3(-3.f,7.f,-3.f));
+    }
+
+    TEST_CASE("transform glm rotation overload accumulates with scalar rotation overload") {
+        Salix::Transform t; t.rotate(glm::vec3(10.f,-20.f,30.f)); t.rotate(-5.f,5.f,-10.f); CHECK(t.get_rotation()==Salix::Vector3(5.f,-15.f,20.f));
+    }
+
+    TEST_CASE("transform local point and world point conversions invert each other under translation") {
+        Salix::Transform t; t.set_position(10.f,-4.f,7.f); const Salix::Vector3 local(2.f,3.f,-5.f); const auto world=t.get_world_position_of_local_point(local); const auto restored=t.get_local_position_of_world_point(world); CHECK(restored.x==doctest::Approx(local.x)); CHECK(restored.y==doctest::Approx(local.y)); CHECK(restored.z==doctest::Approx(local.z));
+    }
+
+    TEST_CASE("transform translated parent local world conversion helpers are mutual inverses") {
+        Salix::Transform parent,child; parent.set_position(-20.f,5.f,11.f); child.set_parent(&parent); const Salix::Vector3 local(3.f,-2.f,4.f); const auto world=child.local_to_world_position(local); const auto restored=child.world_to_local_position(world); CHECK(restored.x==doctest::Approx(local.x)); CHECK(restored.y==doctest::Approx(local.y)); CHECK(restored.z==doctest::Approx(local.z));
+    }
+
+    TEST_CASE("transform model matrix preserves nonuniform root scale on its basis columns") {
+        Salix::Transform t; t.set_scale(2.f,3.f,4.f); const auto m=t.get_model_matrix(); CHECK(glm::length(glm::vec3(m[0]))==doctest::Approx(2.f)); CHECK(glm::length(glm::vec3(m[1]))==doctest::Approx(3.f)); CHECK(glm::length(glm::vec3(m[2]))==doctest::Approx(4.f));
+    }
+}
