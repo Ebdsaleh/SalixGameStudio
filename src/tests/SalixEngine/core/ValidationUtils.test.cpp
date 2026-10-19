@@ -414,3 +414,95 @@ TEST_SUITE("Salix::core::ValidationUtilsRegression") {
         CHECK_FALSE(is_valid_ptr(static_cast<int*>(nullptr)));
     }
 }
+
+// Numeric sentinels and validation-template semantics used by reflection.
+TEST_SUITE("Salix::core::ValidationUtilsAdditional20261019") {
+    TEST_CASE("validation extended signed template validity only excludes the maximum sentinel") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_integral<int>(0));
+        CHECK(is_valid_integral<int>(-9));
+        CHECK(is_valid_integral<int>(std::numeric_limits<int>::min()));
+        CHECK_FALSE(is_valid_integral<int>(std::numeric_limits<int>::max()));
+    }
+
+    TEST_CASE("validation extended unsigned generic validation accepts zero and rejects maximum") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_integral<std::uint16_t>(0));
+        CHECK(is_valid_integral<std::uint16_t>(65534));
+        CHECK_FALSE(is_valid_integral<std::uint16_t>(65535));
+    }
+
+    TEST_CASE("validation extended floating template excludes NaN and both signed infinities") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_floating_point<float>(0.f));
+        CHECK(is_valid_floating_point<double>(-12.5));
+        CHECK_FALSE(is_valid_floating_point<double>(std::numeric_limits<double>::quiet_NaN()));
+        CHECK_FALSE(is_valid_floating_point<float>(std::numeric_limits<float>::infinity()));
+        CHECK_FALSE(is_valid_floating_point<float>(-std::numeric_limits<float>::infinity()));
+    }
+
+    TEST_CASE("validation extended zero and small finite floats do not become false negatives") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_finite(0.f));
+        CHECK(is_finite(-0.f));
+        CHECK(is_finite(std::numeric_limits<float>::min()));
+        CHECK(is_finite(std::numeric_limits<float>::denorm_min()));
+    }
+
+    TEST_CASE("validation extended complex validation checks real and imaginary channels separately") {
+        using namespace Salix::ValidationUtils;
+        const double inf = std::numeric_limits<double>::infinity();
+        CHECK(is_valid_complex_double(std::complex<double>(1., -3.)));
+        CHECK_FALSE(is_valid_complex_double(std::complex<double>(inf, 0.)));
+        CHECK_FALSE(is_valid_complex_double(std::complex<double>(0., -inf)));
+    }
+
+    TEST_CASE("validation extended pointer validity handles const and polymorphic addresses without ownership") {
+        using namespace Salix::ValidationUtils;
+        const int value = 6;
+        const int* existing = &value;
+        const int* missing = nullptr;
+        CHECK(is_valid_ptr(existing));
+        CHECK_FALSE(is_valid_ptr(missing));
+        CHECK(is_valid_c_str("value"));
+        CHECK_FALSE(is_valid_c_str(nullptr));
+    }
+
+    TEST_CASE("validation extended decayed compile-time type equality distinguishes float and double") {
+        using namespace Salix::ValidationUtils;
+        const float f = 0.f;
+        const double d = 0.;
+        CHECK(is_type<float>(f));
+        CHECK(is_type<const float&>(f));
+        CHECK_FALSE(is_type<double>(f));
+        CHECK(is_type<double>(d));
+        CHECK_FALSE(is_type<int>(d));
+    }
+
+    TEST_CASE("validation extended numeric trait classification treats bool differently from floating point") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_integral<bool>());
+        CHECK(is_integral<const long&>());
+        CHECK_FALSE(is_floating_point<bool>());
+        CHECK(is_floating_point<const long double&>());
+        CHECK_FALSE(is_integral<double>());
+    }
+
+    TEST_CASE("validation extended not-negative helper discriminates minus one and negative zero") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_not_negative(0));
+        CHECK(is_not_negative(200LL));
+        CHECK_FALSE(is_not_negative(-1));
+        CHECK_FALSE(is_not_negative(-922LL));
+    }
+
+    TEST_CASE("validation extended whitespace policy distinguishes spaces from text with trimmed padding") {
+        using namespace Salix::ValidationUtils;
+        CHECK_FALSE(is_valid_string("\r\t "));
+        CHECK(is_valid_string("\r\t ", false, true));
+        CHECK(is_valid_string("\tname\r"));
+        CHECK(is_valid_string("value\n"));
+        CHECK_FALSE(is_valid_string("", false, true));
+        CHECK(is_valid_string("", true, false));
+    }
+}
