@@ -442,8 +442,8 @@ TEST_SUITE("Salix::management::FileManagerBatch847") {
         FileManagerOwnedTemp20261019 temp;
         REQUIRE(temp.owned);
         const std::string bytes("A\0B\0C", 5);
-        temp.write("nul.bin", bytes);
-        const auto loaded = Salix::FileManager::read_file_content(temp.file("nul.bin"));
+        temp.write("embedded-null.bin", bytes);
+        const auto loaded = Salix::FileManager::read_file_content(temp.file("embedded-null.bin"));
         REQUIRE(loaded.size() == 5);
         CHECK(loaded == bytes);
     }
