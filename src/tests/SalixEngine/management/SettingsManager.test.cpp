@@ -401,7 +401,7 @@ TEST_SUITE("Salix::management::SettingsManagerBatch847") {
     }
 
     TEST_CASE("saved settings document contains every expected top level section") {
-        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch847_sections.yaml"; REQUIRE(m.save_settings(p,c)); std::ifstream in(p); REQUIRE(in.is_open()); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>()); CHECK(text.find("Window:")!=std::string::npos); CHECK(text.find("Engine:")!=std::string::npos); CHECK(text.find("Renderer:")!=std::string::npos); CHECK(text.find("GUI:")!=std::string::npos); CHECK(text.find("Timer:")!=std::string::npos); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_sections.cache");
+        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch847_sections.yaml"; REQUIRE(m.save_settings(p,c)); std::ifstream in(p); REQUIRE(in.is_open()); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>()); CHECK(text.find("Window:")!=std::string::npos); CHECK(text.find("Engine:")!=std::string::npos); CHECK(text.find("Renderer:")!=std::string::npos); CHECK(text.find("GUI:")!=std::string::npos); CHECK(text.find("Timer:")!=std::string::npos); in.close(); std::filesystem::remove(p); std::filesystem::remove("settings_batch847_sections.cache");
     }
 
     TEST_CASE("unsupported renderer selection serializes through the documented SDL fallback") {
