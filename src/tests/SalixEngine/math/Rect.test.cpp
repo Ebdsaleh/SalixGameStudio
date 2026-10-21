@@ -406,15 +406,15 @@ TEST_SUITE("Salix::Batch747::RectBatch747") {
 #include <limits>
 TEST_SUITE("Salix::math::RectBatch947") {
     TEST_CASE("Rect and RectI aliases resolve to the exact same integer rectangle type") {
-        CHECK(std::is_same_v<Salix::Rect, Salix::RectI>);
-        CHECK(std::is_same_v<Salix::Rect::value_type, Salix::RectI::value_type>);
+        CHECK((std::is_same_v<Salix::Rect, Salix::RectI>));
+        CHECK(sizeof(Salix::Rect) == sizeof(Salix::RectI));
     }
 
     TEST_CASE("cross-type rectangle conversion is constructible but deliberately explicit") {
-        CHECK(std::is_constructible_v<Salix::RectI, Salix::RectD>);
-        CHECK_FALSE(std::is_convertible_v<Salix::RectD, Salix::RectI>);
-        CHECK(std::is_constructible_v<Salix::RectD, Salix::RectI>);
-        CHECK_FALSE(std::is_convertible_v<Salix::RectI, Salix::RectD>);
+        CHECK((std::is_constructible_v<Salix::RectI, Salix::RectD>));
+        CHECK_FALSE((std::is_convertible_v<Salix::RectD, Salix::RectI>));
+        CHECK((std::is_constructible_v<Salix::RectD, Salix::RectI>));
+        CHECK_FALSE((std::is_convertible_v<Salix::RectI, Salix::RectD>));
     }
 
     TEST_CASE("long double constructor inputs convert independently into double rectangle fields") {
