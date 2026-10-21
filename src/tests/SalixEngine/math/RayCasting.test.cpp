@@ -464,9 +464,9 @@ TEST_SUITE("Salix::math::RayCastingBatch947") {
         glm::mat4& proj = const_cast<glm::mat4&>(camera.get_projection_matrix());
         proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
         const auto top_right = Salix::Raycast::CreateRayFromScreen(
-            &camera, Salix::Vector2(400.0f, 0.0f), Salix::Vector2(0.0f), Salix::Vector2(400.0f));
+            &camera, Salix::Vector2(400.0f, 0.0f), Salix::Vector2(0.0f, 0.0f), Salix::Vector2(400.0f, 400.0f));
         const auto bottom_left = Salix::Raycast::CreateRayFromScreen(
-            &camera, Salix::Vector2(0.0f, 400.0f), Salix::Vector2(0.0f), Salix::Vector2(400.0f));
+            &camera, Salix::Vector2(0.0f, 400.0f), Salix::Vector2(0.0f, 0.0f), Salix::Vector2(400.0f, 400.0f));
         CHECK(top_right.direction.x == doctest::Approx(-bottom_left.direction.x).epsilon(0.001));
         CHECK(top_right.direction.y == doctest::Approx(-bottom_left.direction.y).epsilon(0.001));
         CHECK(top_right.direction.z == doctest::Approx(bottom_left.direction.z).epsilon(0.001));
