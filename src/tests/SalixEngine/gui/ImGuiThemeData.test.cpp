@@ -6,24 +6,6 @@
 #include <string>
 
 namespace {
-class Batch1147ImGuiContextGuard {
-public:
-    Batch1147ImGuiContextGuard() {
-        if (ImGui::GetCurrentContext() == nullptr) {
-            owned_context = ImGui::CreateContext();
-        }
-    }
-
-    ~Batch1147ImGuiContextGuard() {
-        if (owned_context != nullptr) {
-            ImGui::DestroyContext(owned_context);
-        }
-    }
-
-private:
-    ImGuiContext* owned_context = nullptr;
-};
-
 bool batch1147_has_color_binding(const Salix::ImGuiThemeData& data, const std::string& name, const Salix::Color* address) {
     return std::any_of(data.theme_colors.begin(), data.theme_colors.end(), [&](const auto& item) {
         return item.first == name && item.second == address;
@@ -45,23 +27,21 @@ bool batch1147_has_vector_binding(const Salix::ImGuiThemeData& data, const std::
 
 TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
     TEST_CASE("default theme data exposes stable name and GUI type") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         CHECK(data.get_name() == "New ImGui Theme");
         CHECK(data.get_gui_type() == "ImGui");
     }
 
     TEST_CASE("named theme data replaces only theme name while keeping ImGui identity") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data("Midnight");
         CHECK(data.get_name() == "Midnight");
         CHECK(data.get_gui_type() == "ImGui");
     }
 
     TEST_CASE("theme data color snapshot matches ImGui dark style values") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
-        const ImGuiStyle& style = ImGui::GetStyle();
+        ImGuiStyle style;
+        ImGui::StyleColorsDark(&style);
         CHECK(data.text_color.r == doctest::Approx(style.Colors[ImGuiCol_Text].x));
         CHECK(data.text_color.g == doctest::Approx(style.Colors[ImGuiCol_Text].y));
         CHECK(data.text_color.b == doctest::Approx(style.Colors[ImGuiCol_Text].z));
@@ -71,7 +51,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
     }
 
     TEST_CASE("theme data vector style snapshot matches current ImGui style") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         const ImGuiStyle& style = ImGui::GetStyle();
         CHECK(data.window_padding.x == doctest::Approx(style.WindowPadding.x));
@@ -83,7 +62,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
     }
 
     TEST_CASE("theme data scalar style snapshot matches current ImGui style") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         const ImGuiStyle& style = ImGui::GetStyle();
         CHECK(data.alpha == doctest::Approx(style.Alpha));
@@ -94,7 +72,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
     }
 
     TEST_CASE("theme data antialiasing booleans mirror current ImGui defaults") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         const ImGuiStyle& style = ImGui::GetStyle();
         CHECK(data.anti_aliased_lines == style.AntiAliasedLines);
@@ -103,7 +80,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
     }
 
     TEST_CASE("theme data establishes explicit directional and tree flag defaults") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         CHECK(data.window_menu_button_position == ImGuiDir_Left);
         CHECK(data.color_button_position == ImGuiDir_Right);
@@ -113,7 +89,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
     }
 
     TEST_CASE("theme data exposes deterministic built-in font fallback without preloading theme YAML") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         CHECK(data.default_font_name == "Roboto-Regular");
         CHECK(data.default_font_path == "Assets/Fonts/Roboto-Regular.ttf");
@@ -125,7 +100,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
     }
 
     TEST_CASE("theme color registry binds canonical labels directly to owned color fields") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         CHECK_FALSE(data.theme_colors.empty());
         CHECK(batch1147_has_color_binding(data, "Text", &data.text_color));
@@ -135,7 +109,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
     }
 
     TEST_CASE("float and vector registries bind canonical labels to owned style fields") {
-        Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         CHECK_FALSE(data.float_style_vars.empty());
         CHECK_FALSE(data.vector2_style_vars.empty());
