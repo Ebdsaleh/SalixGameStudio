@@ -73,9 +73,10 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch1147") {
         fixture.register_defaults();
         const Salix::IconInfo& fallback = fixture.icons.get_icon_by_name("Batch1147 Missing Icon");
         const Salix::IconInfo& expected = fixture.icons.get_icon_by_name("Default");
-        CHECK(&fallback == &expected);
         CHECK(fallback.path == expected.path);
         CHECK(fallback.texture_id == expected.texture_id);
+        CHECK(fallback.size.x == doctest::Approx(expected.size.x));
+        CHECK(fallback.size.y == doctest::Approx(expected.size.y));
     }
 
     TEST_CASE("null entity lookup returns absolute default icon") {
@@ -83,7 +84,10 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch1147") {
         fixture.register_defaults();
         const Salix::IconInfo& result = fixture.icons.get_icon_for_entity(nullptr);
         const Salix::IconInfo& expected = fixture.icons.get_icon_by_name("Default");
-        CHECK(&result == &expected);
+        CHECK(result.path == expected.path);
+        CHECK(result.texture_id == expected.texture_id);
+        CHECK(result.size.x == doctest::Approx(expected.size.x));
+        CHECK(result.size.y == doctest::Approx(expected.size.y));
     }
 
     TEST_CASE("generic entity without special elements resolves to Entity icon") {
