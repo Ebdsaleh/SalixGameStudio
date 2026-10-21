@@ -514,3 +514,148 @@ TEST_SUITE("Salix::events::EventManagerBatch647") {
         CHECK(seen==902);
     }
 }
+
+namespace {
+class Batch947EditorOnlyEvent final : public Salix::IEvent {
+public:
+    Salix::EventType get_event_type() const override { return Salix::EventType::EditorOnHierarchyChanged; }
+    const char* get_name() const override { return "Batch947EditorOnlyEvent"; }
+    int get_category_flags() const override { return static_cast<int>(Salix::EventCategory::Editor); }
+    std::unique_ptr<Salix::IEvent> clone() const override { return std::make_unique<Batch947EditorOnlyEvent>(*this); }
+};
+
+class Batch947DualCategoryEvent final : public Salix::IEvent {
+public:
+    Salix::EventType get_event_type() const override { return Salix::EventType::AppUpdate; }
+    const char* get_name() const override { return "Batch947DualCategoryEvent"; }
+    int get_category_flags() const override { return Salix::EventCategory::Application | Salix::EventCategory::Editor; }
+    std::unique_ptr<Salix::IEvent> clone() const override { return std::make_unique<Batch947DualCategoryEvent>(*this); }
+};
+}
+
+TEST_SUITE("Salix::events::EventManagerBatch947") {
+    TEST_CASE("one listener subscribed to both matching categories receives a dual-category event twice") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int calls = 0;
+        listener.on_event_handler = [&](Salix::IEvent&) { ++calls; };
+        manager.subscribe(Salix::EventCategory::Application, &listener);
+        manager.subscribe(Salix::EventCategory::Editor, &listener);
+        manager.dispatch(std::make_unique<Batch947DualCategoryEvent>());
+        manager.process_queue();
+        CHECK(calls == 2);
+    }
+
+    TEST_CASE("unsubscribing one matching category leaves the other dual-category delivery intact") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int calls = 0;
+        listener.on_event_handler = [&](Salix::IEvent&) { ++calls; };
+        manager.subscribe(Salix::EventCategory::Application, &listener);
+        manager.subscribe(Salix::EventCategory::Editor, &listener);
+        manager.unsubscribe(Salix::EventCategory::Application, &listener);
+        manager.dispatch(std::make_unique<Batch947DualCategoryEvent>());
+        manager.process_queue();
+        CHECK(calls == 1);
+    }
+
+    TEST_CASE("duplicate subscriptions remain deduplicated independently in each category") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int calls = 0;
+        listener.on_event_handler = [&](Salix::IEvent&) { ++calls; };
+        for (int i = 0; i < 4; ++i) {
+            manager.subscribe(Salix::EventCategory::Application, &listener);
+            manager.subscribe(Salix::EventCategory::Editor, &listener);
+        }
+        manager.dispatch(std::make_unique<Batch947DualCategoryEvent>());
+        manager.process_queue();
+        CHECK(calls == 2);
+    }
+
+    TEST_CASE("application listener ignores an editor-only event") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        manager.subscribe(Salix::EventCategory::Application, &listener);
+        manager.dispatch(std::make_unique<Batch947EditorOnlyEvent>());
+        manager.process_queue();
+        CHECK_FALSE(listener.event_received);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("editor listener receives editor-only event without application subscription") {
+        Salix::EventManager manager;
+        Salix::MockListener editor;
+        Salix::MockListener application;
+        manager.subscribe(Salix::EventCategory::Editor, &editor);
+        manager.subscribe(Salix::EventCategory::Application, &application);
+        manager.dispatch(std::make_unique<Batch947EditorOnlyEvent>());
+        manager.process_queue();
+        CHECK(editor.event_received);
+        CHECK_FALSE(application.event_received);
+    }
+
+    TEST_CASE("mixed category queue routes each event only to its eligible listener") {
+        Salix::EventManager manager;
+        Salix::MockListener editor, application;
+        int editor_calls = 0, application_calls = 0;
+        editor.on_event_handler = [&](Salix::IEvent&) { ++editor_calls; };
+        application.on_event_handler = [&](Salix::IEvent&) { ++application_calls; };
+        manager.subscribe(Salix::EventCategory::Editor, &editor);
+        manager.subscribe(Salix::EventCategory::Application, &application);
+        manager.dispatch(std::make_unique<Batch947EditorOnlyEvent>());
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue();
+        CHECK(editor_calls == 1);
+        CHECK(application_calls == 1);
+    }
+
+    TEST_CASE("unsubscribing an unknown application listener cannot remove editor subscription") {
+        Salix::EventManager manager;
+        Salix::MockListener subscribed, unknown;
+        int calls = 0;
+        subscribed.on_event_handler = [&](Salix::IEvent&) { ++calls; };
+        manager.subscribe(Salix::EventCategory::Editor, &subscribed);
+        manager.unsubscribe(Salix::EventCategory::Application, &unknown);
+        manager.dispatch(std::make_unique<Batch947EditorOnlyEvent>());
+        manager.process_queue();
+        CHECK(calls == 1);
+    }
+
+    TEST_CASE("stack blocking dispatch marks only its clone and leaves source state unchanged") {
+        Salix::EventManager manager;
+        Salix::MockBlockingEvent source;
+        REQUIRE_FALSE(source.handled);
+        manager.dispatch(source);
+        CHECK_FALSE(source.handled);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("blocking event queued first cannot prevent a later normal event from delivery") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int calls = 0;
+        listener.on_event_handler = [&](Salix::IEvent&) { ++calls; };
+        manager.subscribe(Salix::EventCategory::Application, &listener);
+        manager.dispatch(std::make_unique<Salix::MockBlockingEvent>());
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue();
+        CHECK(calls == 1);
+        CHECK(manager.is_queue_empty());
+    }
+
+    TEST_CASE("repeated empty processing preserves subscriptions for future delivery") {
+        Salix::EventManager manager;
+        Salix::MockListener listener;
+        int calls = 0;
+        listener.on_event_handler = [&](Salix::IEvent&) { ++calls; };
+        manager.subscribe(Salix::EventCategory::Application, &listener);
+        for (int i = 0; i < 5; ++i) {
+            manager.process_queue();
+            CHECK(manager.is_queue_empty());
+        }
+        manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue();
+        CHECK(calls == 1);
+    }
+}
