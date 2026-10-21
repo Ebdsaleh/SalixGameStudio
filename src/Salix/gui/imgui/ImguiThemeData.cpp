@@ -149,13 +149,15 @@ namespace Salix {
         default_font_name = "Roboto-Regular";
         default_font_path = "Assets/Fonts/Roboto-Regular.ttf";
         default_font_size = 20.0f;
-        font_family = font_family;
-        font_size = font_size;
+        font_family = "Roboto-Regular";
+
+        // Safe construction-time selection only. Theme YAML or the Theme Editor
+        // may replace font_size later; applying a theme never resets this member.
+        font_size = default_font_size;
 
         font_scale_main = 1.0f;  // Name changed to match the new API was 'default_font_scale', now 'font_scale_main'.
 
-        // Icons
-        std::map<std::string, std::string> icon_paths = icon_paths;
+        // icon_paths is a member and is already default-constructed empty.
 
         // Vector style vars for looping
         // Initialize these vectors with pointers to the members of 'data'
