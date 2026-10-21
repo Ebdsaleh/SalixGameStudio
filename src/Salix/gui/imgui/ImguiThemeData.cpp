@@ -18,13 +18,11 @@ namespace Salix {
         gui_type = "ImGui";
     }
     ImGuiThemeData::ImGuiThemeData() : name ("New ImGui Theme"), gui_type("ImGui") {
-        // Temporarily create an ImGui context to get default style values.
-        // This is a common practice for populating data structs with ImGui defaults.
-        // Ensure ImGui::CreateContext() is handled carefully elsewhere (e.g., in SDLImGui::initialize)
-        // This context is temporary and will be destroyed.
-        //ImGui::CreateContext();
-        ImGui::StyleColorsDark(); // Apply default dark style to this temporary context
-        ImGuiStyle& default_style = ImGui::GetStyle();
+        // Build the default theme snapshot without depending on a live ImGui context.
+        // Passing an explicit destination keeps construction deterministic and avoids
+        // mutating the editor's current global ImGui style as a side effect.
+        ImGuiStyle default_style;
+        ImGui::StyleColorsDark(&default_style);
 
         // --- Populate Colors (All ImGuiCol_ are present in 1.89.9) ---
         text_color                     = { default_style.Colors[ImGuiCol_Text].x, default_style.Colors[ImGuiCol_Text].y, default_style.Colors[ImGuiCol_Text].z, default_style.Colors[ImGuiCol_Text].w };
