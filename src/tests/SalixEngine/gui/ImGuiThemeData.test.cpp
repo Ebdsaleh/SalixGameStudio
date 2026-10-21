@@ -112,14 +112,16 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
         CHECK(data.hover_flags_for_tooltip_nav == ImGuiHoveredFlags_ForTooltip);
     }
 
-    TEST_CASE("theme data exposes stable default font metadata and scale") {
+    TEST_CASE("theme data exposes deterministic built-in font fallback without preloading theme YAML") {
         Batch1147ImGuiContextGuard context;
         Salix::ImGuiThemeData data;
         CHECK(data.default_font_name == "Roboto-Regular");
         CHECK(data.default_font_path == "Assets/Fonts/Roboto-Regular.ttf");
         CHECK(data.default_font_size == doctest::Approx(20.0f));
+        CHECK(data.font_family == "Roboto-Regular");
+        CHECK(data.font_size == doctest::Approx(20.0f));
         CHECK(data.font_scale_main == doctest::Approx(1.0f));
-        CHECK(data.font_family.empty());
+        CHECK(data.icon_paths.empty());
     }
 
     TEST_CASE("theme color registry binds canonical labels directly to owned color fields") {
