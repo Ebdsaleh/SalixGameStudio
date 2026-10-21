@@ -120,9 +120,9 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
             "Font:\n"
             "  default_font_name: Mono\n"
             "  default_font_path: Assets/Fonts/Mono.ttf\n"
-            "  default_font_size: 18.5\n"
+            "  default_font_size: 96\n"
             "  font_family: MonoFamily\n"
-            "  font_size: 19.25\n"
+            "  font_size: 128\n"
             "  font_scale_main: 1.5\n");
 
         Salix::ImGuiTheme theme("Receiver");
@@ -133,9 +133,9 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
         CHECK(data->gui_type == "ImGui");
         CHECK(data->default_font_name == "Mono");
         CHECK(data->default_font_path == "Assets/Fonts/Mono.ttf");
-        CHECK(data->default_font_size == doctest::Approx(18.5f));
+        CHECK(data->default_font_size == doctest::Approx(96.0f));
         CHECK(data->font_family == "MonoFamily");
-        CHECK(data->font_size == doctest::Approx(19.25f));
+        CHECK(data->font_size == doctest::Approx(128.0f));
         CHECK(data->font_scale_main == doctest::Approx(1.5f));
     }
 
@@ -183,13 +183,32 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
         CHECK((data->tree_lines_flags & ImGuiTreeNodeFlags_Selected) != 0);
     }
 
-    TEST_CASE("malformed YAML returns false rather than partially succeeding") {
+    TEST_CASE("invalid YAML font sizes retain safe selections while malformed documents still fail") {
         Batch1147ThemeContextGuard context;
         Batch1147ThemeTempFile file;
-        file.write("name: [unterminated\n");
         Salix::ImGuiTheme theme;
-        CHECK_FALSE(theme.load_from_yaml(file.path.string()));
         REQUIRE(theme.get_data() != nullptr);
+        REQUIRE(theme.get_data()->default_font_size == doctest::Approx(20.0f));
+        REQUIRE(theme.get_data()->font_size == doctest::Approx(20.0f));
+
+        file.write(
+            "name: Size Safety\n"
+            "gui_type: ImGui\n"
+            "Font:\n"
+            "  default_font_size: 1\n"
+            "  font_family: CustomFamily\n"
+            "  font_size: 1.0e30\n");
+
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->name == "Size Safety");
+        CHECK(theme.get_data()->font_family == "CustomFamily");
+        CHECK(theme.get_data()->default_font_size == doctest::Approx(20.0f));
+        CHECK(theme.get_data()->font_size == doctest::Approx(20.0f));
+
+        file.write("name: [unterminated\n");
+        CHECK_FALSE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->default_font_size == doctest::Approx(20.0f));
+        CHECK(theme.get_data()->font_size == doctest::Approx(20.0f));
     }
 
     TEST_CASE("ITheme interface saves and reloads selected persistent theme values") {
