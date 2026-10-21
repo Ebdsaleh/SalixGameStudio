@@ -391,8 +391,8 @@ TEST_SUITE("Salix::math::RayCastingBatch647") {
 }
 
 TEST_SUITE("Salix::math::RayCastingBatch947") {
-    TEST_CASE("ray tangent to AABB face boundary is counted as a hit") {
-        const Salix::Ray ray{{-5.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+    TEST_CASE("parallel ray inside the other two slabs reaches the X face") {
+        const Salix::Ray ray{{-5.0f, 0.5f, 0.25f}, {1.0f, 0.0f, 0.0f}};
         float distance = -1.0f;
         REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
         CHECK(distance == doctest::Approx(4.0f));
