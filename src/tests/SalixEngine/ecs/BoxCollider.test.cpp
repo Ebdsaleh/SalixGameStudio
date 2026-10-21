@@ -304,3 +304,108 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch647") {
         CHECK_FALSE(restored.is_visible());
     }
 }
+
+#include <cmath>
+#include <limits>
+TEST_SUITE("Salix::ecs::BoxColliderBatch947") {
+    TEST_CASE("box collider class identity remains BoxCollider after display-name changes") {
+        Salix::BoxCollider collider;
+        collider.set_name("Player Hurtbox");
+        CHECK(std::string(collider.get_class_name()) == "BoxCollider");
+        CHECK(collider.get_name() == "Player Hurtbox");
+    }
+
+    TEST_CASE("changing collision size preserves identity name and visibility") {
+        Salix::BoxCollider collider;
+        collider.set_name("Bounds");
+        collider.set_visibility(false);
+        const auto id = collider.get_id();
+        collider.set_size(Salix::Vector3(-3.0f, 8.0f, 0.5f));
+        CHECK(collider.get_id() == id);
+        CHECK(collider.get_name() == "Bounds");
+        CHECK_FALSE(collider.is_visible());
+    }
+
+    TEST_CASE("size getter reference keeps stable storage across setter calls") {
+        Salix::BoxCollider collider;
+        const Salix::Vector3* address = &collider.get_size();
+        collider.set_size(Salix::Vector3(2.0f, 3.0f, 4.0f));
+        CHECK(&collider.get_size() == address);
+        CHECK(*address == Salix::Vector3(2.0f, 3.0f, 4.0f));
+    }
+
+    TEST_CASE("signed zero collision dimensions preserve their floating point sign") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(-0.0f, 0.0f, -0.0f));
+        const auto& size = collider.get_size();
+        CHECK(std::signbit(size.x));
+        CHECK_FALSE(std::signbit(size.y));
+        CHECK(std::signbit(size.z));
+    }
+
+    TEST_CASE("maximum finite collision dimensions are stored without clamping") {
+        Salix::BoxCollider collider;
+        const float largest = std::numeric_limits<float>::max();
+        collider.set_size(Salix::Vector3(largest, -largest, largest));
+        CHECK(collider.get_size().x == largest);
+        CHECK(collider.get_size().y == -largest);
+        CHECK(collider.get_size().z == largest);
+    }
+
+    TEST_CASE("repeated lifecycle calls leave collision geometry unchanged") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(1.25f, -4.5f, 9.75f));
+        Salix::InitContext context{};
+        collider.initialize();
+        collider.on_load(context);
+        collider.update(-1.0f);
+        collider.update(0.0f);
+        collider.shutdown();
+        CHECK(collider.get_size() == Salix::Vector3(1.25f, -4.5f, 9.75f));
+    }
+
+    TEST_CASE("JSON roundtrip preserves an explicitly invalid collider identifier") {
+        Salix::BoxCollider original;
+        original.set_id(Salix::SimpleGuid::invalid());
+        original.set_size(Salix::Vector3(7.0f, 8.0f, 9.0f));
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK_FALSE(restored.get_id().is_valid());
+        CHECK(restored.get_size() == original.get_size());
+    }
+
+    TEST_CASE("binary roundtrip preserves an exact zero-sized collider") {
+        Salix::BoxCollider original;
+        original.set_size(Salix::Vector3(0.0f, 0.0f, 0.0f));
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(original); }
+        Salix::BoxCollider restored;
+        restored.set_size(Salix::Vector3(9.0f));
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_size() == Salix::Vector3(0.0f));
+    }
+
+    TEST_CASE("reassigning runtime owner never changes collider geometry or identifier") {
+        Salix::Entity first, second;
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(3.0f, 5.0f, 7.0f));
+        const auto id = collider.get_id();
+        collider.set_owner(&first);
+        collider.set_owner(&second);
+        CHECK(collider.get_owner() == &second);
+        CHECK(collider.get_id() == id);
+        CHECK(collider.get_size() == Salix::Vector3(3.0f, 5.0f, 7.0f));
+    }
+
+    TEST_CASE("equal initial collider sizes remain independent after one instance changes") {
+        Salix::BoxCollider first, second;
+        first.set_size(Salix::Vector3(4.0f, 4.0f, 4.0f));
+        second.set_size(first.get_size());
+        REQUIRE(first.get_size() == second.get_size());
+        first.set_size(Salix::Vector3(-1.0f, -2.0f, -3.0f));
+        CHECK(second.get_size() == Salix::Vector3(4.0f, 4.0f, 4.0f));
+        CHECK(first.get_size() != second.get_size());
+    }
+}
