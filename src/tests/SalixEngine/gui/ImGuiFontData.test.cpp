@@ -62,56 +62,59 @@ TEST_SUITE("Salix::gui::ImGuiFontDataBatch1047") {
         CHECK(data.get_font_size() == doctest::Approx(18.0f));
     }
 
-    TEST_CASE("config conversion transfers boolean and sampling fields to ImFontConfig") {
-        Salix::ImGuiFontData::Config config;
-        config.merge_mode = true;
-        config.pixel_snap_h = true;
-        config.pixel_snap_v = false;
-        config.font_no = 3;
-        config.oversample_h = 4;
-        config.oversample_v = 2;
-        config.size_pixels = 27.0f;
-        const ImFontConfig converted = config.to_imgui_font_config();
-        CHECK(converted.MergeMode);
-        CHECK(converted.PixelSnapH);
-        CHECK_FALSE(converted.PixelSnapV);
-        CHECK(converted.FontNo == 3);
-        CHECK(converted.OversampleH == 4);
-        CHECK(converted.OversampleV == 2);
-        CHECK(converted.SizePixels == doctest::Approx(27.0f));
+    TEST_CASE("font instance config stores boolean sampling and size settings independently of metadata") {
+        Salix::ImGuiFontData data("Configured", "configured.ttf", 16.0f);
+        data.config.merge_mode = true;
+        data.config.pixel_snap_h = true;
+        data.config.pixel_snap_v = false;
+        data.config.font_no = 3;
+        data.config.oversample_h = 4;
+        data.config.oversample_v = 2;
+        data.config.size_pixels = 27.0f;
+
+        CHECK(data.config.merge_mode);
+        CHECK(data.config.pixel_snap_h);
+        CHECK_FALSE(data.config.pixel_snap_v);
+        CHECK(data.config.font_no == 3);
+        CHECK(data.config.oversample_h == 4);
+        CHECK(data.config.oversample_v == 2);
+        CHECK(data.config.size_pixels == doctest::Approx(27.0f));
+        CHECK(data.get_name() == "Configured");
+        CHECK(data.get_file_path() == "configured.ttf");
+        CHECK(data.get_font_size() == doctest::Approx(16.0f));
     }
 
-    TEST_CASE("config conversion preserves glyph pointers and glyph offset coordinates") {
+    TEST_CASE("font instance config preserves glyph range pointers and offset coordinates") {
         static const ImWchar ranges[] = {0x20, 0x7E, 0};
         static const ImWchar excluded[] = {0x30, 0x39, 0};
-        Salix::ImGuiFontData::Config config;
-        config.glyph_ranges = ranges;
-        config.glyph_exclude_ranges = excluded;
-        config.glyph_offset = ImVec2(-2.5f, 4.25f);
-        const ImFontConfig converted = config.to_imgui_font_config();
-        CHECK(converted.GlyphRanges == ranges);
-        CHECK(converted.GlyphExcludeRanges == excluded);
-        CHECK(converted.GlyphOffset.x == doctest::Approx(-2.5f));
-        CHECK(converted.GlyphOffset.y == doctest::Approx(4.25f));
+        Salix::ImGuiFontData data;
+        data.config.glyph_ranges = ranges;
+        data.config.glyph_exclude_ranges = excluded;
+        data.config.glyph_offset = ImVec2(-2.5f, 4.25f);
+
+        CHECK(data.config.glyph_ranges == ranges);
+        CHECK(data.config.glyph_exclude_ranges == excluded);
+        CHECK(data.config.glyph_offset.x == doctest::Approx(-2.5f));
+        CHECK(data.config.glyph_offset.y == doctest::Approx(4.25f));
     }
 
-    TEST_CASE("config conversion preserves advance rasterizer flags density and ellipsis settings") {
-        Salix::ImGuiFontData::Config config;
-        config.glyph_min_advance_x = 2.0f;
-        config.glyph_max_advance_x = 18.0f;
-        config.glyph_extra_advance_x = 1.5f;
-        config.font_loader_flags = 0x1234u;
-        config.rasterizer_multiply = 1.25f;
-        config.rasterizer_density = 2.0f;
-        config.ellipsis_char = static_cast<ImWchar>(0x2026);
-        const ImFontConfig converted = config.to_imgui_font_config();
-        CHECK(converted.GlyphMinAdvanceX == doctest::Approx(2.0f));
-        CHECK(converted.GlyphMaxAdvanceX == doctest::Approx(18.0f));
-        CHECK(converted.GlyphExtraAdvanceX == doctest::Approx(1.5f));
-        CHECK(converted.FontLoaderFlags == 0x1234u);
-        CHECK(converted.RasterizerMultiply == doctest::Approx(1.25f));
-        CHECK(converted.RasterizerDensity == doctest::Approx(2.0f));
-        CHECK(converted.EllipsisChar == static_cast<ImWchar>(0x2026));
+    TEST_CASE("font instance config preserves advance rasterizer flag density and ellipsis settings") {
+        Salix::ImGuiFontData data;
+        data.config.glyph_min_advance_x = 2.0f;
+        data.config.glyph_max_advance_x = 18.0f;
+        data.config.glyph_extra_advance_x = 1.5f;
+        data.config.font_loader_flags = 0x1234u;
+        data.config.rasterizer_multiply = 1.25f;
+        data.config.rasterizer_density = 2.0f;
+        data.config.ellipsis_char = static_cast<ImWchar>(0x2026);
+
+        CHECK(data.config.glyph_min_advance_x == doctest::Approx(2.0f));
+        CHECK(data.config.glyph_max_advance_x == doctest::Approx(18.0f));
+        CHECK(data.config.glyph_extra_advance_x == doctest::Approx(1.5f));
+        CHECK(data.config.font_loader_flags == 0x1234u);
+        CHECK(data.config.rasterizer_multiply == doctest::Approx(1.25f));
+        CHECK(data.config.rasterizer_density == doctest::Approx(2.0f));
+        CHECK(data.config.ellipsis_char == static_cast<ImWchar>(0x2026));
     }
 
     TEST_CASE("copied font data owns independent strings and config values") {
