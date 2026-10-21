@@ -389,3 +389,99 @@ TEST_SUITE("Salix::math::RayCastingBatch647") {
         CHECK(obb==doctest::Approx(9.f));
     }
 }
+
+TEST_SUITE("Salix::math::RayCastingBatch947") {
+    TEST_CASE("ray tangent to AABB face boundary is counted as a hit") {
+        const Salix::Ray ray{{-5.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("ray beginning at box center reports forward exit distance") {
+        const Salix::Ray ray{{0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-2.0f), glm::vec3(2.0f), distance));
+        CHECK(distance == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("non-normalized double-speed ray reports ray parameter rather than world distance") {
+        const Salix::Ray ray{{0.0f, 0.0f, -5.0f}, {0.0f, 0.0f, 2.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("non-normalized half-speed ray reports correspondingly larger ray parameter") {
+        const Salix::Ray ray{{0.0f, 0.0f, -5.0f}, {0.0f, 0.0f, 0.5f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(8.0f));
+    }
+
+    TEST_CASE("inside asymmetric AABB exits through positive Y face at expected distance") {
+        const Salix::Ray ray{{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(
+            ray, glm::vec3(-1.0f, -2.0f, -3.0f), glm::vec3(4.0f, 5.0f, 6.0f), distance));
+        CHECK(distance == doctest::Approx(5.0f));
+    }
+
+    TEST_CASE("identity OBB with nonuniform half extents reports X-face entry distance") {
+        const Salix::Ray ray{{-10.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsOBB(
+            ray, glm::mat4(1.0f), glm::vec3(2.0f, 3.0f, 4.0f), distance));
+        CHECK(distance == doctest::Approx(8.0f));
+    }
+
+    TEST_CASE("translated nonuniform OBB reports translated near X face") {
+        const Salix::Ray ray{{-10.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        const auto model = glm::translate(glm::mat4(1.0f), glm::vec3(3.0f, 0.0f, 0.0f));
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray, model, glm::vec3(2.0f, 1.0f, 1.0f), distance));
+        CHECK(distance == doctest::Approx(11.0f));
+    }
+
+    TEST_CASE("center screen ray origin follows translated camera while direction stays forward") {
+        MockICamera camera;
+        camera.get_transform()->set_position(2.0f, -3.0f, 7.0f);
+        glm::mat4& view = const_cast<glm::mat4&>(camera.get_view_matrix());
+        view = glm::lookAt(glm::vec3(2.0f, -3.0f, 7.0f), glm::vec3(2.0f, -3.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4& proj = const_cast<glm::mat4&>(camera.get_projection_matrix());
+        proj = glm::perspective(glm::radians(60.0f), 1.0f, 0.1f, 100.0f);
+        const auto ray = Salix::Raycast::CreateRayFromScreen(
+            &camera, Salix::Vector2(200.0f, 200.0f), Salix::Vector2(0.0f, 0.0f), Salix::Vector2(400.0f, 400.0f));
+        check_vec3_approx(ray.origin, glm::vec3(2.0f, -3.0f, 7.0f));
+        check_vec3_approx(ray.direction, glm::vec3(0.0f, 0.0f, -1.0f));
+    }
+
+    TEST_CASE("opposite viewport corners produce mirrored X and Y ray components") {
+        MockICamera camera;
+        camera.get_transform()->set_position(0.0f, 0.0f, 5.0f);
+        glm::mat4& view = const_cast<glm::mat4&>(camera.get_view_matrix());
+        view = glm::lookAt(glm::vec3(0.0f, 0.0f, 5.0f), glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        glm::mat4& proj = const_cast<glm::mat4&>(camera.get_projection_matrix());
+        proj = glm::perspective(glm::radians(45.0f), 1.0f, 0.1f, 100.0f);
+        const auto top_right = Salix::Raycast::CreateRayFromScreen(
+            &camera, Salix::Vector2(400.0f, 0.0f), Salix::Vector2(0.0f), Salix::Vector2(400.0f));
+        const auto bottom_left = Salix::Raycast::CreateRayFromScreen(
+            &camera, Salix::Vector2(0.0f, 400.0f), Salix::Vector2(0.0f), Salix::Vector2(400.0f));
+        CHECK(top_right.direction.x == doctest::Approx(-bottom_left.direction.x).epsilon(0.001));
+        CHECK(top_right.direction.y == doctest::Approx(-bottom_left.direction.y).epsilon(0.001));
+        CHECK(top_right.direction.z == doctest::Approx(bottom_left.direction.z).epsilon(0.001));
+    }
+
+    TEST_CASE("Vector3 and GLM overloads agree for a ray originating inside asymmetric bounds") {
+        const Salix::Ray ray{{1.0f, 2.0f, 3.0f}, {0.0f, 0.0f, -1.0f}};
+        const Salix::Vector3 lower(-2.0f, -3.0f, -4.0f);
+        const Salix::Vector3 upper(5.0f, 6.0f, 7.0f);
+        float salix_distance = -1.0f, glm_distance = -1.0f;
+        const bool salix_hit = Salix::Raycast::IntersectsAABB(ray, lower, upper, salix_distance);
+        const bool glm_hit = Salix::Raycast::IntersectsAABB(ray, lower.to_glm(), upper.to_glm(), glm_distance);
+        CHECK(salix_hit == glm_hit);
+        REQUIRE(salix_hit);
+        CHECK(salix_distance == doctest::Approx(glm_distance));
+        CHECK(salix_distance == doctest::Approx(7.0f));
+    }
+}
