@@ -370,3 +370,65 @@ TEST_SUITE("Salix::Batch747::MathUtilsBatch747") {
         CHECK(Salix::nearly_equal(1.f,1.125f,0.125f));CHECK_FALSE(Salix::nearly_equal(1.f,1.25f,0.125f));CHECK(Salix::inv_sqrt(4.f)==doctest::Approx(0.5f).epsilon(0.01));
     }
 }
+
+TEST_SUITE("Salix::math::MathUtilsBatch947") {
+    TEST_CASE("square-root constants reconstruct their defining integers within float precision") {
+        CHECK(Salix::SQRT2 * Salix::SQRT2 == doctest::Approx(2.0f).epsilon(0.00001));
+        CHECK(Salix::SQRT3 * Salix::SQRT3 == doctest::Approx(3.0f).epsilon(0.00001));
+    }
+
+    TEST_CASE("golden ratio satisfies phi squared equals phi plus one") {
+        CHECK(Salix::GOLDEN_RATIO * Salix::GOLDEN_RATIO ==
+              doctest::Approx(Salix::GOLDEN_RATIO + 1.0f).epsilon(0.00001));
+    }
+
+    TEST_CASE("degree and radian conversion factors are reciprocal") {
+        CHECK(Salix::DEG2RAD * Salix::RAD2DEG == doctest::Approx(1.0f).epsilon(0.00001));
+        CHECK(360.0f * Salix::DEG2RAD == doctest::Approx(Salix::TAU).epsilon(0.00001));
+    }
+
+    TEST_CASE("lerp of identical endpoints is invariant across clamped interpolation range") {
+        for (float t : {-10.0f, -1.0f, 0.0f, 0.25f, 1.0f, 2.0f, 10.0f}) {
+            CHECK(Salix::lerp(7.25f, 7.25f, t) == doctest::Approx(7.25f));
+        }
+    }
+
+    TEST_CASE("inverse lerp is unchanged when interval and value receive equal translation") {
+        const float base = Salix::inverse_lerp(-8.0f, 12.0f, 3.0f);
+        const float shifted = Salix::inverse_lerp(92.0f, 112.0f, 103.0f);
+        CHECK(base == doctest::Approx(0.55f));
+        CHECK(shifted == doctest::Approx(base));
+    }
+
+    TEST_CASE("remap preserves relative position across independently shifted scaled ranges") {
+        CHECK(Salix::remap(25.0f, 0.0f, 100.0f, -20.0f, 20.0f) == doctest::Approx(-10.0f));
+        CHECK(Salix::remap(75.0f, 0.0f, 100.0f, 1000.0f, 2000.0f) == doctest::Approx(1750.0f));
+    }
+
+    TEST_CASE("cubic and quintic easing both pass exactly through arbitrary interval midpoint") {
+        CHECK(Salix::smooth_step(-4.0f, 10.0f, 3.0f) == doctest::Approx(0.5f));
+        CHECK(Salix::smoother_step(-4.0f, 10.0f, 3.0f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("wrap is invariant when adding or subtracting complete interval widths") {
+        const float expected = Salix::wrap(2.75f, -5.0f, 7.0f);
+        for (float cycles : {-120.0f, -24.0f, 0.0f, 24.0f, 120.0f}) {
+            CHECK(Salix::wrap(2.75f + cycles, -5.0f, 7.0f) == doctest::Approx(expected));
+        }
+    }
+
+    TEST_CASE("ping pong repeats at twice its length for positive sample positions") {
+        for (float value : {0.25f, 1.0f, 2.75f, 5.5f}) {
+            const float base = Salix::ping_pong(value, 3.0f);
+            CHECK(Salix::ping_pong(value + 6.0f, 3.0f) == doctest::Approx(base));
+            CHECK(Salix::ping_pong(value + 12.0f, 3.0f) == doctest::Approx(base));
+        }
+    }
+
+    TEST_CASE("inverse square root tracks mathematical reciprocal root across several positive magnitudes") {
+        for (float value : {1.0f, 4.0f, 9.0f, 16.0f, 100.0f}) {
+            const float expected = 1.0f / std::sqrt(value);
+            CHECK(Salix::inv_sqrt(value) == doctest::Approx(expected).epsilon(0.02));
+        }
+    }
+}
