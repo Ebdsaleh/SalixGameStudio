@@ -98,3 +98,107 @@ TEST_SUITE("Salix::core::SDLTimer") {
         }
     }
 }
+
+#include <cmath>
+TEST_SUITE("Salix::core::SDLTimerBatch947") {
+    TEST_CASE_FIXTURE(SDLTimerFixture, "fresh SDL timer starts with finite zero delta") {
+        Salix::SDLTimer timer;
+        CHECK(timer.get_delta_time() == 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "first SDL tick produces a finite nonnegative delta") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        CHECK(timer.get_delta_time() >= 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "two SDL ticks separated by delay report positive elapsed seconds") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        CHECK(timer.get_delta_time() > 0.0f);
+        CHECK(timer.get_delta_time() < 1.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "uncapped tick end preserves the most recent delta measurement") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(0);
+        timer.tick_end();
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "negative target FPS preserves the most recent delta measurement") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(-60);
+        timer.tick_end();
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "changing target FPS does not reset accumulated delta state") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(30);
+        CHECK(timer.get_delta_time() == measured);
+        timer.set_target_fps(0);
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "two SDL timer instances keep independent delta state") {
+        Salix::SDLTimer first;
+        Salix::SDLTimer second;
+        first.tick_start();
+        SDL_Delay(2);
+        first.tick_start();
+        CHECK(first.get_delta_time() > 0.0f);
+        CHECK(second.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "SDL timer dispatches correctly through ITimer interface") {
+        Salix::SDLTimer timer;
+        Salix::ITimer* base = &timer;
+        base->set_target_fps(0);
+        base->tick_start();
+        CHECK(base->get_delta_time() >= 0.0f);
+        CHECK(std::isfinite(base->get_delta_time()));
+        CHECK_NOTHROW(base->tick_end());
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "short capped frame waits for approximately its target budget") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(100);
+        const auto begin = std::chrono::steady_clock::now();
+        timer.tick_start();
+        timer.tick_end();
+        const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - begin).count();
+        CHECK(elapsed >= 8);
+        CHECK(elapsed < 100);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "long frame tick end never rewrites measured delta") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(500);
+        timer.tick_start();
+        SDL_Delay(3);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        SDL_Delay(3);
+        timer.tick_end();
+        CHECK(timer.get_delta_time() == measured);
+        CHECK(measured > 0.0f);
+    }
+}
