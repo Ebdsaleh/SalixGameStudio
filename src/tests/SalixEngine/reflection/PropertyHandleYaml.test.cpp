@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <string>
 #include <typeindex>
+#include <utility>
 
 namespace {
 Salix::Property batch1047_yaml_property(const std::string& name, Salix::PropertyType type) {
@@ -112,7 +113,7 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch1047") {
     TEST_CASE("Color Point and Rect properties roundtrip through their YAML representations") {
         YAML::Node node;
         node["Tint"] = Salix::Color(0.1f, 0.2f, 0.3f, 0.4f);
-        node["Origin"] = Salix::Point(4, -6);
+        node["Origin"] = Salix::Point{4, -6};
         node["Bounds"] = Salix::Rect(1, 2, 30, 40);
 
         Salix::PropertyHandleYaml color(batch1047_yaml_property("Tint", Salix::PropertyType::Color), &node);
@@ -131,7 +132,7 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch1047") {
         CHECK(bounds.h == 40);
 
         color.set_value(Salix::PropertyValue{Salix::Color(1.0f, 0.0f, 0.5f, 1.0f)});
-        point.set_value(Salix::PropertyValue{Salix::Point(-2, 5)});
+        point.set_value(Salix::PropertyValue{Salix::Point{-2, 5}});
         rect.set_value(Salix::PropertyValue{Salix::Rect(-1, -2, 8, 9)});
         CHECK(node["Tint"].as<Salix::Color>() == Salix::Color(1.0f, 0.0f, 0.5f, 1.0f));
         CHECK(node["Origin"].as<Salix::Point>().x == -2);
