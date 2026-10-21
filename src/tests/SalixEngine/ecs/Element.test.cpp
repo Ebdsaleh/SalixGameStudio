@@ -316,3 +316,121 @@ TEST_SUITE("Salix::ecs::ElementBatch647") {
         CHECK(probe.get_id()==id);
     }
 }
+
+TEST_SUITE("Salix::ecs::ElementBatch947") {
+    TEST_CASE("display name changes never alter concrete element class name") {
+        MockElement element;
+        element.set_name("");
+        CHECK(std::string(element.get_class_name()) == "MockElement");
+        element.set_name("Editor Label");
+        CHECK(std::string(element.get_class_name()) == "MockElement");
+        CHECK(element.get_name() == "Editor Label");
+    }
+
+    TEST_CASE("visibility changes preserve owner name and persistent identity") {
+        Salix::Entity owner;
+        MockElement element;
+        element.set_owner(&owner);
+        element.set_name("Renderable");
+        const auto id = element.get_id();
+        element.set_visibility(false);
+        element.set_visibility(true);
+        CHECK(element.get_owner() == &owner);
+        CHECK(element.get_name() == "Renderable");
+        CHECK(element.get_id() == id);
+    }
+
+    TEST_CASE("const GUID reference remains attached to element storage after replacement") {
+        MockElement element;
+        const Salix::SimpleGuid& observed = element.get_id();
+        element.set_id(Salix::SimpleGuid::from_value(424242ULL));
+        CHECK(&observed == &element.get_id());
+        CHECK(observed.get_value() == 424242ULL);
+    }
+
+    TEST_CASE("raw GUID pointer stays stable across invalid and valid assignments") {
+        MockElement element;
+        const std::uint64_t* raw = element.get_id_as_ptr();
+        element.set_id(Salix::SimpleGuid::invalid());
+        CHECK(raw == element.get_id_as_ptr());
+        CHECK(*raw == 0ULL);
+        element.set_id(Salix::SimpleGuid::from_value(77ULL));
+        CHECK(raw == element.get_id_as_ptr());
+        CHECK(*raw == 77ULL);
+    }
+
+    TEST_CASE("JSON persistence preserves multiline component labels") {
+        MockElement original;
+        original.set_name("Line One\nLine Two\tTabbed");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        MockElement restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name() == original.get_name());
+    }
+
+    TEST_CASE("binary persistence preserves embedded NUL bytes in component labels") {
+        MockElement original;
+        const std::string label("A\0B\0C", 5);
+        original.set_name(label);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(original); }
+        MockElement restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        REQUIRE(restored.get_name().size() == 5);
+        CHECK(restored.get_name() == label);
+    }
+
+    TEST_CASE("JSON persistence preserves a long editor-facing component label") {
+        MockElement original;
+        original.set_name(std::string(4096, 'x'));
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        MockElement restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name().size() == 4096);
+        CHECK(restored.get_name() == original.get_name());
+    }
+
+    TEST_CASE("default lifecycle methods do not mutate element metadata") {
+        MockElement element;
+        element.set_name("Stable");
+        element.set_visibility(false);
+        const auto id = element.get_id();
+        Salix::InitContext context{};
+        element.initialize();
+        element.on_load(context);
+        element.update(123.0f);
+        element.shutdown();
+        CHECK(element.get_name() == "Stable");
+        CHECK_FALSE(element.is_visible());
+        CHECK(element.get_id() == id);
+    }
+
+    TEST_CASE("serialization roundtrip preserves invalid GUID sentinel") {
+        MockElement original;
+        original.set_id(Salix::SimpleGuid::invalid());
+        original.set_name("No Identity");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        MockElement restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK_FALSE(restored.get_id().is_valid());
+        CHECK(restored.get_name() == "No Identity");
+    }
+
+    TEST_CASE("runtime owner can be cleared without changing persistent element state") {
+        Salix::Entity owner;
+        MockElement element;
+        element.set_name("Transient Owner");
+        element.set_visibility(false);
+        const auto id = element.get_id();
+        element.set_owner(&owner);
+        REQUIRE(element.get_owner() == &owner);
+        element.set_owner(nullptr);
+        CHECK(element.get_owner() == nullptr);
+        CHECK(element.get_name() == "Transient Owner");
+        CHECK_FALSE(element.is_visible());
+        CHECK(element.get_id() == id);
+    }
+}
