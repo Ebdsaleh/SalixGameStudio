@@ -190,7 +190,7 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch1147") {
         color_handle.set_value(Salix::PropertyValue{Salix::Color(1.0f, 0.5f, 0.25f, 0.75f)});
         rect_handle.set_value(Salix::PropertyValue{Salix::Rect(-4, 5, 60, 70)});
 
-        CHECK(std::get<Salix::Point>(point_handle.get_value()) == Salix::Point{-3, 12});
+        CHECK((std::get<Salix::Point>(point_handle.get_value()) == Salix::Point{-3, 12}));
         CHECK(std::get<Salix::Color>(color_handle.get_value()) == Salix::Color(1.0f, 0.5f, 0.25f, 0.75f));
         CHECK(std::get<Salix::Rect>(rect_handle.get_value()) == Salix::Rect(-4, 5, 60, 70));
     }
