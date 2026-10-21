@@ -194,3 +194,93 @@ TEST_SUITE("Salix::core::ChronoTimer") {
     }
 
 }
+
+TEST_SUITE("Salix::core::ChronoTimerBatch947") {
+    TEST_CASE("fresh chrono timer has no pending frame cap sleep") {
+        Salix::ChronoTimer timer;
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("zero target FPS keeps calculated sleep disabled after frame start") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(0);
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("negative target FPS is treated as uncapped") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(-144);
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("one FPS target exposes almost a full second of remaining frame immediately") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(1);
+        timer.tick_start();
+        const float remaining = timer.calculate_sleep_duration().count();
+        CHECK(remaining > 900.0f);
+        CHECK(remaining <= 1000.0f);
+    }
+
+    TEST_CASE("sixty FPS target produces a shorter remaining frame than thirty FPS") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(30);
+        timer.tick_start();
+        const float at_thirty = timer.calculate_sleep_duration().count();
+        timer.set_target_fps(60);
+        timer.tick_start();
+        const float at_sixty = timer.calculate_sleep_duration().count();
+        CHECK(at_thirty > 20.0f);
+        CHECK(at_sixty > 5.0f);
+        CHECK(at_sixty < at_thirty);
+    }
+
+    TEST_CASE("switching a capped timer to zero FPS immediately disables sleeping") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(30);
+        timer.tick_start();
+        REQUIRE(timer.calculate_sleep_duration().count() > 0.0f);
+        timer.set_target_fps(0);
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("switching a capped timer to negative FPS immediately disables sleeping") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(30);
+        timer.tick_start();
+        REQUIRE(timer.calculate_sleep_duration().count() > 0.0f);
+        timer.set_target_fps(-1);
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("uncapped tick end never invokes an injected delay callback") {
+        int calls = 0;
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds) { ++calls; });
+        timer.set_target_fps(0);
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE("capped tick end invokes injected delay once with the remaining frame budget") {
+        int calls = 0;
+        std::chrono::milliseconds captured{0};
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds d) { ++calls; captured = d; });
+        timer.set_target_fps(10);
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(calls == 1);
+        CHECK(captured.count() >= 90);
+        CHECK(captured.count() <= 100);
+    }
+
+    TEST_CASE("chrono millisecond tick counter is monotonic across immediate reads") {
+        const auto first = Salix::ChronoTimer::get_ticks_ms();
+        const auto second = Salix::ChronoTimer::get_ticks_ms();
+        const auto third = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(second >= first);
+        CHECK(third >= second);
+    }
+}
