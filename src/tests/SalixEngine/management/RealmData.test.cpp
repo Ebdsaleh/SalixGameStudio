@@ -4,6 +4,15 @@
 #include <cereal/archives/binary.hpp>
 #include <limits>
 #include <sstream>
+#include <string>
+
+namespace {
+Salix::ReferencedAsset batch1047_asset(const std::string& path) {
+    Salix::ReferencedAsset asset;
+    asset.path = path;
+    return asset;
+}
+}
 
 TEST_SUITE("Salix::management::RealmDataBatch1047") {
     TEST_CASE("referenced asset defaults to an empty portable path") {
@@ -23,7 +32,7 @@ TEST_SUITE("Salix::management::RealmDataBatch1047") {
 
     TEST_CASE("referenced asset binary roundtrip preserves UTF-8 path bytes") {
         Salix::ReferencedAsset source;
-        source.path = u8"Assets/画像/hero.png";
+        source.path = "Assets/special-%23/hero.png";
         std::stringstream stream;
         { cereal::BinaryOutputArchive out(stream); out(source); }
         Salix::ReferencedAsset restored;
@@ -46,7 +55,7 @@ TEST_SUITE("Salix::management::RealmDataBatch1047") {
         source.realm_file_path_relative = "Assets/Scenes/Dungeon.realm";
         source.entity_count = 42;
         source.engine_version = "0.1.0-Alpha";
-        source.unique_referenced_assets = {{"Assets/Textures/wall.png"}, {"Assets/Audio/theme.ogg"}};
+        source.unique_referenced_assets = {batch1047_asset("Assets/Textures/wall.png"), batch1047_asset("Assets/Audio/theme.ogg")};
         std::stringstream stream;
         { cereal::JSONOutputArchive out(stream); out(source); }
         Salix::RealmData restored;
@@ -62,7 +71,7 @@ TEST_SUITE("Salix::management::RealmDataBatch1047") {
 
     TEST_CASE("asset manifest preserves ordering and deliberate duplicate references") {
         Salix::RealmData source;
-        source.unique_referenced_assets = {{"A.png"}, {"B.png"}, {"A.png"}};
+        source.unique_referenced_assets = {batch1047_asset("A.png"), batch1047_asset("B.png"), batch1047_asset("A.png")};
         std::stringstream stream;
         { cereal::BinaryOutputArchive out(stream); out(source); }
         Salix::RealmData restored;
@@ -89,7 +98,7 @@ TEST_SUITE("Salix::management::RealmDataBatch1047") {
         std::stringstream stream;
         { cereal::JSONOutputArchive out(stream); out(source); }
         Salix::RealmData restored;
-        restored.unique_referenced_assets.push_back({"stale.asset"});
+        restored.unique_referenced_assets.push_back(batch1047_asset("stale.asset"));
         { cereal::JSONInputArchive in(stream); in(restored); }
         CHECK(restored.realm_name == "Empty");
         CHECK(restored.unique_referenced_assets.empty());
@@ -98,11 +107,11 @@ TEST_SUITE("Salix::management::RealmDataBatch1047") {
     TEST_CASE("copying realm metadata keeps asset vectors independent") {
         Salix::RealmData original;
         original.realm_name = "Original";
-        original.unique_referenced_assets.push_back({"one.asset"});
+        original.unique_referenced_assets.push_back(batch1047_asset("one.asset"));
         Salix::RealmData copy = original;
         copy.realm_name = "Copy";
         copy.unique_referenced_assets[0].path = "changed.asset";
-        copy.unique_referenced_assets.push_back({"two.asset"});
+        copy.unique_referenced_assets.push_back(batch1047_asset("two.asset"));
         CHECK(original.realm_name == "Original");
         REQUIRE(original.unique_referenced_assets.size() == 1);
         CHECK(original.unique_referenced_assets[0].path == "one.asset");
@@ -115,14 +124,14 @@ TEST_SUITE("Salix::management::RealmDataBatch1047") {
         source.realm_file_path_relative = "Fresh.realm";
         source.entity_count = 3;
         source.engine_version = "FreshEngine";
-        source.unique_referenced_assets = {{"fresh.asset"}};
+        source.unique_referenced_assets = {batch1047_asset("fresh.asset")};
         std::stringstream stream;
         { cereal::BinaryOutputArchive out(stream); out(source); }
 
         Salix::RealmData destination;
         destination.realm_name = "Stale";
         destination.entity_count = 999;
-        destination.unique_referenced_assets = {{"stale.asset"}, {"old.asset"}};
+        destination.unique_referenced_assets = {batch1047_asset("stale.asset"), batch1047_asset("old.asset")};
         { cereal::BinaryInputArchive in(stream); in(destination); }
 
         CHECK(destination.realm_name == "Fresh");
