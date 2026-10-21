@@ -11,7 +11,9 @@
 #include <Salix/gui/imgui/sdl/SDLImGui.h> 
 #include <memory>
 #include <string>
-#include <iostream>           
+#include <iostream>
+#include <cmath>
+#include <limits>           
 // YAML parsing library
 #include <yaml-cpp/yaml.h>          
 #include <imgui/imgui.h>  
@@ -71,6 +73,41 @@ namespace Salix {
             if (val == "ImGuiHoveredFlags_ForTooltip") return ImGuiHoveredFlags_ForTooltip;
             // Add other flags if needed
             return default_val;
+        }
+
+        constexpr float kMinimumThemeFontSize = 6.0f;
+
+        bool is_safe_theme_font_size(float size) {
+            return std::isfinite(size)
+                && size >= kMinimumThemeFontSize
+                && static_cast<double>(size) <= static_cast<double>((std::numeric_limits<int>::max)());
+        }
+
+        void load_font_size_if_valid(
+            const YAML::Node& node,
+            float& destination,
+            const char* field_name) {
+            if (!node) return;
+
+            const float candidate = node.as<float>();
+            if (!is_safe_theme_font_size(candidate)) {
+                std::cerr
+                    << "ImGuiTheme Warning: Ignoring invalid Font."
+                    << field_name
+                    << " value '"
+                    << candidate
+                    << "'. Keeping previous value '"
+                    << destination
+                    << "'."
+                    << std::endl;
+                return;
+            }
+
+            destination = candidate;
+        }
+
+        std::string make_font_variant_name(const std::string& family, float size) {
+            return family + "_" + std::to_string(static_cast<int>(size)) + "px";
         }
     } // namespace ThemeParsingHelpers
     
@@ -228,23 +265,83 @@ namespace Salix {
         // --- Fonts ---
         IFontManager* font_manager = gui_system->get_font_manager();
         if (font_manager) {
-            std::string family = data->font_family;
-            float size_to_use = data->font_size; // Start by trying to use the primary font_size
+            const std::string family = data->font_family;
+            std::string variant_name;
 
-            // 1. Construct the primary font variant name
-            std::string variant_name = family + "_" + std::to_string(static_cast<int>(size_to_use)) + "px";
+            // font_size is persistent theme state. Validate and use it locally,
+            // but never overwrite it while applying the theme.
+            if (ThemeParsingHelpers::is_safe_theme_font_size(data->font_size)) {
+                const std::string requested_variant =
+                    ThemeParsingHelpers::make_font_variant_name(family, data->font_size);
 
-            // 2. Check if a font with that name is actually registered
-            if (!font_manager->get_font(variant_name)) {
-                std::cout << "[Theme] Warning: Font '" << variant_name << "' not found. Falling back to default size." << std::endl;
-                
-                // 3. If not found, fall back to the default_font_size
-                size_to_use = data->default_font_size;
-                variant_name = family + "_" + std::to_string(static_cast<int>(size_to_use)) + "px";
+                if (font_manager->get_font(requested_variant)) {
+                    variant_name = requested_variant;
+                } else {
+                    std::cout
+                        << "[Theme] Warning: Font '"
+                        << requested_variant
+                        << "' not found. Trying the theme's default font size."
+                        << std::endl;
+                }
+            } else {
+                std::cerr
+                    << "[Theme] Warning: Selected font_size '"
+                    << data->font_size
+                    << "' is invalid. Trying the theme's default font size."
+                    << std::endl;
             }
-            
-            // 4. Apply the final, validated font variant
-            font_manager->apply_font(variant_name);
+
+            if (variant_name.empty()) {
+                if (ThemeParsingHelpers::is_safe_theme_font_size(data->default_font_size)) {
+                    const std::string default_variant =
+                        ThemeParsingHelpers::make_font_variant_name(family, data->default_font_size);
+
+                    if (font_manager->get_font(default_variant)) {
+                        variant_name = default_variant;
+                    } else {
+                        std::cerr
+                            << "[Theme] Warning: Default font variant '"
+                            << default_variant
+                            << "' is not registered."
+                            << std::endl;
+                    }
+                } else {
+                    std::cerr
+                        << "[Theme] Warning: default_font_size '"
+                        << data->default_font_size
+                        << "' is invalid."
+                        << std::endl;
+                }
+            }
+
+            // Last-resort built-in fallback. This remains local to apply();
+            // theme data is not rewritten.
+            if (variant_name.empty()) {
+                const std::string safe_fallback = "Roboto-Regular_20px";
+                if (font_manager->get_font(safe_fallback)) {
+                    variant_name = safe_fallback;
+                    std::cerr
+                        << "[Theme] Warning: Falling back to built-in font '"
+                        << safe_fallback
+                        << "'."
+                        << std::endl;
+                }
+            }
+
+            if (!variant_name.empty()) {
+                if (!font_manager->apply_font(variant_name)) {
+                    std::cerr
+                        << "ImGuiTheme Error: Failed to apply font variant '"
+                        << variant_name
+                        << "'."
+                        << std::endl;
+                }
+            } else {
+                std::cerr
+                    << "ImGuiTheme Error: No safe registered font variant is available; "
+                    << "leaving the current ImGui font unchanged."
+                    << std::endl;
+            }
         }
         else {
                     std::cerr << "ImGuiTheme Error: Cannot get Font Manager from GUI system." << std::endl;
@@ -276,9 +373,15 @@ namespace Salix {
             if (root["Font"]) {
                 if (root["Font"]["default_font_name"]) pimpl->theme_data->default_font_name = root["Font"]["default_font_name"].as<std::string>();
                 if (root["Font"]["default_font_path"]) pimpl->theme_data->default_font_path = root["Font"]["default_font_path"].as<std::string>();
-                if (root["Font"]["default_font_size"]) pimpl->theme_data->default_font_size = root["Font"]["default_font_size"].as<float>();
+                ThemeParsingHelpers::load_font_size_if_valid(
+                    root["Font"]["default_font_size"],
+                    pimpl->theme_data->default_font_size,
+                    "default_font_size");
                 if (root["Font"]["font_family"]) pimpl->theme_data->font_family = root["Font"]["font_family"].as<std::string>();
-                if (root["Font"]["font_size"]) pimpl->theme_data->font_size = root["Font"]["font_size"].as<float>();
+                ThemeParsingHelpers::load_font_size_if_valid(
+                    root["Font"]["font_size"],
+                    pimpl->theme_data->font_size,
+                    "font_size");
                 if (root["Font"]["font_scale_main"]) pimpl->theme_data->font_scale_main = root["Font"]["font_scale_main"].as<float>();
             }
 
