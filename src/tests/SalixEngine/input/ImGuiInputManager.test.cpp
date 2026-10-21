@@ -193,3 +193,105 @@ TEST_SUITE("Salix::Batch747::ImGuiInputBatch747") {
         InputManagerContext fixture;Salix::ImGuiInputManager m;ImGui::GetIO().MousePos=ImVec2(-24.5f,56.75f);Salix::MockEvent raw;m.process_event(raw);int x=0,y=0;m.get_mouse_position(&x,&y);CHECK(x==-24);CHECK(y==56);CHECK_FALSE(m.wants_to_quit());
     }
 }
+
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch947") {
+    TEST_CASE("unmapped None key can never satisfy held duration query") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::None, 0.0f));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::None, 1.0f));
+    }
+
+    TEST_CASE("unmapped Separator key can never satisfy held duration query") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::Separator, 0.0f));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::Separator, 5.0f));
+    }
+
+    TEST_CASE("unmapped mouse button follows safe inactive semantics") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK_FALSE(manager.is_down(Salix::MouseButton::None));
+        CHECK_FALSE(manager.is_held_down(Salix::MouseButton::None));
+        CHECK_FALSE(manager.is_held_down_for(Salix::MouseButton::None, 0.0f));
+        CHECK_FALSE(manager.was_released(Salix::MouseButton::None));
+        CHECK(manager.is_up(Salix::MouseButton::None));
+    }
+
+    TEST_CASE("mouse chord containing only unmapped button is inactive but fully up") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::MouseButton> buttons{Salix::MouseButton::None};
+        CHECK_FALSE(manager.multiple_are_down(buttons));
+        CHECK_FALSE(manager.multiple_are_held_down(buttons));
+        CHECK_FALSE(manager.multiple_are_held_down_for(buttons, 0.0f));
+        CHECK_FALSE(manager.multiple_were_released(buttons));
+        CHECK_FALSE(manager.any_of_combo_was_released(buttons));
+        CHECK(manager.multiple_are_up(buttons));
+    }
+
+    TEST_CASE("MouseScroll None never matches a positive wheel delta") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = 4.5f;
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::None));
+        CHECK(manager.did_scroll(Salix::MouseScroll::Forward));
+    }
+
+    TEST_CASE("MouseScroll None never matches a negative wheel delta") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = -4.5f;
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::None));
+        CHECK(manager.did_scroll(Salix::MouseScroll::Backward));
+    }
+
+    TEST_CASE("large fractional wheel values remain unchanged by direction queries") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = 123.75f;
+        CHECK(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Backward));
+        CHECK(manager.get_mouse_scroll_delta() == doctest::Approx(123.75f));
+    }
+
+    TEST_CASE("mouse coordinate conversion handles large signed fractional positions") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MousePos = ImVec2(32767.875f, -32767.875f);
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(x == 32767);
+        CHECK(y == -32767);
+    }
+
+    TEST_CASE("multiple raw engine events preserve GUI wheel and mouse position") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = -0.75f;
+        ImGui::GetIO().MousePos = ImVec2(19.5f, -41.25f);
+        Salix::MockEvent first, second, third;
+        manager.process_event(first);
+        manager.process_event(second);
+        manager.process_event(third);
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(manager.get_mouse_scroll_delta() == doctest::Approx(-0.75f));
+        CHECK(x == 19);
+        CHECK(y == -41);
+        CHECK_FALSE(manager.wants_to_quit());
+    }
+
+    TEST_CASE("manager construction and destruction never replace the owned ImGui context") {
+        InputManagerContext fixture;
+        REQUIRE(ImGui::GetCurrentContext() == fixture.owned);
+        {
+            Salix::ImGuiInputManager manager;
+            CHECK(ImGui::GetCurrentContext() == fixture.owned);
+            CHECK(Salix::ImGuiInputManager::get_context_for_testing() == fixture.owned);
+        }
+        CHECK(ImGui::GetCurrentContext() == fixture.owned);
+        CHECK(Salix::ImGuiInputManager::get_context_for_testing() == fixture.owned);
+    }
+}
