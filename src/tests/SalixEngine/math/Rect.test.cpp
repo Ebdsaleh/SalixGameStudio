@@ -400,3 +400,92 @@ TEST_SUITE("Salix::Batch747::RectBatch747") {
         Salix::RectD empty(0.,0.,0.,0.),target(1.,2.,3.,4.);std::stringstream ss;{cereal::JSONOutputArchive out(ss);out(empty);}{cereal::JSONInputArchive in(ss);in(target);}CHECK(target==empty);
     }
 }
+
+#include <cmath>
+#include <cstdint>
+#include <limits>
+TEST_SUITE("Salix::math::RectBatch947") {
+    TEST_CASE("Rect and RectI aliases resolve to the exact same integer rectangle type") {
+        CHECK(std::is_same_v<Salix::Rect, Salix::RectI>);
+        CHECK(std::is_same_v<Salix::Rect::value_type, Salix::RectI::value_type>);
+    }
+
+    TEST_CASE("cross-type rectangle conversion is constructible but deliberately explicit") {
+        CHECK(std::is_constructible_v<Salix::RectI, Salix::RectD>);
+        CHECK_FALSE(std::is_convertible_v<Salix::RectD, Salix::RectI>);
+        CHECK(std::is_constructible_v<Salix::RectD, Salix::RectI>);
+        CHECK_FALSE(std::is_convertible_v<Salix::RectI, Salix::RectD>);
+    }
+
+    TEST_CASE("long double constructor inputs convert independently into double rectangle fields") {
+        Salix::RectD rect(1.25L, -2.5L, 4.0L, 8.125L);
+        CHECK(rect.x == doctest::Approx(1.25));
+        CHECK(rect.y == doctest::Approx(-2.5));
+        CHECK(rect.w == doctest::Approx(4.0));
+        CHECK(rect.h == doctest::Approx(8.125));
+    }
+
+    TEST_CASE("mixed short and unsigned short inputs preserve representable integer fields") {
+        const short x = -123;
+        const unsigned short y = 456;
+        const short w = 789;
+        const unsigned short h = 1024;
+        Salix::RectI rect(x, y, w, h);
+        CHECK(rect.x == -123);
+        CHECK(rect.y == 456);
+        CHECK(rect.w == 789);
+        CHECK(rect.h == 1024);
+    }
+
+    TEST_CASE("integer to float to integer conversion is exact for modest signed coordinates") {
+        const Salix::RectI source{-4096, 2048, 512, -256};
+        const Salix::RectF as_float(source);
+        const Salix::RectI restored(as_float);
+        CHECK(restored == source);
+    }
+
+    TEST_CASE("floating rectangle preserves signed zero in each independently supplied field") {
+        const Salix::RectF rect{-0.0f, 0.0f, -0.0f, 0.0f};
+        CHECK(std::signbit(rect.x));
+        CHECK_FALSE(std::signbit(rect.y));
+        CHECK(std::signbit(rect.w));
+        CHECK_FALSE(std::signbit(rect.h));
+    }
+
+    TEST_CASE("double rectangle accepts signed infinities without normalizing them") {
+        const double inf = std::numeric_limits<double>::infinity();
+        const Salix::RectD rect{-inf, inf, inf, -inf};
+        CHECK(std::isinf(rect.x));
+        CHECK(std::signbit(rect.x));
+        CHECK(std::isinf(rect.y));
+        CHECK_FALSE(std::signbit(rect.y));
+        CHECK(std::isinf(rect.w));
+        CHECK(std::isinf(rect.h));
+        CHECK(std::signbit(rect.h));
+    }
+
+    TEST_CASE("JSON roundtrip preserves exact dyadic double rectangle values") {
+        const Salix::RectD source{-0.125, 0.25, 1024.5, -2048.25};
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::RectD restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == source);
+    }
+
+    TEST_CASE("binary roundtrip preserves signed fractional float rectangle values") {
+        const Salix::RectF source{-1.5f, 2.25f, -3.75f, 4.5f};
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::RectF restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored == source);
+    }
+
+    TEST_CASE("self assignment preserves every double rectangle field") {
+        Salix::RectD rect{-7.5, 8.25, 0.0, -11.125};
+        const Salix::RectD expected = rect;
+        rect = rect;
+        CHECK(rect == expected);
+    }
+}
