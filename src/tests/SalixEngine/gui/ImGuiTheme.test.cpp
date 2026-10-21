@@ -9,24 +9,6 @@
 #include <string>
 
 namespace {
-class Batch1147ThemeContextGuard {
-public:
-    Batch1147ThemeContextGuard() {
-        if (ImGui::GetCurrentContext() == nullptr) {
-            owned_context = ImGui::CreateContext();
-        }
-    }
-
-    ~Batch1147ThemeContextGuard() {
-        if (owned_context != nullptr) {
-            ImGui::DestroyContext(owned_context);
-        }
-    }
-
-private:
-    ImGuiContext* owned_context = nullptr;
-};
-
 class Batch1147ThemeTempFile {
 public:
     Batch1147ThemeTempFile() {
@@ -52,7 +34,6 @@ public:
 
 TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     TEST_CASE("default theme exposes default object identity and owned theme data") {
-        Batch1147ThemeContextGuard context;
         Salix::ImGuiTheme theme;
         CHECK(theme.get_name() == "Default ImGui Theme");
         CHECK(theme.get_file_path().empty());
@@ -61,7 +42,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("name constructor preserves requested theme identity with empty source path") {
-        Batch1147ThemeContextGuard context;
         Salix::ImGuiTheme theme("Midnight");
         CHECK(theme.get_name() == "Midnight");
         CHECK(theme.get_file_path().empty());
@@ -70,7 +50,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("name and path constructor preserves both object metadata fields") {
-        Batch1147ThemeContextGuard context;
         Salix::ImGuiTheme theme("Ocean", "Themes/Ocean.yaml");
         CHECK(theme.get_name() == "Ocean");
         CHECK(theme.get_file_path() == "Themes/Ocean.yaml");
@@ -79,7 +58,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("theme data pointer remains stable and mutations are visible through subsequent access") {
-        Batch1147ThemeContextGuard context;
         Salix::ImGuiTheme theme("Mutable");
         Salix::ImGuiThemeData* first = theme.get_data();
         REQUIRE(first != nullptr);
@@ -91,7 +69,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("saving to an empty path fails without altering theme metadata") {
-        Batch1147ThemeContextGuard context;
         Salix::ImGuiTheme theme("NoPath");
         CHECK_FALSE(theme.save_to_yaml(""));
         CHECK(theme.get_name() == "NoPath");
@@ -100,7 +77,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("loading a missing YAML file fails and preserves existing data") {
-        Batch1147ThemeContextGuard context;
         Salix::ImGuiTheme theme("Existing");
         theme.get_data()->alpha = 0.33f;
         const auto missing = std::filesystem::temp_directory_path() / "SalixGameStudio_Batch1147_missing_theme.yaml";
@@ -112,7 +88,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("loading metadata and font section updates theme data fields") {
-        Batch1147ThemeContextGuard context;
         Batch1147ThemeTempFile file;
         file.write(
             "name: Loaded Theme\n"
@@ -140,7 +115,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("loading colors styles icons and enums updates independent theme channels") {
-        Batch1147ThemeContextGuard context;
         Batch1147ThemeTempFile file;
         file.write(
             "name: Styled\n"
@@ -184,7 +158,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("invalid YAML font sizes retain safe selections while malformed documents still fail") {
-        Batch1147ThemeContextGuard context;
         Batch1147ThemeTempFile file;
         Salix::ImGuiTheme theme;
         REQUIRE(theme.get_data() != nullptr);
@@ -212,7 +185,6 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1147") {
     }
 
     TEST_CASE("ITheme interface saves and reloads selected persistent theme values") {
-        Batch1147ThemeContextGuard context;
         Batch1147ThemeTempFile file;
         Salix::ImGuiTheme source("Roundtrip", file.path.string());
         REQUIRE(source.get_data() != nullptr);
