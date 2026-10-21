@@ -541,3 +541,170 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch647") {
         CHECK(restored.get_texture_width()==0);
     }
 }
+
+TEST_SUITE("Salix::ecs::Sprite2DBatch947") {
+    TEST_CASE("mutable sprite property references update every exposed render setting") {
+        Salix::Sprite2D sprite;
+        sprite.get_use_entity_rotation() = true;
+        sprite.get_local_rotation() = -45.0f;
+        sprite.get_flip_h() = true;
+        sprite.get_flip_v() = true;
+        sprite.get_sorting_layer() = -99;
+        sprite.get_offset() = Salix::Vector2(3.0f, -7.0f);
+        sprite.get_pivot() = Salix::Vector2(0.25f, 0.75f);
+        CHECK(sprite.get_use_entity_rotation());
+        CHECK(sprite.get_local_rotation() == -45.0f);
+        CHECK(sprite.get_flip_h());
+        CHECK(sprite.get_flip_v());
+        CHECK(sprite.get_sorting_layer() == -99);
+        CHECK(sprite.get_offset() == Salix::Vector2(3.0f, -7.0f));
+        CHECK(sprite.get_pivot() == Salix::Vector2(0.25f, 0.75f));
+    }
+
+    TEST_CASE("changing stored texture path alone does not replace an already loaded runtime texture") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "art/loaded.png");
+        auto* loaded = sprite.get_texture();
+        REQUIRE(loaded != nullptr);
+        sprite.set_texture_path("art/deferred.png");
+        CHECK(sprite.get_texture() == loaded);
+        CHECK(sprite.get_texture_path() == "art/deferred.png");
+    }
+
+    TEST_CASE("reloading identical texture path reuses cached runtime texture") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "art/repeat.png");
+        auto* first = sprite.get_texture();
+        REQUIRE(first != nullptr);
+        sprite.load_texture(&assets, "art/repeat.png");
+        CHECK(sprite.get_texture() == first);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+    }
+
+    TEST_CASE("loading a distinct texture path replaces runtime texture without changing dimensions") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "art/first-unique.png");
+        auto* first = sprite.get_texture();
+        REQUIRE(first != nullptr);
+        sprite.load_texture(&assets, "art/second-unique.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture() != first);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+        CHECK(sprite.get_texture_path() == "art/second-unique.png");
+    }
+
+    TEST_CASE("failed replacement clears prior runtime texture while retaining requested path") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "art/working.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        renderer.should_texture_load_fail = true;
+        sprite.load_texture(&assets, "art/failing-replacement.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+        CHECK(sprite.get_texture_path() == "art/failing-replacement.png");
+    }
+
+    TEST_CASE("on load with empty stored path leaves existing runtime texture untouched") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "art/runtime.png");
+        auto* runtime = sprite.get_texture();
+        REQUIRE(runtime != nullptr);
+        sprite.set_texture_path("");
+        Salix::InitContext context{};
+        context.asset_manager = &assets;
+        sprite.on_load(context);
+        CHECK(sprite.get_texture() == runtime);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_path().empty());
+    }
+
+    TEST_CASE("rendering through null renderer preserves loaded sprite runtime state") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "art/null-renderer.png");
+        auto* texture = sprite.get_texture();
+        REQUIRE(texture != nullptr);
+        sprite.set_flip_h(true);
+        sprite.set_sorting_layer(12);
+        sprite.render(nullptr);
+        CHECK(sprite.get_texture() == texture);
+        CHECK(sprite.get_flip_h());
+        CHECK(sprite.get_sorting_layer() == 12);
+    }
+
+    TEST_CASE("successful draw does not mutate sprite render properties") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "art/stable-draw.png");
+        sprite->set_color(Salix::Color(0.2f, 0.4f, 0.6f, 0.8f));
+        sprite->set_offset(Salix::Vector2(-3.0f, 5.0f));
+        sprite->set_pivot(Salix::Vector2(0.1f, 0.9f));
+        sprite->set_local_rotation(22.5f);
+        sprite->set_sorting_layer(5);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 1);
+        CHECK(sprite->get_color() == Salix::Color(0.2f, 0.4f, 0.6f, 0.8f));
+        CHECK(sprite->get_offset() == Salix::Vector2(-3.0f, 5.0f));
+        CHECK(sprite->get_pivot() == Salix::Vector2(0.1f, 0.9f));
+        CHECK(sprite->get_local_rotation() == 22.5f);
+        CHECK(sprite->get_sorting_layer() == 5);
+    }
+
+    TEST_CASE("JSON roundtrip restores base identity and sprite state without runtime texture") {
+        Salix::Sprite2D original;
+        original.set_id(Salix::SimpleGuid::from_value((std::uint64_t{1} << 40) + 17));
+        original.set_name("ForegroundSprite");
+        original.set_texture_path("art/persisted.png");
+        original.set_flip_v(true);
+        original.set_sorting_layer(44);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::Sprite2D restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_id() == original.get_id());
+        CHECK(restored.get_name() == "ForegroundSprite");
+        CHECK(restored.get_texture_path() == "art/persisted.png");
+        CHECK(restored.get_flip_v());
+        CHECK(restored.get_sorting_layer() == 44);
+        CHECK(restored.get_texture() == nullptr);
+    }
+
+    TEST_CASE("empty direct texture load clears runtime resource but preserves previous portable path") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "art/portable-original.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        REQUIRE(sprite.get_texture_path() == "art/portable-original.png");
+        sprite.load_texture(&assets, "");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+        CHECK(sprite.get_texture_path() == "art/portable-original.png");
+    }
+}
