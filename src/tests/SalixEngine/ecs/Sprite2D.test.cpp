@@ -542,7 +542,7 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch647") {
     }
 }
 
-TEST_SUITE("Salix::ecs::Sprite2DBatch947") {
+#include <cstdint>\nTEST_SUITE("Salix::ecs::Sprite2DBatch947") {
     TEST_CASE("mutable sprite property references update every exposed render setting") {
         Salix::Sprite2D sprite;
         sprite.get_use_entity_rotation() = true;
