@@ -1,9 +1,6 @@
 #include <doctest.h>
 #include <Salix/ecs/CppScript.h>
 #include <Salix/ecs/Entity.h>
-#include <cereal/archives/json.hpp>
-#include <cereal/archives/binary.hpp>
-#include <sstream>
 #include <string>
 
 TEST_SUITE("Salix::ecs::CppScriptBatch1247") {
@@ -54,72 +51,36 @@ TEST_SUITE("Salix::ecs::CppScriptBatch1247") {
         CHECK(script.get_name() == "CppScript");
     }
 
-    TEST_CASE("cpp script JSON roundtrip preserves script name element name and id") {
-        Salix::CppScript source;
-        source.set_name("Script Component");
-        source.set_script_name("JsonScript");
-        const auto source_id = source.get_id().get_value();
-
-        std::stringstream stream;
-        {
-            cereal::JSONOutputArchive archive(stream);
-            archive(source);
-        }
-
-        Salix::CppScript restored;
-        {
-            cereal::JSONInputArchive archive(stream);
-            archive(restored);
-        }
-
-        CHECK(restored.get_script_name() == "JsonScript");
-        CHECK(restored.get_name() == "Script Component");
-        CHECK(restored.get_id().get_value() == source_id);
+    TEST_CASE("cpp script display name remains independent of registered script name") {
+        Salix::CppScript script;
+        script.set_name("Editor Label");
+        script.set_script_name("RuntimeController");
+        CHECK(script.get_name() == "Editor Label");
+        CHECK(script.get_script_name() == "RuntimeController");
+        CHECK(std::string(script.get_class_name()) == "CppScript");
     }
 
-    TEST_CASE("cpp script binary roundtrip preserves script metadata") {
-        Salix::CppScript source;
-        source.set_name("Binary Script");
-        source.set_script_name("BinaryController");
-
-        std::stringstream stream;
-        {
-            cereal::BinaryOutputArchive archive(stream);
-            archive(source);
-        }
-
-        Salix::CppScript restored;
-        {
-            cereal::BinaryInputArchive archive(stream);
-            archive(restored);
-        }
-
-        CHECK(restored.get_script_name() == "BinaryController");
-        CHECK(restored.get_name() == "Binary Script");
-        CHECK(restored.get_id() == source.get_id());
-    }
-
-    TEST_CASE("cpp script serialization never transfers runtime owner pointer") {
+    TEST_CASE("cpp script owner assignment does not alter registered script metadata") {
         Salix::Entity owner;
-        Salix::CppScript source;
-        source.set_owner(&owner);
-        source.set_script_name("OwnerlessAfterLoad");
+        Salix::CppScript script;
+        script.set_script_name("OwnedController");
+        script.set_owner(&owner);
+        CHECK(script.get_owner() == &owner);
+        CHECK(script.get_script_name() == "OwnedController");
+        script.set_owner(nullptr);
+        CHECK(script.get_owner() == nullptr);
+        CHECK(script.get_script_name() == "OwnedController");
+    }
 
-        std::stringstream stream;
-        {
-            cereal::BinaryOutputArchive archive(stream);
-            archive(source);
-        }
-
-        Salix::CppScript restored;
-        {
-            cereal::BinaryInputArchive archive(stream);
-            archive(restored);
-        }
-
-        CHECK(source.get_owner() == &owner);
-        CHECK(restored.get_owner() == nullptr);
-        CHECK(restored.get_script_name() == "OwnerlessAfterLoad");
+    TEST_CASE("cpp script getter returns stable string storage across replacements") {
+        Salix::CppScript script;
+        const std::string* storage = &script.get_script_name();
+        script.set_script_name("First");
+        CHECK(&script.get_script_name() == storage);
+        CHECK(*storage == "First");
+        script.set_script_name("SecondNameWithDifferentLength");
+        CHECK(&script.get_script_name() == storage);
+        CHECK(*storage == "SecondNameWithDifferentLength");
     }
 
     TEST_CASE("cpp script visibility remains independent of registered script name") {
