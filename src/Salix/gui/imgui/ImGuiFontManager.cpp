@@ -89,9 +89,11 @@ namespace Salix {
 
     // Shuts down the Font Manager.
     void ImGuiFontManager::shutdown() {
+        pimpl->active_font = nullptr;
         pimpl->font_registry.clear(); // Clear unique_ptrs in registry
         pimpl->gui_system = nullptr;
         pimpl->sdl_renderer = nullptr;
+        pimpl->gl_context = nullptr;
         std::cout << "ImGuiFontManager::shutdown - Operation Successful." << std::endl;
     }
 
@@ -115,12 +117,19 @@ namespace Salix {
 
     // Unregisters a font by its name.
     bool ImGuiFontManager::unregister_font(const std::string& font_name) {
-        if (pimpl->font_registry.erase(font_name) > 0) {
-            std::cout << "ImGuiFontManager::unregister_font - Font '" << font_name << "' unregistered." << std::endl;
-            return true;
+        auto it = pimpl->font_registry.find(font_name);
+        if (it == pimpl->font_registry.end()) {
+            std::cerr << "ImGuiFontManager::unregister_font - Font '" << font_name << "' not found." << std::endl;
+            return false;
         }
-        std::cerr << "ImGuiFontManager::unregister_font - Font '" << font_name << "' not found." << std::endl;
-        return false;
+
+        if (pimpl->active_font == it->second.get()) {
+            pimpl->active_font = nullptr;
+        }
+
+        pimpl->font_registry.erase(it);
+        std::cout << "ImGuiFontManager::unregister_font - Font '" << font_name << "' unregistered." << std::endl;
+        return true;
     }
 
 
