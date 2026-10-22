@@ -3,7 +3,8 @@
 #include <Salix/gui/IFont.h>
 #include <Tests/SalixEngine/mocking/gui/MockIFontData.h>
 #include <memory>
-#include <string>\n#include <utility>
+#include <string>
+#include <utility>
 
 struct ImFont;
 
