@@ -58,11 +58,14 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch1247") {
         CHECK(names[1] == "B");
     }
 
-    TEST_CASE("theme manager unregister removes existing theme and reports missing names") {
+    TEST_CASE("theme manager unregister removes existing theme and clears active pointer safely") {
         Salix::ImGuiThemeManager manager;
         REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Disposable")));
+        REQUIRE(manager.set_active_theme("Disposable"));
+        REQUIRE(manager.get_active_theme() != nullptr);
         CHECK(manager.unregister_theme("Disposable"));
         CHECK(manager.get_theme("Disposable") == nullptr);
+        CHECK(manager.get_active_theme() == nullptr);
         CHECK_FALSE(manager.unregister_theme("Disposable"));
     }
 
