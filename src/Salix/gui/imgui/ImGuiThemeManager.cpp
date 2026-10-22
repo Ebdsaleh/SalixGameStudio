@@ -63,7 +63,18 @@ namespace Salix {
         }
 
     bool ImGuiThemeManager::unregister_theme(const std::string& theme_name) {
-        return pimpl->theme_registry.erase(theme_name) > 0;
+        auto it = pimpl->theme_registry.find(theme_name);
+        if (it == pimpl->theme_registry.end()) {
+            return false;
+        }
+
+        if (pimpl->active_theme == it->second.get()) {
+            pimpl->active_theme = nullptr;
+            pimpl->active_theme_name.clear();
+        }
+
+        pimpl->theme_registry.erase(it);
+        return true;
     }
 
     void ImGuiThemeManager::apply_style_scale(float scale) {
