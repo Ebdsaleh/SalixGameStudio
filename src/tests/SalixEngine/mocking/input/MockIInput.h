@@ -2,6 +2,7 @@
 
 #include <Salix/input/IInput.h>
 #include <vector>
+#include <utility>
 
 class MockIInput : public Salix::IInput {
 public:
