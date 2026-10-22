@@ -3,6 +3,7 @@
 #include <array>
 #include <map>
 #include <set>
+#include <string>
 #include <type_traits>
 
 TEST_SUITE("Salix::input::InputCodesBatch1547") {
