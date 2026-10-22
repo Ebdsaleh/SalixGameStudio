@@ -2,6 +2,7 @@
 #include <Salix/events/IEvent.h>
 #include <memory>
 #include <string>
+#include <utility>
 
 namespace {
 class Batch1347Event : public Salix::IEvent {
