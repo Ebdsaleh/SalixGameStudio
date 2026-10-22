@@ -24,11 +24,11 @@ public:
         registry.clear();
     }
 
-    bool register_theme(const std::unique_ptr<Salix::ITheme> theme) override {
+    bool register_theme(std::unique_ptr<Salix::ITheme> theme) override {
         if (!theme) return false;
         const std::string name = theme->get_name();
         if (registry.find(name) != registry.end()) return false;
-        registry.emplace(name, std::move(const_cast<std::unique_ptr<Salix::ITheme>&>(theme)));
+        registry.emplace(name, std::move(theme));
         return true;
     }
 
