@@ -2,7 +2,7 @@
 #include <Salix/ecs/RenderableElement2D.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/core/InitContext.h>
-#include <Tests/SalixEngine/mocking/ecs/MockRenderableElement.h>
+#include <Tests/SalixEngine/mocking/ecs/MockRenderableElementContract.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
 #include <memory>
 #include <string>
@@ -43,9 +43,9 @@ TEST_SUITE("Salix::ecs::RenderableElement2DBatch1547") {
 
     TEST_CASE("2D renderable identity remains distinct from generic renderable mock") {
         MockRenderableElement2D two_d;
-        MockRenderableElement generic;
+        MockRenderableElementContract generic;
         CHECK(std::string(two_d.get_class_name()) == "MockRenderableElement2D");
-        CHECK(std::string(generic.get_class_name()) == "MockRenderableElement");
+        CHECK(std::string(generic.get_class_name()) == "MockRenderableElementContract");
     }
 
     TEST_CASE("2D renderable inherited name mutation does not alter class identity") {
