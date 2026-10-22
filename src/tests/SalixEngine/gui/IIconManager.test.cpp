@@ -3,6 +3,7 @@
 #include <Salix/gui/IconInfo.h>
 #include <Tests/SalixEngine/mocking/gui/MockIIconManager.h>
 #include <memory>
+#include <cstdint>
 
 TEST_SUITE("Salix::gui::IIconManagerBatch1447") {
     TEST_CASE("icon manager initialization stores exact asset manager pointer") {
