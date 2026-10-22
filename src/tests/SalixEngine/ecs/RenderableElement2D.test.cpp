@@ -2,7 +2,7 @@
 #include <Salix/ecs/RenderableElement2D.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/core/InitContext.h>
-#include <Tests/SalixEngine/mocking/ecs/MockRenderableElementContract.h>
+#include <Tests/SalixEngine/mocking/ecs/MockRenderableElement.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
 #include <memory>
 #include <string>
