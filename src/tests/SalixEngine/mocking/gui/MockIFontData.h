@@ -1,7 +1,8 @@
 #pragma once
 
 #include <Salix/gui/IFontData.h>
-#include <string>\n#include <utility>
+#include <string>
+#include <utility>
 
 class MockIFontData : public Salix::IFontData {
 public:
