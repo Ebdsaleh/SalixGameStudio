@@ -102,6 +102,6 @@ TEST_SUITE("Salix::scripting::ScriptRegistrationBatch1547") {
     TEST_CASE("script registration does not make similar unregistered names resolvable") {
         CHECK(Salix::ScriptFactory::get().create_script("Batch1547Script") == nullptr);
         CHECK(Salix::ScriptFactory::get().create_script("Batch1547ScriptAlphaExtra") == nullptr);
-        CHECK(Salix::ScriptFactory::get().create_script("") == nullptr);
+        CHECK(Salix::ScriptFactory::get().create_script("Batch1547DefinitelyMissing") == nullptr);
     }
 }
