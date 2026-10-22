@@ -5,9 +5,9 @@
 #include <Salix/ecs/RenderableElement3D.h>
 #include <Salix/core/InitContext.h>
 
-class MockRenderableElement : public Salix::RenderableElement {
+class MockRenderableElementContract : public Salix::RenderableElement {
 public:
-    const char* get_class_name() const override { return "MockRenderableElement"; }
+    const char* get_class_name() const override { return "MockRenderableElementContract"; }
 
     void render(Salix::IRenderer* renderer) override {
         last_renderer = renderer;
