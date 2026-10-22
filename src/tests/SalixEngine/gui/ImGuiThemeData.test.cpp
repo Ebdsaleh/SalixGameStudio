@@ -52,7 +52,8 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
 
     TEST_CASE("theme data vector style snapshot matches current ImGui style") {
         Salix::ImGuiThemeData data;
-        const ImGuiStyle& style = ImGui::GetStyle();
+        ImGuiStyle style;
+        ImGui::StyleColorsDark(&style);
         CHECK(data.window_padding.x == doctest::Approx(style.WindowPadding.x));
         CHECK(data.window_padding.y == doctest::Approx(style.WindowPadding.y));
         CHECK(data.frame_padding.x == doctest::Approx(style.FramePadding.x));
@@ -63,7 +64,8 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
 
     TEST_CASE("theme data scalar style snapshot matches current ImGui style") {
         Salix::ImGuiThemeData data;
-        const ImGuiStyle& style = ImGui::GetStyle();
+        ImGuiStyle style;
+        ImGui::StyleColorsDark(&style);
         CHECK(data.alpha == doctest::Approx(style.Alpha));
         CHECK(data.window_rounding == doctest::Approx(style.WindowRounding));
         CHECK(data.frame_rounding == doctest::Approx(style.FrameRounding));
@@ -73,7 +75,8 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
 
     TEST_CASE("theme data antialiasing booleans mirror current ImGui defaults") {
         Salix::ImGuiThemeData data;
-        const ImGuiStyle& style = ImGui::GetStyle();
+        ImGuiStyle style;
+        ImGui::StyleColorsDark(&style);
         CHECK(data.anti_aliased_lines == style.AntiAliasedLines);
         CHECK(data.anti_aliased_lines_use_tex == style.AntiAliasedLinesUseTex);
         CHECK(data.anti_aliased_fill == style.AntiAliasedFill);
