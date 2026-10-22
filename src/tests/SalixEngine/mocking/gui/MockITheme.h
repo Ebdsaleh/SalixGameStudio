@@ -2,7 +2,7 @@
 
 #include <Salix/gui/ITheme.h>
 #include <Salix/gui/IGui.h>
-#include <string>
+#include <string>\n#include <utility>
 
 class MockITheme : public Salix::ITheme {
 public:
