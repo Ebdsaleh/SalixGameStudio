@@ -32,6 +32,10 @@ namespace Salix {
 
 
     bool ImGuiThemeManager::initialize(IGui* gui_system) {
+        if (!gui_system) {
+            std::cerr << "ImGuiThemeManager Error: GUI system is null during initialization." << std::endl;
+            return false;
+        }
         pimpl->gui_system = gui_system;
         pimpl->icon_manager = gui_system->get_icon_manager();
         return true;
@@ -44,6 +48,10 @@ namespace Salix {
     }
 
     bool ImGuiThemeManager::register_theme(std::unique_ptr<ITheme> theme) {
+        if (!theme) {
+            std::cerr << "ImGuiThemeManager Error: Cannot register a null theme." << std::endl;
+            return false;
+        }
         const std::string& name = theme->get_name(); // Get name before moving
         if (pimpl->theme_registry.count(name)) {
             std::cerr << "ImGuiThemeManager Error: Theme '" << name << "' already registered." << std::endl;
@@ -239,8 +247,10 @@ namespace Salix {
     }
 
     bool ImGuiThemeManager::purge_theme(const std::string& theme_name) {
-        if (pimpl->active_theme_name == theme_name)
+        if (pimpl->active_theme_name == theme_name) {
             pimpl->active_theme_name.clear();
+            pimpl->active_theme = nullptr;
+        }
         return unregister_theme(theme_name);
     }
 
