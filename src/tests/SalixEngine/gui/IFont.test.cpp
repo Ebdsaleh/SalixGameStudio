@@ -3,6 +3,7 @@
 #include <Tests/SalixEngine/mocking/gui/MockIFont.h>
 #include <Tests/SalixEngine/mocking/gui/MockIFontData.h>
 #include <memory>
+#include <cstdint>
 #include <string>
 
 TEST_SUITE("Salix::gui::IFontBatch1447") {
