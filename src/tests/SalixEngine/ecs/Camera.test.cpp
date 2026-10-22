@@ -79,7 +79,7 @@ TEST_SUITE("Salix::ecs::CameraBatch1247") {
         camera.set_viewport_size(900, 1600);
         const glm::mat4 tall = camera.get_projection_matrix();
         CHECK(batch1247_matrix_differs(wide, tall));
-        CHECK(wide[0][0] != doctest::Approx(tall[0][0]));
+        CHECK(std::fabs(wide[0][0] - tall[0][0]) > 0.0001f);
     }
 
     TEST_CASE("camera near and far clip setters retain independent values") {
