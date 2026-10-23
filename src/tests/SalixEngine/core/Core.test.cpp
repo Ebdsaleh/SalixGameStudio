@@ -58,7 +58,8 @@ TEST_SUITE("Salix::core::CoreBatch1647") {
         auto copy = Salix::g_project_root_path;
         copy /= "Assets";
         CHECK(Salix::g_project_root_path == std::filesystem::path("Source/Project"));
-        CHECK(copy == std::filesystem::path("Source/Project/Assets"));
+        CHECK(copy.filename() == "Assets");
+        CHECK(copy.parent_path() == Salix::g_project_root_path);
     }
 
     TEST_CASE("project root global does not silently lexically normalize parent traversal") {
@@ -80,7 +81,7 @@ TEST_SUITE("Salix::core::CoreBatch1647") {
         {
             Batch1647ProjectRootGuard guard;
             Salix::g_project_root_path = "Temporary/Root";
-            CHECK(Salix::g_project_root_path != before);
+            CHECK(Salix::g_project_root_path == std::filesystem::path("Temporary/Root"));
         }
         CHECK(Salix::g_project_root_path == before);
     }
