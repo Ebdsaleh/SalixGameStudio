@@ -295,3 +295,62 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch947") {
         CHECK(Salix::ImGuiInputManager::get_context_for_testing() == fixture.owned);
     }
 }
+
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch2547") {
+    TEST_CASE("batch2547 alphabetic key mappings A through E safely query inactive context") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::A)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::B));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::C)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::D)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::E));
+    }
+    TEST_CASE("batch2547 alphabetic key mappings V through Z safely query inactive context") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::V)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::W));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::X)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Y)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Z));
+    }
+    TEST_CASE("batch2547 numeric row mappings cover one five nine and zero") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Alpha1)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Alpha5));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Alpha9)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Alpha0));
+    }
+    TEST_CASE("batch2547 navigation and editing mappings safely remain inactive") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Up)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Down));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Left)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Right));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Delete)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::BackSpace));
+    }
+    TEST_CASE("batch2547 primary modifier mappings safely remain inactive") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::LeftShift)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::RightShift));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::LeftControl)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::RightControl));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::LeftAlt)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::RightAlt));
+    }
+    TEST_CASE("batch2547 text control mappings tab enter escape and space stay inactive") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Tab)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Enter));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Escape)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Space));
+    }
+    TEST_CASE("batch2547 punctuation mappings safely query inactive context") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Comma)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Period));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Minus)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::Equals));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Slash)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::BackSlash));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::Apostrophe)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::SemiColon));
+    }
+    TEST_CASE("batch2547 function key mappings cover both ends and middle of range") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::F1)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::F6));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::F10)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::F12));
+    }
+    TEST_CASE("batch2547 system key mappings query GUI context safely") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::LeftGui)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::RightGui));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::ContextMenu)); CHECK_FALSE(m.is_held_down(Salix::KeyCode::PrintScreen));
+        CHECK_FALSE(m.is_held_down(Salix::KeyCode::CapsLock));
+    }
+    TEST_CASE("batch2547 mapped left middle and right mouse buttons are all initially up") {
+        InputManagerContext fixture; Salix::ImGuiInputManager m;
+        CHECK(m.is_up(Salix::MouseButton::Left)); CHECK(m.is_up(Salix::MouseButton::Middle)); CHECK(m.is_up(Salix::MouseButton::Right));
+        CHECK_FALSE(m.is_held_down(Salix::MouseButton::Left)); CHECK_FALSE(m.is_held_down(Salix::MouseButton::Middle)); CHECK_FALSE(m.is_held_down(Salix::MouseButton::Right));
+    }
+}
+
