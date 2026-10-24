@@ -794,3 +794,78 @@ TEST_SUITE("Salix::ecs::EntityBatch2347") {
     }
 }
 
+TEST_SUITE("Salix::ecs::EntityBatch2647") {
+    TEST_CASE("batch2647 adding null raw element leaves mandatory element collection unchanged") {
+        Salix::Entity entity;
+        const auto before=entity.get_all_elements().size();
+        entity.add_element(static_cast<Salix::Element*>(nullptr));
+        CHECK(entity.get_all_elements().size()==before);
+    }
+    TEST_CASE("batch2647 adding null unique element leaves mandatory element collection unchanged") {
+        Salix::Entity entity;
+        const auto before=entity.get_all_elements().size();
+        std::unique_ptr<Salix::Sprite2D> empty;
+        entity.add_element(std::move(empty));
+        CHECK(entity.get_all_elements().size()==before);
+    }
+    TEST_CASE("batch2647 explicit identifier replacement updates lookup identity without changing components") {
+        Salix::Entity entity;
+        const auto count=entity.get_all_elements().size();
+        const auto replacement=Salix::SimpleGuid::from_value(26470001ULL);
+        entity.set_id(replacement);
+        CHECK(entity.get_id()==replacement);
+        CHECK(entity.get_all_elements().size()==count);
+        CHECK(entity.get_transform()!=nullptr);
+    }
+    TEST_CASE("batch2647 simple purge blocks public name type and id queries while preserving owned storage") {
+        Salix::Entity entity;
+        auto* transform=entity.get_transform();
+        REQUIRE(transform!=nullptr);
+        const auto id=transform->get_id();
+        const auto count=entity.get_all_elements().size();
+        entity.simple_purge();
+        CHECK(entity.get_element_by_name("Transform")==nullptr);
+        CHECK(entity.get_element_by_type_name("Transform")==nullptr);
+        CHECK(entity.get_element_by_id(id)==nullptr);
+        CHECK(entity.get_all_elements().size()==count);
+    }
+    TEST_CASE("batch2647 child destruction removes stale pointer from surviving parent") {
+        Salix::Entity parent;
+        { auto child=std::make_unique<Salix::Entity>(); child->set_parent(&parent); REQUIRE(parent.get_children().size()==1); }
+        CHECK(parent.get_children().empty());
+    }
+    TEST_CASE("batch2647 parent destruction orphans child and transform hierarchy together") {
+        Salix::Entity child;
+        { auto parent=std::make_unique<Salix::Entity>(); child.set_parent(parent.get()); REQUIRE(child.get_parent()==parent.get()); REQUIRE(child.get_transform()->get_parent()!=nullptr); }
+        CHECK(child.get_parent()==nullptr);
+        CHECK(child.get_transform()->get_parent()==nullptr);
+    }
+    TEST_CASE("batch2647 circular grandparent assignment is rejected without disturbing hierarchy") {
+        Salix::Entity root,parent,child;
+        parent.set_parent(&root); child.set_parent(&parent); root.set_parent(&child);
+        CHECK(root.get_parent()==nullptr);
+        CHECK(parent.get_parent()==&root);
+        CHECK(child.get_parent()==&parent);
+        CHECK(child.is_child_of(&root));
+    }
+    TEST_CASE("batch2647 releasing child twice remains idempotent and leaves former parent empty") {
+        Salix::Entity parent,child;
+        child.set_parent(&parent); REQUIRE(parent.get_children().size()==1);
+        child.release_from_parent(); child.release_from_parent();
+        CHECK(child.get_parent()==nullptr); CHECK(parent.get_children().empty());
+    }
+    TEST_CASE("batch2647 visibility toggles remain independent from purge state") {
+        Salix::Entity entity;
+        entity.set_visible(false); CHECK_FALSE(entity.is_visible()); CHECK_FALSE(entity.is_purged());
+        entity.simple_purge(); CHECK(entity.is_purged()); CHECK_FALSE(entity.is_visible());
+        entity.set_visible(true); CHECK(entity.is_visible()); CHECK(entity.is_purged());
+    }
+    TEST_CASE("batch2647 const and mutable internal exact type lookup agree for mandatory transform") {
+        Salix::Entity entity;
+        auto* mutable_transform=entity.get_element_internal(typeid(Salix::Transform));
+        const Salix::Entity& const_entity=entity;
+        const auto* const_transform=const_entity.get_element_internal(typeid(Salix::Transform));
+        REQUIRE(mutable_transform!=nullptr); CHECK(mutable_transform==const_transform); CHECK(mutable_transform==entity.get_transform());
+    }
+}
+
