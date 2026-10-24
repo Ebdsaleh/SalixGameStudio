@@ -142,3 +142,121 @@ TEST_SUITE("Salix::management::RealmDataBatch1047") {
         CHECK(destination.unique_referenced_assets[0].path == "fresh.asset");
     }
 }
+
+
+TEST_SUITE("Salix::management::RealmDataBatch2047") {
+    TEST_CASE("referenced asset copy owns independent path storage") {
+        Salix::ReferencedAsset source = batch1047_asset("Assets/Textures/original.png");
+        Salix::ReferencedAsset copy = source;
+        copy.path = "Assets/Textures/copy.png";
+        CHECK(source.path == "Assets/Textures/original.png");
+        CHECK(copy.path == "Assets/Textures/copy.png");
+    }
+
+    TEST_CASE("fresh realm data instances do not share manifest strings or asset vectors") {
+        Salix::RealmData first;
+        Salix::RealmData second;
+        first.realm_name = "First";
+        first.unique_referenced_assets.push_back(batch1047_asset("first.asset"));
+        CHECK(second.realm_name.empty());
+        CHECK(second.unique_referenced_assets.empty());
+    }
+
+    TEST_CASE("empty referenced asset path survives JSON persistence exactly") {
+        Salix::ReferencedAsset source;
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::ReferencedAsset restored = batch1047_asset("stale.asset");
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.path.empty());
+    }
+
+    TEST_CASE("binary persistence preserves maximum representable entity count") {
+        Salix::RealmData source;
+        source.entity_count = (std::numeric_limits<std::size_t>::max)();
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::RealmData restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.entity_count == source.entity_count);
+    }
+
+    TEST_CASE("JSON manifest preserves duplicate and empty asset paths in original order") {
+        Salix::RealmData source;
+        source.unique_referenced_assets = {
+            batch1047_asset("same.asset"), batch1047_asset(""), batch1047_asset("same.asset")
+        };
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::RealmData restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        REQUIRE(restored.unique_referenced_assets.size() == 3);
+        CHECK(restored.unique_referenced_assets[0].path == "same.asset");
+        CHECK(restored.unique_referenced_assets[1].path.empty());
+        CHECK(restored.unique_referenced_assets[2].path == "same.asset");
+    }
+
+    TEST_CASE("binary manifest preserves spaces punctuation and relative traversal text verbatim") {
+        Salix::RealmData source;
+        source.realm_file_path_relative = "../Scenes/My Realm #1.realm";
+        source.unique_referenced_assets = {batch1047_asset("../Textures/My Hero #1.png")};
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::RealmData restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.realm_file_path_relative == "../Scenes/My Realm #1.realm");
+        REQUIRE(restored.unique_referenced_assets.size() == 1);
+        CHECK(restored.unique_referenced_assets[0].path == "../Textures/My Hero #1.png");
+    }
+
+    TEST_CASE("realm data copy assignment deep copies referenced asset vector") {
+        Salix::RealmData source;
+        source.realm_name = "Source";
+        source.unique_referenced_assets = {batch1047_asset("one.asset"), batch1047_asset("two.asset")};
+        Salix::RealmData destination;
+        destination = source;
+        source.unique_referenced_assets[0].path = "changed.asset";
+        source.unique_referenced_assets.clear();
+        CHECK(destination.realm_name == "Source");
+        REQUIRE(destination.unique_referenced_assets.size() == 2);
+        CHECK(destination.unique_referenced_assets[0].path == "one.asset");
+        CHECK(destination.unique_referenced_assets[1].path == "two.asset");
+    }
+
+    TEST_CASE("zero entity count from binary input replaces stale nonzero destination count") {
+        Salix::RealmData source;
+        source.entity_count = 0;
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::RealmData destination;
+        destination.entity_count = 9999;
+        { cereal::BinaryInputArchive in(stream); in(destination); }
+        CHECK(destination.entity_count == 0);
+    }
+
+    TEST_CASE("engine version realm name and file path remain independently mutable") {
+        Salix::RealmData data;
+        data.realm_name = "Realm A";
+        data.realm_file_path_relative = "A.realm";
+        data.engine_version = "Engine A";
+        data.engine_version = "Engine B";
+        CHECK(data.realm_name == "Realm A");
+        CHECK(data.realm_file_path_relative == "A.realm");
+        CHECK(data.engine_version == "Engine B");
+    }
+
+    TEST_CASE("binary roundtrip preserves populated assets with otherwise empty realm metadata") {
+        Salix::RealmData source;
+        source.unique_referenced_assets = {batch1047_asset("only.asset")};
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::RealmData restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.realm_name.empty());
+        CHECK(restored.realm_file_path_relative.empty());
+        CHECK(restored.engine_version.empty());
+        CHECK(restored.entity_count == 0);
+        REQUIRE(restored.unique_referenced_assets.size() == 1);
+        CHECK(restored.unique_referenced_assets[0].path == "only.asset");
+    }
+}
