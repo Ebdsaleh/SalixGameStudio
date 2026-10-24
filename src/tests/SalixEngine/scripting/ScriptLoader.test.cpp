@@ -78,3 +78,86 @@ TEST_SUITE("Salix::scripting::ScriptLoaderBatch1647") {
         loader.shutdown_plugin();
     }
 }
+
+TEST_SUITE("Salix::scripting::ScriptLoaderBatch2447") {
+    TEST_CASE("batch2447 existing system DLL without create_plugin export is rejected") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("kernel32.dll", context));
+    }
+
+    TEST_CASE("batch2447 second existing system DLL without plugin export is rejected") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("user32.dll", context));
+    }
+
+    TEST_CASE("batch2447 missing create_plugin export leaves supplied context untouched") {
+        Salix::InitContext context{};
+        context.dpi_scale = 3.5f;
+        context.engine_mode = Salix::EngineMode::Options;
+        context.project_dll_path = "Before2447.dll";
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("kernel32.dll", context));
+        CHECK(context.dpi_scale == doctest::Approx(3.5f));
+        CHECK(context.engine_mode == Salix::EngineMode::Options);
+        CHECK(context.project_dll_path == "Before2447.dll");
+    }
+
+    TEST_CASE("batch2447 shutdown remains safe after existing DLL lacks plugin export") {
+        Salix::InitContext context{};
+        Salix::ScriptLoader loader;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("kernel32.dll", context));
+        CHECK_NOTHROW(loader.shutdown_plugin());
+        CHECK_NOTHROW(loader.shutdown_plugin());
+    }
+
+    TEST_CASE("batch2447 missing path containing spaces is rejected without context mutation") {
+        Salix::InitContext context{};
+        context.project_dll_path = "Stable2447.dll";
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library(
+            "__batch2447 missing directory__/missing plugin.dll", context));
+        CHECK(context.project_dll_path == "Stable2447.dll");
+    }
+
+    TEST_CASE("batch2447 missing library without extension is rejected") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch2447_missing_library_no_extension__", context));
+    }
+
+    TEST_CASE("batch2447 repeated missing-library failures keep shutdown path harmless") {
+        Salix::InitContext context{};
+        Salix::ScriptLoader loader;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch2447_missing_a__.dll", context));
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch2447_missing_b__.dll", context));
+        CHECK_NOTHROW(loader.shutdown_plugin());
+    }
+
+    TEST_CASE("batch2447 failed loads preserve all selected initialization enum modes") {
+        Salix::InitContext context{};
+        context.engine_mode = Salix::EngineMode::Game;
+        context.renderer_type = Salix::RendererType::OpenGL;
+        context.gui_type = Salix::GuiType::ImGui;
+        context.timer_type = Salix::TimerType::Chrono;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch2447_missing_modes__.dll", context));
+        CHECK(context.engine_mode == Salix::EngineMode::Game);
+        CHECK(context.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(context.gui_type == Salix::GuiType::ImGui);
+        CHECK(context.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch2447 failed export lookup preserves nonowning service pointers") {
+        Salix::InitContext context{};
+        context.engine = reinterpret_cast<Salix::EngineInterface*>(static_cast<std::uintptr_t>(0x2447));
+        auto* before = context.engine;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("kernel32.dll", context));
+        CHECK(context.engine == before);
+    }
+
+    TEST_CASE("batch2447 independent loader objects can safely clean up after shared failed load state") {
+        Salix::InitContext context{};
+        Salix::ScriptLoader first;
+        Salix::ScriptLoader second;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch2447_shared_failure__.dll", context));
+        CHECK_NOTHROW(first.shutdown_plugin());
+        CHECK_NOTHROW(second.shutdown_plugin());
+    }
+}
+
