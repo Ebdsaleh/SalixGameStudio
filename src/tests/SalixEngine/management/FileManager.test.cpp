@@ -522,3 +522,59 @@ TEST_SUITE("Salix::management::FileManagerBatch847") {
         CHECK(std::filesystem::is_directory(nested));
     }
 }
+
+TEST_SUITE("Salix::management::FileManagerBatch2247") {
+    TEST_CASE("batch2247 path existence distinguishes owned directory file and missing child") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("present.txt","x");
+        CHECK(Salix::FileManager::path_exists(temp.root.string()));
+        CHECK(Salix::FileManager::path_exists(temp.file("present.txt")));
+        CHECK_FALSE(Salix::FileManager::path_exists(temp.file("missing.txt")));
+    }
+    TEST_CASE("batch2247 create directory succeeds when target already exists") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned);
+        CHECK(Salix::FileManager::create_directory(temp.root.string()));
+        CHECK(std::filesystem::is_directory(temp.root));
+    }
+    TEST_CASE("batch2247 nested directory creation fails when an intermediate component is a file") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("block","data");
+        CHECK_FALSE(Salix::FileManager::create_directories((temp.root/"block"/"child").string()));
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("block")));
+    }
+    TEST_CASE("batch2247 binary copy preserves embedded null and high bytes exactly") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned);
+        const std::string bytes("\0A\x7f\xffZ",5); temp.write("src.bin",bytes);
+        REQUIRE(Salix::FileManager::copy_file(temp.file("src.bin"),temp.file("dst.bin")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("dst.bin"))==bytes);
+    }
+    TEST_CASE("batch2247 failed copy preserves an existing destination payload") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("dst.txt","keep");
+        CHECK_FALSE(Salix::FileManager::copy_file(temp.file("missing.txt"),temp.file("dst.txt")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("dst.txt"))=="keep");
+    }
+    TEST_CASE("batch2247 file size returns zero for missing path without creating it") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); const auto missing=temp.file("missing-size.bin");
+        CHECK(Salix::FileManager::get_file_size(missing)==0); CHECK_FALSE(std::filesystem::exists(missing));
+    }
+    TEST_CASE("batch2247 seventeen byte hex dump emits first full ASCII row and final remainder") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("seventeen.bin","0123456789ABCDEFG");
+        const auto dump=Salix::FileManager::generate_hex_dump(temp.file("seventeen.bin"));
+        CHECK(dump.find("Length: 17 bytes")!=std::string::npos);
+        CHECK(dump.find("0123456789ABCDEF")!=std::string::npos);
+        CHECK(dump.find("47 ")!=std::string::npos);
+    }
+    TEST_CASE("batch2247 string relative conversion leaves outside path unchanged") {
+        const std::string root="C:/ProjectRoot"; const std::string outside="D:/External/file.txt";
+        CHECK(Salix::FileManager::convert_to_relative(root,outside)==outside);
+    }
+    TEST_CASE("batch2247 string relative conversion normalizes backslashes before extracting child path") {
+        const std::string root="C:\\ProjectRoot"; const std::string child="C:\\ProjectRoot\\Assets\\Audio\\theme.wav";
+        CHECK(Salix::FileManager::convert_to_relative(root,child)=="Assets/Audio/theme.wav");
+    }
+    TEST_CASE("batch2247 filesystem relative conversion returns nested path components in order") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned);
+        const auto nested=temp.root/"Assets"/"Realms"/"Main.json";
+        const auto relative=std::filesystem::path(Salix::FileManager::convert_to_relative_path(temp.root.string(),nested.string())).generic_string();
+        CHECK(relative=="Assets/Realms/Main.json");
+    }
+}
+
