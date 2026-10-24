@@ -350,3 +350,86 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch1947") {
         CHECK(theme.get_name() == "StableIdentity");
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeBatch2447") {
+    TEST_CASE("batch2447 tree none flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeNone\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_None\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_None);
+    }
+
+    TEST_CASE("batch2447 tree framed flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeFramed\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_Framed\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_Framed);
+    }
+
+    TEST_CASE("batch2447 tree allow item overlap flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeOverlap\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_AllowItemOverlap\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_AllowItemOverlap);
+    }
+
+    TEST_CASE("batch2447 tree no push flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeNoPush\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_NoTreePushOnOpen\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_NoTreePushOnOpen);
+    }
+
+    TEST_CASE("batch2447 tree no auto open on log flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeNoAuto\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_NoAutoOpenOnLog\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_NoAutoOpenOnLog);
+    }
+
+    TEST_CASE("batch2447 tree default open flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeOpen\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_DefaultOpen\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_DefaultOpen);
+    }
+
+    TEST_CASE("batch2447 tree collapsing header flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeCollapse\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_CollapsingHeader\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_CollapsingHeader);
+    }
+
+    TEST_CASE("batch2447 tree leaf flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeLeaf\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_Leaf\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_Leaf);
+    }
+
+    TEST_CASE("batch2447 tree span available width flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeSpanAvail\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_SpanAvailWidth\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_SpanAvailWidth);
+    }
+
+    TEST_CASE("batch2447 tree span full width flag parses explicitly") {
+        Batch1947ThemeFile file;
+        file.write("name: TreeSpanFull\ngui_type: ImGui\nEnums:\n  tree_lines_flags: ImGuiTreeNodeFlags_SpanFullWidth\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == ImGuiTreeNodeFlags_SpanFullWidth);
+    }
+}
+
