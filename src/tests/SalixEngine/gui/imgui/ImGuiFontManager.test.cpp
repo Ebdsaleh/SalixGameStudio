@@ -177,3 +177,96 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch1947") {
         CHECK(manager.get_font_registry().empty());
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch2447") {
+    TEST_CASE("batch2447 null initialization fails without mutating registry state") {
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.initialize(nullptr));
+        CHECK(manager.get_font_registry().empty());
+        CHECK(manager.get_active_font() == nullptr);
+    }
+
+    TEST_CASE("batch2447 unregistering a missing font leaves existing registry untouched") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Keep2447", "Family", 12.0f)));
+        CHECK_FALSE(manager.unregister_font("Missing2447"));
+        CHECK(manager.get_font("Keep2447") != nullptr);
+        CHECK(manager.get_font_registry().size() == 1);
+    }
+
+    TEST_CASE("batch2447 unregistering inactive font preserves active font selection") {
+        Salix::ImGuiFontManager manager;
+        auto active = std::make_unique<MockIFont>("Active2447", "Family", 14.0f);
+        MockIFont* active_raw = active.get();
+        REQUIRE(manager.register_font(std::move(active)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Inactive2447", "Family", 18.0f)));
+        REQUIRE(manager.set_active_font("Active2447"));
+        REQUIRE(manager.unregister_font("Inactive2447"));
+        CHECK(manager.get_active_font() == active_raw);
+        CHECK(manager.get_font("Inactive2447") == nullptr);
+    }
+
+    TEST_CASE("batch2447 registered name list reflects successful removal exactly") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("A2447", "Family", 10.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("B2447", "Family", 12.0f)));
+        REQUIRE(manager.unregister_font("A2447"));
+        const auto names = manager.get_registered_font_names();
+        REQUIRE(names.size() == 1);
+        CHECK(names[0] == "B2447");
+    }
+
+    TEST_CASE("batch2447 family size query sorts unsorted registration sizes ascending") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("F24", "Family2447", 24.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("F8", "Family2447", 8.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("F16", "Family2447", 16.0f)));
+        const auto sizes = manager.get_font_sizes_for_font_family("Family2447");
+        REQUIRE(sizes.size() == 3);
+        CHECK(sizes[0] == doctest::Approx(8.0f));
+        CHECK(sizes[1] == doctest::Approx(16.0f));
+        CHECK(sizes[2] == doctest::Approx(24.0f));
+    }
+
+    TEST_CASE("batch2447 unique family query is lexicographically sorted") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("ZuluFont", "Zulu", 12.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("AlphaFont", "Alpha", 12.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("MiddleFont", "Middle", 12.0f)));
+        const auto families = manager.get_unique_font_families();
+        REQUIRE(families.size() == 3);
+        CHECK(families[0] == "Alpha");
+        CHECK(families[1] == "Middle");
+        CHECK(families[2] == "Zulu");
+    }
+
+    TEST_CASE("batch2447 applying a missing font does not clear existing active selection") {
+        Salix::ImGuiFontManager manager;
+        auto active = std::make_unique<MockIFont>("Active2447Apply", "Body", 16.0f);
+        MockIFont* raw = active.get();
+        REQUIRE(manager.register_font(std::move(active)));
+        REQUIRE(manager.set_active_font("Active2447Apply"));
+        CHECK_FALSE(manager.apply_font("Missing2447Apply"));
+        CHECK(manager.get_active_font() == raw);
+    }
+
+    TEST_CASE("batch2447 font load rejects size below minimum before requiring ImGui context") {
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file("missing2447.ttf", "TooSmall2447", 5.99f, false));
+        CHECK(manager.get_font_registry().empty());
+    }
+
+    TEST_CASE("batch2447 font load rejects empty path before requiring ImGui context") {
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file("", "NoPath2447", 12.0f, false));
+        CHECK(manager.get_font_registry().empty());
+    }
+
+    TEST_CASE("batch2447 missing font batch source returns without registry mutation") {
+        Salix::ImGuiFontManager manager;
+        manager.create_font_batch("__batch2447_missing_font__.ttf", "MissingFamily2447", 8.0f, 12.0f);
+        CHECK(manager.get_font_registry().empty());
+        CHECK(manager.get_active_font() == nullptr);
+    }
+}
+
