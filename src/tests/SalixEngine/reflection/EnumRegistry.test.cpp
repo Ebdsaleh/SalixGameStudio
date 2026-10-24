@@ -277,3 +277,58 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch2147") {
     }
 }
 
+namespace {
+struct Batch2747EnumA {};
+struct Batch2747EnumB {};
+struct Batch2747EnumC {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch2747") {
+    TEST_CASE("batch2747 unknown type pointer lookup returns null before registration") {
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch2747EnumA))==nullptr);
+    }
+    TEST_CASE("batch2747 registering one value makes pointer lookup immediately available") {
+        Salix::EnumRegistry::EnumData data; data.value_to_string[7]="Seven";
+        Salix::EnumRegistry::register_enum(typeid(Batch2747EnumA),std::move(data));
+        const auto* stored=Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch2747EnumA)); REQUIRE(stored!=nullptr); CHECK(stored->get_name(7)=="Seven");
+    }
+    TEST_CASE("batch2747 empty ordered names can coexist with populated value map") {
+        Salix::EnumRegistry::EnumData data; data.value_to_string[1]="One";
+        Salix::EnumRegistry::register_enum(typeid(Batch2747EnumB),std::move(data));
+        const auto& stored=Salix::EnumRegistry::get_enum_data(typeid(Batch2747EnumB)); CHECK(stored.get_names().empty()); CHECK(stored.get_name(1)=="One");
+    }
+    TEST_CASE("batch2747 ordered names can contain labels absent from value map") {
+        Salix::EnumRegistry::EnumData data; data.ordered_names={"DisplayOnly"};
+        Salix::EnumRegistry::register_enum(typeid(Batch2747EnumC),std::move(data));
+        const auto& stored=Salix::EnumRegistry::get_enum_data(typeid(Batch2747EnumC)); REQUIRE(stored.get_names().size()==1); CHECK(stored.get_names()[0]=="DisplayOnly"); CHECK(stored.get_value("DisplayOnly")==-1);
+    }
+    TEST_CASE("batch2747 canonical projection names remain in declared display order") {
+        Salix::EnumRegistry::register_all_enums(); const auto& d=Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        REQUIRE(d.get_names().size()==2); CHECK(d.get_names()[0]=="Perspective"); CHECK(d.get_names()[1]=="Orthographic");
+    }
+    TEST_CASE("batch2747 canonical editor names remain in declared display order") {
+        Salix::EnumRegistry::register_all_enums(); const auto& d=Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode));
+        REQUIRE(d.get_names().size()==2); CHECK(d.get_names()[0]=="Live"); CHECK(d.get_names()[1]=="Yaml");
+    }
+    TEST_CASE("batch2747 projection reverse lookups cover both canonical values") {
+        Salix::EnumRegistry::register_all_enums(); const auto& d=Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        CHECK(d.get_name(static_cast<int>(Salix::ProjectionMode::Perspective))=="Perspective");
+        CHECK(d.get_name(static_cast<int>(Salix::ProjectionMode::Orthographic))=="Orthographic");
+    }
+    TEST_CASE("batch2747 editor reverse lookups cover both canonical values") {
+        Salix::EnumRegistry::register_all_enums(); const auto& d=Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode));
+        CHECK(d.get_name(static_cast<int>(Salix::EditorDataMode::Live))=="Live");
+        CHECK(d.get_name(static_cast<int>(Salix::EditorDataMode::Yaml))=="Yaml");
+    }
+    TEST_CASE("batch2747 repeated canonical registration keeps projection lookup content unchanged") {
+        Salix::EnumRegistry::register_all_enums(); const auto first=Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_names();
+        Salix::EnumRegistry::register_all_enums(); const auto second=Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_names();
+        CHECK(first==second);
+    }
+    TEST_CASE("batch2747 unknown canonical numeric values map to Unknown") {
+        Salix::EnumRegistry::register_all_enums();
+        CHECK(Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_name(2747)=="Unknown");
+        CHECK(Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode)).get_name(2747)=="Unknown");
+    }
+}
+
