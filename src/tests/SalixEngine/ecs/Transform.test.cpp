@@ -1019,3 +1019,55 @@ TEST_SUITE("Salix::ecs::TransformBatch847") {
         Salix::Transform t; t.set_scale(2.f,3.f,4.f); const auto m=t.get_model_matrix(); CHECK(glm::length(glm::vec3(m[0]))==doctest::Approx(2.f)); CHECK(glm::length(glm::vec3(m[1]))==doctest::Approx(3.f)); CHECK(glm::length(glm::vec3(m[2]))==doctest::Approx(4.f));
     }
 }
+
+TEST_SUITE("Salix::ecs::TransformBatch2247") {
+    TEST_CASE("batch2247 assigning transform as its own parent is rejected without mutation") {
+        Salix::Transform t; t.set_position(1.f,2.f,3.f); t.set_parent(&t);
+        CHECK(t.get_parent()==nullptr); CHECK(t.get_children().empty()); CHECK(t.get_position()==Salix::Vector3(1.f,2.f,3.f));
+    }
+    TEST_CASE("batch2247 circular parent assignment is rejected while original hierarchy remains intact") {
+        Salix::Transform parent,child; child.set_parent(&parent); parent.set_parent(&child);
+        CHECK(parent.get_parent()==nullptr); CHECK(child.get_parent()==&parent);
+        REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children().front()==&child);
+    }
+    TEST_CASE("batch2247 release from parent on root transform is a no-op") {
+        Salix::Transform t; t.set_position(-3.f,4.f,5.f); t.set_rotation(10.f,20.f,30.f); t.set_scale(2.f,3.f,4.f);
+        t.release_from_parent();
+        CHECK(t.get_parent()==nullptr); CHECK(t.get_position()==Salix::Vector3(-3.f,4.f,5.f)); CHECK(t.get_scale()==Salix::Vector3(2.f,3.f,4.f));
+    }
+    TEST_CASE("batch2247 destroying a child removes its pointer from the surviving parent") {
+        Salix::Transform parent;
+        { auto child=std::make_unique<Salix::Transform>(); child->set_parent(&parent); REQUIRE(parent.get_children().size()==1); }
+        CHECK(parent.get_children().empty());
+    }
+    TEST_CASE("batch2247 destroying a parent safely orphans a surviving child") {
+        Salix::Transform child;
+        { auto parent=std::make_unique<Salix::Transform>(); child.set_parent(parent.get()); REQUIRE(child.get_parent()==parent.get()); }
+        CHECK(child.get_parent()==nullptr);
+    }
+    TEST_CASE("batch2247 reparenting preserves world position across translated parents") {
+        Salix::Transform a,b,child; a.set_position(10.f,0.f,0.f); b.set_position(-5.f,4.f,0.f);
+        child.set_parent(&a); child.set_position(2.f,3.f,1.f); const auto before=child.get_world_position();
+        child.set_parent(&b); const auto after=child.get_world_position();
+        CHECK(after.x==doctest::Approx(before.x)); CHECK(after.y==doctest::Approx(before.y)); CHECK(after.z==doctest::Approx(before.z));
+    }
+    TEST_CASE("batch2247 root world position setter leaves rotation and scale unchanged") {
+        Salix::Transform t; t.set_rotation(10.f,20.f,30.f); t.set_scale(2.f,3.f,4.f);
+        t.set_world_position(Salix::Vector3(9.f,-8.f,7.f));
+        CHECK(t.get_position()==Salix::Vector3(9.f,-8.f,7.f)); CHECK(t.get_rotation()==Salix::Vector3(10.f,20.f,30.f)); CHECK(t.get_scale()==Salix::Vector3(2.f,3.f,4.f));
+    }
+    TEST_CASE("batch2247 root world scale setter leaves position unchanged") {
+        Salix::Transform t; t.set_position(4.f,5.f,6.f); t.set_world_scale(Salix::Vector3(7.f,8.f,9.f));
+        CHECK(t.get_position()==Salix::Vector3(4.f,5.f,6.f)); CHECK(t.get_scale()==Salix::Vector3(7.f,8.f,9.f));
+    }
+    TEST_CASE("batch2247 translated parent world-to-local and local-to-world are inverse operations") {
+        Salix::Transform parent,child; parent.set_position(20.f,-10.f,5.f); child.set_parent(&parent);
+        const Salix::Vector3 world(23.f,-4.f,12.f); const auto local=child.world_to_local_position(world); const auto restored=child.local_to_world_position(local);
+        CHECK(restored.x==doctest::Approx(world.x)); CHECK(restored.y==doctest::Approx(world.y)); CHECK(restored.z==doctest::Approx(world.z));
+    }
+    TEST_CASE("batch2247 repeated same-parent assignment never duplicates child storage") {
+        Salix::Transform parent,child; child.set_parent(&parent); child.set_parent(&parent); child.set_parent(&parent);
+        REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&child); CHECK(child.is_child_of(&parent));
+    }
+}
+
