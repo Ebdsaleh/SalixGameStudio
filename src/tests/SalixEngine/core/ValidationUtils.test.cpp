@@ -583,3 +583,82 @@ TEST_SUITE("Salix::core::ValidationUtilsClosure1747") {
         CHECK_FALSE(is_type<float>(value));
     }
 }
+
+TEST_SUITE("Salix::core::ValidationUtilsBatch2147") {
+    TEST_CASE("batch2147 empty string validity follows allow empty independently of whitespace policy") {
+        using namespace Salix::ValidationUtils;
+        CHECK_FALSE(is_valid_string("", false, false));
+        CHECK(is_valid_string("", true, false));
+        CHECK(is_valid_string("", true, true));
+    }
+    TEST_CASE("batch2147 whitespace-only text follows allow whitespace when nonempty") {
+        using namespace Salix::ValidationUtils;
+        CHECK_FALSE(is_valid_string(" \t\n\r", false, false));
+        CHECK(is_valid_string(" \t\n\r", false, true));
+    }
+    TEST_CASE("batch2147 c string validation checks pointer identity rather than content length") {
+        using namespace Salix::ValidationUtils;
+        CHECK_FALSE(is_valid_c_str(nullptr));
+        CHECK(is_valid_c_str(""));
+        CHECK(is_valid_c_str("Salix"));
+    }
+    TEST_CASE("batch2147 signed integer validation accepts zero and rejects negatives and sentinels") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_int(0));
+        CHECK(is_valid_int(42));
+        CHECK_FALSE(is_valid_int(-1));
+        CHECK_FALSE(is_valid_int(std::numeric_limits<int>::min()));
+        CHECK_FALSE(is_valid_int(std::numeric_limits<int>::max()));
+    }
+    TEST_CASE("batch2147 fixed-width signed validators share nonnegative bounded contract") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_int8_t(static_cast<int8_t>(0)));
+        CHECK(is_valid_int16_t(static_cast<int16_t>(1)));
+        CHECK(is_valid_int32_t(static_cast<int32_t>(2)));
+        CHECK(is_valid_int64_t(static_cast<int64_t>(3)));
+        CHECK_FALSE(is_valid_int8_t(static_cast<int8_t>(-1)));
+        CHECK_FALSE(is_valid_int64_t(static_cast<int64_t>(-1)));
+    }
+    TEST_CASE("batch2147 unsigned validators accept zero but reject their maximum sentinels") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_unsigned_int(0u));
+        CHECK(is_valid_uint8_t(static_cast<uint8_t>(0)));
+        CHECK(is_valid_uint16_t(static_cast<uint16_t>(1)));
+        CHECK(is_valid_uint32_t(static_cast<uint32_t>(2)));
+        CHECK(is_valid_uint64_t(static_cast<uint64_t>(3)));
+        CHECK_FALSE(is_valid_unsigned_int(std::numeric_limits<unsigned int>::max()));
+        CHECK_FALSE(is_valid_uint64_t(std::numeric_limits<uint64_t>::max()));
+    }
+    TEST_CASE("batch2147 least-width signed validators reject negative values consistently") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_intleast8_t(static_cast<int_least8_t>(0)));
+        CHECK(is_valid_intleast16_t(static_cast<int_least16_t>(5)));
+        CHECK(is_valid_intleast32_t(static_cast<int_least32_t>(6)));
+        CHECK(is_valid_intleast64_t(static_cast<int_least64_t>(7)));
+        CHECK_FALSE(is_valid_intleast32_t(static_cast<int_least32_t>(-1)));
+    }
+    TEST_CASE("batch2147 fast unsigned validators reject only maximum sentinel values") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_uint_fast8_t(static_cast<uint_fast8_t>(0)));
+        CHECK(is_valid_uint_fast16_t(static_cast<uint_fast16_t>(9)));
+        CHECK(is_valid_uint_fast32_t(static_cast<uint_fast32_t>(10)));
+        CHECK(is_valid_uint_fast64_t(static_cast<uint_fast64_t>(11)));
+        CHECK_FALSE(is_valid_uint_fast64_t(std::numeric_limits<uint_fast64_t>::max()));
+    }
+    TEST_CASE("batch2147 floating validators accept finite extremes and reject nan and infinity") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_float(std::numeric_limits<float>::lowest()));
+        CHECK(is_valid_double(std::numeric_limits<double>::max()));
+        CHECK(is_valid_long_double(0.0L));
+        CHECK_FALSE(is_valid_float(std::numeric_limits<float>::infinity()));
+        CHECK_FALSE(is_valid_double(std::numeric_limits<double>::quiet_NaN()));
+    }
+    TEST_CASE("batch2147 complex validators require both components to be finite") {
+        using namespace Salix::ValidationUtils;
+        CHECK(is_valid_complex_float({1.0f, -2.0f}));
+        CHECK(is_valid_complex_double({0.0, 0.0}));
+        CHECK_FALSE(is_valid_complex_float({std::numeric_limits<float>::infinity(), 0.0f}));
+        CHECK_FALSE(is_valid_complex_double({0.0, std::numeric_limits<double>::quiet_NaN()}));
+    }
+}
+
