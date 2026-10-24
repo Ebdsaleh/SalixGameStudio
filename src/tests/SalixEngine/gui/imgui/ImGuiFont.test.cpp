@@ -231,3 +231,46 @@ TEST_SUITE("Salix::gui::ImGuiFontBatch1947") {
         CHECK(font.get_family() == "undefined");
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontBatch2547") {
+    TEST_CASE("batch2547 default construction owns concrete ImGui font data") {
+        Salix::ImGuiFont font; REQUIRE(font.get_data()!=nullptr); CHECK(dynamic_cast<Salix::ImGuiFontData*>(font.get_data())!=nullptr);
+    }
+    TEST_CASE("batch2547 file constructor preserves negative diagnostic font size exactly") {
+        Salix::ImGuiFont font("diag.ttf","Diag",-5.5f); CHECK(font.get_name()=="Diag"); CHECK(font.get_data()->get_file_path()=="diag.ttf"); CHECK(font.get_data()->get_font_size()==doctest::Approx(-5.5f));
+    }
+    TEST_CASE("batch2547 family replacement does not mutate owned font metadata") {
+        Salix::ImGuiFont font("font.ttf","Name",14.f); font.set_family("FamilyA"); font.set_family("FamilyB");
+        CHECK(font.get_family()=="FamilyB"); CHECK(font.get_name()=="Name"); CHECK(font.get_data()->get_file_path()=="font.ttf");
+    }
+    TEST_CASE("batch2547 runtime font pointer may be replaced without altering metadata") {
+        Salix::ImGuiFont font("font.ttf","Name",14.f);
+        ImFont* first=reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x1000)); ImFont* second=reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x2000));
+        font.set_imgui_font_ptr(first); CHECK(font.get_imgui_font_ptr()==first); font.set_imgui_font_ptr(second); CHECK(font.get_imgui_font_ptr()==second); CHECK(font.get_name()=="Name");
+    }
+    TEST_CASE("batch2547 compatible data replacement preserves source value snapshot") {
+        Salix::ImGuiFont font; Salix::ImGuiFontData source("Snapshot2547","snapshot2547.ttf",25.47f); font.set_data(&source);
+        source.name="Changed"; source.file_path="changed.ttf"; source.set_font_size(1.f);
+        CHECK(font.get_name()=="Snapshot2547"); CHECK(font.get_data()->get_file_path()=="snapshot2547.ttf"); CHECK(font.get_data()->get_font_size()==doctest::Approx(25.47f));
+    }
+    TEST_CASE("batch2547 null replacement leaves data pointer and metadata intact") {
+        Salix::ImGuiFont font("stable.ttf","Stable",18.f); auto* before=font.get_data(); font.set_data(nullptr);
+        CHECK(font.get_data()==before); CHECK(font.get_name()=="Stable"); CHECK(font.get_data()->get_font_size()==doctest::Approx(18.f));
+    }
+    TEST_CASE("batch2547 foreign replacement leaves concrete data pointer intact") {
+        Salix::ImGuiFont font("stable.ttf","Stable",18.f); auto* before=font.get_data(); Batch1047ForeignFontData foreign; font.set_data(&foreign);
+        CHECK(font.get_data()==before); CHECK(font.get_name()=="Stable"); CHECK(font.get_data()->get_gui_type()=="ImGui");
+    }
+    TEST_CASE("batch2547 IFont base dispatch exposes exact family reference contents") {
+        Salix::ImGuiFont concrete; Salix::IFont& base=concrete; concrete.set_family("Interface2547"); CHECK(base.get_family()=="Interface2547"); CHECK(&base.get_family()==&concrete.get_family());
+    }
+    TEST_CASE("batch2547 compatible replacement does not disturb family or runtime pointer") {
+        Salix::ImGuiFont font; font.set_family("Keep2547"); ImFont* ptr=reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x2547)); font.set_imgui_font_ptr(ptr);
+        Salix::ImGuiFontData replacement("New2547","new2547.ttf",30.f); font.set_data(&replacement);
+        CHECK(font.get_family()=="Keep2547"); CHECK(font.get_imgui_font_ptr()==ptr); CHECK(font.get_name()=="New2547");
+    }
+    TEST_CASE("batch2547 empty family remains distinct from undefined constructor family") {
+        Salix::ImGuiFont font; CHECK(font.get_family()=="undefined"); font.set_family(""); CHECK(font.get_family().empty()); CHECK(font.get_name()=="Default Font");
+    }
+}
+
