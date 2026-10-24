@@ -366,3 +366,75 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch1847") {
         CHECK(calls == 0); CHECK(element.rect == Salix::Rect(8,9,10,11));
     }
 }
+
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch2347") {
+    TEST_CASE("batch2347 Class property returns default variant and ignores writes") {
+        Batch1147LiveElement element; int getter_calls=0,setter_calls=0;
+        auto property=batch1147_property("opaque",Salix::PropertyType::Class,
+            [&](void*)->void*{++getter_calls; return &element.integer;},
+            [&](void*,void*){++setter_calls;});
+        Salix::PropertyHandleLive handle(property,&element); const auto value=handle.get_value();
+        CHECK(std::holds_alternative<int>(value)); CHECK(std::get<int>(value)==0); CHECK(getter_calls==0);
+        handle.set_value(Salix::PropertyValue{42}); CHECK(setter_calls==0);
+    }
+    TEST_CASE("batch2347 Struct property returns default variant and ignores writes") {
+        Batch1147LiveElement element; int getter_calls=0,setter_calls=0;
+        auto property=batch1147_property("opaque",Salix::PropertyType::Struct,
+            [&](void*)->void*{++getter_calls; return &element.integer;},
+            [&](void*,void*){++setter_calls;});
+        Salix::PropertyHandleLive handle(property,&element); CHECK(std::get<int>(handle.get_value())==0); CHECK(getter_calls==0);
+        handle.set_value(Salix::PropertyValue{17}); CHECK(setter_calls==0);
+    }
+    TEST_CASE("batch2347 Enum property reads and writes integer representation") {
+        Batch1147LiveElement element;
+        auto property=batch1147_property("enum",Salix::PropertyType::Enum,
+            [](void* p)->void*{return &static_cast<Batch1147LiveElement*>(p)->enum_value;},
+            [](void* p,void* v){static_cast<Batch1147LiveElement*>(p)->enum_value=*static_cast<int*>(v);});
+        Salix::PropertyHandleLive handle(property,&element); CHECK(std::get<int>(handle.get_value())==2); handle.set_value(Salix::PropertyValue{9}); CHECK(element.enum_value==9); CHECK(std::get<int>(handle.get_value())==9);
+    }
+    TEST_CASE("batch2347 EnumClass property reads and writes integer representation") {
+        Batch1147LiveElement element;
+        auto property=batch1147_property("enumclass",Salix::PropertyType::EnumClass,
+            [](void* p)->void*{return &static_cast<Batch1147LiveElement*>(p)->enum_class_value;},
+            [](void* p,void* v){static_cast<Batch1147LiveElement*>(p)->enum_class_value=*static_cast<int*>(v);});
+        Salix::PropertyHandleLive handle(property,&element); CHECK(std::get<int>(handle.get_value())==3); handle.set_value(Salix::PropertyValue{-4}); CHECK(element.enum_class_value==-4);
+    }
+    TEST_CASE("batch2347 GlmMat4 property is readable but intentionally write protected") {
+        Batch1147LiveElement element; int setter_calls=0;
+        auto property=batch1147_property("matrix",Salix::PropertyType::GlmMat4,
+            [](void* p)->void*{return &static_cast<Batch1147LiveElement*>(p)->matrix;},
+            [&](void*,void*){++setter_calls;});
+        Salix::PropertyHandleLive handle(property,&element); const auto before=std::get<glm::mat4>(handle.get_value()); CHECK(before[0][0]==doctest::Approx(1.f));
+        handle.set_value(Salix::PropertyValue{glm::mat4(3.f)}); CHECK(setter_calls==0); CHECK(std::get<glm::mat4>(handle.get_value())[0][0]==doctest::Approx(1.f));
+    }
+    TEST_CASE("batch2347 Point property roundtrips through live setter") {
+        Batch1147LiveElement element;
+        auto property=batch1147_property("point",Salix::PropertyType::Point,
+            [](void* p)->void*{return &static_cast<Batch1147LiveElement*>(p)->point;},
+            [](void* p,void* v){static_cast<Batch1147LiveElement*>(p)->point=*static_cast<Salix::Point*>(v);});
+        Salix::PropertyHandleLive handle(property,&element); handle.set_value(Salix::PropertyValue{Salix::Point{-8,12}}); CHECK((std::get<Salix::Point>(handle.get_value())==Salix::Point{-8,12}));
+    }
+    TEST_CASE("batch2347 Color property roundtrips through live setter") {
+        Batch1147LiveElement element;
+        auto property=batch1147_property("color",Salix::PropertyType::Color,
+            [](void* p)->void*{return &static_cast<Batch1147LiveElement*>(p)->color;},
+            [](void* p,void* v){static_cast<Batch1147LiveElement*>(p)->color=*static_cast<Salix::Color*>(v);});
+        Salix::PropertyHandleLive handle(property,&element); const Salix::Color expected(0.9f,0.8f,0.7f,0.6f); handle.set_value(Salix::PropertyValue{expected}); CHECK(std::get<Salix::Color>(handle.get_value())==expected);
+    }
+    TEST_CASE("batch2347 Rect property roundtrips through live setter") {
+        Batch1147LiveElement element;
+        auto property=batch1147_property("rect",Salix::PropertyType::Rect,
+            [](void* p)->void*{return &static_cast<Batch1147LiveElement*>(p)->rect;},
+            [](void* p,void* v){static_cast<Batch1147LiveElement*>(p)->rect=*static_cast<Salix::Rect*>(v);});
+        Salix::PropertyHandleLive handle(property,&element); const Salix::Rect expected(-4,5,60,70); handle.set_value(Salix::PropertyValue{expected}); CHECK(std::get<Salix::Rect>(handle.get_value())==expected);
+    }
+    TEST_CASE("batch2347 missing getter returns default without invoking available setter") {
+        Batch1147LiveElement element; int setter_calls=0; Salix::Property property; property.name="integer"; property.type=Salix::PropertyType::Int; property.set_data=[&](void*,void*){++setter_calls;};
+        Salix::PropertyHandleLive handle(property,&element); CHECK(std::get<int>(handle.get_value())==0); CHECK(setter_calls==0);
+    }
+    TEST_CASE("batch2347 missing setter preserves live value while getter remains functional") {
+        Batch1147LiveElement element; Salix::Property property; property.name="integer"; property.type=Salix::PropertyType::Int; property.get_data=[](void* p)->void*{return &static_cast<Batch1147LiveElement*>(p)->integer;};
+        Salix::PropertyHandleLive handle(property,&element); CHECK(std::get<int>(handle.get_value())==4); handle.set_value(Salix::PropertyValue{99}); CHECK(element.integer==4); CHECK(std::get<int>(handle.get_value())==4);
+    }
+}
+
