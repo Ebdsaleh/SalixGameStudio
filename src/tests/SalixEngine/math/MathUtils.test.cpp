@@ -481,3 +481,47 @@ TEST_SUITE("Salix::math::MathUtilsBatch2147") {
     }
 }
 
+TEST_SUITE("Salix::math::MathUtilsBatch2747") {
+    TEST_CASE("batch2747 lerp returns exact start at zero interpolation") {
+        CHECK(Salix::lerp<float>(-3.5f,8.25f,0.0f)==doctest::Approx(-3.5f));
+    }
+    TEST_CASE("batch2747 lerp returns exact end at unit interpolation") {
+        CHECK(Salix::lerp<float>(-3.5f,8.25f,1.0f)==doctest::Approx(8.25f));
+    }
+    TEST_CASE("batch2747 inverse lerp maps interval endpoints to zero and one") {
+        CHECK(Salix::inverse_lerp(-4.f,6.f,-4.f)==doctest::Approx(0.f));
+        CHECK(Salix::inverse_lerp(-4.f,6.f,6.f)==doctest::Approx(1.f));
+    }
+    TEST_CASE("batch2747 remap maps input endpoints to output endpoints") {
+        CHECK(Salix::remap(-2.f,-2.f,2.f,10.f,20.f)==doctest::Approx(10.f));
+        CHECK(Salix::remap(2.f,-2.f,2.f,10.f,20.f)==doctest::Approx(20.f));
+    }
+    TEST_CASE("batch2747 smooth step is monotonic across representative interior samples") {
+        const float a=Salix::smooth_step(0.f,1.f,0.25f);
+        const float b=Salix::smooth_step(0.f,1.f,0.5f);
+        const float c=Salix::smooth_step(0.f,1.f,0.75f);
+        CHECK(a<b); CHECK(b<c);
+    }
+    TEST_CASE("batch2747 smoother step is monotonic across representative interior samples") {
+        const float a=Salix::smoother_step(0.f,1.f,0.25f);
+        const float b=Salix::smoother_step(0.f,1.f,0.5f);
+        const float c=Salix::smoother_step(0.f,1.f,0.75f);
+        CHECK(a<b); CHECK(b<c);
+    }
+    TEST_CASE("batch2747 cubic interpolation preserves a constant sequence for any interpolation") {
+        for(float t:{0.f,0.25f,0.5f,0.75f,1.f})
+            CHECK(Salix::cubic_interpolate(7.f,7.f,7.f,7.f,t)==doctest::Approx(7.f));
+    }
+    TEST_CASE("batch2747 saturate leaves values already inside unit interval unchanged") {
+        CHECK(Salix::saturate(0.25f)==doctest::Approx(0.25f));
+        CHECK(Salix::saturate(0.75f)==doctest::Approx(0.75f));
+    }
+    TEST_CASE("batch2747 nearly equal uses inclusive custom epsilon boundary") {
+        CHECK(Salix::nearly_equal(5.f,5.5f,0.5f));
+        CHECK_FALSE(Salix::nearly_equal(5.f,5.5001f,0.5f));
+    }
+    TEST_CASE("batch2747 inverse square root remains positive for positive finite inputs") {
+        for(float v:{0.25f,1.f,4.f,16.f}) CHECK(Salix::inv_sqrt(v)>0.f);
+    }
+}
+
