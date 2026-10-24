@@ -530,11 +530,21 @@ namespace Salix {
             // --- Load Enums ---
             if (root["Enums"]) {
                 // Helper functions are inside ThemeParsingHelpers namespace
-                pimpl->theme_data->window_menu_button_position = ThemeParsingHelpers::parse_imgui_dir(root["Enums"]["window_menu_button_position"], ImGuiDir_None);
-                pimpl->theme_data->color_button_position = ThemeParsingHelpers::parse_imgui_dir(root["Enums"]["color_button_position"], ImGuiDir_None);
-                pimpl->theme_data->tree_lines_flags = ThemeParsingHelpers::parse_imgui_treenode_flags(root["Enums"]["tree_lines_flags"], ImGuiTreeNodeFlags_None);
-                pimpl->theme_data->hover_flags_for_tooltip_mouse = ThemeParsingHelpers::parse_imgui_hovered_flags(root["Enums"]["hover_flags_for_tooltip_mouse"], ImGuiHoveredFlags_None);
-                pimpl->theme_data->hover_flags_for_tooltip_nav = ThemeParsingHelpers::parse_imgui_hovered_flags(root["Enums"]["hover_flags_for_tooltip_nav"], ImGuiHoveredFlags_None);
+                pimpl->theme_data->window_menu_button_position = ThemeParsingHelpers::parse_imgui_dir(
+                    root["Enums"]["window_menu_button_position"],
+                    pimpl->theme_data->window_menu_button_position);
+                pimpl->theme_data->color_button_position = ThemeParsingHelpers::parse_imgui_dir(
+                    root["Enums"]["color_button_position"],
+                    pimpl->theme_data->color_button_position);
+                pimpl->theme_data->tree_lines_flags = ThemeParsingHelpers::parse_imgui_treenode_flags(
+                    root["Enums"]["tree_lines_flags"],
+                    pimpl->theme_data->tree_lines_flags);
+                pimpl->theme_data->hover_flags_for_tooltip_mouse = ThemeParsingHelpers::parse_imgui_hovered_flags(
+                    root["Enums"]["hover_flags_for_tooltip_mouse"],
+                    pimpl->theme_data->hover_flags_for_tooltip_mouse);
+                pimpl->theme_data->hover_flags_for_tooltip_nav = ThemeParsingHelpers::parse_imgui_hovered_flags(
+                    root["Enums"]["hover_flags_for_tooltip_nav"],
+                    pimpl->theme_data->hover_flags_for_tooltip_nav);
             }
 
             std::cout << "ImGuiTheme: Loaded from YAML file '" << file_path << "'" << std::endl;
