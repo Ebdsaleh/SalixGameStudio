@@ -524,3 +524,50 @@ TEST_SUITE("Salix::math::ColorClosure1747") {
         check_color1747(color, 2.0f, -1.0f, 0.0f, 1.0f);
     }
 }
+
+TEST_SUITE("Salix::math::ColorBatch2147") {
+    TEST_CASE("batch2147 zero saturation HSV returns grayscale while preserving alpha") {
+        const auto c = Salix::Color::from_hsv(123.0f, 0.0f, 0.4f, 0.25f);
+        CHECK(c.r == doctest::Approx(0.4f)); CHECK(c.g == doctest::Approx(0.4f)); CHECK(c.b == doctest::Approx(0.4f)); CHECK(c.a == doctest::Approx(0.25f));
+    }
+    TEST_CASE("batch2147 negative HSV hue wraps into magenta sector") {
+        const auto c = Salix::Color::from_hsv(-60.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(1.0f)); CHECK(c.g == doctest::Approx(0.0f)); CHECK(c.b == doctest::Approx(1.0f));
+    }
+    TEST_CASE("batch2147 full-turn HSV hue wraps back to red") {
+        const auto c = Salix::Color::from_hsv(360.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(1.0f)); CHECK(c.g == doctest::Approx(0.0f)); CHECK(c.b == doctest::Approx(0.0f));
+    }
+    TEST_CASE("batch2147 sixty degree HSV hue produces yellow") {
+        const auto c = Salix::Color::from_hsv(60.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(1.0f)); CHECK(c.g == doctest::Approx(1.0f)); CHECK(c.b == doctest::Approx(0.0f));
+    }
+    TEST_CASE("batch2147 one hundred twenty degree HSV hue produces green") {
+        const auto c = Salix::Color::from_hsv(120.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(0.0f)); CHECK(c.g == doctest::Approx(1.0f)); CHECK(c.b == doctest::Approx(0.0f));
+    }
+    TEST_CASE("batch2147 one hundred eighty degree HSV hue produces cyan") {
+        const auto c = Salix::Color::from_hsv(180.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(0.0f)); CHECK(c.g == doctest::Approx(1.0f)); CHECK(c.b == doctest::Approx(1.0f));
+    }
+    TEST_CASE("batch2147 two hundred forty degree HSV hue produces blue") {
+        const auto c = Salix::Color::from_hsv(240.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(0.0f)); CHECK(c.g == doctest::Approx(0.0f)); CHECK(c.b == doctest::Approx(1.0f));
+    }
+    TEST_CASE("batch2147 three hundred degree HSV hue produces magenta") {
+        const auto c = Salix::Color::from_hsv(300.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(1.0f)); CHECK(c.g == doctest::Approx(0.0f)); CHECK(c.b == doctest::Approx(1.0f));
+    }
+    TEST_CASE("batch2147 ImGui conversion preserves every channel exactly") {
+        const Salix::Color c(0.125f, 0.25f, 0.5f, 0.75f);
+        const auto v = c.to_imvec4();
+        CHECK(v.x == c.r); CHECK(v.y == c.g); CHECK(v.z == c.b); CHECK(v.w == c.a);
+    }
+    TEST_CASE("batch2147 YAML input defaults omitted channels to zero without disturbing supplied channels") {
+        const YAML::Node node = YAML::Load("{r: 0.25, b: 0.75}");
+        Salix::Color c(1.0f, 1.0f, 1.0f, 1.0f);
+        node >> c;
+        CHECK(c.r == doctest::Approx(0.25f)); CHECK(c.g == 0.0f); CHECK(c.b == doctest::Approx(0.75f)); CHECK(c.a == 0.0f);
+    }
+}
+
