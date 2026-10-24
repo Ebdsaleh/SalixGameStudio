@@ -118,3 +118,41 @@ TEST_SUITE("Salix::input::InputCodesBatch1547") {
         CHECK(std::string(labels.at(Salix::KeyCode::Space)) == "Space");
     }
 }
+
+
+TEST_SUITE("Salix::input::InputCodesBatch2047") {
+    TEST_CASE("value initialized key code selects None") { Salix::KeyCode key{}; CHECK(key == Salix::KeyCode::None); }
+    TEST_CASE("value initialized mouse button selects None") { Salix::MouseButton button{}; CHECK(button == Salix::MouseButton::None); }
+    TEST_CASE("value initialized mouse scroll selects None") { Salix::MouseScroll scroll{}; CHECK(scroll == Salix::MouseScroll::None); }
+    TEST_CASE("key code copy assignment preserves selected key identity") {
+        Salix::KeyCode source = Salix::KeyCode::F12; Salix::KeyCode destination = Salix::KeyCode::A; destination = source;
+        CHECK(destination == Salix::KeyCode::F12); CHECK(source == Salix::KeyCode::F12);
+    }
+    TEST_CASE("mouse button copy assignment preserves selected button identity") {
+        Salix::MouseButton source = Salix::MouseButton::Right; Salix::MouseButton destination = Salix::MouseButton::Left; destination = source;
+        CHECK(destination == Salix::MouseButton::Right);
+    }
+    TEST_CASE("mouse scroll copy assignment preserves selected direction identity") {
+        Salix::MouseScroll source = Salix::MouseScroll::Backward; Salix::MouseScroll destination = Salix::MouseScroll::Forward; destination = source;
+        CHECK(destination == Salix::MouseScroll::Backward);
+    }
+    TEST_CASE("representative keys from separate groups never alias within keyboard domain") {
+        const std::array<Salix::KeyCode, 10> keys{Salix::KeyCode::Alpha1, Salix::KeyCode::A, Salix::KeyCode::Space, Salix::KeyCode::LeftShift, Salix::KeyCode::F1, Salix::KeyCode::BackSlash, Salix::KeyCode::Up, Salix::KeyCode::LeftGui, Salix::KeyCode::ContextMenu, Salix::KeyCode::PrintScreen};
+        std::set<Salix::KeyCode> unique(keys.begin(), keys.end()); CHECK(unique.size() == keys.size());
+    }
+    TEST_CASE("all mouse button states remain independently addressable as map keys") {
+        std::map<Salix::MouseButton, int> values; values[Salix::MouseButton::None] = 0; values[Salix::MouseButton::Left] = 1;
+        values[Salix::MouseButton::Middle] = 2; values[Salix::MouseButton::Right] = 3;
+        CHECK(values.size() == 4); CHECK(values.at(Salix::MouseButton::Middle) == 2); CHECK(values.at(Salix::MouseButton::Right) == 3);
+    }
+    TEST_CASE("key code underlying representation is integral and roundtrips representative values") {
+        using U = std::underlying_type_t<Salix::KeyCode>; CHECK((std::is_integral_v<U>));
+        const auto key = Salix::KeyCode::Delete; CHECK(static_cast<Salix::KeyCode>(static_cast<U>(key)) == key);
+    }
+    TEST_CASE("mouse button and scroll underlying representations are integral and roundtrip") {
+        using ButtonU = std::underlying_type_t<Salix::MouseButton>; using ScrollU = std::underlying_type_t<Salix::MouseScroll>;
+        CHECK((std::is_integral_v<ButtonU>)); CHECK((std::is_integral_v<ScrollU>));
+        CHECK(static_cast<Salix::MouseButton>(static_cast<ButtonU>(Salix::MouseButton::Middle)) == Salix::MouseButton::Middle);
+        CHECK(static_cast<Salix::MouseScroll>(static_cast<ScrollU>(Salix::MouseScroll::Forward)) == Salix::MouseScroll::Forward);
+    }
+}
