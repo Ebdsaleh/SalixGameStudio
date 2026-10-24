@@ -303,3 +303,65 @@ TEST_SUITE("Salix::management::ProjectBatch2547") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectBatch2647") {
+    TEST_CASE("batch2647 custom project preserves root with spaces and punctuation verbatim") {
+        Salix::Project project("Project-2647","D:/My Projects/Project-2647");
+        CHECK(project.get_name()=="Project-2647"); CHECK(project.get_path()=="D:/My Projects/Project-2647");
+        CHECK(project.get_project_file_name()=="Project-2647.salixproj"); CHECK(project.get_game_dll_name()=="Project-2647.dll");
+    }
+    TEST_CASE("batch2647 realm map orders independent keys while preserving exact values") {
+        Salix::Project project; project.add_realm_path("Zulu","Z.realm"); project.add_realm_path("Alpha","A.realm"); project.add_realm_path("Middle","M.realm");
+        const auto& paths=project.get_realm_paths(); REQUIRE(paths.size()==3);
+        auto it=paths.begin(); CHECK(it->first=="Alpha"); ++it; CHECK(it->first=="Middle"); ++it; CHECK(it->first=="Zulu");
+    }
+    TEST_CASE("batch2647 duplicate shared paths remove first map entry in key iteration order") {
+        Salix::Project project; const std::string shared="Batch2647Shared.realm";
+        project.add_realm_path("B",shared); project.add_realm_path("A",shared); REQUIRE(project.get_realm_paths().size()==2);
+        REQUIRE(project.remove_realm_path(shared)); REQUIRE(project.get_realm_paths().size()==1);
+        CHECK(project.get_realm_paths().count("A")==0); CHECK(project.get_realm_paths().count("B")==1);
+    }
+    TEST_CASE("batch2647 removing path that exists on disk also removes matching project entry") {
+        const auto path=std::filesystem::temp_directory_path()/"SalixGameStudio_Batch2647_Existing.realm";
+        { std::ofstream out(path); out<<"realm"; }
+        Salix::Project project; project.add_realm_path("Existing",path.string());
+        REQUIRE(project.remove_realm_path(path.string())); CHECK(project.get_realm_paths().empty());
+        std::error_code ec; std::filesystem::remove(path,ec);
+    }
+    TEST_CASE("batch2647 initialization propagates exact project root into RealmManager") {
+        Salix::Project project("Batch2647MissingDllRoot","Root/Batch2647"); Salix::InitContext context{};
+        project.initialize(context); auto* manager=project.get_realm_manager(); REQUIRE(manager!=nullptr);
+        CHECK(manager->get_project_root_path()=="Root/Batch2647"); project.shutdown();
+    }
+    TEST_CASE("batch2647 initialization materializes every configured realm shell") {
+        Salix::Project project("Batch2647MissingDllShells","Root2647");
+        project.add_realm_path("Menu","Scenes/Menu2647.realm"); project.add_realm_path("Game","Scenes/Game2647.realm");
+        Salix::InitContext context{}; project.initialize(context); auto* manager=project.get_realm_manager(); REQUIRE(manager!=nullptr);
+        REQUIRE(manager->set_active_realm("Menu")); CHECK(manager->get_active_realm()->get_path()=="Scenes/Menu2647.realm");
+        REQUIRE(manager->set_active_realm("Game")); CHECK(manager->get_active_realm()->get_path()=="Scenes/Game2647.realm");
+        project.shutdown();
+    }
+    TEST_CASE("batch2647 shutdown preserves configured metadata and realm path map") {
+        Salix::Project project("Batch2647MissingDllShutdown","Root2647"); project.set_starting_realm("Main"); project.add_realm_path("Main","Main2647.realm");
+        Salix::InitContext context{}; project.initialize(context); project.shutdown();
+        CHECK(project.get_realm_manager()==nullptr); CHECK(project.get_name()=="Batch2647MissingDllShutdown"); CHECK(project.get_path()=="Root2647");
+        CHECK(project.get_starting_realm()=="Main"); REQUIRE(project.get_realm_paths().size()==1); CHECK(project.get_realm_paths().at("Main")=="Main2647.realm");
+    }
+    TEST_CASE("batch2647 reinitialization rebuilds realm shells from persistent metadata") {
+        Salix::Project project("Batch2647MissingDllReinit","Root2647"); project.add_realm_path("Persistent","Persistent2647.realm");
+        Salix::InitContext context{}; project.initialize(context); project.shutdown(); REQUIRE(project.get_realm_manager()==nullptr);
+        project.initialize(context); auto* manager=project.get_realm_manager(); REQUIRE(manager!=nullptr); REQUIRE(manager->set_active_realm("Persistent"));
+        CHECK(manager->get_active_realm()->get_path()=="Persistent2647.realm"); project.shutdown();
+    }
+    TEST_CASE("batch2647 latest starting realm can be loaded from rebuilt configured shells") {
+        Salix::Project project("Batch2647MissingDllStart","Root2647"); project.add_realm_path("First","First2647.realm"); project.add_realm_path("Second","Second2647.realm");
+        project.set_starting_realm("First"); project.set_starting_realm("Second"); Salix::InitContext context{}; project.initialize(context);
+        CHECK(project.load_starting_realm()); REQUIRE(project.get_realm_manager()!=nullptr); REQUIRE(project.get_realm_manager()->get_active_realm()!=nullptr);
+        CHECK(project.get_realm_manager()->get_active_realm()->get_name()=="Second"); project.shutdown();
+    }
+    TEST_CASE("batch2647 default realm creation before initialization is a metadata preserving no-op") {
+        Salix::Project project("NoInit2647","Root2647"); project.add_realm_path("Default","Configured2647.realm"); project.set_starting_realm("Default");
+        project.create_and_save_default_realm();
+        CHECK(project.get_realm_manager()==nullptr); CHECK(project.get_starting_realm()=="Default"); REQUIRE(project.get_realm_paths().size()==1); CHECK(project.get_realm_paths().at("Default")=="Configured2647.realm");
+    }
+}
+
