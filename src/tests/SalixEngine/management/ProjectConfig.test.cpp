@@ -131,3 +131,129 @@ TEST_SUITE("Salix::management::ProjectConfigBatch1047") {
         CHECK(destination.build_settings.game_dll_name == "Loaded.dll");
     }
 }
+
+
+TEST_SUITE("Salix::management::ProjectConfigBatch2047") {
+    TEST_CASE("realm info default construction owns two empty strings") {
+        Salix::RealmInfo info;
+        CHECK(info.name.empty());
+        CHECK(info.path.empty());
+    }
+
+    TEST_CASE("realm info copies keep name and path storage independent") {
+        Salix::RealmInfo original("Hub", "Assets/Realms/Hub.realm");
+        Salix::RealmInfo copy = original;
+        copy.name = "Arena";
+        copy.path = "Assets/Realms/Arena.realm";
+        CHECK(original.name == "Hub");
+        CHECK(original.path == "Assets/Realms/Hub.realm");
+        CHECK(copy.name == "Arena");
+        CHECK(copy.path == "Assets/Realms/Arena.realm");
+    }
+
+    TEST_CASE("fresh build settings instances do not share mutable strings") {
+        Salix::BuildSettings first;
+        Salix::BuildSettings second;
+        first.engine_version = "Custom-A";
+        first.game_dll_name = "First.dll";
+        CHECK(second.engine_version == "0.1.0-Alpha");
+        CHECK(second.game_dll_name.empty());
+    }
+
+    TEST_CASE("project data permits duplicate realm names with distinct paths and stable order") {
+        Salix::ProjectData data;
+        data.realms.emplace_back("Level", "A/Level.realm");
+        data.realms.emplace_back("Level", "B/Level.realm");
+        REQUIRE(data.realms.size() == 2);
+        CHECK(data.realms[0].name == "Level");
+        CHECK(data.realms[0].path == "A/Level.realm");
+        CHECK(data.realms[1].name == "Level");
+        CHECK(data.realms[1].path == "B/Level.realm");
+    }
+
+    TEST_CASE("starting realm remains independent of whether a matching realm entry exists") {
+        Salix::ProjectData data;
+        data.starting_realm = "MissingRealm";
+        CHECK(data.realms.empty());
+        CHECK(data.starting_realm == "MissingRealm");
+    }
+
+    TEST_CASE("project config copy assignment deep copies nested realm storage") {
+        Salix::ProjectConfig source;
+        source.project_data.project_name = "Source";
+        source.project_data.realms.emplace_back("World", "World.realm");
+        source.build_settings.game_dll_name = "Source.dll";
+        Salix::ProjectConfig destination;
+        destination = source;
+        source.project_data.project_name = "Mutated";
+        source.project_data.realms[0].path = "Changed.realm";
+        source.build_settings.game_dll_name = "Changed.dll";
+        CHECK(destination.project_data.project_name == "Source");
+        REQUIRE(destination.project_data.realms.size() == 1);
+        CHECK(destination.project_data.realms[0].path == "World.realm");
+        CHECK(destination.build_settings.game_dll_name == "Source.dll");
+    }
+
+    TEST_CASE("JSON roundtrip preserves an explicitly empty realm path and empty starting realm") {
+        Salix::ProjectConfig source;
+        source.project_data.project_name = "Sparse";
+        source.project_data.realms.emplace_back("Placeholder", "");
+        source.project_data.starting_realm.clear();
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::ProjectConfig restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        REQUIRE(restored.project_data.realms.size() == 1);
+        CHECK(restored.project_data.realms[0].name == "Placeholder");
+        CHECK(restored.project_data.realms[0].path.empty());
+        CHECK(restored.project_data.starting_realm.empty());
+    }
+
+    TEST_CASE("JSON roundtrip preserves spaces punctuation and nested project metadata") {
+        Salix::ProjectConfig source;
+        source.project_data.project_path = "C:/Projects/Salix Test #1";
+        source.project_data.project_file_name = "Salix Test.project";
+        source.project_data.project_name = "Salix: Test #1";
+        source.build_settings.game_dll_name = "Game Build.dll";
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::ProjectConfig restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.project_data.project_path == source.project_data.project_path);
+        CHECK(restored.project_data.project_file_name == source.project_data.project_file_name);
+        CHECK(restored.project_data.project_name == source.project_data.project_name);
+        CHECK(restored.build_settings.game_dll_name == source.build_settings.game_dll_name);
+    }
+
+    TEST_CASE("binary deserialization replaces stale engine version and realm collection together") {
+        Salix::ProjectConfig source;
+        source.build_settings.engine_version = "2.0.0-Test";
+        source.project_data.realms.emplace_back("Fresh", "Fresh.realm");
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::ProjectConfig destination;
+        destination.build_settings.engine_version = "stale";
+        destination.project_data.realms.emplace_back("OldA", "OldA.realm");
+        destination.project_data.realms.emplace_back("OldB", "OldB.realm");
+        { cereal::BinaryInputArchive in(stream); in(destination); }
+        CHECK(destination.build_settings.engine_version == "2.0.0-Test");
+        REQUIRE(destination.project_data.realms.size() == 1);
+        CHECK(destination.project_data.realms[0].name == "Fresh");
+    }
+
+    TEST_CASE("binary roundtrip preserves deliberately empty build setting strings") {
+        Salix::ProjectConfig source;
+        source.build_settings.engine_version.clear();
+        source.build_settings.game_dll_name.clear();
+        source.project_data.project_name = "EmptyBuildStrings";
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::ProjectConfig restored;
+        restored.build_settings.engine_version = "stale";
+        restored.build_settings.game_dll_name = "stale.dll";
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.build_settings.engine_version.empty());
+        CHECK(restored.build_settings.game_dll_name.empty());
+        CHECK(restored.project_data.project_name == "EmptyBuildStrings");
+    }
+}
