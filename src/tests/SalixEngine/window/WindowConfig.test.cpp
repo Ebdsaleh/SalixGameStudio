@@ -202,3 +202,46 @@ TEST_SUITE("Salix::window::WindowConfigClosure1747") {
         CHECK(second.title == "SalixGameStudio");
     }
 }
+
+
+TEST_SUITE("Salix::window::WindowConfigBatch2047") {
+    TEST_CASE("aggregate initialization accepts title width and height together") {
+        Salix::WindowConfig config{"Preview", 1600, 900}; CHECK(config.title == "Preview"); CHECK(config.width == 1600); CHECK(config.height == 900);
+    }
+    TEST_CASE("window title preserves newline and tab characters exactly") {
+        Salix::WindowConfig config; config.title = "Line1\nLine2\tTabbed"; CHECK(config.title == "Line1\nLine2\tTabbed");
+    }
+    TEST_CASE("window title supports long owned strings without altering dimensions") {
+        Salix::WindowConfig config; config.title.assign(4096, 'x'); CHECK(config.title.size() == 4096); CHECK(config.width == 1280); CHECK(config.height == 720);
+    }
+    TEST_CASE("copy assigned config remains independent after source title and dimensions mutate") {
+        Salix::WindowConfig source{"Source", 800, 600}; Salix::WindowConfig destination; destination = source;
+        source.title = "Changed"; source.width = 1; source.height = 2;
+        CHECK(destination.title == "Source"); CHECK(destination.width == 800); CHECK(destination.height == 600);
+    }
+    TEST_CASE("retained width reference mutates only width") {
+        Salix::WindowConfig config; int& width = config.width; width = 2048;
+        CHECK(config.width == 2048); CHECK(config.height == 720); CHECK(config.title == "SalixGameStudio");
+    }
+    TEST_CASE("retained height reference mutates only height") {
+        Salix::WindowConfig config; int& height = config.height; height = 1152;
+        CHECK(config.height == 1152); CHECK(config.width == 1280); CHECK(config.title == "SalixGameStudio");
+    }
+    TEST_CASE("minimum width and maximum height integers are stored independently") {
+        Salix::WindowConfig config; config.width = (std::numeric_limits<int>::min)(); config.height = (std::numeric_limits<int>::max)();
+        CHECK(config.width == (std::numeric_limits<int>::min)()); CHECK(config.height == (std::numeric_limits<int>::max)());
+    }
+    TEST_CASE("zero width can coexist with a positive height and custom title") {
+        Salix::WindowConfig config{"ZeroWidth", 0, 1080}; CHECK(config.title == "ZeroWidth"); CHECK(config.width == 0); CHECK(config.height == 1080);
+    }
+    TEST_CASE("repeated complete field assignments preserve the final exact state") {
+        Salix::WindowConfig config; config.title = "First"; config.width = 1; config.height = 2;
+        config.title = "Second"; config.width = -3; config.height = 4;
+        config.title = "Final"; config.width = 5120; config.height = 1440;
+        CHECK(config.title == "Final"); CHECK(config.width == 5120); CHECK(config.height == 1440);
+    }
+    TEST_CASE("mutating one config never changes a freshly constructed default config") {
+        Salix::WindowConfig mutated; mutated.title = "Mutated"; mutated.width = -1; mutated.height = -2; Salix::WindowConfig fresh;
+        CHECK(fresh.title == "SalixGameStudio"); CHECK(fresh.width == 1280); CHECK(fresh.height == 720);
+    }
+}
