@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <Salix/management/RealmManager.h>
+#include <Salix/ecs/Realm.h>
 #include <Salix/core/InitContext.h>
 #include <filesystem>
 #include <fstream>
