@@ -203,3 +203,53 @@ TEST_SUITE("Salix::scripting::ScriptFactoryBatch1847") {
         CHECK(dynamic_cast<Batch1847ScriptB*>(new_instance.get()) != nullptr);
     }
 }
+
+namespace {
+class Batch2147ScriptA : public Salix::ScriptElement {
+public: const char* get_class_name() const override { return "Batch2147ScriptA"; }
+};
+class Batch2147ScriptB : public Salix::ScriptElement {
+public: const char* get_class_name() const override { return "Batch2147ScriptB"; }
+};
+}
+
+TEST_SUITE("Salix::scripting::ScriptFactoryBatch2147") {
+    TEST_CASE("batch2147 singleton accessor returns the same factory object") {
+        CHECK(&Salix::ScriptFactory::get()==&Salix::ScriptFactory::get());
+    }
+    TEST_CASE("batch2147 missing script lookup remains null across repeated attempts") {
+        auto& f=Salix::ScriptFactory::get(); CHECK(f.create_script("Batch2147::never-registered")==nullptr); CHECK(f.create_script("Batch2147::never-registered")==nullptr);
+    }
+    TEST_CASE("batch2147 registered creator produces a fresh object on each request") {
+        auto& f=Salix::ScriptFactory::get(); f.register_script("Batch2147::fresh",[]{return std::make_unique<Batch2147ScriptA>();});
+        auto a=f.create_script("Batch2147::fresh"); auto b=f.create_script("Batch2147::fresh"); REQUIRE(a!=nullptr); REQUIRE(b!=nullptr); CHECK(a.get()!=b.get());
+    }
+    TEST_CASE("batch2147 separate registration keys produce requested dynamic types") {
+        auto& f=Salix::ScriptFactory::get(); f.register_script("Batch2147::A",[]{return std::make_unique<Batch2147ScriptA>();}); f.register_script("Batch2147::B",[]{return std::make_unique<Batch2147ScriptB>();});
+        CHECK(dynamic_cast<Batch2147ScriptA*>(f.create_script("Batch2147::A").get())!=nullptr); CHECK(dynamic_cast<Batch2147ScriptB*>(f.create_script("Batch2147::B").get())!=nullptr);
+    }
+    TEST_CASE("batch2147 registrations remain case sensitive") {
+        auto& f=Salix::ScriptFactory::get(); f.register_script("Batch2147::Case",[]{return std::make_unique<Batch2147ScriptA>();});
+        CHECK(f.create_script("Batch2147::Case")!=nullptr); CHECK(f.create_script("batch2147::case")==nullptr);
+    }
+    TEST_CASE("batch2147 empty string is a valid exact registration key") {
+        auto& f=Salix::ScriptFactory::get(); f.register_script("",[]{return std::make_unique<Batch2147ScriptA>();}); CHECK(f.create_script("")!=nullptr);
+    }
+    TEST_CASE("batch2147 replacing creator changes only future instances") {
+        auto& f=Salix::ScriptFactory::get(); f.register_script("Batch2147::replace",[]{return std::make_unique<Batch2147ScriptA>();}); auto old=f.create_script("Batch2147::replace");
+        f.register_script("Batch2147::replace",[]{return std::make_unique<Batch2147ScriptB>();}); auto current=f.create_script("Batch2147::replace");
+        REQUIRE(old!=nullptr); REQUIRE(current!=nullptr); CHECK(dynamic_cast<Batch2147ScriptA*>(old.get())!=nullptr); CHECK(dynamic_cast<Batch2147ScriptB*>(current.get())!=nullptr);
+    }
+    TEST_CASE("batch2147 creator can return null and registration remains present") {
+        auto& f=Salix::ScriptFactory::get(); f.register_script("Batch2147::null",[]()->std::unique_ptr<Salix::ScriptElement>{return nullptr;}); CHECK(f.create_script("Batch2147::null")==nullptr); CHECK(f.create_script("Batch2147::null")==nullptr);
+    }
+    TEST_CASE("batch2147 creator capture state advances only when script is requested") {
+        auto calls=std::make_shared<int>(0); auto& f=Salix::ScriptFactory::get(); f.register_script("Batch2147::calls",[calls]{++*calls; return std::make_unique<Batch2147ScriptA>();});
+        CHECK(*calls==0); f.create_script("Batch2147::calls"); CHECK(*calls==1); f.create_script("Batch2147::calls"); CHECK(*calls==2);
+    }
+    TEST_CASE("batch2147 punctuation and path separators remain exact registration key characters") {
+        auto& f=Salix::ScriptFactory::get(); const std::string key="Batch2147::scripts/player.controller-v3"; f.register_script(key,[]{return std::make_unique<Batch2147ScriptB>();});
+        CHECK(f.create_script(key)!=nullptr); CHECK(f.create_script("Batch2147::scripts/player/controller-v3")==nullptr);
+    }
+}
+
