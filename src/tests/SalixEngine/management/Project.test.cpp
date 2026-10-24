@@ -201,3 +201,52 @@ TEST_SUITE("Salix::management::ProjectBatch1947") {
         project.shutdown();
     }
 }
+
+TEST_SUITE("Salix::management::ProjectBatch2347") {
+    TEST_CASE("batch2347 default project exposes canonical derived file and DLL names") {
+        Salix::Project project;
+        CHECK(project.get_name()=="TestProject");
+        CHECK(project.get_path()=="Sandbox/TestProject");
+        CHECK(project.get_project_file_name()=="TestProject.salixproj");
+        CHECK(project.get_game_dll_name()=="TestProject.dll");
+        CHECK(project.get_engine_version()=="0.1.0-Alpha");
+    }
+    TEST_CASE("batch2347 custom constructor derives file and DLL names from exact project name") {
+        Salix::Project project("Project 2347","D:/Projects/Project 2347");
+        CHECK(project.get_name()=="Project 2347");
+        CHECK(project.get_path()=="D:/Projects/Project 2347");
+        CHECK(project.get_project_file_name()=="Project 2347.salixproj");
+        CHECK(project.get_game_dll_name()=="Project 2347.dll");
+    }
+    TEST_CASE("batch2347 realm path insertion stores independent name-to-path entries") {
+        Salix::Project project; project.add_realm_path("Menu","Scenes/Menu.realm"); project.add_realm_path("Game","Scenes/Game.realm");
+        const auto& paths=project.get_realm_paths(); REQUIRE(paths.size()==2); CHECK(paths.at("Menu")=="Scenes/Menu.realm"); CHECK(paths.at("Game")=="Scenes/Game.realm");
+    }
+    TEST_CASE("batch2347 duplicate realm name replaces only its mapped path") {
+        Salix::Project project; project.add_realm_path("World","Old.realm"); project.add_realm_path("Other","Other.realm"); project.add_realm_path("World","New.realm");
+        const auto& paths=project.get_realm_paths(); REQUIRE(paths.size()==2); CHECK(paths.at("World")=="New.realm"); CHECK(paths.at("Other")=="Other.realm");
+    }
+    TEST_CASE("batch2347 removing mapped path succeeds even when backing file is absent") {
+        Salix::Project project; const std::string path="Batch2347_missing_realm_path.realm"; project.add_realm_path("Missing",path);
+        REQUIRE(project.get_realm_paths().count("Missing")==1); CHECK(project.remove_realm_path(path)); CHECK(project.get_realm_paths().empty());
+    }
+    TEST_CASE("batch2347 removing unknown path returns false without disturbing map") {
+        Salix::Project project; project.add_realm_path("Keep","Keep.realm");
+        CHECK_FALSE(project.remove_realm_path("Unknown.realm")); REQUIRE(project.get_realm_paths().size()==1); CHECK(project.get_realm_paths().at("Keep")=="Keep.realm");
+    }
+    TEST_CASE("batch2347 starting realm selection replaces complete previous value") {
+        Salix::Project project; project.set_starting_realm("Menu"); CHECK(project.get_starting_realm()=="Menu"); project.set_starting_realm("Gameplay"); CHECK(project.get_starting_realm()=="Gameplay"); project.set_starting_realm(""); CHECK(project.get_starting_realm().empty());
+    }
+    TEST_CASE("batch2347 load starting realm rejects empty selection before initialization") {
+        Salix::Project project; CHECK(project.get_starting_realm().empty()); CHECK_FALSE(project.load_starting_realm());
+    }
+    TEST_CASE("batch2347 initialization materializes configured realm shells before DLL load result") {
+        Salix::Project project("Batch2347MissingDll","Root2347"); project.add_realm_path("Menu","Menu.realm"); project.add_realm_path("Game","Game.realm"); Salix::InitContext context{};
+        project.initialize(context); auto* manager=project.get_realm_manager(); REQUIRE(manager!=nullptr); CHECK(manager->set_active_realm("Menu")); CHECK(manager->get_active_realm()!=nullptr); CHECK(manager->get_active_realm()->get_path()=="Menu.realm"); project.shutdown();
+    }
+    TEST_CASE("batch2347 shutdown is idempotent and update render stay safe afterward") {
+        Salix::Project project("Batch2347MissingDll2","Root2347"); Salix::InitContext context{}; project.initialize(context); REQUIRE(project.get_realm_manager()!=nullptr);
+        project.shutdown(); CHECK(project.get_realm_manager()==nullptr); CHECK_NOTHROW(project.shutdown()); CHECK_NOTHROW(project.update(-1.f)); CHECK_NOTHROW(project.render(nullptr));
+    }
+}
+
