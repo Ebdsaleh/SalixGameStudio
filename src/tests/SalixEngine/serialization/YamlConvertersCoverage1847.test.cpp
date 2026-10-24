@@ -80,7 +80,10 @@ TEST_SUITE("Salix::serialization::YamlConvertersCoverage1847") {
 
     TEST_CASE("node to property value returns neutral variant for missing node and unsupported type") {
         Salix::Property p; p.type=Salix::PropertyType::Int;
-        auto missing = YAML::node_to_property_value(YAML::Node(), p);
+        const YAML::Node parent = YAML::Load("{present: 1}");
+        const YAML::Node missing_node = parent["missing"];
+        REQUIRE_FALSE(missing_node.IsDefined());
+        auto missing = YAML::node_to_property_value(missing_node, p);
         CHECK(std::holds_alternative<int>(missing)); CHECK(std::get<int>(missing)==0);
         YAML::Node scalar(9); p.type=Salix::PropertyType::Class;
         auto unsupported = YAML::node_to_property_value(scalar,p);
