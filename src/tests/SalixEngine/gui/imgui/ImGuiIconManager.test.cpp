@@ -253,3 +253,101 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch1947") {
         CHECK(missing.path == fallback.path);
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiIconManagerBatch2447") {
+    TEST_CASE("batch2447 registry reference remains stable across successful icon updates") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto* registry = &fixture.icons.get_icon_registry();
+        fixture.icons.update_icon("Camera", "Assets/Icons/Batch2447/camera.png");
+        CHECK(&fixture.icons.get_icon_registry() == registry);
+        CHECK(registry->at("Camera").path == "Assets/Icons/Batch2447/camera.png");
+    }
+
+    TEST_CASE("batch2447 transform element lookup returns registered transform icon") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        Salix::Transform* transform = entity.get_transform();
+        REQUIRE(transform != nullptr);
+        const auto& icon = fixture.icons.get_icon_for_element(transform);
+        CHECK(icon.path == "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_092.png");
+    }
+
+    TEST_CASE("batch2447 camera element lookup returns registered camera icon") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Camera camera;
+        const auto& icon = fixture.icons.get_icon_for_element(&camera);
+        CHECK(icon.path == "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_039.png");
+    }
+
+    TEST_CASE("batch2447 sprite element lookup uses registered Sprite2D icon without requiring texture") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Sprite2D sprite;
+        const auto& icon = fixture.icons.get_icon_for_element(&sprite);
+        CHECK(icon.path == "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_031.png");
+    }
+
+    TEST_CASE("batch2447 updating panel locked mapping replaces only that registry path") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto camera_before = fixture.icons.get_icon_by_name("Camera").path;
+        fixture.icons.update_icon("Panel Locked", "Assets/Icons/Batch2447/locked.png");
+        CHECK(fixture.icons.get_icon_by_name("Panel Locked").path == "Assets/Icons/Batch2447/locked.png");
+        CHECK(fixture.icons.get_icon_by_name("Camera").path == camera_before);
+    }
+
+    TEST_CASE("batch2447 unknown icon update leaves registry size and contents unchanged") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto before = fixture.icons.get_icon_registry();
+        fixture.icons.update_icon("NeverRegistered2447", "Assets/Icons/Batch2447/unused.png");
+        CHECK(fixture.icons.get_icon_registry().size() == before.size());
+        CHECK(fixture.icons.get_icon_registry().count("NeverRegistered2447") == 0);
+        CHECK(fixture.icons.get_icon_by_name("Entity").path == before.at("Entity").path);
+    }
+
+    TEST_CASE("batch2447 failed default icon update preserves fallback value") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto before = fixture.icons.get_icon_by_name("Default");
+        fixture.renderer.should_texture_load_fail = true;
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch2447/missing-default.png");
+        const auto& fallback = fixture.icons.get_icon_by_name("Missing2447");
+        CHECK(fixture.icons.get_icon_by_name("Default").path == before.path);
+        CHECK(fallback.path == before.path);
+        CHECK(fallback.texture_id == before.texture_id);
+    }
+
+    TEST_CASE("batch2447 null entity after default registration returns copied default fallback values") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto& result = fixture.icons.get_icon_for_entity(nullptr);
+        const auto& registered = fixture.icons.get_icon_by_name("Default");
+        CHECK(result.path == registered.path);
+        CHECK(result.texture_id == registered.texture_id);
+        CHECK(result.size.x == doctest::Approx(registered.size.x));
+        CHECK(result.size.y == doctest::Approx(registered.size.y));
+    }
+
+    TEST_CASE("batch2447 rejected null reinitialization does not discard prior usable asset manager") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.initialize(nullptr);
+        fixture.icons.update_icon("Camera", "Assets/Icons/Batch2447/still-usable.png");
+        CHECK(fixture.icons.get_icon_by_name("Camera").path == "Assets/Icons/Batch2447/still-usable.png");
+    }
+
+    TEST_CASE("batch2447 separate icon managers keep independent registries and updates") {
+        Batch1947IconFixture first;
+        Batch1947IconFixture second;
+        first.icons.register_default_icons();
+        second.icons.register_default_icons();
+        first.icons.update_icon("Camera", "Assets/Icons/Batch2447/first-camera.png");
+        CHECK(first.icons.get_icon_by_name("Camera").path == "Assets/Icons/Batch2447/first-camera.png");
+        CHECK(second.icons.get_icon_by_name("Camera").path != "Assets/Icons/Batch2447/first-camera.png");
+    }
+}
+
