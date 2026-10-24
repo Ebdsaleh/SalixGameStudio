@@ -731,3 +731,40 @@ TEST_SUITE("Salix::core::StringUtilsBatch2647") {
     }
 }
 
+TEST_SUITE("Salix::core::StringUtilsBatch2747") {
+    TEST_CASE("batch2747 uppercase conversion preserves digits and punctuation") {
+        CHECK(Salix::StringUtils::to_upper("salix-2.0!", false)=="SALIX-2.0!");
+    }
+    TEST_CASE("batch2747 lowercase conversion preserves digits and punctuation") {
+        CHECK(Salix::StringUtils::to_lower("SALIX-2.0!", false)=="salix-2.0!");
+    }
+    TEST_CASE("batch2747 title case leaves empty string empty") {
+        CHECK(Salix::StringUtils::to_title_case("").empty());
+    }
+    TEST_CASE("batch2747 title case normalizes mixed casing across multiple spaces") {
+        CHECK(Salix::StringUtils::to_title_case("hELLo   wORLD")=="Hello   World");
+    }
+    TEST_CASE("batch2747 capitalize handles a single character") {
+        CHECK(Salix::StringUtils::capitalize("x")=="X");
+    }
+    TEST_CASE("batch2747 capitalize leaves empty string unchanged") {
+        CHECK(Salix::StringUtils::capitalize("").empty());
+    }
+    TEST_CASE("batch2747 snake detection rejects whitespace-separated words") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("hello world"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("hello world"));
+    }
+    TEST_CASE("batch2747 snake detection accepts uppercase alphanumeric segments") {
+        CHECK(Salix::StringUtils::is_snake_case("PLAYER_2_CAMERA"));
+        CHECK(Salix::StringUtils::contains_snake_case("PLAYER_2_CAMERA"));
+    }
+    TEST_CASE("batch2747 snake conversion leaves strings without valid separators unchanged") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("plain")=="plain");
+        CHECK(Salix::StringUtils::convert_from_snake_case("_plain_")=="_plain_");
+    }
+    TEST_CASE("batch2747 Pascal conversion preserves already separated lowercase word") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("plain")=="plain");
+        CHECK(Salix::StringUtils::convert_from_pascal_case("")=="");
+    }
+}
+
