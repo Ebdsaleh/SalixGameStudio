@@ -648,3 +648,44 @@ TEST_SUITE("Salix::core::StringUtilsClosure1747") {
         CHECK(Salix::StringUtils::capitalize("HELLO_WORLD", true) == "Hello world");
     }
 }
+
+TEST_SUITE("Salix::core::StringUtilsBatch2147") {
+    TEST_CASE("batch2147 uppercase snake conversion is opt in and preserves separator choice") {
+        CHECK(Salix::StringUtils::to_upper("main_camera_2d", false) == "MAIN_CAMERA_2D");
+        CHECK(Salix::StringUtils::to_upper("main_camera_2d", true) == "MAIN CAMERA 2D");
+    }
+    TEST_CASE("batch2147 lowercase snake conversion is opt in and preserves malformed separators") {
+        CHECK(Salix::StringUtils::to_lower("MAIN_CAMERA", true) == "main camera");
+        CHECK(Salix::StringUtils::to_lower("MAIN__CAMERA", true) == "main__camera");
+    }
+    TEST_CASE("batch2147 title case recognizes every standard ASCII whitespace boundary") {
+        CHECK(Salix::StringUtils::to_title_case("oNE\ttWO\nTHREE\rFOUR") == "One\tTwo\nThree\rFour");
+    }
+    TEST_CASE("batch2147 capitalize lowercases the complete suffix after the first character") {
+        CHECK(Salix::StringUtils::capitalize("sALIX Engine TEST") == "Salix engine test");
+    }
+    TEST_CASE("batch2147 snake validation accepts several alphanumeric segments") {
+        CHECK(Salix::StringUtils::is_snake_case("scene2_camera3_mode4"));
+        CHECK(Salix::StringUtils::is_snake_case("A1_B2_C3"));
+    }
+    TEST_CASE("batch2147 snake validation rejects edge and repeated separators") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("_abc_def"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("abc_def_"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("abc__def"));
+    }
+    TEST_CASE("batch2147 snake substring detection can succeed inside otherwise invalid text") {
+        CHECK(Salix::StringUtils::contains_snake_case("!abc_def?"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("!abc_def?"));
+    }
+    TEST_CASE("batch2147 snake conversion replaces only separators with alphanumeric neighbors") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("_a_b__c_d_") == "_a b__c d_");
+    }
+    TEST_CASE("batch2147 Pascal conversion separates lower upper and alpha digit transitions") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("PlayerModel2") == "Player Model 2");
+    }
+    TEST_CASE("batch2147 Pascal conversion separates digit to capital only for a new capitalized word") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("Version2Alpha") == "Version 2 Alpha");
+        CHECK(Salix::StringUtils::convert_from_pascal_case("Sprite2D") == "Sprite 2D");
+    }
+}
+
