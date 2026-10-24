@@ -371,3 +371,58 @@ TEST_SUITE("Salix::core::LoggingBatch1847") {
         CHECK(text[13] == ']');
     }
 }
+
+TEST_SUITE("Salix::core::LoggingBatch2547") {
+    TEST_CASE("batch2547 info log emits INFO severity and omits source location") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO,"info2547","Info.cpp",2547);
+        CHECK(output.str().find("[INFO] info2547")!=std::string::npos); CHECK(output.str().find("Info.cpp")==std::string::npos);
+    }
+    TEST_CASE("batch2547 warning log emits WARN severity and omits source location") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::WARNING,"warn2547","Warning.cpp",2547);
+        CHECK(output.str().find("[WARN] warn2547")!=std::string::npos); CHECK(output.str().find("Warning.cpp")==std::string::npos);
+    }
+    TEST_CASE("batch2547 error log emits ERROR severity with exact source location") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR,"error2547","Error2547.cpp",77);
+        CHECK(output.str().find("[ERROR] [Error2547.cpp:77] error2547")!=std::string::npos);
+    }
+    TEST_CASE("batch2547 debug log emits DEBUG severity with exact source location") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG,"debug2547","Debug2547.cpp",88);
+        CHECK(output.str().find("[DEBUG] [Debug2547.cpp:88] debug2547")!=std::string::npos);
+    }
+    TEST_CASE("batch2547 empty info payload still emits one completed record") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO,"","Ignored.cpp",1);
+        const auto text=output.str(); CHECK(text.find("[INFO] ")!=std::string::npos); CHECK(std::count(text.begin(),text.end(),'\n')==1);
+    }
+    TEST_CASE("batch2547 multiline error payload preserves source prefix and payload lines") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR,"line1\nline2","Multi.cpp",12);
+        const auto text=output.str(); CHECK(text.find("[Multi.cpp:12] line1\nline2")!=std::string::npos); CHECK(std::count(text.begin(),text.end(),'\n')==2);
+    }
+    TEST_CASE("batch2547 source filename may be empty for debug record") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG,"empty-source","",0);
+        CHECK(output.str().find("[DEBUG] [:0] empty-source")!=std::string::npos);
+    }
+    TEST_CASE("batch2547 very large line number is preserved textually") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR,"large-line","Huge.cpp",2147483647);
+        CHECK(output.str().find("[Huge.cpp:2147483647] large-line")!=std::string::npos);
+    }
+    TEST_CASE("batch2547 payload with percent tokens is not treated as a format string") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        const std::string payload="%s %d %% {2547}"; Salix::LogMessage(Salix::LogLevel::INFO,payload);
+        CHECK(output.str().find(payload)!=std::string::npos);
+    }
+    TEST_CASE("batch2547 sequential mixed severity records retain independent formatting") {
+        std::stringstream output; Batch1847CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO,"first","A.cpp",1); Salix::LogMessage(Salix::LogLevel::ERROR,"second","B.cpp",2);
+        const auto text=output.str(); CHECK(text.find("[INFO] first")!=std::string::npos); CHECK(text.find("[ERROR] [B.cpp:2] second")!=std::string::npos);
+        CHECK(text.find("A.cpp")==std::string::npos); CHECK(std::count(text.begin(),text.end(),'\n')==2);
+    }
+}
+
