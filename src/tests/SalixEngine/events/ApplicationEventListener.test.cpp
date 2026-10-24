@@ -256,3 +256,47 @@ TEST_SUITE("Salix::events::ApplicationEventListenerBatch2347") {
     }
 }
 
+TEST_SUITE("Salix::events::ApplicationEventListenerBatch2547") {
+    TEST_CASE("batch2547 null initialization on fresh listener reports failure") {
+        Salix::ApplicationEventListener listener; CHECK_FALSE(listener.initialize(nullptr));
+    }
+    TEST_CASE("batch2547 resize before initialization is a harmless no-op") {
+        Salix::ApplicationEventListener listener; Salix::WindowResizeEvent resize(1,2);
+        CHECK_NOTHROW(listener.on_event(resize)); CHECK(resize.get_width()==1); CHECK(resize.get_height()==2); CHECK_FALSE(resize.handled);
+    }
+    TEST_CASE("batch2547 close before initialization is repeatably harmless") {
+        Salix::ApplicationEventListener listener; Salix::WindowCloseEvent close;
+        listener.on_event(close); listener.on_event(close); CHECK_FALSE(close.handled);
+    }
+    TEST_CASE("batch2547 valid initialization leaves running engine unchanged until event arrives") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine)); CHECK(engine.is_running());
+    }
+    TEST_CASE("batch2547 close after valid initialization stops engine exactly once semantically") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close; listener.on_event(close); CHECK_FALSE(engine.is_running()); listener.on_event(close); CHECK_FALSE(engine.is_running());
+    }
+    TEST_CASE("batch2547 resize never changes running state after initialization") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent a(320,200),b(1920,1080); listener.on_event(a); CHECK(engine.is_running()); listener.on_event(b); CHECK(engine.is_running());
+    }
+    TEST_CASE("batch2547 tick event never changes running state after initialization") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Batch1847TickEvent tick; listener.on_event(tick); CHECK(engine.is_running()); CHECK_FALSE(tick.handled);
+    }
+    TEST_CASE("batch2547 retargeting listener isolates shutdown to newest engine") {
+        Salix::Engine first,second; first.is_running(true); second.is_running(true); Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&first)); REQUIRE(listener.initialize(&second)); Salix::WindowCloseEvent close; listener.on_event(close);
+        CHECK(first.is_running()); CHECK_FALSE(second.is_running());
+    }
+    TEST_CASE("batch2547 failed null retarget preserves current valid engine") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        CHECK_FALSE(listener.initialize(nullptr)); Salix::WindowCloseEvent close; listener.on_event(close); CHECK_FALSE(engine.is_running());
+    }
+    TEST_CASE("batch2547 polymorphic listener call leaves application event handled flag untouched") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener concrete; REQUIRE(concrete.initialize(&engine));
+        Salix::IEventListener& base=concrete; Salix::WindowCloseEvent close; close.handled=true; base.on_event(close);
+        CHECK(close.handled); CHECK_FALSE(engine.is_running());
+    }
+}
+
