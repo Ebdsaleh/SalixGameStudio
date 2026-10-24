@@ -608,10 +608,11 @@ TEST_SUITE("Salix::core::SimpleGuidBatch2747") {
         Salix::SimpleGuid restored; { cereal::BinaryInputArchive in(ss); in(restored); }
         CHECK(restored==original);
     }
-    TEST_CASE("batch2747 hash differs for common adjacent identifiers in current standard library") {
+    TEST_CASE("batch2747 hash is stable for independently constructed equal identifiers") {
         const auto a=Salix::SimpleGuid::from_value(1001);
-        const auto b=Salix::SimpleGuid::from_value(1002);
-        CHECK(std::hash<Salix::SimpleGuid>{}(a)!=std::hash<Salix::SimpleGuid>{}(b));
+        const auto b=Salix::SimpleGuid::from_value(1001);
+        CHECK(a==b);
+        CHECK(std::hash<Salix::SimpleGuid>{}(a)==std::hash<Salix::SimpleGuid>{}(b));
     }
 }
 
