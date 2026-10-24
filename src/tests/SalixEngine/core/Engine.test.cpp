@@ -96,3 +96,87 @@ TEST_SUITE("Salix::core::EngineBatch1647") {
         CHECK(engine->get_time_scale() == doctest::Approx(1.5f));
     }
 }
+
+#include <limits>
+#include <cmath>
+
+TEST_SUITE("Salix::core::EngineBatch2447") {
+    TEST_CASE("batch2447 running true setter is idempotent") {
+        Salix::Engine engine;
+        CHECK(engine.is_running(true));
+        CHECK(engine.is_running(true));
+        CHECK(engine.is_running());
+    }
+
+    TEST_CASE("batch2447 running false setter is idempotent") {
+        Salix::Engine engine;
+        CHECK_FALSE(engine.is_running(false));
+        CHECK_FALSE(engine.is_running(false));
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch2447 mode can return to neutral after several transitions") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Game);
+        engine.set_mode(Salix::EngineMode::Editor);
+        engine.set_mode(Salix::EngineMode::None);
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+    }
+
+    TEST_CASE("batch2447 mode changes never alter running state") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_mode(Salix::EngineMode::Launch);
+        engine.set_mode(Salix::EngineMode::Debug);
+        CHECK(engine.is_running());
+    }
+
+    TEST_CASE("batch2447 mode changes never alter time scale") {
+        Salix::Engine engine;
+        engine.set_time_scale(3.25f);
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_mode(Salix::EngineMode::Game);
+        CHECK(engine.get_time_scale() == doctest::Approx(3.25f));
+    }
+
+    TEST_CASE("batch2447 time scale changes never alter selected mode") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Editor);
+        engine.set_time_scale(0.0f);
+        engine.set_time_scale(-9.5f);
+        CHECK(engine.get_mode() == Salix::EngineMode::Editor);
+    }
+
+    TEST_CASE("batch2447 no-op state stack operations preserve all uninitialized subsystem pointers") {
+        Salix::Engine engine;
+        engine.push_state(nullptr);
+        engine.pop_state();
+        engine.change_state(nullptr);
+        CHECK(engine.get_renderer() == nullptr);
+        CHECK(engine.get_asset_manager() == nullptr);
+        CHECK(engine.get_event_manager() == nullptr);
+        CHECK(engine.get_input_manager() == nullptr);
+    }
+
+    TEST_CASE("batch2447 EngineInterface dispatch toggles running state through virtual API") {
+        std::unique_ptr<Salix::EngineInterface> engine = std::make_unique<Salix::Engine>();
+        CHECK(engine->is_running(true));
+        CHECK(engine->is_running());
+        CHECK_FALSE(engine->is_running(false));
+        CHECK_FALSE(engine->is_running());
+    }
+
+    TEST_CASE("batch2447 time scale preserves positive infinity exactly") {
+        Salix::Engine engine;
+        engine.set_time_scale(std::numeric_limits<float>::infinity());
+        CHECK(std::isinf(engine.get_time_scale()));
+        CHECK(engine.get_time_scale() > 0.0f);
+    }
+
+    TEST_CASE("batch2447 time scale preserves NaN diagnostic values") {
+        Salix::Engine engine;
+        engine.set_time_scale(std::numeric_limits<float>::quiet_NaN());
+        CHECK(std::isnan(engine.get_time_scale()));
+    }
+}
+
