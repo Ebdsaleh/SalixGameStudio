@@ -284,3 +284,90 @@ TEST_SUITE("Salix::core::ChronoTimerBatch947") {
         CHECK(third >= second);
     }
 }
+
+TEST_SUITE("Salix::core::ChronoTimerBatch2447") {
+    TEST_CASE("batch2447 unsigned zero delay returns safely") {
+        CHECK_NOTHROW(Salix::ChronoTimer::delay_for(0u));
+    }
+
+    TEST_CASE("batch2447 zero floating millisecond delay returns safely") {
+        CHECK_NOTHROW(Salix::ChronoTimer::delay_for(std::chrono::duration<float, std::milli>(0.0f)));
+    }
+
+    TEST_CASE("batch2447 negative floating millisecond delay returns safely") {
+        CHECK_NOTHROW(Salix::ChronoTimer::delay_for(std::chrono::duration<float, std::milli>(-4.0f)));
+    }
+
+    TEST_CASE("batch2447 ten FPS target exposes a substantial remaining frame budget") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(10);
+        timer.tick_start();
+        const float remaining = timer.calculate_sleep_duration().count();
+        CHECK(remaining > 50.0f);
+        CHECK(remaining <= 100.0f);
+    }
+
+    TEST_CASE("batch2447 raising target FPS reduces the immediate sleep budget") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(20);
+        timer.tick_start();
+        const float at_twenty = timer.calculate_sleep_duration().count();
+        timer.set_target_fps(40);
+        timer.tick_start();
+        const float at_forty = timer.calculate_sleep_duration().count();
+        CHECK(at_twenty > at_forty);
+        CHECK(at_forty > 0.0f);
+    }
+
+    TEST_CASE("batch2447 negative FPS prevents injected delay callback invocation") {
+        int calls = 0;
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds) { ++calls; });
+        timer.set_target_fps(-30);
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE("batch2447 positive cap invokes injected delay once without changing measured delta") {
+        int calls = 0;
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds) { ++calls; });
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(10);
+        timer.tick_start();
+        const float before_end = timer.get_delta_time();
+        timer.tick_end();
+        CHECK(calls == 1);
+        CHECK(timer.get_delta_time() == before_end);
+        CHECK(measured > 0.0f);
+    }
+
+    TEST_CASE("batch2447 millisecond tick counter never moves backwards across an explicit delay") {
+        const auto before = Salix::ChronoTimer::get_ticks_ms();
+        Salix::ChronoTimer::delay_for(2u);
+        const auto after = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(after >= before);
+    }
+
+    TEST_CASE("batch2447 repeated tick starts keep delta finite and nonnegative") {
+        Salix::ChronoTimer timer;
+        timer.tick_start();
+        CHECK(std::isfinite(timer.get_delta_time()));
+        CHECK(timer.get_delta_time() >= 0.0f);
+        timer.tick_start();
+        CHECK(std::isfinite(timer.get_delta_time()));
+        CHECK(timer.get_delta_time() >= 0.0f);
+    }
+
+    TEST_CASE("batch2447 uncapped calculation remains zero after multiple frame starts") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(0);
+        timer.tick_start();
+        timer.tick_start();
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+}
+
