@@ -75,3 +75,45 @@ TEST_SUITE("Salix::reflection::EditorDataModeBatch1647") {
         CHECK(label_for(Salix::EditorDataMode::Yaml) == "yaml");
     }
 }
+
+
+TEST_SUITE("Salix::reflection::EditorDataModeBatch2047") {
+    TEST_CASE("Live survives conversion through the enum underlying type") {
+        using U = std::underlying_type_t<Salix::EditorDataMode>; const auto mode = Salix::EditorDataMode::Live;
+        CHECK(static_cast<Salix::EditorDataMode>(static_cast<U>(mode)) == mode);
+    }
+    TEST_CASE("Yaml survives conversion through the enum underlying type") {
+        using U = std::underlying_type_t<Salix::EditorDataMode>; const auto mode = Salix::EditorDataMode::Yaml;
+        CHECK(static_cast<Salix::EditorDataMode>(static_cast<U>(mode)) == mode);
+    }
+    TEST_CASE("value initialized mode may be reassigned from Live to Yaml") {
+        Salix::EditorDataMode mode{}; REQUIRE(mode == Salix::EditorDataMode::Live); mode = Salix::EditorDataMode::Yaml; CHECK(mode == Salix::EditorDataMode::Yaml);
+    }
+    TEST_CASE("const copy preserves selected mode") {
+        const Salix::EditorDataMode source = Salix::EditorDataMode::Yaml; const Salix::EditorDataMode copy(source); CHECK(copy == Salix::EditorDataMode::Yaml);
+    }
+    TEST_CASE("copy assignment replaces destination without modifying source") {
+        Salix::EditorDataMode source = Salix::EditorDataMode::Yaml; Salix::EditorDataMode destination = Salix::EditorDataMode::Live;
+        destination = source; CHECK(destination == Salix::EditorDataMode::Yaml); CHECK(source == Salix::EditorDataMode::Yaml);
+    }
+    TEST_CASE("array storage preserves explicit Live Yaml Live ordering") {
+        const std::array<Salix::EditorDataMode, 3> modes{Salix::EditorDataMode::Live, Salix::EditorDataMode::Yaml, Salix::EditorDataMode::Live};
+        CHECK(modes[0] == Salix::EditorDataMode::Live); CHECK(modes[1] == Salix::EditorDataMode::Yaml); CHECK(modes[2] == Salix::EditorDataMode::Live);
+    }
+    TEST_CASE("ordered set collapses duplicate modes by value") {
+        std::set<Salix::EditorDataMode> modes; modes.insert(Salix::EditorDataMode::Live); modes.insert(Salix::EditorDataMode::Yaml); modes.insert(Salix::EditorDataMode::Live);
+        CHECK(modes.size() == 2);
+    }
+    TEST_CASE("map update for Live leaves Yaml entry untouched") {
+        std::map<Salix::EditorDataMode, std::string> labels; labels[Salix::EditorDataMode::Live] = "old-live"; labels[Salix::EditorDataMode::Yaml] = "yaml";
+        labels[Salix::EditorDataMode::Live] = "live"; CHECK(labels.at(Salix::EditorDataMode::Live) == "live"); CHECK(labels.at(Salix::EditorDataMode::Yaml) == "yaml");
+    }
+    TEST_CASE("underlying values for the two declared modes remain distinct") {
+        using U = std::underlying_type_t<Salix::EditorDataMode>;
+        CHECK(static_cast<U>(Salix::EditorDataMode::Live) != static_cast<U>(Salix::EditorDataMode::Yaml));
+    }
+    TEST_CASE("identity function preserves editor data mode across pass and return") {
+        const auto identity = [](Salix::EditorDataMode mode) { return mode; };
+        CHECK(identity(Salix::EditorDataMode::Live) == Salix::EditorDataMode::Live); CHECK(identity(Salix::EditorDataMode::Yaml) == Salix::EditorDataMode::Yaml);
+    }
+}
