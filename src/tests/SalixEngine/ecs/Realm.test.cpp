@@ -525,3 +525,50 @@ TEST_SUITE("Salix::ecs::RealmAdditional20261019") {
         CHECK(realm.get_entities().size()==1);
     }
 }
+
+TEST_SUITE("Salix::ecs::RealmBatch2347") {
+    TEST_CASE("batch2347 repeated name and path assignments preserve latest nonempty values") {
+        Salix::Realm realm; realm.set_name("First"); realm.set_name("Second"); realm.set_path("A.realm"); realm.set_path("B.realm");
+        CHECK(realm.get_name()=="Second"); CHECK(realm.get_path()=="B.realm");
+    }
+    TEST_CASE("batch2347 duplicate entity names remain distinct owned entities") {
+        Salix::Realm realm; auto* a=realm.create_entity("Duplicate"); auto* b=realm.create_entity("Duplicate");
+        REQUIRE(a!=nullptr); REQUIRE(b!=nullptr); CHECK(a!=b); CHECK(a->get_id()!=b->get_id()); REQUIRE(realm.get_entities().size()==2);
+    }
+    TEST_CASE("batch2347 first duplicate name remains the name lookup result") {
+        Salix::Realm realm; auto* first=realm.create_entity("Same"); auto* second=realm.create_entity("Same"); REQUIRE(first!=nullptr); REQUIRE(second!=nullptr);
+        CHECK(realm.get_entity_by_name("Same")==first);
+    }
+    TEST_CASE("batch2347 clear all entities resets active and main camera selection") {
+        Salix::Realm realm; auto* e=realm.create_entity("Camera2347"); REQUIRE(e!=nullptr); auto* camera=e->add_element<Salix::Camera>(); REQUIRE(camera!=nullptr);
+        realm.set_active_camera_entity(e->get_id()); REQUIRE(realm.get_active_camera()==camera); REQUIRE(realm.get_main_camera_entity_id()==e->get_id());
+        realm.clear_all_entities(); CHECK(realm.get_entities().empty()); CHECK(realm.get_active_camera()==nullptr); CHECK(realm.get_main_camera_entity_id()==Salix::SimpleGuid::invalid());
+    }
+    TEST_CASE("batch2347 invalid active camera entity clears previous selection and deactivates old camera") {
+        Salix::Realm realm; auto* e=realm.create_entity("Camera2347"); REQUIRE(e!=nullptr); auto* camera=e->add_element<Salix::Camera>(); REQUIRE(camera!=nullptr);
+        realm.set_active_camera_entity(e->get_id()); REQUIRE(camera->get_is_active()); realm.set_active_camera_entity(Salix::SimpleGuid::invalid());
+        CHECK(realm.get_active_camera()==nullptr); CHECK_FALSE(camera->get_is_active()); CHECK(realm.get_main_camera_entity_id()==Salix::SimpleGuid::invalid());
+    }
+    TEST_CASE("batch2347 direct main camera ID assignment does not activate a component") {
+        Salix::Realm realm; auto* e=realm.create_entity("Camera2347"); REQUIRE(e!=nullptr); auto* camera=e->add_element<Salix::Camera>(); REQUIRE(camera!=nullptr);
+        realm.set_main_camera_entity(e->get_id()); CHECK(realm.get_main_camera_entity_id()==e->get_id()); CHECK(realm.get_active_camera()==nullptr); CHECK_FALSE(camera->get_is_active());
+    }
+    TEST_CASE("batch2347 maintenance removes multiple purged entities in one pass") {
+        Salix::Realm realm; auto* a=realm.create_entity("A"); auto* b=realm.create_entity("B"); auto* c=realm.create_entity("C"); REQUIRE(a&&b&&c);
+        const auto aid=a->get_id(),cid=c->get_id(); a->simple_purge(); c->simple_purge(); realm.maintain();
+        const auto entities=realm.get_entities(); REQUIRE(entities.size()==1); CHECK(entities[0]==b); CHECK(realm.get_entity_by_id(aid)==nullptr); CHECK(realm.get_entity_by_id(cid)==nullptr);
+    }
+    TEST_CASE("batch2347 clear followed by recreation keeps realm metadata intact") {
+        Salix::Realm realm("KeepName","KeepPath.realm"); REQUIRE(realm.create_entity("Before")!=nullptr); realm.clear_all_entities();
+        auto* after=realm.create_entity("After"); REQUIRE(after!=nullptr); CHECK(realm.get_name()=="KeepName"); CHECK(realm.get_path()=="KeepPath.realm"); CHECK(realm.get_entity_by_name("After")==after);
+    }
+    TEST_CASE("batch2347 direct null camera assignment cannot clear an existing direct camera pointer") {
+        Salix::Realm realm; auto* e=realm.create_entity("Camera"); REQUIRE(e!=nullptr); auto* camera=e->add_element<Salix::Camera>(); REQUIRE(camera!=nullptr);
+        realm.set_active_camera(camera); REQUIRE(realm.get_active_camera()==camera); realm.set_active_camera(nullptr); CHECK(realm.get_active_camera()==camera);
+    }
+    TEST_CASE("batch2347 explicit GUID entity creation preserves insertion order beside generated entity") {
+        Salix::Realm realm; const auto fixed=Salix::SimpleGuid::from_value(2347001ULL); auto* a=realm.create_entity(fixed,"Fixed"); auto* b=realm.create_entity("Generated");
+        REQUIRE(a!=nullptr); REQUIRE(b!=nullptr); const auto entities=realm.get_entities(); REQUIRE(entities.size()==2); CHECK(entities[0]==a); CHECK(entities[1]==b); CHECK(a->get_id()==fixed);
+    }
+}
+
