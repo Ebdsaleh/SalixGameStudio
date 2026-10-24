@@ -304,3 +304,80 @@ TEST_SUITE("Salix::assets::AssetManagerBatch647") {
         CHECK(normalized.parent_path().filename().string()=="b");
     }
 }
+
+TEST_SUITE("Salix::assets::AssetManagerBatch2247") {
+    TEST_CASE("batch2247 lexical normalization collapses multiple parent and dot segments into one cache key") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        auto* first=manager.get_texture("assets/ui/icons/button.png");
+        auto* second=manager.get_texture("assets/ui/./temp/../icons/button.png");
+        REQUIRE(first!=nullptr); CHECK(first==second); CHECK(renderer.calls==1);
+    }
+    TEST_CASE("batch2247 successful cached texture remains available after renderer begins failing") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        auto* first=manager.get_texture("assets/stable.png"); REQUIRE(first!=nullptr);
+        renderer.should_texture_load_fail=true;
+        CHECK(manager.get_texture("assets/stable.png")==first); CHECK(renderer.calls==1);
+    }
+    TEST_CASE("batch2247 failed texture request is retried until a renderer succeeds") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        renderer.should_texture_load_fail=true;
+        CHECK(manager.get_texture("assets/retry-2247.png")==nullptr);
+        CHECK(manager.get_texture("assets/retry-2247.png")==nullptr);
+        CHECK(renderer.calls==2);
+        renderer.should_texture_load_fail=false;
+        REQUIRE(manager.get_texture("assets/retry-2247.png")!=nullptr);
+        CHECK(renderer.calls==3);
+    }
+    TEST_CASE("batch2247 shutdown clears every cached entry rather than only the most recent") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        REQUIRE(manager.get_texture("assets/a2247.png")!=nullptr);
+        REQUIRE(manager.get_texture("assets/b2247.png")!=nullptr);
+        CHECK(renderer.calls==2);
+        manager.shutdown();
+        REQUIRE(manager.get_texture("assets/a2247.png")!=nullptr);
+        REQUIRE(manager.get_texture("assets/b2247.png")!=nullptr);
+        CHECK(renderer.calls==4);
+    }
+    TEST_CASE("batch2247 repeated shutdown on an empty cache is harmless") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        CHECK_NOTHROW(manager.shutdown()); CHECK_NOTHROW(manager.shutdown());
+        REQUIRE(manager.get_texture("assets/after-empty-shutdown.png")!=nullptr);
+        CHECK(renderer.calls==1);
+    }
+    TEST_CASE("batch2247 reinitializing renderer keeps an already cached texture without a new backend call") {
+        CountingAssetRenderer first_renderer,second_renderer; Salix::AssetManager manager; manager.initialize(&first_renderer);
+        auto* cached=manager.get_texture("assets/reinit-cached.png"); REQUIRE(cached!=nullptr);
+        manager.initialize(&second_renderer);
+        CHECK(manager.get_texture("assets/reinit-cached.png")==cached);
+        CHECK(first_renderer.calls==1); CHECK(second_renderer.calls==0);
+    }
+    TEST_CASE("batch2247 reinitializing renderer directs future uncached loads to the new backend") {
+        CountingAssetRenderer first_renderer,second_renderer; Salix::AssetManager manager; manager.initialize(&first_renderer);
+        REQUIRE(manager.get_texture("assets/backend-one.png")!=nullptr);
+        manager.initialize(&second_renderer);
+        REQUIRE(manager.get_texture("assets/backend-two.png")!=nullptr);
+        CHECK(first_renderer.calls==1); CHECK(second_renderer.calls==1);
+    }
+    TEST_CASE("batch2247 separate managers never share cache entries even with one renderer") {
+        CountingAssetRenderer renderer; Salix::AssetManager first,second; first.initialize(&renderer); second.initialize(&renderer);
+        auto* a=first.get_texture("assets/isolated-2247.png"); auto* b=second.get_texture("assets/isolated-2247.png");
+        REQUIRE(a!=nullptr); REQUIRE(b!=nullptr); CHECK(a!=b); CHECK(renderer.calls==2);
+    }
+    TEST_CASE("batch2247 normalized renderer path contains no dot path component") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        REQUIRE(manager.get_texture("./assets/./icons/../icon2247.png")!=nullptr);
+        REQUIRE(renderer.paths.size()==1);
+        const auto p=std::filesystem::path(renderer.paths.front()).lexically_normal();
+        CHECK(p==std::filesystem::path(renderer.paths.front()));
+        CHECK(p.filename().string()=="icon2247.png");
+    }
+    TEST_CASE("batch2247 loading different normalized paths keeps independent cache identities") {
+        CountingAssetRenderer renderer; Salix::AssetManager manager; manager.initialize(&renderer);
+        auto* a=manager.get_texture("assets/folder/one.png"); auto* b=manager.get_texture("assets/folder/two.png");
+        REQUIRE(a!=nullptr); REQUIRE(b!=nullptr); CHECK(a!=b);
+        CHECK(manager.get_texture("assets/folder/./one.png")==a);
+        CHECK(manager.get_texture("assets/folder/sub/../two.png")==b);
+        CHECK(renderer.calls==2);
+    }
+}
+
