@@ -212,3 +212,37 @@ TEST_SUITE("Salix::ecs::CameraBatch1947") {
         CHECK(batch1947_camera_matrix_differs(before, *after_storage));
     }
 }
+
+TEST_SUITE("Salix::ecs::CameraBatch2347") {
+    TEST_CASE("batch2347 repeated activate calls remain idempotently active") {
+        Salix::Camera camera; CHECK_FALSE(camera.get_is_active()); camera.activate(); camera.activate(); CHECK(camera.get_is_active());
+    }
+    TEST_CASE("batch2347 repeated deactivate calls remain idempotently inactive") {
+        Salix::Camera camera; camera.activate(); REQUIRE(camera.get_is_active()); camera.deactivate(); camera.deactivate(); CHECK_FALSE(camera.get_is_active());
+    }
+    TEST_CASE("batch2347 zero viewport height leaves projection matrix unchanged") {
+        Salix::Camera camera; const glm::mat4 before=camera.get_projection_matrix(); camera.set_viewport_size(640,0); const glm::mat4 after=camera.get_projection_matrix(); CHECK(after==before);
+    }
+    TEST_CASE("batch2347 perspective viewport aspect change rebuilds projection") {
+        Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Perspective); camera.set_viewport_size(1600,900); const glm::mat4 wide=camera.get_projection_matrix(); camera.set_viewport_size(900,1600); const glm::mat4 tall=camera.get_projection_matrix(); CHECK(batch1947_camera_matrix_differs(wide,tall));
+    }
+    TEST_CASE("batch2347 field of view mutation rebuilds perspective projection") {
+        Salix::Camera camera; const glm::mat4 before=camera.get_projection_matrix(); camera.set_field_of_view(80.f); CHECK(camera.get_field_of_view()==doctest::Approx(80.f)); const glm::mat4 after=camera.get_projection_matrix(); CHECK(batch1947_camera_matrix_differs(before,after));
+    }
+    TEST_CASE("batch2347 orthographic size mutation rebuilds orthographic projection") {
+        Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Orthographic); const glm::mat4 before=camera.get_projection_matrix(); camera.set_orthographic_size(24.f); CHECK(camera.get_orthographic_size()==doctest::Approx(24.f)); const glm::mat4 after=camera.get_projection_matrix(); CHECK(batch1947_camera_matrix_differs(before,after));
+    }
+    TEST_CASE("batch2347 switching projection modes produces distinct matrices") {
+        Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Perspective); const glm::mat4 perspective=camera.get_projection_matrix(); camera.set_projection_mode(Salix::ProjectionMode::Orthographic); const glm::mat4 orthographic=camera.get_projection_matrix(); CHECK(batch1947_camera_matrix_differs(perspective,orthographic));
+    }
+    TEST_CASE("batch2347 near and far clip getters expose stable storage across writes") {
+        Salix::Camera camera; float* near_ptr=&camera.get_near_clip(); float* far_ptr=&camera.get_far_clip(); camera.set_near_clip(0.25f); camera.set_far_clip(500.f); CHECK(near_ptr==&camera.get_near_clip()); CHECK(far_ptr==&camera.get_far_clip()); CHECK(*near_ptr==doctest::Approx(0.25f)); CHECK(*far_ptr==doctest::Approx(500.f));
+    }
+    TEST_CASE("batch2347 owner transform getter returns exact entity transform pointer") {
+        Salix::Entity entity; Salix::Camera camera; camera.set_owner(&entity); REQUIRE(entity.get_transform()!=nullptr); CHECK(camera.get_transform()==entity.get_transform());
+    }
+    TEST_CASE("batch2347 owner translation changes view matrix while preserving activation state") {
+        Salix::Entity entity; Salix::Camera camera; camera.set_owner(&entity); camera.activate(); const glm::mat4 before=camera.get_view_matrix(); entity.get_transform()->translate(3.f,-2.f,5.f); const glm::mat4 after=camera.get_view_matrix(); CHECK(batch1947_camera_matrix_differs(before,after)); CHECK(camera.get_is_active());
+    }
+}
+
