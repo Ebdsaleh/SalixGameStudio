@@ -738,3 +738,59 @@ TEST_SUITE("Salix::ecs::EntityBatch847") {
         Salix::Entity parent,child; child.set_parent(&parent); child.simple_purge(); CHECK(child.is_purged()); CHECK(child.get_parent()==&parent); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children().front()==&child); CHECK(child.get_element_by_type_name("Transform")==nullptr);
     }
 }
+
+namespace {
+class Batch2347EntityProbe final : public Salix::Element {
+public:
+    int updates=0;
+    int loads=0;
+    float last_delta=0.f;
+    const char* get_class_name() const override { return "Batch2347EntityProbe"; }
+    void initialize() override {}
+    void on_load(const Salix::InitContext&) override { ++loads; }
+    void update(float delta) override { ++updates; last_delta=delta; }
+};
+}
+
+TEST_SUITE("Salix::ecs::EntityBatch2347") {
+    TEST_CASE("batch2347 reparenting removes stale old-parent child link") {
+        Salix::Entity a,b,child; child.set_parent(&a); REQUIRE(a.get_children().size()==1); child.set_parent(&b);
+        CHECK(a.get_children().empty()); REQUIRE(b.get_children().size()==1); CHECK(b.get_children()[0]==&child); CHECK(child.get_parent()==&b);
+    }
+    TEST_CASE("batch2347 circular hierarchy assignment is rejected") {
+        Salix::Entity root,child,grandchild; child.set_parent(&root); grandchild.set_parent(&child); root.set_parent(&grandchild);
+        CHECK(root.get_parent()==nullptr); CHECK(child.get_parent()==&root); CHECK(grandchild.get_parent()==&child);
+    }
+    TEST_CASE("batch2347 destroying child removes it from surviving parent list") {
+        Salix::Entity parent; { auto child=std::make_unique<Salix::Entity>(); child->set_parent(&parent); REQUIRE(parent.get_children().size()==1); }
+        CHECK(parent.get_children().empty());
+    }
+    TEST_CASE("batch2347 destroying parent orphans surviving child") {
+        Salix::Entity child; { auto parent=std::make_unique<Salix::Entity>(); child.set_parent(parent.get()); REQUIRE(child.get_parent()==parent.get()); }
+        CHECK(child.get_parent()==nullptr); CHECK(child.is_root());
+    }
+    TEST_CASE("batch2347 null unique_ptr element insertion is ignored") {
+        Salix::Entity entity; const auto before=entity.get_all_elements().size(); std::unique_ptr<Salix::Sprite2D> empty;
+        entity.add_element(std::move(empty)); CHECK(entity.get_all_elements().size()==before); CHECK_FALSE(entity.has_element<Salix::Sprite2D>());
+    }
+    TEST_CASE("batch2347 duplicate concrete element types remain individually retrievable by type list") {
+        Salix::Entity entity; auto* first=entity.add_element<Salix::Sprite2D>(); auto* second=entity.add_element<Salix::Sprite2D>();
+        REQUIRE(first!=nullptr); REQUIRE(second!=nullptr); const auto sprites=entity.get_elements_by_type_name("Sprite2D"); REQUIRE(sprites.size()==2); CHECK(sprites[0]==first); CHECK(sprites[1]==second);
+    }
+    TEST_CASE("batch2347 simple purge suppresses element updates") {
+        Salix::Entity entity; auto* probe=entity.add_element<Batch2347EntityProbe>(); REQUIRE(probe!=nullptr); entity.update(0.25f); CHECK(probe->updates==1);
+        entity.simple_purge(); entity.update(1.0f); CHECK(probe->updates==1); CHECK(entity.is_purged());
+    }
+    TEST_CASE("batch2347 on_load rebinds probe owner and invokes load callback") {
+        Salix::Entity entity; auto* probe=entity.add_element<Batch2347EntityProbe>(); REQUIRE(probe!=nullptr); Salix::InitContext context{};
+        entity.on_load(context); CHECK(probe->get_owner()==&entity); CHECK(probe->loads==1);
+    }
+    TEST_CASE("batch2347 explicit invalid entity ID is retained exactly") {
+        Salix::Entity entity; entity.set_id(Salix::SimpleGuid::invalid()); CHECK_FALSE(entity.get_id().is_valid()); CHECK(entity.get_id()==Salix::SimpleGuid::invalid());
+    }
+    TEST_CASE("batch2347 visibility toggles do not affect purge or hierarchy state") {
+        Salix::Entity parent,child; child.set_parent(&parent); child.set_visible(false); CHECK_FALSE(child.is_visible()); CHECK_FALSE(child.is_purged()); CHECK(child.get_parent()==&parent);
+        child.set_visible(true); CHECK(child.is_visible()); CHECK(child.get_parent()==&parent);
+    }
+}
+
