@@ -225,3 +225,55 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch1847") {
         CHECK(projection.get_name(999) == "Unknown");
     }
 }
+
+namespace {
+struct Batch2147EnumA {};
+struct Batch2147EnumB {};
+struct Batch2147EnumC {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch2147") {
+    TEST_CASE("batch2147 enum data reverse lookup returns mapped value") {
+        Salix::EnumRegistry::EnumData data; data.value_to_string[1]="Same"; data.value_to_string[2]="Other";
+        CHECK(data.get_value("Same")==1);
+    }
+    TEST_CASE("batch2147 enum data ordered names remain independent from value map mutation") {
+        Salix::EnumRegistry::EnumData data; data.ordered_names={"A","B"}; data.value_to_string[1]="A"; data.value_to_string.clear();
+        REQUIRE(data.get_names().size()==2); CHECK(data.get_names()[0]=="A"); CHECK(data.get_names()[1]=="B");
+    }
+    TEST_CASE("batch2147 registering empty enum data still creates a retrievable entry") {
+        Salix::EnumRegistry::register_enum(typeid(Batch2147EnumA), Salix::EnumRegistry::EnumData{});
+        const auto* p=Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch2147EnumA)); REQUIRE(p!=nullptr); CHECK(p->get_names().empty());
+    }
+    TEST_CASE("batch2147 registration preserves explicit negative and positive map keys together") {
+        Salix::EnumRegistry::EnumData data; data.value_to_string[-2]="Minus"; data.value_to_string[4]="Plus";
+        Salix::EnumRegistry::register_enum(typeid(Batch2147EnumB),std::move(data));
+        const auto& stored=Salix::EnumRegistry::get_enum_data(typeid(Batch2147EnumB)); CHECK(stored.get_name(-2)=="Minus"); CHECK(stored.get_name(4)=="Plus");
+    }
+    TEST_CASE("batch2147 replacing a registration removes names that existed only in the old value map") {
+        Salix::EnumRegistry::EnumData first; first.value_to_string[1]="Old"; Salix::EnumRegistry::register_enum(typeid(Batch2147EnumC),std::move(first));
+        Salix::EnumRegistry::EnumData second; second.value_to_string[2]="New"; Salix::EnumRegistry::register_enum(typeid(Batch2147EnumC),std::move(second));
+        const auto& stored=Salix::EnumRegistry::get_enum_data(typeid(Batch2147EnumC)); CHECK(stored.get_name(1)=="Unknown"); CHECK(stored.get_name(2)=="New");
+    }
+    TEST_CASE("batch2147 canonical projection ordered names exactly match reverse lookups") {
+        Salix::EnumRegistry::register_all_enums(); const auto& d=Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        REQUIRE(d.get_names().size()==2); CHECK(d.get_value(d.get_names()[0])==static_cast<int>(Salix::ProjectionMode::Perspective)); CHECK(d.get_value(d.get_names()[1])==static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+    TEST_CASE("batch2147 canonical editor mode ordered names exactly match reverse lookups") {
+        Salix::EnumRegistry::register_all_enums(); const auto& d=Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode));
+        REQUIRE(d.get_names().size()==2); CHECK(d.get_value(d.get_names()[0])==static_cast<int>(Salix::EditorDataMode::Live)); CHECK(d.get_value(d.get_names()[1])==static_cast<int>(Salix::EditorDataMode::Yaml));
+    }
+    TEST_CASE("batch2147 repeated canonical registration preserves pointer availability for both enum types") {
+        Salix::EnumRegistry::register_all_enums(); Salix::EnumRegistry::register_all_enums();
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Salix::ProjectionMode))!=nullptr); CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Salix::EditorDataMode))!=nullptr);
+    }
+    TEST_CASE("batch2147 unknown numeric lookup remains stable after canonical re-registration") {
+        Salix::EnumRegistry::register_all_enums(); CHECK(Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_name(-999)=="Unknown");
+        Salix::EnumRegistry::register_all_enums(); CHECK(Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_name(-999)=="Unknown");
+    }
+    TEST_CASE("batch2147 unknown text lookup remains case sensitive for canonical editor names") {
+        Salix::EnumRegistry::register_all_enums(); const auto& d=Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode));
+        CHECK(d.get_value("Live")==static_cast<int>(Salix::EditorDataMode::Live)); CHECK(d.get_value("live")==-1); CHECK(d.get_value("YAML")==-1);
+    }
+}
+
