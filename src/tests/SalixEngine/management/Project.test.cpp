@@ -365,3 +365,45 @@ TEST_SUITE("Salix::management::ProjectBatch2647") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectBatch2747") {
+    TEST_CASE("batch2747 default project exposes canonical derived file and DLL names") {
+        Salix::Project project; CHECK(project.get_name()=="TestProject"); CHECK(project.get_path()=="Sandbox/TestProject");
+        CHECK(project.get_project_file_name()=="TestProject.salixproj"); CHECK(project.get_game_dll_name()=="TestProject.dll");
+    }
+    TEST_CASE("batch2747 custom project derives file and DLL names directly from project name") {
+        Salix::Project project("Game 2747","D:/Projects/Game 2747"); CHECK(project.get_project_file_name()=="Game 2747.salixproj"); CHECK(project.get_game_dll_name()=="Game 2747.dll");
+    }
+    TEST_CASE("batch2747 starting realm accepts explicit empty assignment") {
+        Salix::Project project; project.set_starting_realm("Realm"); project.set_starting_realm(""); CHECK(project.get_starting_realm().empty());
+    }
+    TEST_CASE("batch2747 adding same realm name replaces previous path") {
+        Salix::Project project; project.add_realm_path("Main","Old.realm"); project.add_realm_path("Main","New.realm");
+        REQUIRE(project.get_realm_paths().size()==1); CHECK(project.get_realm_paths().at("Main")=="New.realm");
+    }
+    TEST_CASE("batch2747 remove realm path succeeds from map even when disk file is absent") {
+        Salix::Project project; const std::string path="Batch2747_missing_but_mapped.realm"; project.add_realm_path("Mapped",path);
+        CHECK(project.remove_realm_path(path)); CHECK(project.get_realm_paths().empty());
+    }
+    TEST_CASE("batch2747 remove unknown realm path returns false without mutating other entries") {
+        Salix::Project project; project.add_realm_path("Keep","Keep2747.realm");
+        CHECK_FALSE(project.remove_realm_path("Missing2747.realm")); REQUIRE(project.get_realm_paths().size()==1); CHECK(project.get_realm_paths().at("Keep")=="Keep2747.realm");
+    }
+    TEST_CASE("batch2747 initialization with empty context still creates realm manager and root metadata") {
+        Salix::Project project("Batch2747MissingDllInit","Root2747"); Salix::InitContext context{}; project.initialize(context);
+        auto* manager=project.get_realm_manager(); REQUIRE(manager!=nullptr); CHECK(manager->get_project_root_path()=="Root2747"); project.shutdown();
+    }
+    TEST_CASE("batch2747 initialized project with no starting realm rejects starting realm load") {
+        Salix::Project project("Batch2747MissingDllEmptyStart","Root2747"); Salix::InitContext context{}; project.initialize(context);
+        CHECK_FALSE(project.load_starting_realm()); project.shutdown();
+    }
+    TEST_CASE("batch2747 initialized configured starting realm selects its shell successfully") {
+        Salix::Project project("Batch2747MissingDllStart","Root2747"); project.add_realm_path("Main2747","Scenes/Main2747.realm"); project.set_starting_realm("Main2747");
+        Salix::InitContext context{}; project.initialize(context); REQUIRE(project.load_starting_realm()); REQUIRE(project.get_realm_manager()!=nullptr);
+        REQUIRE(project.get_realm_manager()->get_active_realm()!=nullptr); CHECK(project.get_realm_manager()->get_active_realm()->get_name()=="Main2747"); project.shutdown();
+    }
+    TEST_CASE("batch2747 shutdown remains idempotent after initialization") {
+        Salix::Project project("Batch2747MissingDllShutdown","Root2747"); Salix::InitContext context{}; project.initialize(context); REQUIRE(project.get_realm_manager()!=nullptr);
+        project.shutdown(); CHECK(project.get_realm_manager()==nullptr); CHECK_NOTHROW(project.shutdown()); CHECK(project.get_realm_manager()==nullptr);
+    }
+}
+
