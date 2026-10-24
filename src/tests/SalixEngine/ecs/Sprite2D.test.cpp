@@ -709,3 +709,47 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch947") {
         CHECK(sprite.get_texture_path() == "art/portable-original.png");
     }
 }
+
+TEST_SUITE("Salix::ecs::Sprite2DBatch2347") {
+    TEST_CASE("batch2347 empty on_load path is safe without an asset manager") {
+        Salix::Sprite2D sprite; Salix::InitContext context{}; CHECK(sprite.get_texture_path().empty()); CHECK_NOTHROW(sprite.on_load(context)); CHECK(sprite.get_texture()==nullptr);
+    }
+    TEST_CASE("batch2347 successful load stores portable path and runtime dimensions") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite;
+        sprite.load_texture(&assets,"art/batch2347.png"); REQUIRE(sprite.get_texture()!=nullptr); CHECK(sprite.get_texture_path()=="art/batch2347.png"); CHECK(sprite.get_texture_width()>0); CHECK(sprite.get_texture_height()>0);
+    }
+    TEST_CASE("batch2347 failed replacement clears runtime resource but keeps attempted portable path") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite;
+        sprite.load_texture(&assets,"art/good2347.png"); REQUIRE(sprite.get_texture()!=nullptr); renderer.should_texture_load_fail=true; sprite.load_texture(&assets,"art/missing2347.png");
+        CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0); CHECK(sprite.get_texture_path()=="art/missing2347.png");
+    }
+    TEST_CASE("batch2347 render without loaded texture never reaches renderer") {
+        MockIRenderer renderer; Salix::Entity entity; auto* sprite=entity.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr); sprite->render(&renderer); CHECK(renderer.draw_sprite_call_count==0);
+    }
+    TEST_CASE("batch2347 render without owner never reaches renderer even with loaded texture") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/no-owner2347.png"); REQUIRE(sprite.get_texture()!=nullptr);
+        sprite.render(&renderer); CHECK(renderer.draw_sprite_call_count==0);
+    }
+    TEST_CASE("batch2347 horizontal flip branch still emits one draw") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity entity; auto* sprite=entity.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/h2347.png"); sprite->set_flip_h(true); sprite->set_flip_v(false); sprite->render(&renderer); CHECK(renderer.draw_sprite_call_count==1);
+    }
+    TEST_CASE("batch2347 vertical flip branch still emits one draw") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity entity; auto* sprite=entity.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/v2347.png"); sprite->set_flip_h(false); sprite->set_flip_v(true); sprite->render(&renderer); CHECK(renderer.draw_sprite_call_count==1);
+    }
+    TEST_CASE("batch2347 both-flips branch still emits one draw") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity entity; auto* sprite=entity.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/both2347.png"); sprite->set_flip_h(true); sprite->set_flip_v(true); sprite->render(&renderer); CHECK(renderer.draw_sprite_call_count==1);
+    }
+    TEST_CASE("batch2347 unflipped branch emits one draw and preserves flags") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity entity; auto* sprite=entity.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/none2347.png"); sprite->set_flip_h(false); sprite->set_flip_v(false); sprite->render(&renderer); CHECK(renderer.draw_sprite_call_count==1); CHECK_FALSE(sprite->get_flip_h()); CHECK_FALSE(sprite->get_flip_v());
+    }
+    TEST_CASE("batch2347 null renderer leaves loaded runtime texture and dimensions untouched") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity entity; auto* sprite=entity.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/null-renderer2347.png"); auto* texture=sprite->get_texture(); const int width=sprite->get_texture_width(),height=sprite->get_texture_height(); sprite->render(nullptr);
+        CHECK(sprite->get_texture()==texture); CHECK(sprite->get_texture_width()==width); CHECK(sprite->get_texture_height()==height);
+    }
+}
+
