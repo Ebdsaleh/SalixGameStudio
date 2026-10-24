@@ -83,3 +83,47 @@ TEST_SUITE("Salix::events::BeforeEntityPurgedEventBatch1047") {
         CHECK_FALSE(event.should_block());
     }
 }
+
+
+TEST_SUITE("Salix::events::BeforeEntityPurgedEventBatch2047") {
+    TEST_CASE("entity payload pointer can be retargeted after construction") {
+        Salix::Entity first; Salix::Entity second; Salix::BeforeEntityPurgedEvent event(&first); event.entity = &second; CHECK(event.entity == &second);
+    }
+    TEST_CASE("copy construction preserves entity pointer and handled state") {
+        Salix::Entity entity; Salix::BeforeEntityPurgedEvent source(&entity); source.handled = true;
+        Salix::BeforeEntityPurgedEvent copy(source); CHECK(copy.entity == &entity); CHECK(copy.handled);
+    }
+    TEST_CASE("copy assignment replaces entity pointer and handled state") {
+        Salix::Entity first; Salix::Entity second; Salix::BeforeEntityPurgedEvent source(&first); source.handled = true;
+        Salix::BeforeEntityPurgedEvent destination(&second); destination = source; CHECK(destination.entity == &first); CHECK(destination.handled);
+    }
+    TEST_CASE("clone preserves an explicit null entity payload") {
+        Salix::BeforeEntityPurgedEvent source(nullptr); auto clone = source.clone(); REQUIRE(clone != nullptr);
+        auto* concrete = dynamic_cast<Salix::BeforeEntityPurgedEvent*>(clone.get()); REQUIRE(concrete != nullptr); CHECK(concrete->entity == nullptr);
+    }
+    TEST_CASE("retargeting cloned entity pointer does not alter source event") {
+        Salix::Entity first; Salix::Entity second; Salix::BeforeEntityPurgedEvent source(&first);
+        auto clone = source.clone(); auto* concrete = dynamic_cast<Salix::BeforeEntityPurgedEvent*>(clone.get()); REQUIRE(concrete != nullptr);
+        concrete->entity = &second; CHECK(source.entity == &first); CHECK(concrete->entity == &second);
+    }
+    TEST_CASE("base reference dispatch preserves entity purge metadata") {
+        Salix::BeforeEntityPurgedEvent event(nullptr); Salix::IEvent& base = event;
+        CHECK(base.get_event_type() == Salix::EventType::BeforeEntityPurged); CHECK(std::string(base.get_name()) == "BeforeEntityPurged");
+        CHECK(base.get_category_flags() == static_cast<int>(Salix::EventCategory::Editor));
+    }
+    TEST_CASE("handled state remains independent from entity pointer payload") {
+        Salix::Entity entity; Salix::BeforeEntityPurgedEvent event(&entity); event.handled = true; CHECK(event.entity == &entity);
+        event.handled = false; CHECK(event.entity == &entity);
+    }
+    TEST_CASE("two purge events may reference the same entity while tracking handled state separately") {
+        Salix::Entity entity; Salix::BeforeEntityPurgedEvent first(&entity); Salix::BeforeEntityPurgedEvent second(&entity);
+        first.handled = true; CHECK(first.entity == second.entity); CHECK(first.handled); CHECK_FALSE(second.handled);
+    }
+    TEST_CASE("self assignment preserves entity pointer and handled state") {
+        Salix::Entity entity; Salix::BeforeEntityPurgedEvent event(&entity); event.handled = true; event = event; CHECK(event.entity == &entity); CHECK(event.handled);
+    }
+    TEST_CASE("string representation remains stable after entity pointer changes") {
+        Salix::Entity entity; Salix::BeforeEntityPurgedEvent event(nullptr); event.entity = &entity; CHECK(event.to_string() == "BeforeEntityPurged");
+        event.entity = nullptr; CHECK(event.to_string() == "BeforeEntityPurged");
+    }
+}
