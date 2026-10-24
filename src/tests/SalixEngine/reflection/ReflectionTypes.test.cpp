@@ -1,6 +1,7 @@
 #include <doctest.h>
 #include <Salix/reflection/ReflectionTypes.h>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <variant>
 
@@ -93,5 +94,49 @@ TEST_SUITE("Salix::reflection::ReflectionTypesBatch1547") {
         std::get<std::string>(copy) = "copy";
         CHECK(std::get<std::string>(source) == "source");
         CHECK(std::get<std::string>(copy) == "copy");
+    }
+}
+
+
+TEST_SUITE("Salix::reflection::ReflectionTypesBatch2047") {
+    TEST_CASE("integer property copy remains independent after source changes alternative") {
+        Salix::PropertyValue source = 42; Salix::PropertyValue copy = source; source = std::string("changed");
+        REQUIRE(std::holds_alternative<int>(copy)); CHECK(std::get<int>(copy) == 42);
+    }
+    TEST_CASE("property value preserves maximum unsigned 64 bit value exactly") {
+        const uint64_t maximum = (std::numeric_limits<uint64_t>::max)(); Salix::PropertyValue value = maximum;
+        REQUIRE(std::holds_alternative<uint64_t>(value)); CHECK(std::get<uint64_t>(value) == maximum);
+    }
+    TEST_CASE("boolean property assignment switches value without changing alternative") {
+        Salix::PropertyValue value = false; REQUIRE(std::holds_alternative<bool>(value)); value = true;
+        CHECK(std::holds_alternative<bool>(value)); CHECK(std::get<bool>(value));
+    }
+    TEST_CASE("Vector2 property copies own independent vector values") {
+        Salix::PropertyValue source = Salix::Vector2{1.0f, 2.0f}; Salix::PropertyValue copy = source; std::get<Salix::Vector2>(source).x = 99.0f;
+        CHECK(std::get<Salix::Vector2>(copy).x == doctest::Approx(1.0f)); CHECK(std::get<Salix::Vector2>(copy).y == doctest::Approx(2.0f));
+    }
+    TEST_CASE("Vector3 property copies own independent vector values") {
+        Salix::PropertyValue source = Salix::Vector3{3.0f, 4.0f, 5.0f}; Salix::PropertyValue copy = source; std::get<Salix::Vector3>(source).z = -5.0f;
+        CHECK(std::get<Salix::Vector3>(copy).z == doctest::Approx(5.0f));
+    }
+    TEST_CASE("Color property copies own independent channel values") {
+        Salix::PropertyValue source = Salix::Color{0.1f, 0.2f, 0.3f, 0.4f}; Salix::PropertyValue copy = source; std::get<Salix::Color>(source).a = 1.0f;
+        CHECK(std::get<Salix::Color>(copy).a == doctest::Approx(0.4f));
+    }
+    TEST_CASE("Point property copies own independent integer coordinates") {
+        Salix::PropertyValue source = Salix::Point{7, 8}; Salix::PropertyValue copy = source; std::get<Salix::Point>(source).x = 70;
+        CHECK(std::get<Salix::Point>(copy).x == 7); CHECK(std::get<Salix::Point>(copy).y == 8);
+    }
+    TEST_CASE("Rect property copies own independent geometry") {
+        Salix::PropertyValue source = Salix::Rect{1, 2, 3, 4}; Salix::PropertyValue copy = source; std::get<Salix::Rect>(source).w = 300;
+        CHECK(std::get<Salix::Rect>(copy).w == 3); CHECK(std::get<Salix::Rect>(copy).h == 4);
+    }
+    TEST_CASE("matrix property copy remains independent after source matrix mutation") {
+        glm::mat4 matrix(1.0f); matrix[3][0] = 12.0f; Salix::PropertyValue source = matrix; Salix::PropertyValue copy = source;
+        std::get<glm::mat4>(source)[3][0] = -12.0f; CHECK(std::get<glm::mat4>(copy)[3][0] == doctest::Approx(12.0f));
+    }
+    TEST_CASE("variant index follows declared PropertyValue alternative order for representative types") {
+        Salix::PropertyValue integer = 1; Salix::PropertyValue text = std::string("text"); Salix::PropertyValue matrix = glm::mat4(1.0f);
+        CHECK(integer.index() == 0); CHECK(text.index() == 4); CHECK(matrix.index() == 10);
     }
 }
