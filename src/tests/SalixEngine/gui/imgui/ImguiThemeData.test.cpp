@@ -121,3 +121,60 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch1147") {
         CHECK(batch1147_has_vector_binding(data, "ButtonTextAlign", &data.button_text_align));
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeDataBatch2547") {
+    TEST_CASE("batch2547 named theme constructor preserves exact theme name including spaces") {
+        Salix::ImGuiThemeData data("Midnight Blue 2547"); CHECK(data.get_name()=="Midnight Blue 2547"); CHECK(data.get_gui_type()=="ImGui");
+    }
+    TEST_CASE("batch2547 default theme copies disabled and popup colors from dark style") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.text_disabled_color.r==doctest::Approx(style.Colors[ImGuiCol_TextDisabled].x));
+        CHECK(data.popup_bg_color.g==doctest::Approx(style.Colors[ImGuiCol_PopupBg].y));
+        CHECK(data.popup_bg_color.a==doctest::Approx(style.Colors[ImGuiCol_PopupBg].w));
+    }
+    TEST_CASE("batch2547 default theme copies hovered and active frame colors") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.frame_bg_hovered_color.r==doctest::Approx(style.Colors[ImGuiCol_FrameBgHovered].x));
+        CHECK(data.frame_bg_active_color.b==doctest::Approx(style.Colors[ImGuiCol_FrameBgActive].z));
+    }
+    TEST_CASE("batch2547 default theme copies table and navigation colors") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.table_header_bg_color.r==doctest::Approx(style.Colors[ImGuiCol_TableHeaderBg].x));
+        CHECK(data.nav_highlight_color.g==doctest::Approx(style.Colors[ImGuiCol_NavHighlight].y));
+        CHECK(data.modal_window_dim_color.a==doctest::Approx(style.Colors[ImGuiCol_ModalWindowDimBg].w));
+    }
+    TEST_CASE("batch2547 scalar style snapshot includes border and tab metrics") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.window_border_size==doctest::Approx(style.WindowBorderSize)); CHECK(data.popup_border_size==doctest::Approx(style.PopupBorderSize));
+        CHECK(data.tab_rounding==doctest::Approx(style.TabRounding)); CHECK(data.tab_bar_border_size==doctest::Approx(style.TabBarBorderSize));
+    }
+    TEST_CASE("batch2547 vector style snapshot includes table and separator alignments") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.table_angled_headers_text_align.x==doctest::Approx(style.TableAngledHeadersTextAlign.x));
+        CHECK(data.separator_text_align.y==doctest::Approx(style.SeparatorTextAlign.y));
+        CHECK(data.display_safe_area_padding.x==doctest::Approx(style.DisplaySafeAreaPadding.x));
+    }
+    TEST_CASE("batch2547 theme color registry binds additional canonical endpoints") {
+        Salix::ImGuiThemeData data;
+        CHECK(batch1147_has_color_binding(data,"TextDisabled",&data.text_disabled_color));
+        CHECK(batch1147_has_color_binding(data,"DockingPreview",&data.docking_preview_color));
+        CHECK(batch1147_has_color_binding(data,"NavWindowingDimBg",&data.nav_windowing_dim_color));
+    }
+    TEST_CASE("batch2547 float registry binds newer style metrics to owned storage") {
+        Salix::ImGuiThemeData data;
+        CHECK(batch1147_has_float_binding(data,"WindowBorderHoverPadding",&data.window_border_hover_padding));
+        CHECK(batch1147_has_float_binding(data,"TabBarOverlineSize",&data.tab_bar_overline_size));
+        CHECK(batch1147_has_float_binding(data,"HoverDelayNormal",&data.hover_delay_normal));
+    }
+    TEST_CASE("batch2547 vector registry binds separator and display padding fields") {
+        Salix::ImGuiThemeData data;
+        CHECK(batch1147_has_vector_binding(data,"SeparatorTextPadding",&data.separator_text_padding));
+        CHECK(batch1147_has_vector_binding(data,"DisplayWindowPadding",&data.display_window_padding));
+        CHECK(batch1147_has_vector_binding(data,"DisplaySafeAreaPadding",&data.display_safe_area_padding));
+    }
+    TEST_CASE("batch2547 constructor never aliases mutable metadata between separate themes") {
+        Salix::ImGuiThemeData first("First"),second("Second"); first.font_family="Changed"; first.icon_paths["Play"]="play.svg";
+        CHECK(second.font_family=="Roboto-Regular"); CHECK(second.icon_paths.empty()); CHECK(first.get_name()=="First"); CHECK(second.get_name()=="Second");
+    }
+}
+
