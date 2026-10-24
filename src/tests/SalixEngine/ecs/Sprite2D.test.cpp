@@ -753,3 +753,57 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch2347") {
     }
 }
 
+TEST_SUITE("Salix::ecs::Sprite2DBatch2647") {
+    TEST_CASE("batch2647 empty direct load on fresh sprite keeps runtime texture empty") {
+        Salix::Sprite2D sprite;
+        sprite.load_texture(nullptr,"");
+        CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0); CHECK(sprite.get_texture_path().empty());
+    }
+    TEST_CASE("batch2647 successful direct load records renderer path and dimensions") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite;
+        sprite.load_texture(&assets,"art/batch2647-direct.png");
+        REQUIRE(sprite.get_texture()!=nullptr); CHECK(sprite.get_texture_width()==16); CHECK(sprite.get_texture_height()==16);
+        CHECK(sprite.get_texture_path()=="art/batch2647-direct.png"); CHECK(renderer.last_texture_path.find("batch2647-direct.png")!=std::string::npos);
+    }
+    TEST_CASE("batch2647 repeated same-path load reuses asset cache and texture pointer") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite;
+        sprite.load_texture(&assets,"art/cache2647.png"); auto* first=sprite.get_texture(); REQUIRE(first!=nullptr);
+        sprite.load_texture(&assets,"art/cache2647.png"); CHECK(sprite.get_texture()==first); CHECK(renderer.load_texture_calls==1);
+    }
+    TEST_CASE("batch2647 different texture path replaces runtime texture through asset manager") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite;
+        sprite.load_texture(&assets,"art/a2647.png"); auto* first=sprite.get_texture(); REQUIRE(first!=nullptr);
+        sprite.load_texture(&assets,"art/b2647.png"); REQUIRE(sprite.get_texture()!=nullptr); CHECK(sprite.get_texture()!=first); CHECK(renderer.load_texture_calls==2);
+    }
+    TEST_CASE("batch2647 on load resolves preconfigured portable path through supplied asset manager") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.set_texture_path("art/onload2647.png");
+        Salix::InitContext context{}; context.asset_manager=&assets; sprite.on_load(context);
+        REQUIRE(sprite.get_texture()!=nullptr); CHECK(sprite.get_texture_width()==16); CHECK(sprite.get_texture_height()==16); CHECK(renderer.load_texture_calls==1);
+    }
+    TEST_CASE("batch2647 empty portable path on load leaves an already loaded runtime texture untouched") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/persist2647.png");
+        auto* texture=sprite.get_texture(); REQUIRE(texture!=nullptr); sprite.set_texture_path(""); Salix::InitContext context{}; context.asset_manager=&assets; sprite.on_load(context);
+        CHECK(sprite.get_texture()==texture); CHECK(sprite.get_texture_width()==16); CHECK(sprite.get_texture_height()==16); CHECK(renderer.load_texture_calls==1);
+    }
+    TEST_CASE("batch2647 unflipped render forwards exact texture transform and color") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity owner; auto* sprite=owner.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->set_color(Salix::Color(0.1f,0.2f,0.3f,0.4f)); sprite->load_texture(&assets,"art/render2647.png"); auto* texture=sprite->get_texture(); REQUIRE(texture!=nullptr);
+        sprite->render(&renderer); CHECK(renderer.draw_sprite_call_count==1); CHECK(renderer.last_texture==texture); CHECK(renderer.last_transform==owner.get_transform()); CHECK(renderer.last_color==sprite->get_color()); CHECK(renderer.last_flip_state==Salix::SpriteFlip::None);
+    }
+    TEST_CASE("batch2647 horizontal flip render forwards horizontal state") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity owner; auto* sprite=owner.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/h2647.png"); sprite->set_flip_h(true); sprite->set_flip_v(false); sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count==1); CHECK(renderer.last_flip_state==Salix::SpriteFlip::Horizontal);
+    }
+    TEST_CASE("batch2647 vertical flip render forwards vertical state") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity owner; auto* sprite=owner.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/v2647.png"); sprite->set_flip_h(false); sprite->set_flip_v(true); sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count==1); CHECK(renderer.last_flip_state==Salix::SpriteFlip::Vertical);
+    }
+    TEST_CASE("batch2647 dual flip render forwards both state") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity owner; auto* sprite=owner.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/both2647.png"); sprite->set_flip_h(true); sprite->set_flip_v(true); sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count==1); CHECK(renderer.last_flip_state==Salix::SpriteFlip::Both);
+    }
+}
+
