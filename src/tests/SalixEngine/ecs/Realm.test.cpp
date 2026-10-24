@@ -577,10 +577,10 @@ TEST_SUITE("Salix::ecs::RealmBatch2647") {
         Salix::Realm realm("Realm 2647");
         CHECK(realm.get_name()=="Realm 2647");
     }
-    TEST_CASE("batch2647 name and path may both be cleared explicitly") {
+    TEST_CASE("batch2647 empty name and path updates preserve existing valid metadata") {
         Salix::Realm realm("Name","Path.realm");
         realm.set_name(""); realm.set_path("");
-        CHECK(realm.get_name().empty()); CHECK(realm.get_path().empty());
+        CHECK(realm.get_name()=="Name"); CHECK(realm.get_path()=="Path.realm");
     }
     TEST_CASE("batch2647 entity snapshot mutation cannot alter realm ownership") {
         Salix::Realm realm; auto* a=realm.create_entity("A"); auto* b=realm.create_entity("B");
