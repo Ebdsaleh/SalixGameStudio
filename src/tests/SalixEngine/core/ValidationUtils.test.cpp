@@ -662,3 +662,41 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch2147") {
     }
 }
 
+TEST_SUITE("Salix::core::ValidationUtilsBatch2747") {
+    TEST_CASE("batch2747 ordinary text is valid under strict string rules") {
+        CHECK(Salix::ValidationUtils::is_valid_string("Salix",false,false));
+    }
+    TEST_CASE("batch2747 mixed whitespace and visible text remains valid when whitespace-only is forbidden") {
+        CHECK(Salix::ValidationUtils::is_valid_string("  Salix  ",false,false));
+    }
+    TEST_CASE("batch2747 tab-only string follows whitespace policy") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string("\t\t",false,false));
+        CHECK(Salix::ValidationUtils::is_valid_string("\t\t",false,true));
+    }
+    TEST_CASE("batch2747 newline-only string follows whitespace policy") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string("\n",false,false));
+        CHECK(Salix::ValidationUtils::is_valid_string("\n",false,true));
+    }
+    TEST_CASE("batch2747 valid signed integer accepts one below maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_valid_int(std::numeric_limits<int>::max()-1));
+    }
+    TEST_CASE("batch2747 valid unsigned integer accepts one below maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_valid_unsigned_int(std::numeric_limits<unsigned int>::max()-1));
+    }
+    TEST_CASE("batch2747 finite negative floating values are valid") {
+        CHECK(Salix::ValidationUtils::is_valid_float(-123.5f));
+        CHECK(Salix::ValidationUtils::is_valid_double(-9876.25));
+    }
+    TEST_CASE("batch2747 negative infinity is rejected for all floating widths") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_float(-std::numeric_limits<float>::infinity()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_double(-std::numeric_limits<double>::infinity()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_long_double(-std::numeric_limits<long double>::infinity()));
+    }
+    TEST_CASE("batch2747 complex float rejects nonfinite real component") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_float({std::numeric_limits<float>::quiet_NaN(),1.0f}));
+    }
+    TEST_CASE("batch2747 complex double rejects nonfinite imaginary component") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double({1.0,std::numeric_limits<double>::infinity()}));
+    }
+}
+
