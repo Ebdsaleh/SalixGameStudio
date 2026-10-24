@@ -191,3 +191,109 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch1947") {
         CHECK(manager.get_theme("Inactive") == nullptr);
     }
 }
+
+#include <Salix/gui/imgui/ImGuiTheme.h>
+#include <fstream>
+
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch2447") {
+    TEST_CASE("batch2447 activating a missing theme on fresh manager returns false") {
+        Salix::ImGuiThemeManager manager;
+        CHECK_FALSE(manager.set_active_theme("Missing2447"));
+        CHECK(manager.get_active_theme() == nullptr);
+    }
+
+    TEST_CASE("batch2447 empty theme name can be registered and selected exactly") {
+        Salix::ImGuiThemeManager manager;
+        auto theme = std::make_unique<MockITheme>("");
+        MockITheme* raw = theme.get();
+        REQUIRE(manager.register_theme(std::move(theme)));
+        REQUIRE(manager.set_active_theme(""));
+        CHECK(manager.get_active_theme() == raw);
+        CHECK(manager.get_theme("") == raw);
+    }
+
+    TEST_CASE("batch2447 unregistering inactive theme preserves active name selection") {
+        Salix::ImGuiThemeManager manager;
+        auto active = std::make_unique<MockITheme>("Active2447");
+        MockITheme* raw = active.get();
+        REQUIRE(manager.register_theme(std::move(active)));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Inactive2447")));
+        REQUIRE(manager.set_active_theme("Active2447"));
+        REQUIRE(manager.unregister_theme("Inactive2447"));
+        CHECK(manager.get_active_theme() == raw);
+        CHECK(manager.get_theme("Inactive2447") == nullptr);
+    }
+
+    TEST_CASE("batch2447 purging active theme clears selection and removes registration") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Purge2447")));
+        REQUIRE(manager.set_active_theme("Purge2447"));
+        REQUIRE(manager.purge_theme("Purge2447"));
+        CHECK(manager.get_active_theme() == nullptr);
+        CHECK(manager.get_theme("Purge2447") == nullptr);
+        CHECK(manager.get_registered_themes().empty());
+    }
+
+    TEST_CASE("batch2447 shutdown clears several registered themes and active selection") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("One2447")));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Two2447")));
+        REQUIRE(manager.set_active_theme("Two2447"));
+        manager.shutdown();
+        CHECK(manager.get_active_theme() == nullptr);
+        CHECK(manager.get_registered_themes().empty());
+        CHECK(manager.get_theme("One2447") == nullptr);
+    }
+
+    TEST_CASE("batch2447 nonpositive style scales return safely without ImGui context") {
+        Salix::ImGuiThemeManager manager;
+        CHECK_NOTHROW(manager.apply_style_scale(0.0f));
+        CHECK_NOTHROW(manager.apply_style_scale(-2.0f));
+        CHECK(manager.get_active_theme() == nullptr);
+    }
+
+    TEST_CASE("batch2447 internal loader registers valid minimal theme by YAML name") {
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "internal2447.theme";
+        { std::ofstream out(file); out << "name: Internal2447\ngui_type: ImGui\n"; }
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.load_internal_theme_from_file(file.string(), false));
+        REQUIRE(manager.get_theme("Internal2447") != nullptr);
+        CHECK(manager.get_registered_themes().size() == 1);
+    }
+
+    TEST_CASE("batch2447 internal loader replaces an existing theme with the same loaded name") {
+        Batch1947ThemeDirectory directory;
+        const auto first = directory.path / "first2447.theme";
+        const auto second = directory.path / "second2447.theme";
+        { std::ofstream out(first); out << "name: Replace2447\ngui_type: ImGui\nFont:\n  font_size: 12\n"; }
+        { std::ofstream out(second); out << "name: Replace2447\ngui_type: ImGui\nFont:\n  font_size: 18\n"; }
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.load_internal_theme_from_file(first.string(), false));
+        REQUIRE(manager.load_internal_theme_from_file(second.string(), false));
+        CHECK(manager.get_registered_themes().size() == 1);
+        REQUIRE(manager.get_theme("Replace2447") != nullptr);
+    }
+
+    TEST_CASE("batch2447 directory loader loads theme extension and ignores unrelated files") {
+        Batch1947ThemeDirectory directory;
+        { std::ofstream out(directory.path / "load2447.theme"); out << "name: Directory2447\ngui_type: ImGui\n"; }
+        { std::ofstream out(directory.path / "ignore2447.txt"); out << "name: Ignored2447\ngui_type: ImGui\n"; }
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.load_themes_from_directory(directory.path.string()));
+        CHECK(manager.get_theme("Directory2447") != nullptr);
+        CHECK(manager.get_theme("Ignored2447") == nullptr);
+        CHECK(manager.get_registered_themes().size() == 1);
+    }
+
+    TEST_CASE("batch2447 registered ImGui theme saves successfully to owned temporary path") {
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "saved2447.yaml";
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<Salix::ImGuiTheme>("Saved2447")));
+        REQUIRE(manager.save_theme_to_file("Saved2447", file.string()));
+        CHECK(std::filesystem::is_regular_file(file));
+        CHECK(std::filesystem::file_size(file) > 0);
+    }
+}
+
