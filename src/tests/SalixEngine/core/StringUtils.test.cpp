@@ -689,3 +689,45 @@ TEST_SUITE("Salix::core::StringUtilsBatch2147") {
     }
 }
 
+TEST_SUITE("Salix::core::StringUtilsBatch2647") {
+    TEST_CASE("batch2647 title case preserves leading trailing and repeated whitespace") {
+        CHECK(Salix::StringUtils::to_title_case("  hELLO   wORLD  ") == "  Hello   World  ");
+    }
+    TEST_CASE("batch2647 title case can desnakify before applying word casing") {
+        CHECK(Salix::StringUtils::to_title_case("hELLO_wORLD_2d", true) == "Hello World 2d");
+    }
+    TEST_CASE("batch2647 capitalize can desnakify while lowercasing the remaining text") {
+        CHECK(Salix::StringUtils::capitalize("mAIN_CAMERA_MODE", true) == "Main camera mode");
+    }
+    TEST_CASE("batch2647 valid snake case may mix letters and digits around separators") {
+        CHECK(Salix::StringUtils::is_snake_case("camera2_mode3"));
+        CHECK(Salix::StringUtils::is_snake_case("A1_b2"));
+    }
+    TEST_CASE("batch2647 snake case rejects punctuation even when underscore placement is valid") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("camera_mode!"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("camera-mode"));
+    }
+    TEST_CASE("batch2647 contains snake case rejects isolated leading trailing and doubled underscores") {
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("_abc"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("abc_"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("a__b"));
+    }
+    TEST_CASE("batch2647 snake conversion preserves underscores without two alphanumeric neighbors") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("_a__b_") == "_a__b_");
+    }
+    TEST_CASE("batch2647 a single uppercase alphanumeric token satisfies current Pascal contract") {
+        CHECK(Salix::StringUtils::is_pascal_case("A"));
+        CHECK(Salix::StringUtils::is_pascal_case("A123"));
+    }
+    TEST_CASE("batch2647 Pascal validation rejects lowercase starts and nonalphanumeric content") {
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("cameraMode"));
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("Camera_Mode"));
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case(""));
+    }
+    TEST_CASE("batch2647 Pascal conversion separates lower uppercase and letter digit transitions") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("BoxCollider2D") == "Box Collider 2D");
+        CHECK(Salix::StringUtils::contains_pascal_case("BoxCollider2D"));
+        CHECK_FALSE(Salix::StringUtils::contains_pascal_case("HTTP2D"));
+    }
+}
+
