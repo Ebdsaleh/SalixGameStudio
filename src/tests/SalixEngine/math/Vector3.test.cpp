@@ -884,3 +884,42 @@ TEST_SUITE("Salix::math::Vector3Closure1747") {
         CHECK(Salix::dot(c, b) == doctest::Approx(0.0f).epsilon(0.0001));
     }
 }
+
+TEST_SUITE("Salix::math::Vector3Batch2147") {
+    TEST_CASE("batch2147 vector3 length follows three-dimensional Pythagorean magnitude") {
+        CHECK(Salix::Vector3(2.0f, 3.0f, 6.0f).length() == doctest::Approx(7.0f));
+    }
+    TEST_CASE("batch2147 vector3 normalization produces a unit vector") {
+        Salix::Vector3 v(0.0f, 3.0f, 4.0f); v.normalize();
+        CHECK(v.x == 0.0f); CHECK(v.y == doctest::Approx(0.6f)); CHECK(v.z == doctest::Approx(0.8f)); CHECK(v.length() == doctest::Approx(1.0f));
+    }
+    TEST_CASE("batch2147 vector3 normalization leaves zero vector unchanged") {
+        Salix::Vector3 v; v.normalize(); CHECK(v == Salix::Vector3::Zero);
+    }
+    TEST_CASE("batch2147 vector3 lerp clamps negative interpolation to start") {
+        CHECK(Salix::Vector3::lerp({1.0f,2.0f,3.0f},{4.0f,5.0f,6.0f},-2.0f) == Salix::Vector3(1.0f,2.0f,3.0f));
+    }
+    TEST_CASE("batch2147 vector3 lerp clamps oversized interpolation to end") {
+        CHECK(Salix::Vector3::lerp({1.0f,2.0f,3.0f},{4.0f,5.0f,6.0f},2.0f) == Salix::Vector3(4.0f,5.0f,6.0f));
+    }
+    TEST_CASE("batch2147 vector3 lerp computes midpoint componentwise") {
+        CHECK(Salix::Vector3::lerp({-2.0f,0.0f,8.0f},{2.0f,10.0f,12.0f},0.5f) == Salix::Vector3(0.0f,5.0f,10.0f));
+    }
+    TEST_CASE("batch2147 vector3 to glm preserves each coordinate") {
+        const Salix::Vector3 v(-1.25f,2.5f,9.0f); const auto g=v.to_glm();
+        CHECK(g.x==v.x); CHECK(g.y==v.y); CHECK(g.z==v.z);
+    }
+    TEST_CASE("batch2147 vector3 from glm preserves each coordinate") {
+        const glm::vec3 g(7.0f,-8.0f,0.125f); const auto v=Salix::Vector3::from_glm(g);
+        CHECK(v.x==g.x); CHECK(v.y==g.y); CHECK(v.z==g.z);
+    }
+    TEST_CASE("batch2147 vector3 YAML input defaults omitted coordinates to zero") {
+        const YAML::Node node=YAML::Load("{y: 5.5}"); Salix::Vector3 v(1.0f,2.0f,3.0f); node >> v;
+        CHECK(v.x==0.0f); CHECK(v.y==doctest::Approx(5.5f)); CHECK(v.z==0.0f);
+    }
+    TEST_CASE("batch2147 vector3 exported zero and one constants retain canonical values") {
+        CHECK(Salix::Vector3::Zero == Salix::Vector3(0.0f,0.0f,0.0f));
+        CHECK(Salix::Vector3::One == Salix::Vector3(1.0f,1.0f,1.0f));
+    }
+}
+
