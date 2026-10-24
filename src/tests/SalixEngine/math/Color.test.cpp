@@ -571,3 +571,49 @@ TEST_SUITE("Salix::math::ColorBatch2147") {
     }
 }
 
+TEST_SUITE("Salix::math::ColorBatch2747") {
+    TEST_CASE("batch2747 HSV half saturation red retains value channel and reduced secondary channels") {
+        const auto c=Salix::Color::from_hsv(0.f,0.5f,0.8f,0.75f);
+        CHECK(c.r==doctest::Approx(0.8f)); CHECK(c.g==doctest::Approx(0.4f)); CHECK(c.b==doctest::Approx(0.4f)); CHECK(c.a==doctest::Approx(0.75f));
+    }
+    TEST_CASE("batch2747 HSV hue above one turn wraps to equivalent base hue") {
+        const auto a=Salix::Color::from_hsv(420.f,1.f,1.f);
+        const auto b=Salix::Color::from_hsv(60.f,1.f,1.f);
+        CHECK(a==b);
+    }
+    TEST_CASE("batch2747 HSV two negative turns wrap to equivalent positive hue") {
+        const auto a=Salix::Color::from_hsv(-420.f,1.f,1.f);
+        const auto b=Salix::Color::from_hsv(300.f,1.f,1.f);
+        CHECK(a==b);
+    }
+    TEST_CASE("batch2747 HSV grayscale branch accepts negative saturation without clamping value") {
+        const auto c=Salix::Color::from_hsv(45.f,-2.f,1.5f,0.5f);
+        CHECK(c.r==doctest::Approx(1.5f)); CHECK(c.g==doctest::Approx(1.5f)); CHECK(c.b==doctest::Approx(1.5f)); CHECK(c.a==doctest::Approx(0.5f));
+    }
+    TEST_CASE("batch2747 ImVec4 conversion preserves negative and above-unit diagnostic channels") {
+        const Salix::Color c(-1.f,2.f,3.f,-4.f); const auto v=c.to_imvec4();
+        CHECK(v.x==-1.f); CHECK(v.y==2.f); CHECK(v.z==3.f); CHECK(v.w==-4.f);
+    }
+    TEST_CASE("batch2747 YAML input with all channels restores exact finite values") {
+        const YAML::Node node=YAML::Load("{r: -1.25, g: 0.5, b: 2.75, a: 0.125}");
+        Salix::Color c; node>>c;
+        CHECK(c.r==doctest::Approx(-1.25f)); CHECK(c.g==doctest::Approx(0.5f)); CHECK(c.b==doctest::Approx(2.75f)); CHECK(c.a==doctest::Approx(0.125f));
+    }
+    TEST_CASE("batch2747 YAML input with empty mapping zeros every channel") {
+        const YAML::Node node=YAML::Load("{}"); Salix::Color c(9.f,8.f,7.f,6.f); node>>c;
+        CHECK(c==Salix::Color(0.f,0.f,0.f,0.f));
+    }
+    TEST_CASE("batch2747 YAML emitter contains each named channel") {
+        YAML::Emitter out; out<<Salix::Color(0.1f,0.2f,0.3f,0.4f); const std::string text(out.c_str());
+        CHECK(text.find("r")!=std::string::npos); CHECK(text.find("g")!=std::string::npos); CHECK(text.find("b")!=std::string::npos); CHECK(text.find("a")!=std::string::npos);
+    }
+    TEST_CASE("batch2747 color equality distinguishes alpha-only changes") {
+        const Salix::Color a(1.f,2.f,3.f,4.f),b(1.f,2.f,3.f,5.f);
+        CHECK(a!=b); CHECK_FALSE(a==b);
+    }
+    TEST_CASE("batch2747 integer factory preserves default opaque alpha") {
+        const auto c=Salix::Color::from_rgba_int(0,128,255);
+        CHECK(c.r==0.f); CHECK(c.g==doctest::Approx(128.f/255.f)); CHECK(c.b==1.f); CHECK(c.a==1.f);
+    }
+}
+
