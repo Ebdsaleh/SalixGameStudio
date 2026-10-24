@@ -562,3 +562,63 @@ TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch847") {
         Salix::SDLInputManager m; SDL_Event raw{}; Salix::MouseButtonPressedEvent down(SDL_BUTTON_LEFT,raw); m.process_event(down); m.update(0.2f); REQUIRE(m.is_held_down_for(Salix::MouseButton::Left,0.19f)); Salix::MouseButtonReleasedEvent up(SDL_BUTTON_LEFT,raw); m.process_event(up); m.update(0.016f); CHECK(m.is_up(Salix::MouseButton::Left)); CHECK_FALSE(m.is_held_down_for(Salix::MouseButton::Left,0.001f));
     }
 }
+
+TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch2647") {
+    TEST_CASE("batch2647 window close event permanently raises quit request flag") {
+        Salix::SDLInputManager manager; CHECK_FALSE(manager.wants_to_quit());
+        Salix::WindowCloseEvent close; manager.process_event(close); CHECK(manager.wants_to_quit());
+        manager.update(0.016f); CHECK(manager.wants_to_quit());
+    }
+    TEST_CASE("batch2647 mouse position query independently supports null x and null y outputs") {
+        Salix::SDLInputManager manager; SDL_Event raw{}; Salix::MouseMovedEvent moved(-45.9f,88.7f,raw); manager.process_event(moved);
+        int x=0,y=0; manager.get_mouse_position(&x,nullptr); CHECK(x==-45); manager.get_mouse_position(nullptr,&y); CHECK(y==88);
+    }
+    TEST_CASE("batch2647 key press from released state retriggers Down before next update") {
+        Salix::SDLInputManager manager; SDL_Event raw{};
+        Salix::KeyPressedEvent down(SDLK_a,false,raw); manager.process_event(down); manager.update(0.016f);
+        Salix::KeyReleasedEvent up(SDLK_a,raw); manager.process_event(up); REQUIRE(manager.was_released(Salix::KeyCode::A));
+        Salix::KeyPressedEvent again(SDLK_a,false,raw); manager.process_event(again); CHECK(manager.is_down(Salix::KeyCode::A));
+    }
+    TEST_CASE("batch2647 repeated key press while already Down does not alter one-frame Down state") {
+        Salix::SDLInputManager manager; SDL_Event raw{};
+        Salix::KeyPressedEvent first(SDLK_b,false,raw); Salix::KeyPressedEvent repeat(SDLK_b,true,raw);
+        manager.process_event(first); REQUIRE(manager.is_down(Salix::KeyCode::B)); manager.process_event(repeat); CHECK(manager.is_down(Salix::KeyCode::B));
+    }
+    TEST_CASE("batch2647 keyboard combo triggers when earlier key is Held and final key is newly Down") {
+        Salix::SDLInputManager manager; SDL_Event raw{};
+        Salix::KeyPressedEvent a(SDLK_a,false,raw); manager.process_event(a); manager.update(0.05f); REQUIRE(manager.is_held_down(Salix::KeyCode::A));
+        Salix::KeyPressedEvent b(SDLK_b,false,raw); manager.process_event(b);
+        CHECK(manager.multiple_are_down({Salix::KeyCode::A,Salix::KeyCode::B}));
+    }
+    TEST_CASE("batch2647 keyboard combo no longer reports newly Down once every key becomes Held") {
+        Salix::SDLInputManager manager; SDL_Event raw{};
+        Salix::KeyPressedEvent a(SDLK_a,false,raw),b(SDLK_b,false,raw); manager.process_event(a); manager.process_event(b);
+        REQUIRE(manager.multiple_are_down({Salix::KeyCode::A,Salix::KeyCode::B})); manager.update(0.05f);
+        CHECK_FALSE(manager.multiple_are_down({Salix::KeyCode::A,Salix::KeyCode::B})); CHECK(manager.multiple_are_held_down({Salix::KeyCode::A,Salix::KeyCode::B}));
+    }
+    TEST_CASE("batch2647 keyboard released combo succeeds with one Released and remaining key Up") {
+        Salix::SDLInputManager manager; SDL_Event raw{};
+        Salix::KeyPressedEvent a(SDLK_a,false,raw); manager.process_event(a); manager.update(0.01f);
+        Salix::KeyReleasedEvent release(SDLK_a,raw); manager.process_event(release);
+        CHECK(manager.multiple_were_released({Salix::KeyCode::A,Salix::KeyCode::B}));
+        CHECK(manager.any_of_combo_was_released({Salix::KeyCode::A,Salix::KeyCode::B}));
+    }
+    TEST_CASE("batch2647 mouse combo triggers when left is Held and right is newly Down") {
+        Salix::SDLInputManager manager; SDL_Event raw{};
+        Salix::MouseButtonPressedEvent left(SDL_BUTTON_LEFT,raw); manager.process_event(left); manager.update(0.05f);
+        Salix::MouseButtonPressedEvent right(SDL_BUTTON_RIGHT,raw); manager.process_event(right);
+        CHECK(manager.multiple_are_down({Salix::MouseButton::Left,Salix::MouseButton::Right}));
+    }
+    TEST_CASE("batch2647 mouse combo becomes fully Held after update and accumulates shared duration") {
+        Salix::SDLInputManager manager; SDL_Event raw{};
+        Salix::MouseButtonPressedEvent left(SDL_BUTTON_LEFT,raw),right(SDL_BUTTON_RIGHT,raw); manager.process_event(left); manager.process_event(right);
+        manager.update(0.1f); CHECK(manager.multiple_are_held_down({Salix::MouseButton::Left,Salix::MouseButton::Right}));
+        CHECK(manager.multiple_are_held_down_for({Salix::MouseButton::Left,Salix::MouseButton::Right},0.09f));
+    }
+    TEST_CASE("batch2647 scroll direction default branch rejects unknown enum value") {
+        Salix::SDLInputManager manager; SDL_Event raw{}; Salix::MouseScrolledEvent scroll(0.f,3.f,raw); manager.process_event(scroll);
+        CHECK(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK_FALSE(manager.did_scroll(static_cast<Salix::MouseScroll>(999)));
+    }
+}
+
