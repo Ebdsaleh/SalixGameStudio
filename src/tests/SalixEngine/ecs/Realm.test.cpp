@@ -572,3 +572,54 @@ TEST_SUITE("Salix::ecs::RealmBatch2347") {
     }
 }
 
+TEST_SUITE("Salix::ecs::RealmBatch2647") {
+    TEST_CASE("batch2647 named constructor preserves exact supplied name") {
+        Salix::Realm realm("Realm 2647");
+        CHECK(realm.get_name()=="Realm 2647");
+    }
+    TEST_CASE("batch2647 name and path may both be cleared explicitly") {
+        Salix::Realm realm("Name","Path.realm");
+        realm.set_name(""); realm.set_path("");
+        CHECK(realm.get_name().empty()); CHECK(realm.get_path().empty());
+    }
+    TEST_CASE("batch2647 entity snapshot mutation cannot alter realm ownership") {
+        Salix::Realm realm; auto* a=realm.create_entity("A"); auto* b=realm.create_entity("B");
+        REQUIRE(a!=nullptr); REQUIRE(b!=nullptr);
+        auto snapshot=realm.get_entities(); snapshot.erase(snapshot.begin());
+        const auto current=realm.get_entities(); REQUIRE(current.size()==2); CHECK(current[0]==a); CHECK(current[1]==b);
+    }
+    TEST_CASE("batch2647 maintain removes adjacent purged entities while preserving later survivor") {
+        Salix::Realm realm; auto* a=realm.create_entity("A"); auto* b=realm.create_entity("B"); auto* c=realm.create_entity("C");
+        REQUIRE(a!=nullptr); REQUIRE(b!=nullptr); REQUIRE(c!=nullptr); a->simple_purge(); b->simple_purge();
+        realm.maintain(); const auto remaining=realm.get_entities(); REQUIRE(remaining.size()==1); CHECK(remaining[0]==c);
+    }
+    TEST_CASE("batch2647 maintain preserves unpurged duplicate-name entities independently") {
+        Salix::Realm realm; auto* first=realm.create_entity("Same"); auto* second=realm.create_entity("Same");
+        REQUIRE(first!=nullptr); REQUIRE(second!=nullptr); first->simple_purge(); realm.maintain();
+        const auto remaining=realm.get_entities(); REQUIRE(remaining.size()==1); CHECK(remaining[0]==second); CHECK(realm.get_entity_by_name("Same")==second);
+    }
+    TEST_CASE("batch2647 explicit invalid GUID entity remains retrievable by invalid GUID until cleared") {
+        Salix::Realm realm; auto* entity=realm.create_entity(Salix::SimpleGuid::invalid(),"InvalidId");
+        REQUIRE(entity!=nullptr); CHECK_FALSE(entity->get_id().is_valid()); CHECK(realm.get_entity_by_id(Salix::SimpleGuid::invalid())==entity);
+    }
+    TEST_CASE("batch2647 empty realm lifecycle remains safe across load update render and maintain") {
+        Salix::Realm realm; Salix::InitContext context{};
+        CHECK_NOTHROW(realm.on_load(context)); CHECK_NOTHROW(realm.update(-1.f)); CHECK_NOTHROW(realm.render(nullptr)); CHECK_NOTHROW(realm.maintain());
+        CHECK(realm.get_entities().empty());
+    }
+    TEST_CASE("batch2647 clear all entities is idempotent after populated realm") {
+        Salix::Realm realm; REQUIRE(realm.create_entity("One")!=nullptr); REQUIRE(realm.create_entity("Two")!=nullptr);
+        realm.clear_all_entities(); realm.clear_all_entities(); CHECK(realm.get_entities().empty());
+    }
+    TEST_CASE("batch2647 direct main camera identifier assignment roundtrips arbitrary valid ID") {
+        Salix::Realm realm; const auto id=Salix::SimpleGuid::from_value(2647999ULL);
+        realm.set_main_camera_entity(id); CHECK(realm.get_main_camera_entity_id()==id); CHECK(realm.get_active_camera()==nullptr);
+    }
+    TEST_CASE("batch2647 nonexistent active camera entity clears current camera and records requested identifier") {
+        Salix::Realm realm; auto* e=realm.create_entity("Camera"); REQUIRE(e!=nullptr); auto* camera=e->add_element<Salix::Camera>(); REQUIRE(camera!=nullptr);
+        realm.set_active_camera_entity(e->get_id()); REQUIRE(realm.get_active_camera()==camera);
+        const auto missing=Salix::SimpleGuid::from_value(987654321ULL); realm.set_active_camera_entity(missing);
+        CHECK(realm.get_active_camera()==nullptr); CHECK_FALSE(camera->get_is_active()); CHECK(realm.get_main_camera_entity_id()==missing);
+    }
+}
+
