@@ -681,3 +681,42 @@ TEST_SUITE("Salix::math::Vector2Closure1747") {
         CHECK(twice.y == doctest::Approx(-value.y));
     }
 }
+
+TEST_SUITE("Salix::math::Vector2Batch2147") {
+    TEST_CASE("batch2147 vector2 length follows Pythagorean magnitude") {
+        CHECK(Salix::Vector2(3.0f, 4.0f).length() == doctest::Approx(5.0f));
+    }
+    TEST_CASE("batch2147 vector2 normalization produces unit length and preserves direction") {
+        Salix::Vector2 v(3.0f, 4.0f); v.normalize();
+        CHECK(v.length() == doctest::Approx(1.0f)); CHECK(v.x == doctest::Approx(0.6f)); CHECK(v.y == doctest::Approx(0.8f));
+    }
+    TEST_CASE("batch2147 vector2 normalization leaves zero vector unchanged") {
+        Salix::Vector2 v; v.normalize(); CHECK(v.x == 0.0f); CHECK(v.y == 0.0f);
+    }
+    TEST_CASE("batch2147 vector2 lerp clamps values below zero to start") {
+        CHECK(Salix::Vector2::lerp({1.0f, 2.0f}, {9.0f, 10.0f}, -1.0f) == Salix::Vector2(1.0f, 2.0f));
+    }
+    TEST_CASE("batch2147 vector2 lerp clamps values above one to end") {
+        CHECK(Salix::Vector2::lerp({1.0f, 2.0f}, {9.0f, 10.0f}, 2.0f) == Salix::Vector2(9.0f, 10.0f));
+    }
+    TEST_CASE("batch2147 vector2 lerp computes midpoint componentwise") {
+        CHECK(Salix::Vector2::lerp({-2.0f, 4.0f}, {6.0f, 12.0f}, 0.5f) == Salix::Vector2(2.0f, 8.0f));
+    }
+    TEST_CASE("batch2147 vector2 ImGui conversion retains signed coordinates") {
+        Salix::Vector2 v(-3.25f, 7.5f); const auto im = v.to_im_vec2();
+        CHECK(im.x == v.x); CHECK(im.y == v.y);
+    }
+    TEST_CASE("batch2147 vector2 YAML input defaults missing x to zero") {
+        const YAML::Node node = YAML::Load("{y: 9.5}"); Salix::Vector2 v(1.0f, 2.0f); node >> v;
+        CHECK(v.x == 0.0f); CHECK(v.y == doctest::Approx(9.5f));
+    }
+    TEST_CASE("batch2147 vector2 YAML input defaults missing y to zero") {
+        const YAML::Node node = YAML::Load("{x: -4.25}"); Salix::Vector2 v(1.0f, 2.0f); node >> v;
+        CHECK(v.x == doctest::Approx(-4.25f)); CHECK(v.y == 0.0f);
+    }
+    TEST_CASE("batch2147 vector2 normalization handles negative coordinates without changing quadrant") {
+        Salix::Vector2 v(-6.0f, -8.0f); v.normalize();
+        CHECK(v.x == doctest::Approx(-0.6f)); CHECK(v.y == doctest::Approx(-0.8f)); CHECK(v.length() == doctest::Approx(1.0f));
+    }
+}
+
