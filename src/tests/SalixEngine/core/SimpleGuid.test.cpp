@@ -550,3 +550,68 @@ TEST_SUITE("Salix::core::SimpleGuidBatch2647") {
     }
 }
 
+TEST_SUITE("Salix::core::SimpleGuidBatch2747") {
+    TEST_CASE("batch2747 explicit one identifier is valid without touching generator state") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto explicit_one=Salix::SimpleGuid::from_value(1);
+        CHECK(explicit_one.is_valid());
+        CHECK(Salix::SimpleGuid::generate().get_value()==1);
+    }
+    TEST_CASE("batch2747 two generated identifiers compare in creation order") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto first=Salix::SimpleGuid::generate();
+        const auto second=Salix::SimpleGuid::generate();
+        CHECK(first<second);
+        CHECK_FALSE(second<first);
+    }
+    TEST_CASE("batch2747 updating watermark after one generated identifier skips forward") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value()==1);
+        Salix::SimpleGuid::update_next_id(10);
+        CHECK(Salix::SimpleGuid::generate().get_value()==11);
+    }
+    TEST_CASE("batch2747 stale watermark equal to last issued id does not rewind") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value()==1);
+        CHECK(Salix::SimpleGuid::generate().get_value()==2);
+        Salix::SimpleGuid::update_next_id(2);
+        CHECK(Salix::SimpleGuid::generate().get_value()==3);
+    }
+    TEST_CASE("batch2747 maximum explicit identifier remains valid") {
+        const auto id=Salix::SimpleGuid::from_value(std::numeric_limits<std::uint64_t>::max());
+        CHECK(id.is_valid());
+        CHECK(id.get_value()==std::numeric_limits<std::uint64_t>::max());
+    }
+    TEST_CASE("batch2747 copied invalid identifier remains invalid and equal") {
+        const auto a=Salix::SimpleGuid::invalid();
+        const auto b=a;
+        CHECK_FALSE(b.is_valid());
+        CHECK(a==b);
+    }
+    TEST_CASE("batch2747 adjacent explicit identifiers are unequal") {
+        const auto a=Salix::SimpleGuid::from_value(2747000ULL);
+        const auto b=Salix::SimpleGuid::from_value(2747001ULL);
+        CHECK(a!=b);
+        CHECK_FALSE(a==b);
+    }
+    TEST_CASE("batch2747 JSON roundtrip preserves ordinary generated identifier") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto original=Salix::SimpleGuid::generate();
+        std::stringstream ss; { cereal::JSONOutputArchive out(ss); out(original); }
+        Salix::SimpleGuid restored; { cereal::JSONInputArchive in(ss); in(restored); }
+        CHECK(restored==original);
+    }
+    TEST_CASE("batch2747 binary roundtrip preserves ordinary generated identifier") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto original=Salix::SimpleGuid::generate();
+        std::stringstream ss; { cereal::BinaryOutputArchive out(ss); out(original); }
+        Salix::SimpleGuid restored; { cereal::BinaryInputArchive in(ss); in(restored); }
+        CHECK(restored==original);
+    }
+    TEST_CASE("batch2747 hash differs for common adjacent identifiers in current standard library") {
+        const auto a=Salix::SimpleGuid::from_value(1001);
+        const auto b=Salix::SimpleGuid::from_value(1002);
+        CHECK(std::hash<Salix::SimpleGuid>{}(a)!=std::hash<Salix::SimpleGuid>{}(b));
+    }
+}
+
