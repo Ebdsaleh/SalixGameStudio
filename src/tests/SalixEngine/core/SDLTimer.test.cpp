@@ -202,3 +202,39 @@ TEST_SUITE("Salix::core::SDLTimerBatch947") {
         CHECK(measured > 0.0f);
     }
 }
+
+TEST_SUITE("Salix::core::SDLTimerBatch2247") {
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 fresh timer exposes finite zero delta") {
+        Salix::SDLTimer timer; CHECK(timer.get_delta_time()==0.0f); CHECK(std::isfinite(timer.get_delta_time()));
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 zero target FPS leaves fresh delta unchanged") {
+        Salix::SDLTimer timer; timer.set_target_fps(0); CHECK(timer.get_delta_time()==0.0f);
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 negative target FPS leaves fresh delta unchanged") {
+        Salix::SDLTimer timer; timer.set_target_fps(-144); CHECK(timer.get_delta_time()==0.0f);
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 positive target FPS configuration does not synthesize delta time") {
+        Salix::SDLTimer timer; timer.set_target_fps(240); CHECK(timer.get_delta_time()==0.0f);
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 first tick start produces finite nonnegative elapsed time") {
+        Salix::SDLTimer timer; timer.tick_start(); CHECK(timer.get_delta_time()>=0.0f); CHECK(std::isfinite(timer.get_delta_time()));
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 delayed second tick reports positive elapsed time") {
+        Salix::SDLTimer timer; timer.tick_start(); SDL_Delay(2); timer.tick_start(); CHECK(timer.get_delta_time()>0.0f); CHECK(timer.get_delta_time()<1.0f);
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 switching positive cap to zero makes tick end return without altering delta") {
+        Salix::SDLTimer timer; timer.tick_start(); SDL_Delay(2); timer.tick_start(); const float measured=timer.get_delta_time(); timer.set_target_fps(60); timer.set_target_fps(0);
+        CHECK_NOTHROW(timer.tick_end()); CHECK(timer.get_delta_time()==measured);
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 switching positive cap to negative makes tick end uncapped") {
+        Salix::SDLTimer timer; timer.tick_start(); SDL_Delay(2); timer.tick_start(); const float measured=timer.get_delta_time(); timer.set_target_fps(60); timer.set_target_fps(-1);
+        CHECK_NOTHROW(timer.tick_end()); CHECK(timer.get_delta_time()==measured);
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 ITimer dispatch preserves SDL timer delta state") {
+        Salix::SDLTimer concrete; Salix::ITimer& timer=concrete; timer.set_target_fps(0); timer.tick_start(); const float measured=timer.get_delta_time(); CHECK(std::isfinite(measured)); CHECK(measured>=0.0f); CHECK_NOTHROW(timer.tick_end()); CHECK(timer.get_delta_time()==measured);
+    }
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch2247 separate SDL timers never share measured delta state") {
+        Salix::SDLTimer first,second; first.tick_start(); SDL_Delay(2); first.tick_start(); CHECK(first.get_delta_time()>0.0f); CHECK(second.get_delta_time()==0.0f);
+    }
+}
+
