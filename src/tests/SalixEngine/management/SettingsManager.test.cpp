@@ -416,3 +416,65 @@ TEST_SUITE("Salix::management::SettingsManagerBatch847") {
         Salix::SettingsManager m; Salix::ApplicationConfig first; const std::string p="settings_batch847_cache.yaml"; const std::string cache="settings_batch847_cache.cache"; std::filesystem::remove(cache); create_temp_config(p,"Window:\n  title: Cached Title\n"); REQUIRE(m.load_settings(p,first)); REQUIRE(std::filesystem::is_regular_file(cache)); CHECK(first.window_config.title=="Cached Title"); Salix::ApplicationConfig second; REQUIRE(m.load_settings(p,second)); CHECK(second.window_config.title=="Cached Title"); std::filesystem::remove(p); std::filesystem::remove(cache);
     }
 }
+
+TEST_SUITE("Salix::management::SettingsManagerBatch2247") {
+    TEST_CASE("batch2247 YAML parser accepts Launch SDL None and SDL selections together") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch2247_launch.yaml",cache="settings_batch2247_launch.cache"; std::filesystem::remove(cache);
+        create_temp_config(p,"Engine:\n  initial_state: Launch\nRenderer:\n  type: SDL\nGUI:\n  type: None\nTimer:\n  type: SDL\n");
+        REQUIRE(m.load_settings(p,c)); CHECK(c.initial_state==Salix::AppStateType::Launch); CHECK(c.renderer_type==Salix::RendererType::SDL); CHECK(c.gui_type==Salix::GuiType::None); CHECK(c.timer_type==Salix::TimerType::SDL);
+        std::filesystem::remove(p); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2247 YAML parser accepts Game OpenGL ImGui and Chrono selections together") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch2247_game.yaml",cache="settings_batch2247_game.cache"; std::filesystem::remove(cache);
+        create_temp_config(p,"Engine:\n  initial_state: Game\nRenderer:\n  type: OpenGL\nGUI:\n  type: ImGui\nTimer:\n  type: Chrono\n");
+        REQUIRE(m.load_settings(p,c)); CHECK(c.initial_state==Salix::AppStateType::Game); CHECK(c.renderer_type==Salix::RendererType::OpenGL); CHECK(c.gui_type==Salix::GuiType::ImGui); CHECK(c.timer_type==Salix::TimerType::Chrono);
+        std::filesystem::remove(p); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2247 YAML parser accepts Options initial state") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch2247_options.yaml",cache="settings_batch2247_options.cache"; std::filesystem::remove(cache);
+        create_temp_config(p,"Engine:\n  initial_state: Options\n");
+        REQUIRE(m.load_settings(p,c)); CHECK(c.initial_state==Salix::AppStateType::Options);
+        std::filesystem::remove(p); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2247 partial window YAML updates supplied field while preserving omitted fields") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; c.window_config.title="KeepTitle"; c.window_config.width=111; c.window_config.height=222;
+        const std::string p="settings_batch2247_partial.yaml",cache="settings_batch2247_partial.cache"; std::filesystem::remove(cache); create_temp_config(p,"Window:\n  width: 640\n");
+        REQUIRE(m.load_settings(p,c)); CHECK(c.window_config.title=="KeepTitle"); CHECK(c.window_config.width==640); CHECK(c.window_config.height==222);
+        std::filesystem::remove(p); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2247 unknown enum strings preserve existing configuration selections") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; c.initial_state=Salix::AppStateType::Editor; c.renderer_type=Salix::RendererType::OpenGL; c.gui_type=Salix::GuiType::ImGui; c.timer_type=Salix::TimerType::Chrono;
+        const std::string p="settings_batch2247_unknown.yaml",cache="settings_batch2247_unknown.cache"; std::filesystem::remove(cache);
+        create_temp_config(p,"Engine:\n  initial_state: UnknownState\nRenderer:\n  type: UnknownRenderer\nGUI:\n  type: UnknownGui\nTimer:\n  type: UnknownTimer\n");
+        REQUIRE(m.load_settings(p,c)); CHECK(c.initial_state==Salix::AppStateType::Editor); CHECK(c.renderer_type==Salix::RendererType::OpenGL); CHECK(c.gui_type==Salix::GuiType::ImGui); CHECK(c.timer_type==Salix::TimerType::Chrono);
+        std::filesystem::remove(p); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2247 GUI numeric settings parse independently from YAML") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch2247_gui.yaml",cache="settings_batch2247_gui.cache"; std::filesystem::remove(cache);
+        create_temp_config(p,"GUI:\n  dialog_width_ratio: 0.33\n  dialog_height_ratio: 0.66\n  font_scaling: 1.25\n  global_dpi_scaling: 1.5\n");
+        REQUIRE(m.load_settings(p,c)); CHECK(c.gui_settings.dialog_width_ratio==doctest::Approx(0.33f)); CHECK(c.gui_settings.dialog_height_ratio==doctest::Approx(0.66f)); CHECK(c.gui_settings.font_scaling==doctest::Approx(1.25f)); CHECK(c.gui_settings.global_dpi_scaling==doctest::Approx(1.5f));
+        std::filesystem::remove(p); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2247 save then load roundtrip preserves core window and engine settings") {
+        Salix::SettingsManager m; Salix::ApplicationConfig src; src.window_config.title="Roundtrip2247"; src.window_config.width=1234; src.window_config.height=777; src.initial_state=Salix::AppStateType::Game; src.target_fps=165;
+        const std::string p="settings_batch2247_roundtrip.yaml",cache="settings_batch2247_roundtrip.cache"; std::filesystem::remove(cache); REQUIRE(m.save_settings(p,src));
+        Salix::ApplicationConfig dst; REQUIRE(m.load_settings(p,dst)); CHECK(dst.window_config.title==src.window_config.title); CHECK(dst.window_config.width==1234); CHECK(dst.window_config.height==777); CHECK(dst.initial_state==Salix::AppStateType::Game); CHECK(dst.target_fps==165);
+        std::filesystem::remove(p); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2247 saved settings text contains explicit None GUI and SDL timer choices") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; c.gui_type=Salix::GuiType::None; c.timer_type=Salix::TimerType::SDL; const std::string p="settings_batch2247_text.yaml";
+        REQUIRE(m.save_settings(p,c)); std::ifstream in(p); REQUIRE(in.is_open()); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());
+        CHECK(text.find("type: None")!=std::string::npos); CHECK(text.find("type: SDL")!=std::string::npos); in.close(); std::filesystem::remove(p); std::filesystem::remove("settings_batch2247_text.cache");
+    }
+    TEST_CASE("batch2247 invalid integer scalar returns false and does not create cache") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; const std::string p="settings_batch2247_badint.yaml",cache="settings_batch2247_badint.cache"; std::filesystem::remove(cache);
+        create_temp_config(p,"Window:\n  width: not-an-integer\n"); CHECK_FALSE(m.load_settings(p,c)); CHECK_FALSE(std::filesystem::exists(cache));
+        std::filesystem::remove(p);
+    }
+    TEST_CASE("batch2247 missing YAML returns success while preserving preconfigured values") {
+        Salix::SettingsManager m; Salix::ApplicationConfig c; c.window_config.title="Preserve"; c.target_fps=77; c.renderer_type=Salix::RendererType::OpenGL;
+        const std::string p="settings_batch2247_missing.yaml"; std::filesystem::remove(p); std::filesystem::remove("settings_batch2247_missing.cache");
+        REQUIRE(m.load_settings(p,c)); CHECK(c.window_config.title=="Preserve"); CHECK(c.target_fps==77); CHECK(c.renderer_type==Salix::RendererType::OpenGL);
+    }
+}
+
