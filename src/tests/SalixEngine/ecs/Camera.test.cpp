@@ -295,3 +295,38 @@ TEST_SUITE("Salix::ecs::CameraBatch2547") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CameraBatch2747") {
+    TEST_CASE("batch2747 direct active setter roundtrips false true false") {
+        Salix::Camera camera; CHECK_FALSE(camera.get_is_active()); camera.set_is_active(true); CHECK(camera.get_is_active()); camera.set_is_active(false); CHECK_FALSE(camera.get_is_active());
+    }
+    TEST_CASE("batch2747 repeated activate is idempotent") {
+        Salix::Camera camera; camera.activate(); camera.activate(); CHECK(camera.get_is_active());
+    }
+    TEST_CASE("batch2747 repeated deactivate is idempotent") {
+        Salix::Camera camera; camera.activate(); camera.deactivate(); camera.deactivate(); CHECK_FALSE(camera.get_is_active());
+    }
+    TEST_CASE("batch2747 inactive update preserves inactive state") {
+        Salix::Camera camera; camera.update(1000.f); CHECK_FALSE(camera.get_is_active());
+    }
+    TEST_CASE("batch2747 active update preserves active state") {
+        Salix::Camera camera; camera.activate(); camera.update(-1000.f); CHECK(camera.get_is_active());
+    }
+    TEST_CASE("batch2747 repeated identical viewport size produces stable perspective projection") {
+        Salix::Camera camera; camera.set_viewport_size(1280,720); const auto first=camera.get_projection_matrix(); camera.set_viewport_size(1280,720); const auto second=camera.get_projection_matrix(); CHECK(first==second);
+    }
+    TEST_CASE("batch2747 orthographic viewport aspect change rebuilds projection") {
+        Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Orthographic); camera.set_viewport_size(1600,900); const auto wide=camera.get_projection_matrix(); camera.set_viewport_size(900,1600); const auto tall=camera.get_projection_matrix(); CHECK(batch1947_camera_matrix_differs(wide,tall));
+    }
+    TEST_CASE("batch2747 perspective near and far clip writes survive projection rebuild") {
+        Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Perspective); camera.set_near_clip(0.5f); camera.set_far_clip(250.f); (void)camera.get_projection_matrix();
+        CHECK(camera.get_near_clip()==doctest::Approx(0.5f)); CHECK(camera.get_far_clip()==doctest::Approx(250.f));
+    }
+    TEST_CASE("batch2747 owner position change rebuilds view without changing projection mode") {
+        Salix::Entity entity; Salix::Camera camera; camera.set_owner(&entity); const auto mode=camera.get_projection_mode(); const auto first=camera.get_view_matrix(); entity.get_transform()->set_position(4.f,5.f,6.f); const auto second=camera.get_view_matrix();
+        CHECK(batch1947_camera_matrix_differs(first,second)); CHECK(camera.get_projection_mode()==mode);
+    }
+    TEST_CASE("batch2747 initialize preserves activation state while dirtying matrices") {
+        Salix::Camera camera; camera.activate(); camera.set_field_of_view(61.f); camera.initialize(); CHECK(camera.get_is_active()); CHECK(camera.get_field_of_view()==doctest::Approx(61.f)); CHECK_NOTHROW((void)camera.get_projection_matrix());
+    }
+}
+
