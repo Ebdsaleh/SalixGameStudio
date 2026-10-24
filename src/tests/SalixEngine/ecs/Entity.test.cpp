@@ -869,3 +869,38 @@ TEST_SUITE("Salix::ecs::EntityBatch2647") {
     }
 }
 
+TEST_SUITE("Salix::ecs::EntityBatch2747") {
+    TEST_CASE("batch2747 fresh entity exposes mandatory transform and box collider by type name") {
+        Salix::Entity entity; REQUIRE(entity.get_element_by_type_name("Transform")!=nullptr); REQUIRE(entity.get_element_by_type_name("BoxCollider")!=nullptr);
+        CHECK(entity.get_all_elements().size()>=2);
+    }
+    TEST_CASE("batch2747 empty element name lookup returns null") {
+        Salix::Entity entity; CHECK(entity.get_element_by_name("")==nullptr);
+    }
+    TEST_CASE("batch2747 invalid element identifier lookup returns null") {
+        Salix::Entity entity; CHECK(entity.get_element_by_id(Salix::SimpleGuid::invalid())==nullptr);
+    }
+    TEST_CASE("batch2747 null child insertion is ignored") {
+        Salix::Entity entity; entity.add_child(nullptr); CHECK(entity.get_children().empty());
+    }
+    TEST_CASE("batch2747 duplicate child insertion stores one pointer") {
+        Salix::Entity parent,child; parent.add_child(&child); parent.add_child(&child); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&child);
+    }
+    TEST_CASE("batch2747 removing absent child leaves existing children unchanged") {
+        Salix::Entity parent,a,b; parent.add_child(&a); parent.remove_child(&b); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&a);
+    }
+    TEST_CASE("batch2747 repeated same parent assignment never duplicates hierarchy links") {
+        Salix::Entity parent,child; child.set_parent(&parent); child.set_parent(&parent); REQUIRE(parent.get_children().size()==1); CHECK(child.get_parent()==&parent);
+    }
+    TEST_CASE("batch2747 purge orphans children while marking only parent purged") {
+        Salix::Entity parent,child; child.set_parent(&parent); parent.purge(); CHECK(parent.is_purged()); CHECK(child.get_parent()==nullptr); CHECK_FALSE(child.is_purged()); CHECK(parent.get_children().empty());
+    }
+    TEST_CASE("batch2747 simple purge keeps hierarchy links intact") {
+        Salix::Entity parent,child; child.set_parent(&parent); parent.simple_purge(); CHECK(parent.is_purged()); CHECK(child.get_parent()==&parent); REQUIRE(parent.get_children().size()==1);
+    }
+    TEST_CASE("batch2747 const and mutable element snapshots expose same owned addresses") {
+        Salix::Entity entity; const auto mutable_elements=entity.get_all_elements(); const Salix::Entity& c=entity; const auto const_elements=c.get_all_elements();
+        REQUIRE(mutable_elements.size()==const_elements.size()); REQUIRE(!mutable_elements.empty()); CHECK(mutable_elements[0]==const_elements[0]);
+    }
+}
+
