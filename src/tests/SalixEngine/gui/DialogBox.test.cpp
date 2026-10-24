@@ -199,3 +199,93 @@ TEST_SUITE("Salix::gui::DialogBoxBatch1947") {
         CHECK(dialog.get_type() == Salix::DialogType::File);
     }
 }
+
+TEST_SUITE("Salix::gui::DialogBoxBatch2447") {
+    TEST_CASE("batch2447 file dialog without overwrite is modal without confirmation flag") {
+        Salix::DialogBox dialog("Open2447", "Open File", Salix::DialogType::File, false);
+        CHECK(dialog.get_type() == Salix::DialogType::File);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+    }
+
+    TEST_CASE("batch2447 file dialog with overwrite combines modal and confirmation flags") {
+        Salix::DialogBox dialog("Save2447", "Save File", Salix::DialogType::File, true);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+    }
+
+    TEST_CASE("batch2447 folder dialog starts with empty filters and modal configuration") {
+        Salix::DialogBox dialog("Folder2447", "Choose Folder", Salix::DialogType::Folder, false);
+        CHECK(dialog.get_filters().empty());
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+    }
+
+    TEST_CASE("batch2447 folder overwrite constructor enables confirmation without changing type") {
+        Salix::DialogBox dialog("FolderSave2447", "Create Folder", Salix::DialogType::Folder, true);
+        CHECK(dialog.get_type() == Salix::DialogType::Folder);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+    }
+
+    TEST_CASE("batch2447 filter assignment leaves path and filename configuration untouched") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("Assets/Original");
+        dialog.set_default_file_name("original.txt");
+        dialog.set_filters(".png,.jpg");
+        CHECK(dialog.get_filters() == ".png,.jpg");
+        CHECK(dialog.get_config().path == "Assets/Original");
+        CHECK(dialog.get_config().fileName == "original.txt");
+    }
+
+    TEST_CASE("batch2447 repeated default path assignments replace backing config completely") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("First");
+        dialog.set_default_path("Second/Nested");
+        CHECK(dialog.get_default_path() == "Second/Nested");
+        CHECK(dialog.get_config().path == "Second/Nested");
+    }
+
+    TEST_CASE("batch2447 repeated filename assignments replace backing config completely") {
+        Salix::DialogBox dialog;
+        dialog.set_default_file_name("first.txt");
+        dialog.set_default_file_name("second.data");
+        CHECK(dialog.get_default_filename() == "second.data");
+        CHECK(dialog.get_config().fileName == "second.data");
+    }
+
+    TEST_CASE("batch2447 overwrite toggling preserves unrelated config fields") {
+        Salix::DialogBox dialog("Stable2447", "Stable", Salix::DialogType::File, false);
+        dialog.get_config().countSelectionMax = 7;
+        dialog.get_config().userDatas = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x2447));
+        dialog.set_default_path("Root2447");
+        dialog.set_default_file_name("file2447.bin");
+        dialog.set_overwrite(true);
+        dialog.set_overwrite(false);
+        CHECK(dialog.get_config().countSelectionMax == 7);
+        CHECK(dialog.get_config().userDatas == reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x2447)));
+        CHECK(dialog.get_config().path == "Root2447");
+        CHECK(dialog.get_config().fileName == "file2447.bin");
+    }
+
+    TEST_CASE("batch2447 separate dialogs own independent mutable configuration") {
+        Salix::DialogBox first;
+        Salix::DialogBox second;
+        first.set_default_path("FirstRoot").set_default_file_name("one.txt").set_overwrite(true);
+        second.set_default_path("SecondRoot").set_default_file_name("two.txt").set_overwrite(false);
+        CHECK(first.get_config().path == "FirstRoot");
+        CHECK(second.get_config().path == "SecondRoot");
+        CHECK((first.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        CHECK((second.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+    }
+
+    TEST_CASE("batch2447 IDialog polymorphic setters return the same concrete dialog object") {
+        Salix::DialogBox dialog("Poly2447", "Poly", Salix::DialogType::File, false);
+        Salix::IDialog* base = &dialog;
+        CHECK(&base->set_filters(".yaml") == base);
+        CHECK(&base->set_default_path("Themes") == base);
+        CHECK(&base->set_default_file_name("theme.yaml") == base);
+        CHECK(&base->set_overwrite(true) == base);
+        CHECK(base->get_key() == "Poly2447");
+        CHECK(base->get_title() == "Poly");
+    }
+}
+
