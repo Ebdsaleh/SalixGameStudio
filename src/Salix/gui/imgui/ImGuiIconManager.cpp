@@ -63,7 +63,10 @@ namespace Salix {
         pimpl->register_icon("Panel Unlocked","Assets/Icons/Editor/Lucid V1.2/PNG/Shadow/16/Lock-Open.png");
         // Also register the default icon itself
         pimpl->register_icon("Default", "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_153.png");
-        pimpl->default_icon = pimpl->icon_registry["Default"];
+        const auto default_it = pimpl->icon_registry.find("Default");
+        if (default_it != pimpl->icon_registry.end()) {
+            pimpl->default_icon = default_it->second;
+        }
     }
 
 
