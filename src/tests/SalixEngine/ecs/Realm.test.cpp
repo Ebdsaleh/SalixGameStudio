@@ -554,7 +554,7 @@ TEST_SUITE("Salix::ecs::RealmBatch2347") {
         realm.set_main_camera_entity(e->get_id()); CHECK(realm.get_main_camera_entity_id()==e->get_id()); CHECK(realm.get_active_camera()==nullptr); CHECK_FALSE(camera->get_is_active());
     }
     TEST_CASE("batch2347 maintenance removes multiple purged entities in one pass") {
-        Salix::Realm realm; auto* a=realm.create_entity("A"); auto* b=realm.create_entity("B"); auto* c=realm.create_entity("C"); REQUIRE(a&&b&&c);
+        Salix::Realm realm; auto* a=realm.create_entity("A"); auto* b=realm.create_entity("B"); auto* c=realm.create_entity("C"); REQUIRE(a!=nullptr); REQUIRE(b!=nullptr); REQUIRE(c!=nullptr);
         const auto aid=a->get_id(),cid=c->get_id(); a->simple_purge(); c->simple_purge(); realm.maintain();
         const auto entities=realm.get_entities(); REQUIRE(entities.size()==1); CHECK(entities[0]==b); CHECK(realm.get_entity_by_id(aid)==nullptr); CHECK(realm.get_entity_by_id(cid)==nullptr);
     }
