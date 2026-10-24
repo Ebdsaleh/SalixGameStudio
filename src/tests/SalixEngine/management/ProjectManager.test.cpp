@@ -208,3 +208,48 @@ TEST_SUITE("Salix::management::ProjectManagerBatch1947") {
         CHECK(manager.get_loaded_project_directory() == "OriginalRoot");
     }
 }
+
+TEST_SUITE("Salix::management::ProjectManagerBatch2247") {
+    TEST_CASE("batch2247 initialization leaves fresh manager without an active project") {
+        Salix::ProjectManager manager; Salix::InitContext context{}; manager.initialize(context);
+        CHECK(manager.get_active_project()==nullptr);
+    }
+    TEST_CASE("batch2247 project selection metadata supports spaces and punctuation exactly") {
+        Salix::ProjectManager manager; manager.set_project_to_load("D:/My Games/Project One/Game.salixproj"); manager.set_loaded_project_directory("D:/My Games/Project One");
+        CHECK(manager.get_project_to_load()=="D:/My Games/Project One/Game.salixproj"); CHECK(manager.get_loaded_project_directory()=="D:/My Games/Project One");
+    }
+    TEST_CASE("batch2247 placeholder active project remains safe for repeated update and null render calls") {
+        Salix::ProjectManager manager; manager.set_active_project("placeholder"); REQUIRE(manager.get_active_project()!=nullptr);
+        CHECK_NOTHROW(manager.update(0.f)); CHECK_NOTHROW(manager.update(-100.f)); CHECK_NOTHROW(manager.render(nullptr)); CHECK(manager.get_active_project()!=nullptr);
+    }
+    TEST_CASE("batch2247 shutdown clears active project while retaining pending path metadata") {
+        Salix::ProjectManager manager; manager.set_project_to_load("pending2247.salixproj"); manager.set_loaded_project_directory("pending2247"); manager.set_active_project("placeholder");
+        manager.shutdown(); CHECK(manager.get_active_project()==nullptr); CHECK(manager.get_project_to_load()=="pending2247.salixproj"); CHECK(manager.get_loaded_project_directory()=="pending2247");
+    }
+    TEST_CASE("batch2247 simple project creation supports spaces in project name and creates canonical file") {
+        Batch1947ProjectRoot root; Salix::ProjectManager manager; REQUIRE(manager.create_new_project(root.path.string(),"Project 2247"));
+        const auto project=root.path/"Project 2247"; CHECK(std::filesystem::is_directory(project/"Assets"/"Realms")); CHECK(std::filesystem::is_regular_file(project/"Project 2247.salixproj"));
+    }
+    TEST_CASE("batch2247 repeating project creation preserves an existing custom project file") {
+        Batch1947ProjectRoot root; Salix::ProjectManager manager; REQUIRE(manager.create_new_project(root.path.string(),"Repeat2247"));
+        const auto file=root.path/"Repeat2247"/"Repeat2247.salixproj"; {std::ofstream out(file,std::ios::trunc); out<<"custom-2247";}
+        REQUIRE(manager.create_new_project(root.path.string(),"Repeat2247")); std::ifstream in(file); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>()); CHECK(text=="custom-2247");
+    }
+    TEST_CASE("batch2247 project creation fails when project directory path is occupied by a file") {
+        Batch1947ProjectRoot root; const auto blocker=root.path/"Blocked2247"; {std::ofstream out(blocker); out<<"block";}
+        Salix::ProjectManager manager; CHECK_FALSE(manager.create_new_project(root.path.string(),"Blocked2247")); CHECK(std::filesystem::is_regular_file(blocker));
+    }
+    TEST_CASE("batch2247 malformed existing project file makes load_project return false") {
+        Batch1947ProjectRoot root; const auto file=root.path/"malformed2247.salixproj"; {std::ofstream out(file); out<<"not valid cereal json";}
+        Salix::ProjectManager manager; CHECK_FALSE(manager.load_project(file.string())); CHECK(manager.get_active_project()==nullptr);
+    }
+    TEST_CASE("batch2247 malformed existing project file makes pointer loader return null") {
+        Batch1947ProjectRoot root; const auto file=root.path/"malformed_ptr2247.salixproj"; {std::ofstream out(file); out<<"{";}
+        Salix::ProjectManager manager; CHECK(manager.load_project_from_file(file.string())==nullptr); CHECK(manager.get_active_project()==nullptr);
+    }
+    TEST_CASE("batch2247 missing project load fails before disturbing an existing placeholder project") {
+        Salix::ProjectManager manager; manager.set_active_project("placeholder"); auto* active=manager.get_active_project(); REQUIRE(active!=nullptr);
+        CHECK_FALSE(manager.load_project("Batch2247_definitely_missing.salixproj")); CHECK(manager.get_active_project()==active);
+    }
+}
+
