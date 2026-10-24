@@ -485,3 +485,61 @@ TEST_SUITE("Salix::math::RayCastingBatch947") {
         CHECK(salix_distance == doctest::Approx(7.0f));
     }
 }
+
+TEST_SUITE("Salix::math::RayCastingBatch2247") {
+    TEST_CASE("batch2247 positive X ray hits symmetric AABB at near face") {
+        const Salix::Ray ray{{-5.f,0.f,0.f},{1.f,0.f,0.f}}; float d=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),d));
+        CHECK(d==doctest::Approx(4.f));
+    }
+    TEST_CASE("batch2247 negative X ray hits symmetric AABB at near face") {
+        const Salix::Ray ray{{5.f,0.f,0.f},{-1.f,0.f,0.f}}; float d=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),d));
+        CHECK(d==doctest::Approx(4.f));
+    }
+    TEST_CASE("batch2247 parallel ray outside slab misses without overwriting distance") {
+        const Salix::Ray ray{{2.f,0.f,-5.f},{0.f,0.f,1.f}}; float d=123.f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),d));
+        CHECK(d==123.f);
+    }
+    TEST_CASE("batch2247 ray directed away from box entirely behind origin misses") {
+        const Salix::Ray ray{{0.f,0.f,5.f},{0.f,0.f,1.f}}; float d=55.f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),d));
+        CHECK(d==55.f);
+    }
+    TEST_CASE("batch2247 ray starting inside box reports forward exit face") {
+        const Salix::Ray ray{{0.25f,-0.5f,0.f},{0.f,0.f,1.f}}; float d=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),d));
+        CHECK(d==doctest::Approx(1.f));
+    }
+    TEST_CASE("batch2247 Vector3 AABB overload matches GLM overload for miss result and output preservation") {
+        const Salix::Ray ray{{10.f,10.f,10.f},{1.f,0.f,0.f}}; const Salix::Vector3 lo(-1.f),hi(1.f);
+        float a=7.f,b=7.f; const bool ra=Salix::Raycast::IntersectsAABB(ray,lo,hi,a); const bool rb=Salix::Raycast::IntersectsAABB(ray,lo.to_glm(),hi.to_glm(),b);
+        CHECK(ra==rb); CHECK_FALSE(ra); CHECK(a==7.f); CHECK(b==7.f);
+    }
+    TEST_CASE("batch2247 identity OBB agrees with equivalent AABB for centered hit") {
+        const Salix::Ray ray{{0.f,0.f,-10.f},{0.f,0.f,1.f}}; float a=-1.f,b=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-2.f,-3.f,-4.f),glm::vec3(2.f,3.f,4.f),a));
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray,glm::mat4(1.f),glm::vec3(2.f,3.f,4.f),b));
+        CHECK(a==doctest::Approx(b)); CHECK(b==doctest::Approx(6.f));
+    }
+    TEST_CASE("batch2247 translated OBB hit distance follows translated front face") {
+        const Salix::Ray ray{{0.f,0.f,-10.f},{0.f,0.f,1.f}};
+        const auto model=glm::translate(glm::mat4(1.f),glm::vec3(0.f,0.f,5.f)); float d=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray,model,glm::vec3(1.f),d)); CHECK(d==doctest::Approx(14.f));
+    }
+    TEST_CASE("batch2247 ImVec2 screen-ray wrapper exactly matches Vector2 core overload") {
+        MockICamera camera; glm::mat4& view=const_cast<glm::mat4&>(camera.get_view_matrix()); view=glm::mat4(1.f);
+        glm::mat4& proj=const_cast<glm::mat4&>(camera.get_projection_matrix()); proj=glm::mat4(1.f);
+        const auto a=Salix::Raycast::CreateRayFromScreen(&camera,Salix::Vector2(25.f,75.f),Salix::Vector2(10.f,20.f),Salix::Vector2(200.f,100.f));
+        const auto b=Salix::Raycast::CreateRayFromScreen(&camera,ImVec2(25.f,75.f),ImVec2(10.f,20.f),ImVec2(200.f,100.f));
+        check_vec3_approx(a.origin,b.origin); check_vec3_approx(a.direction,b.direction);
+    }
+    TEST_CASE("batch2247 generated screen ray direction remains normalized") {
+        MockICamera camera; glm::mat4& view=const_cast<glm::mat4&>(camera.get_view_matrix()); view=glm::mat4(1.f);
+        glm::mat4& proj=const_cast<glm::mat4&>(camera.get_projection_matrix()); proj=glm::mat4(1.f);
+        const auto ray=Salix::Raycast::CreateRayFromScreen(&camera,Salix::Vector2(10.f,90.f),Salix::Vector2(0.f,0.f),Salix::Vector2(100.f,100.f));
+        CHECK(glm::length(ray.direction)==doctest::Approx(1.f));
+    }
+}
+
