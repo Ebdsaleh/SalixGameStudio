@@ -343,3 +343,56 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch2347") {
     }
 }
 
+namespace { struct Batch2547YamlEnumTag {}; }
+
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch2547") {
+    TEST_CASE("batch2547 null YAML node read returns default property variant") {
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Value",Salix::PropertyType::Int),nullptr);
+        const auto value=handle.get_value(); CHECK(std::holds_alternative<int>(value)); CHECK(std::get<int>(value)==0);
+    }
+    TEST_CASE("batch2547 null YAML node write is a harmless no-op") {
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Value",Salix::PropertyType::String),nullptr);
+        CHECK_NOTHROW(handle.set_value(Salix::PropertyValue{std::string("ignored")}));
+        CHECK(std::get<int>(handle.get_value())==0);
+    }
+    TEST_CASE("batch2547 missing mapped property read does not create the YAML key") {
+        YAML::Node node; node["Keep"]=2547; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Missing",Salix::PropertyType::Float),&node);
+        CHECK(std::get<int>(handle.get_value())==0); CHECK_FALSE(node["Missing"]); CHECK(node["Keep"].as<int>()==2547);
+    }
+    TEST_CASE("batch2547 uint64 setter ignores mismatched signed integer variant") {
+        YAML::Node node; node["Id"]=static_cast<std::uint64_t>(99); Salix::PropertyHandleYaml handle(batch1047_yaml_property("Id",Salix::PropertyType::UInt64),&node);
+        handle.set_value(Salix::PropertyValue{42}); CHECK(node["Id"].as<std::uint64_t>()==99); CHECK(std::get<std::uint64_t>(handle.get_value())==99);
+    }
+    TEST_CASE("batch2547 float setter ignores mismatched string variant") {
+        YAML::Node node; node["Speed"]=3.25f; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Speed",Salix::PropertyType::Float),&node);
+        handle.set_value(Salix::PropertyValue{std::string("fast")}); CHECK(std::get<float>(handle.get_value())==doctest::Approx(3.25f));
+    }
+    TEST_CASE("batch2547 bool setter ignores mismatched integer variant") {
+        YAML::Node node; node["Visible"]=true; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Visible",Salix::PropertyType::Bool),&node);
+        handle.set_value(Salix::PropertyValue{0}); CHECK(std::get<bool>(handle.get_value())); CHECK(node["Visible"].as<bool>());
+    }
+    TEST_CASE("batch2547 string setter preserves embedded null bytes in YAML scalar roundtrip") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Name",Salix::PropertyType::String),&node);
+        const std::string value("A\0B2547",7); handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<std::string>(handle.get_value())==value); CHECK(node["Name"].as<std::string>().size()==value.size());
+    }
+    TEST_CASE("batch2547 vector2 setter and getter preserve negative and fractional components") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Offset",Salix::PropertyType::Vector2),&node);
+        const Salix::Vector2 value(-25.47f,0.125f); handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Vector2>(handle.get_value())==value);
+    }
+    TEST_CASE("batch2547 registered enum class maps exact name and value in both directions") {
+        Salix::EnumRegistry::EnumData data; data.value_to_string[-2]="MinusTwo"; data.value_to_string[7]="Seven"; data.ordered_names={"MinusTwo","Seven"};
+        Salix::EnumRegistry::register_enum(typeid(Batch2547YamlEnumTag),std::move(data));
+        Salix::TypeInfo contained; contained.name="Batch2547YamlEnumTag"; contained.type_index=typeid(Batch2547YamlEnumTag);
+        auto property=batch1047_yaml_property("Mode",Salix::PropertyType::EnumClass); property.contained_type_info=&contained;
+        YAML::Node node; node["Mode"]="MinusTwo"; Salix::PropertyHandleYaml handle(property,&node);
+        CHECK(std::get<int>(handle.get_value())==-2); handle.set_value(Salix::PropertyValue{7}); CHECK(node["Mode"].as<std::string>()=="Seven");
+    }
+    TEST_CASE("batch2547 enum class without metadata ignores write and preserves existing scalar") {
+        YAML::Node node; node["Mode"]="Keep2547"; auto property=batch1047_yaml_property("Mode",Salix::PropertyType::EnumClass);
+        Salix::PropertyHandleYaml handle(property,&node); handle.set_value(Salix::PropertyValue{7});
+        CHECK(node["Mode"].as<std::string>()=="Keep2547"); CHECK(std::get<int>(handle.get_value())==0);
+    }
+}
+
