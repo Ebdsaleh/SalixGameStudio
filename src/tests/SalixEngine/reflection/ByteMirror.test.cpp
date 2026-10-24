@@ -367,7 +367,7 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch2347") {
         Salix::ByteMirror::register_all_types(); CHECK(Salix::ByteMirror::create_element_by_name("")==nullptr); CHECK(Salix::ByteMirror::create_element_by_name("Batch2347Missing")==nullptr);
     }
     TEST_CASE("batch2347 YAML BoxCollider handles include only properties present in node") {
-        Salix::ByteMirror::register_all_types(); YAML::Node entity,properties; properties["name"]="YamlCollider"; properties["size"]=Salix::Vector3(1.f,2.f,3.f); YAML::Node wrapper; wrapper["BoxCollider"]=properties; entity["elements"].push_back(wrapper);
+        Salix::ByteMirror::register_all_types(); YAML::Node entity,properties; properties["name"]="YamlCollider"; properties["size"]["x"]=1.f; properties["size"]["y"]=2.f; properties["size"]["z"]=3.f; YAML::Node wrapper; wrapper["BoxCollider"]=properties; entity["elements"].push_back(wrapper);
         auto handles=Salix::ByteMirror::create_handles_for_yaml(&entity); std::vector<std::string> names; for(const auto& h:handles){REQUIRE(h!=nullptr); names.push_back(h->get_name());}
         CHECK(std::find(names.begin(),names.end(),"name")!=names.end()); CHECK(std::find(names.begin(),names.end(),"size")!=names.end()); CHECK(std::find(names.begin(),names.end(),"visible")==names.end());
     }
