@@ -397,3 +397,45 @@ TEST_SUITE("Salix::management::RealmManagerBatch847") {
         Salix::RealmManager manager; CHECK_FALSE(manager.load_realm("realm_manager_batch847_file_that_does_not_exist.json")); CHECK(manager.get_active_realm()==nullptr); CHECK_FALSE(manager.set_active_realm("realm_manager_batch847_file_that_does_not_exist"));
     }
 }
+
+TEST_SUITE("Salix::management::RealmManagerBatch2247") {
+    TEST_CASE("batch2247 realm creation preserves exact name and path metadata") {
+        Salix::RealmManager manager; auto* realm=manager.create_realm("Realm 2247","Scenes/Realm 2247.json");
+        REQUIRE(realm!=nullptr); CHECK(realm->get_name()=="Realm 2247"); CHECK(realm->get_path()=="Scenes/Realm 2247.json"); CHECK(manager.get_active_realm()==nullptr);
+    }
+    TEST_CASE("batch2247 empty realm name remains rejected without changing manager state") {
+        Salix::RealmManager manager; CHECK(manager.create_realm("","Valid.json")==nullptr); CHECK(manager.get_active_realm()==nullptr);
+    }
+    TEST_CASE("batch2247 empty realm path remains rejected without changing manager state") {
+        Salix::RealmManager manager; CHECK(manager.create_realm("Valid","")==nullptr); CHECK(manager.get_active_realm()==nullptr);
+    }
+    TEST_CASE("batch2247 failed selection preserves previously active realm pointer") {
+        Salix::RealmManager manager; auto* realm=manager.create_realm("Stable2247","Stable2247.json"); REQUIRE(realm!=nullptr); REQUIRE(manager.set_active_realm("Stable2247"));
+        CHECK_FALSE(manager.set_active_realm("Missing2247")); CHECK(manager.get_active_realm()==realm);
+    }
+    TEST_CASE("batch2247 replacing active realm retargets selection to replacement object") {
+        Salix::RealmManager manager; auto* first=manager.create_realm("Replace2247","Old.json"); REQUIRE(first!=nullptr); REQUIRE(manager.set_active_realm("Replace2247"));
+        auto* replacement=manager.create_realm("Replace2247","New.json"); REQUIRE(replacement!=nullptr); CHECK(manager.get_active_realm()==replacement); CHECK(replacement->get_path()=="New.json");
+    }
+    TEST_CASE("batch2247 replacing inactive realm never steals active selection") {
+        Salix::RealmManager manager; auto* active=manager.create_realm("Active2247","A.json"); REQUIRE(active!=nullptr); REQUIRE(manager.create_realm("Other2247","B.json")!=nullptr); REQUIRE(manager.set_active_realm("Active2247"));
+        auto* replacement=manager.create_realm("Other2247","C.json"); REQUIRE(replacement!=nullptr); CHECK(manager.get_active_realm()==active); CHECK(replacement->get_path()=="C.json");
+    }
+    TEST_CASE("batch2247 shutdown clears realms but preserves configured project root") {
+        Salix::RealmManager manager; manager.set_project_root_path("C:/Projects/Batch2247"); REQUIRE(manager.create_realm("Temp2247","Temp.json")!=nullptr); REQUIRE(manager.set_active_realm("Temp2247"));
+        manager.shutdown(); CHECK(manager.get_active_realm()==nullptr); CHECK(manager.get_project_root_path()=="C:/Projects/Batch2247"); CHECK_FALSE(manager.set_active_realm("Temp2247"));
+    }
+    TEST_CASE("batch2247 empty project root assignment never erases existing configured root") {
+        Salix::RealmManager manager; manager.set_project_root_path("Root2247"); manager.set_project_root_path(""); CHECK(manager.get_project_root_path()=="Root2247");
+    }
+    TEST_CASE("batch2247 active realm load fails without an asset manager in initialization context") {
+        Salix::RealmManager manager; Salix::InitContext context{}; manager.initialize(context); REQUIRE(manager.create_realm("Load2247","Load.json")!=nullptr); REQUIRE(manager.set_active_realm("Load2247"));
+        CHECK_FALSE(manager.load_active_realm());
+    }
+    TEST_CASE("batch2247 empty active realm can load when initialization context supplies an asset manager") {
+        Salix::AssetManager assets; Salix::InitContext context{}; context.asset_manager=&assets; Salix::RealmManager manager; manager.initialize(context);
+        auto* realm=manager.create_realm("Loadable2247","Loadable.json"); REQUIRE(realm!=nullptr); REQUIRE(manager.set_active_realm("Loadable2247"));
+        CHECK(manager.load_active_realm()); CHECK(manager.get_active_realm()==realm);
+    }
+}
+
