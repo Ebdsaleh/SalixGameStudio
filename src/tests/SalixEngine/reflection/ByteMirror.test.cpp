@@ -373,3 +373,71 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch2347") {
     }
 }
 
+namespace {
+class Batch2647UnregisteredElement final : public Salix::Element {
+public:
+    const char* get_class_name() const override { return "Batch2647UnregisteredElement"; }
+};
+}
+
+TEST_SUITE("Salix::reflection::ByteMirrorBatch2647") {
+    TEST_CASE("batch2647 registered Element type is retrievable directly by type index") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info=Salix::ByteMirror::get_type_info(typeid(Salix::Element));
+        REQUIRE(info!=nullptr); CHECK(info->name=="Element"); CHECK(info->ancestor==nullptr);
+    }
+    TEST_CASE("batch2647 unknown native type has no reflection metadata") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::get_type_info(typeid(int))==nullptr);
+        CHECK(Salix::ByteMirror::get_type_info(typeid(Batch2647UnregisteredElement))==nullptr);
+    }
+    TEST_CASE("batch2647 type name lookup is exact and case sensitive") {
+        Salix::ByteMirror::register_all_types();
+        REQUIRE(Salix::ByteMirror::get_type_info_by_name("Transform")!=nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name("transform")==nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name(" Transform ")==nullptr);
+    }
+    TEST_CASE("batch2647 custom constructor registration creates requested concrete element") {
+        Salix::ByteMirror::register_constructor("Batch2647Custom",[]()->Salix::Element*{return new Salix::Transform();});
+        std::unique_ptr<Salix::Element> created(Salix::ByteMirror::create_element_by_name("Batch2647Custom"));
+        REQUIRE(created!=nullptr); CHECK(std::string(created->get_class_name())=="Transform");
+    }
+    TEST_CASE("batch2647 constructor registration replacement affects future objects only") {
+        Salix::ByteMirror::register_constructor("Batch2647Replace",[]()->Salix::Element*{return new Salix::Transform();});
+        std::unique_ptr<Salix::Element> first(Salix::ByteMirror::create_element_by_name("Batch2647Replace")); REQUIRE(first!=nullptr);
+        Salix::ByteMirror::register_constructor("Batch2647Replace",[]()->Salix::Element*{return new Salix::BoxCollider();});
+        std::unique_ptr<Salix::Element> second(Salix::ByteMirror::create_element_by_name("Batch2647Replace")); REQUIRE(second!=nullptr);
+        CHECK(std::string(first->get_class_name())=="Transform"); CHECK(std::string(second->get_class_name())=="BoxCollider");
+    }
+    TEST_CASE("batch2647 live handle creation rejects null and unregistered instances") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::create_handles_for(nullptr).empty());
+        Batch2647UnregisteredElement custom;
+        CHECK(Salix::ByteMirror::create_handles_for(&custom).empty());
+    }
+    TEST_CASE("batch2647 flattened Transform properties include own fields before inherited fields") {
+        Salix::ByteMirror::register_all_types(); const auto* info=Salix::ByteMirror::get_type_info_by_name("Transform"); REQUIRE(info!=nullptr);
+        const auto props=Salix::ByteMirror::get_all_properties_for_type(info); REQUIRE(props.size()>=6);
+        CHECK(props[0].name=="position"); CHECK(props[1].name=="rotation"); CHECK(props[2].name=="scale");
+        CHECK(batch1147_has_property(props,"id")); CHECK(batch1147_has_property(props,"name")); CHECK(batch1147_has_property(props,"visible"));
+    }
+    TEST_CASE("batch2647 reflected Sprite2D scalar values track latest live mutations") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D sprite;
+        sprite.set_local_rotation(73.5f); sprite.set_sorting_layer(-2647); sprite.set_flip_h(true);
+        CHECK(std::get<float>(Salix::ByteMirror::get_property_value(&sprite,"local_rotation"))==doctest::Approx(73.5f));
+        CHECK(std::get<int>(Salix::ByteMirror::get_property_value(&sprite,"sorting_layer"))==-2647);
+        CHECK(std::get<bool>(Salix::ByteMirror::get_property_value(&sprite,"flip_h")));
+    }
+    TEST_CASE("batch2647 reflected inherited Element values remain visible on Sprite2D") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D sprite; sprite.set_name("Sprite2647"); sprite.set_visibility(false);
+        CHECK(std::get<std::string>(Salix::ByteMirror::get_property_value(&sprite,"name"))=="Sprite2647");
+        CHECK_FALSE(std::get<bool>(Salix::ByteMirror::get_property_value(&sprite,"visible")));
+        CHECK(std::get<std::uint64_t>(Salix::ByteMirror::get_property_value(&sprite,"id"))==sprite.get_id().get_value());
+    }
+    TEST_CASE("batch2647 YAML handle creation skips registered properties absent from node") {
+        Salix::ByteMirror::register_all_types(); YAML::Node entity,properties,wrapper;
+        properties["name"]="OnlyName2647"; wrapper["Transform"]=properties; entity["elements"].push_back(wrapper);
+        auto handles=Salix::ByteMirror::create_handles_for_yaml(&entity); REQUIRE(handles.size()==1); REQUIRE(handles[0]!=nullptr); CHECK(handles[0]->get_name()=="name");
+    }
+}
+
