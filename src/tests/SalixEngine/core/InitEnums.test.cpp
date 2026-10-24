@@ -81,3 +81,39 @@ TEST_SUITE("Salix::core::InitEnumsBatch1547") {
         CHECK((std::is_integral_v<std::underlying_type_t<Salix::AppStateType>>));
     }
 }
+
+
+TEST_SUITE("Salix::core::InitEnumsBatch2047") {
+    TEST_CASE("value initialized renderer type selects None") { Salix::RendererType value{}; CHECK(value == Salix::RendererType::None); }
+    TEST_CASE("value initialized timer type selects SDL") { Salix::TimerType value{}; CHECK(value == Salix::TimerType::SDL); }
+    TEST_CASE("value initialized GUI type selects None") { Salix::GuiType value{}; CHECK(value == Salix::GuiType::None); }
+    TEST_CASE("value initialized application state selects None") { Salix::AppStateType value{}; CHECK(value == Salix::AppStateType::None); }
+    TEST_CASE("renderer values survive conversion through their underlying type") {
+        using U = std::underlying_type_t<Salix::RendererType>;
+        const std::array<Salix::RendererType, 5> values{Salix::RendererType::None, Salix::RendererType::SDL, Salix::RendererType::OpenGL, Salix::RendererType::Vulkan, Salix::RendererType::DirectX};
+        for (auto value : values) CHECK(static_cast<Salix::RendererType>(static_cast<U>(value)) == value);
+    }
+    TEST_CASE("timer values survive conversion through their underlying type") {
+        using U = std::underlying_type_t<Salix::TimerType>; const std::array<Salix::TimerType, 2> values{Salix::TimerType::SDL, Salix::TimerType::Chrono};
+        for (auto value : values) CHECK(static_cast<Salix::TimerType>(static_cast<U>(value)) == value);
+    }
+    TEST_CASE("GUI values survive conversion through their underlying type") {
+        using U = std::underlying_type_t<Salix::GuiType>; const std::array<Salix::GuiType, 2> values{Salix::GuiType::None, Salix::GuiType::ImGui};
+        for (auto value : values) CHECK(static_cast<Salix::GuiType>(static_cast<U>(value)) == value);
+    }
+    TEST_CASE("application state values survive conversion through their underlying type") {
+        using U = std::underlying_type_t<Salix::AppStateType>;
+        const std::array<Salix::AppStateType, 5> values{Salix::AppStateType::None, Salix::AppStateType::Launch, Salix::AppStateType::Editor, Salix::AppStateType::Game, Salix::AppStateType::Options};
+        for (auto value : values) CHECK(static_cast<Salix::AppStateType>(static_cast<U>(value)) == value);
+    }
+    TEST_CASE("copying renderer and timer arrays preserves every selection") {
+        const std::array<Salix::RendererType, 3> renderers{Salix::RendererType::SDL, Salix::RendererType::OpenGL, Salix::RendererType::DirectX};
+        const auto renderer_copy = renderers; CHECK(renderer_copy == renderers);
+        const std::array<Salix::TimerType, 2> timers{Salix::TimerType::SDL, Salix::TimerType::Chrono};
+        const auto timer_copy = timers; CHECK(timer_copy == timers);
+    }
+    TEST_CASE("assignment between application states changes only the assigned value") {
+        Salix::AppStateType first = Salix::AppStateType::Editor; Salix::AppStateType second = Salix::AppStateType::Game;
+        first = second; CHECK(first == Salix::AppStateType::Game); CHECK(second == Salix::AppStateType::Game);
+    }
+}
