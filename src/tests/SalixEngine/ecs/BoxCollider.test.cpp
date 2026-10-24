@@ -409,3 +409,59 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch947") {
         CHECK(first.get_size() != second.get_size());
     }
 }
+
+TEST_SUITE("Salix::ecs::BoxColliderBatch2247") {
+    TEST_CASE("batch2247 fresh collider retains canonical unit size on every axis") {
+        Salix::BoxCollider collider;
+        CHECK(collider.get_size().x==doctest::Approx(1.0f));
+        CHECK(collider.get_size().y==doctest::Approx(1.0f));
+        CHECK(collider.get_size().z==doctest::Approx(1.0f));
+    }
+    TEST_CASE("batch2247 fractional asymmetric size is stored without normalization") {
+        Salix::BoxCollider collider; collider.set_size(Salix::Vector3(0.125f,-2.5f,99.75f));
+        CHECK(collider.get_size()==Salix::Vector3(0.125f,-2.5f,99.75f));
+    }
+    TEST_CASE("batch2247 repeated update calls preserve geometry at extreme delta values") {
+        Salix::BoxCollider collider; collider.set_size(Salix::Vector3(2.f,3.f,4.f));
+        collider.update(-1000.f); collider.update(0.f); collider.update(1000.f);
+        CHECK(collider.get_size()==Salix::Vector3(2.f,3.f,4.f));
+    }
+    TEST_CASE("batch2247 initialize and null-renderer load leave explicit size unchanged") {
+        Salix::BoxCollider collider; collider.set_size(Salix::Vector3(7.f,8.f,9.f)); Salix::InitContext context{};
+        collider.initialize(); collider.on_load(context);
+        CHECK(collider.get_size()==Salix::Vector3(7.f,8.f,9.f));
+    }
+    TEST_CASE("batch2247 changing size never alters canonical class identity") {
+        Salix::BoxCollider collider; collider.set_name("Editor Label"); collider.set_size(Salix::Vector3(-4.f,5.f,6.f));
+        CHECK(std::string(collider.get_class_name())=="BoxCollider"); CHECK(collider.get_name()=="Editor Label");
+    }
+    TEST_CASE("batch2247 owner pointer survives geometry replacement unchanged") {
+        Salix::Entity owner; Salix::BoxCollider collider; collider.set_owner(&owner); collider.set_size(Salix::Vector3(12.f,13.f,14.f));
+        CHECK(collider.get_owner()==&owner); CHECK(collider.get_size()==Salix::Vector3(12.f,13.f,14.f));
+    }
+    TEST_CASE("batch2247 visibility survives repeated size assignments") {
+        Salix::BoxCollider collider; collider.set_visibility(false);
+        collider.set_size(Salix::Vector3(1.f)); collider.set_size(Salix::Vector3(2.f));
+        CHECK_FALSE(collider.is_visible()); CHECK(collider.get_size()==Salix::Vector3(2.f));
+    }
+    TEST_CASE("batch2247 JSON roundtrip replaces preexisting size and preserves display name") {
+        Salix::BoxCollider source; source.set_name("Json2247"); source.set_size(Salix::Vector3(-1.25f,2.5f,5.f));
+        std::stringstream stream; { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored; restored.set_name("Old"); restored.set_size(Salix::Vector3(99.f));
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name()=="Json2247"); CHECK(restored.get_size()==source.get_size());
+    }
+    TEST_CASE("batch2247 binary roundtrip replaces preexisting size exactly") {
+        Salix::BoxCollider source; source.set_size(Salix::Vector3(0.25f,-0.5f,1024.f));
+        std::stringstream stream; { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored; restored.set_size(Salix::Vector3(-9.f));
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_size()==source.get_size());
+    }
+    TEST_CASE("batch2247 size reference address remains stable through lifecycle calls and setter updates") {
+        Salix::BoxCollider collider; const auto* storage=&collider.get_size(); Salix::InitContext context{};
+        collider.initialize(); collider.set_size(Salix::Vector3(3.f,4.f,5.f)); collider.on_load(context); collider.update(0.5f);
+        CHECK(&collider.get_size()==storage); CHECK(*storage==Salix::Vector3(3.f,4.f,5.f));
+    }
+}
+
