@@ -324,3 +324,52 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch1147") {
         CHECK(Salix::ByteMirror::create_handles_for_yaml(&empty_entity).empty());
     }
 }
+
+TEST_SUITE("Salix::reflection::ByteMirrorBatch2347") {
+    TEST_CASE("batch2347 repeated register all types remains idempotently queryable") {
+        Salix::ByteMirror::register_all_types(); Salix::ByteMirror::register_all_types();
+        REQUIRE(Salix::ByteMirror::get_type_info_by_name("Transform")!=nullptr);
+        REQUIRE(Salix::ByteMirror::get_type_info_by_name("Sprite2D")!=nullptr);
+        REQUIRE(Salix::ByteMirror::get_type_info_by_name("Camera")!=nullptr);
+        REQUIRE(Salix::ByteMirror::get_type_info_by_name("BoxCollider")!=nullptr);
+        REQUIRE(Salix::ByteMirror::get_type_info_by_name("CppScript")!=nullptr);
+    }
+    TEST_CASE("batch2347 BoxCollider reflection links Element ancestor and size property") {
+        Salix::ByteMirror::register_all_types(); const auto* info=Salix::ByteMirror::get_type_info_by_name("BoxCollider"); REQUIRE(info!=nullptr); REQUIRE(info->ancestor!=nullptr); CHECK(info->ancestor->name=="Element");
+        const auto props=Salix::ByteMirror::get_all_properties_for_type(info); CHECK(batch1147_has_property(props,"size")); CHECK(batch1147_has_property(props,"id")); CHECK(batch1147_has_property(props,"name")); CHECK(batch1147_has_property(props,"visible"));
+    }
+    TEST_CASE("batch2347 CppScript reflection includes script name and inherited element properties") {
+        Salix::ByteMirror::register_all_types(); const auto* info=Salix::ByteMirror::get_type_info_by_name("CppScript"); REQUIRE(info!=nullptr);
+        const auto props=Salix::ByteMirror::get_all_properties_for_type(info); CHECK(batch1147_has_property(props,"script_name")); CHECK(batch1147_has_property(props,"name")); CHECK(batch1147_has_property(props,"visible")); CHECK(batch1147_has_property(props,"id"));
+    }
+    TEST_CASE("batch2347 null TypeInfo produces an empty flattened property list") {
+        CHECK(Salix::ByteMirror::get_all_properties_for_type(nullptr).empty());
+    }
+    TEST_CASE("batch2347 BoxCollider live handles expose size and inherited metadata") {
+        Salix::ByteMirror::register_all_types(); Salix::BoxCollider collider; auto handles=Salix::ByteMirror::create_handles_for(&collider); std::vector<std::string> names;
+        for(const auto& h:handles){REQUIRE(h!=nullptr); names.push_back(h->get_name());}
+        CHECK(std::find(names.begin(),names.end(),"size")!=names.end()); CHECK(std::find(names.begin(),names.end(),"name")!=names.end()); CHECK(std::find(names.begin(),names.end(),"visible")!=names.end());
+    }
+    TEST_CASE("batch2347 BoxCollider reflected size follows live object mutation") {
+        Salix::ByteMirror::register_all_types(); Salix::BoxCollider collider; collider.set_size(Salix::Vector3(2.f,4.f,8.f));
+        const auto value=Salix::ByteMirror::get_property_value(&collider,"size"); REQUIRE(std::holds_alternative<Salix::Vector3>(value)); CHECK(std::get<Salix::Vector3>(value)==Salix::Vector3(2.f,4.f,8.f));
+    }
+    TEST_CASE("batch2347 CppScript script name can be changed through reflected live handle") {
+        Salix::ByteMirror::register_all_types(); Salix::CppScript script; auto handles=Salix::ByteMirror::create_handles_for(&script);
+        auto it=std::find_if(handles.begin(),handles.end(),[](const auto& h){return h&&h->get_name()=="script_name";}); REQUIRE(it!=handles.end());
+        (*it)->set_value(Salix::PropertyValue{std::string("Batch2347Script")}); CHECK(script.get_script_name()=="Batch2347Script"); CHECK(std::get<std::string>((*it)->get_value())=="Batch2347Script");
+    }
+    TEST_CASE("batch2347 Camera projection mode property value reflects latest enum selection") {
+        Salix::ByteMirror::register_all_types(); Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        const auto value=Salix::ByteMirror::get_property_value(&camera,"projection_mode"); REQUIRE(std::holds_alternative<int>(value)); CHECK(std::get<int>(value)==static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+    TEST_CASE("batch2347 empty and unknown constructor names return null") {
+        Salix::ByteMirror::register_all_types(); CHECK(Salix::ByteMirror::create_element_by_name("")==nullptr); CHECK(Salix::ByteMirror::create_element_by_name("Batch2347Missing")==nullptr);
+    }
+    TEST_CASE("batch2347 YAML BoxCollider handles include only properties present in node") {
+        Salix::ByteMirror::register_all_types(); YAML::Node entity,properties; properties["name"]="YamlCollider"; properties["size"]=Salix::Vector3(1.f,2.f,3.f); YAML::Node wrapper; wrapper["BoxCollider"]=properties; entity["elements"].push_back(wrapper);
+        auto handles=Salix::ByteMirror::create_handles_for_yaml(&entity); std::vector<std::string> names; for(const auto& h:handles){REQUIRE(h!=nullptr); names.push_back(h->get_name());}
+        CHECK(std::find(names.begin(),names.end(),"name")!=names.end()); CHECK(std::find(names.begin(),names.end(),"size")!=names.end()); CHECK(std::find(names.begin(),names.end(),"visible")==names.end());
+    }
+}
+
