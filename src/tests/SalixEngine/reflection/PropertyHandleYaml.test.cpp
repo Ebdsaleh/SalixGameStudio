@@ -295,3 +295,51 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch1847") {
         CHECK(node["Mode"].as<std::string>() == "Unknown");
     }
 }
+
+namespace { struct Batch2347YamlEnumTag {}; }
+
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch2347") {
+    TEST_CASE("batch2347 integer property creates and then reads exact scalar") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Count",Salix::PropertyType::Int),&node);
+        handle.set_value(Salix::PropertyValue{-2347}); CHECK(node["Count"].as<int>()==-2347); CHECK(std::get<int>(handle.get_value())==-2347);
+    }
+    TEST_CASE("batch2347 uint64 property preserves high identifier bits") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Id",Salix::PropertyType::UInt64),&node);
+        const std::uint64_t value=(std::uint64_t{1}<<60)+2347; handle.set_value(Salix::PropertyValue{value}); CHECK(node["Id"].as<std::uint64_t>()==value); CHECK(std::get<std::uint64_t>(handle.get_value())==value);
+    }
+    TEST_CASE("batch2347 float bool and string properties can coexist in one node") {
+        YAML::Node node; Salix::PropertyHandleYaml f(batch1047_yaml_property("F",Salix::PropertyType::Float),&node), b(batch1047_yaml_property("B",Salix::PropertyType::Bool),&node), s(batch1047_yaml_property("S",Salix::PropertyType::String),&node);
+        f.set_value(Salix::PropertyValue{-3.5f}); b.set_value(Salix::PropertyValue{true}); s.set_value(Salix::PropertyValue{std::string("Batch2347")});
+        CHECK(std::get<float>(f.get_value())==doctest::Approx(-3.5f)); CHECK(std::get<bool>(b.get_value())); CHECK(std::get<std::string>(s.get_value())=="Batch2347");
+    }
+    TEST_CASE("batch2347 Vector2 and Vector3 setters preserve signed components") {
+        YAML::Node node; Salix::PropertyHandleYaml v2(batch1047_yaml_property("V2",Salix::PropertyType::Vector2),&node), v3(batch1047_yaml_property("V3",Salix::PropertyType::Vector3),&node);
+        const Salix::Vector2 a(-1.25f,8.5f); const Salix::Vector3 b(9.f,-10.f,11.f); v2.set_value(Salix::PropertyValue{a}); v3.set_value(Salix::PropertyValue{b});
+        CHECK(std::get<Salix::Vector2>(v2.get_value())==a); CHECK(std::get<Salix::Vector3>(v3.get_value())==b);
+    }
+    TEST_CASE("batch2347 Color Point and Rect setters create typed YAML values") {
+        YAML::Node node; Salix::PropertyHandleYaml c(batch1047_yaml_property("C",Salix::PropertyType::Color),&node), p(batch1047_yaml_property("P",Salix::PropertyType::Point),&node), r(batch1047_yaml_property("R",Salix::PropertyType::Rect),&node);
+        const Salix::Color color(0.2f,0.4f,0.6f,0.8f); const Salix::Point point{-7,13}; const Salix::Rect rect(-1,-2,30,40);
+        c.set_value(Salix::PropertyValue{color}); p.set_value(Salix::PropertyValue{point}); r.set_value(Salix::PropertyValue{rect});
+        CHECK(std::get<Salix::Color>(c.get_value())==color); CHECK(std::get<Salix::Point>(p.get_value())==point); CHECK(std::get<Salix::Rect>(r.get_value())==rect);
+    }
+    TEST_CASE("batch2347 GlmMat4 property reads back complete written diagonal") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Matrix",Salix::PropertyType::GlmMat4),&node); glm::mat4 matrix(1.f); matrix[0][0]=2.f; matrix[1][1]=3.f; matrix[2][2]=4.f; matrix[3][3]=5.f;
+        handle.set_value(Salix::PropertyValue{matrix}); const auto loaded=std::get<glm::mat4>(handle.get_value()); CHECK(loaded[0][0]==doctest::Approx(2.f)); CHECK(loaded[1][1]==doctest::Approx(3.f)); CHECK(loaded[2][2]==doctest::Approx(4.f)); CHECK(loaded[3][3]==doctest::Approx(5.f));
+    }
+    TEST_CASE("batch2347 plain Enum property stores integer representation") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Mode",Salix::PropertyType::Enum),&node); handle.set_value(Salix::PropertyValue{17}); CHECK(node["Mode"].as<int>()==17); CHECK(std::get<int>(handle.get_value())==17);
+    }
+    TEST_CASE("batch2347 registered EnumClass maps YAML name to integer and integer back to name") {
+        Salix::EnumRegistry::EnumData data; data.value_to_string[4]="Four"; data.value_to_string[9]="Nine"; data.ordered_names={"Four","Nine"}; Salix::EnumRegistry::register_enum(typeid(Batch2347YamlEnumTag),std::move(data));
+        Salix::TypeInfo contained; contained.name="Batch2347YamlEnumTag"; contained.type_index=typeid(Batch2347YamlEnumTag); auto property=batch1047_yaml_property("Mode",Salix::PropertyType::EnumClass); property.contained_type_info=&contained;
+        YAML::Node node; node["Mode"]="Four"; Salix::PropertyHandleYaml handle(property,&node); CHECK(std::get<int>(handle.get_value())==4); handle.set_value(Salix::PropertyValue{9}); CHECK(node["Mode"].as<std::string>()=="Nine");
+    }
+    TEST_CASE("batch2347 missing property read leaves unrelated YAML keys untouched") {
+        YAML::Node node; node["Keep"]="value"; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Missing2347",Salix::PropertyType::String),&node); CHECK(std::get<int>(handle.get_value())==0); CHECK_FALSE(node["Missing2347"]); CHECK(node["Keep"].as<std::string>()=="value");
+    }
+    TEST_CASE("batch2347 mismatched variant write preserves existing typed YAML value") {
+        YAML::Node node; node["Count"]=88; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Count",Salix::PropertyType::Int),&node); handle.set_value(Salix::PropertyValue{std::string("wrong")}); CHECK(node["Count"].as<int>()==88); CHECK(std::get<int>(handle.get_value())==88);
+    }
+}
+
