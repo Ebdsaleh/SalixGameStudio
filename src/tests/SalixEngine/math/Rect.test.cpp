@@ -565,3 +565,45 @@ TEST_SUITE("Salix::math::RectClosure1747") {
         CHECK(first.str() == second.str());
     }
 }
+
+TEST_SUITE("Salix::math::RectBatch2547") {
+    TEST_CASE("batch2547 default rectangles of every exported scalar type begin zeroed") {
+        const Salix::RectI a; const Salix::RectF b; const Salix::RectD c;
+        CHECK(a==Salix::RectI(0,0,0,0)); CHECK(b==Salix::RectF(0.f,0.f,0.f,0.f)); CHECK(c==Salix::RectD(0.0,0.0,0.0,0.0));
+    }
+    TEST_CASE("batch2547 integer rectangle preserves signed extreme representable values") {
+        const Salix::RectI r(std::numeric_limits<int>::min(),std::numeric_limits<int>::max(),-1,0);
+        CHECK(r.x==std::numeric_limits<int>::min()); CHECK(r.y==std::numeric_limits<int>::max()); CHECK(r.w==-1); CHECK(r.h==0);
+    }
+    TEST_CASE("batch2547 float to integer conversion truncates positive and negative fractions toward zero") {
+        const Salix::RectF source(-9.99f,9.99f,-0.25f,0.25f); const Salix::RectI r(source);
+        CHECK(r==Salix::RectI(-9,9,0,0));
+    }
+    TEST_CASE("batch2547 integer to double conversion preserves moderate coordinates exactly") {
+        const Salix::RectI source(-12345,23456,-3456,4567); const Salix::RectD r(source);
+        CHECK(r.x==-12345.0); CHECK(r.y==23456.0); CHECK(r.w==-3456.0); CHECK(r.h==4567.0);
+    }
+    TEST_CASE("batch2547 mixed arithmetic constructor converts each component independently") {
+        const Salix::RectF r(static_cast<short>(-7),8.5,static_cast<unsigned char>(9),10LL);
+        CHECK(r.x==doctest::Approx(-7.f)); CHECK(r.y==doctest::Approx(8.5f)); CHECK(r.w==doctest::Approx(9.f)); CHECK(r.h==doctest::Approx(10.f));
+    }
+    TEST_CASE("batch2547 equality changes when only x differs") {
+        const Salix::RectI a(1,2,3,4),b(9,2,3,4); CHECK(a!=b); CHECK_FALSE(a==b);
+    }
+    TEST_CASE("batch2547 equality changes when only width differs") {
+        const Salix::RectD a(1,2,3,4),b(1,2,8,4); CHECK(a!=b); CHECK_FALSE(a==b);
+    }
+    TEST_CASE("batch2547 ostream formatting preserves negative floating components") {
+        const Salix::RectF r(-1.5f,2.25f,-3.75f,4.5f); std::stringstream ss; ss<<r;
+        CHECK(ss.str()=="{ x: -1.5, y: 2.25, w: -3.75, h: 4.5 }");
+    }
+    TEST_CASE("batch2547 JSON roundtrip preserves zero and negative integer extents") {
+        const Salix::RectI source(0,-2,0,-4); std::stringstream ss; {cereal::JSONOutputArchive out(ss); out(source);}
+        Salix::RectI restored; {cereal::JSONInputArchive in(ss); in(restored);} CHECK(restored==source);
+    }
+    TEST_CASE("batch2547 binary roundtrip preserves finite double components exactly") {
+        const Salix::RectD source(0.125,-0.25,4096.5,-8192.75); std::stringstream ss; {cereal::BinaryOutputArchive out(ss); out(source);}
+        Salix::RectD restored; {cereal::BinaryInputArchive in(ss); in(restored);} CHECK(restored==source);
+    }
+}
+
