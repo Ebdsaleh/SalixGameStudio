@@ -438,3 +438,92 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch2347") {
     }
 }
 
+namespace {
+class Batch2647LiveElement final : public Salix::Element {
+public:
+    int integer=1;
+    std::uint64_t u64=2;
+    int enum_value=3;
+    int enum_class_value=4;
+    float scalar=5.5f;
+    bool flag=false;
+    std::string text="old";
+    Salix::Vector2 v2{1.f,2.f};
+    Salix::Vector3 v3{3.f,4.f,5.f};
+    glm::mat4 matrix{1.f};
+    const char* get_class_name() const override { return "Batch2647LiveElement"; }
+};
+Salix::Property batch2647_live_property(const char* name, Salix::PropertyType type,
+    Salix::getter_func getter, Salix::setter_func setter) {
+    Salix::Property property;
+    property.name=name; property.type=type; property.get_data=std::move(getter); property.set_data=std::move(setter);
+    return property;
+}
+}
+
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch2647") {
+    TEST_CASE("batch2647 Int handle reads and writes live storage") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("i",Salix::PropertyType::Int,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->integer;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->integer=*static_cast<int*>(v);});
+        Salix::PropertyHandleLive h(p,&e); CHECK(std::get<int>(h.get_value())==1); h.set_value(Salix::PropertyValue{42}); CHECK(e.integer==42);
+    }
+    TEST_CASE("batch2647 UInt64 handle preserves high bits through setter") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("u",Salix::PropertyType::UInt64,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->u64;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->u64=*static_cast<std::uint64_t*>(v);});
+        Salix::PropertyHandleLive h(p,&e); const std::uint64_t value=(std::uint64_t{1}<<60)+2647ULL; h.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<std::uint64_t>(h.get_value())==value); CHECK(e.u64==value);
+    }
+    TEST_CASE("batch2647 Enum handle uses integer transport in both directions") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("enum",Salix::PropertyType::Enum,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->enum_value;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->enum_value=*static_cast<int*>(v);});
+        Salix::PropertyHandleLive h(p,&e); CHECK(std::get<int>(h.get_value())==3); h.set_value(Salix::PropertyValue{17}); CHECK(e.enum_value==17);
+    }
+    TEST_CASE("batch2647 EnumClass handle uses integer transport in both directions") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("enumclass",Salix::PropertyType::EnumClass,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->enum_class_value;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->enum_class_value=*static_cast<int*>(v);});
+        Salix::PropertyHandleLive h(p,&e); CHECK(std::get<int>(h.get_value())==4); h.set_value(Salix::PropertyValue{-9}); CHECK(e.enum_class_value==-9);
+    }
+    TEST_CASE("batch2647 Float handle accepts exact float alternative") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("float",Salix::PropertyType::Float,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->scalar;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->scalar=*static_cast<float*>(v);});
+        Salix::PropertyHandleLive h(p,&e); h.set_value(Salix::PropertyValue{12.25f}); CHECK(e.scalar==doctest::Approx(12.25f)); CHECK(std::get<float>(h.get_value())==doctest::Approx(12.25f));
+    }
+    TEST_CASE("batch2647 Bool handle toggles exact live flag") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("bool",Salix::PropertyType::Bool,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->flag;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->flag=*static_cast<bool*>(v);});
+        Salix::PropertyHandleLive h(p,&e); CHECK_FALSE(std::get<bool>(h.get_value())); h.set_value(Salix::PropertyValue{true}); CHECK(e.flag); CHECK(std::get<bool>(h.get_value()));
+    }
+    TEST_CASE("batch2647 String handle replaces complete live string including whitespace") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("string",Salix::PropertyType::String,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->text;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->text=*static_cast<std::string*>(v);});
+        Salix::PropertyHandleLive h(p,&e); h.set_value(Salix::PropertyValue{std::string("  Batch 2647  ")}); CHECK(e.text=="  Batch 2647  "); CHECK(std::get<std::string>(h.get_value())==e.text);
+    }
+    TEST_CASE("batch2647 Vector2 handle replaces both coordinates") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("v2",Salix::PropertyType::Vector2,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->v2;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->v2=*static_cast<Salix::Vector2*>(v);});
+        Salix::PropertyHandleLive h(p,&e); h.set_value(Salix::PropertyValue{Salix::Vector2(-2.f,6.f)}); CHECK(e.v2==Salix::Vector2(-2.f,6.f)); CHECK(std::get<Salix::Vector2>(h.get_value())==e.v2);
+    }
+    TEST_CASE("batch2647 Vector3 handle replaces all three coordinates") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("v3",Salix::PropertyType::Vector3,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->v3;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->v3=*static_cast<Salix::Vector3*>(v);});
+        Salix::PropertyHandleLive h(p,&e); h.set_value(Salix::PropertyValue{Salix::Vector3(7.f,-8.f,9.f)}); CHECK(e.v3==Salix::Vector3(7.f,-8.f,9.f)); CHECK(std::get<Salix::Vector3>(h.get_value())==e.v3);
+    }
+    TEST_CASE("batch2647 GlmMat4 handle remains intentionally read only despite setter callback") {
+        Batch2647LiveElement e; int setter_calls=0; e.matrix[2][1]=6.25f;
+        auto p=batch2647_live_property("matrix",Salix::PropertyType::GlmMat4,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->matrix;},
+            [&](void*,void*){++setter_calls;});
+        Salix::PropertyHandleLive h(p,&e); auto before=std::get<glm::mat4>(h.get_value()); CHECK(before[2][1]==doctest::Approx(6.25f));
+        h.set_value(Salix::PropertyValue{glm::mat4(3.f)}); CHECK(setter_calls==0); CHECK(e.matrix[2][1]==doctest::Approx(6.25f));
+    }
+}
+
