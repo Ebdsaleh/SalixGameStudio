@@ -251,3 +251,55 @@ TEST_SUITE("Salix::management::ProjectBatch2347") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectBatch2547") {
+    TEST_CASE("batch2547 empty project name derives empty-prefixed filenames without rewriting root") {
+        Salix::Project project("","Root2547");
+        CHECK(project.get_name().empty()); CHECK(project.get_path()=="Root2547");
+        CHECK(project.get_project_file_name()==".salixproj"); CHECK(project.get_game_dll_name()==".dll");
+    }
+    TEST_CASE("batch2547 project name punctuation is preserved verbatim in derived filenames") {
+        Salix::Project project("Game.Name-2547","D:/Root");
+        CHECK(project.get_project_file_name()=="Game.Name-2547.salixproj");
+        CHECK(project.get_game_dll_name()=="Game.Name-2547.dll");
+    }
+    TEST_CASE("batch2547 repeated starting realm assignment keeps only latest exact string") {
+        Salix::Project project; project.set_starting_realm("One"); project.set_starting_realm("Two"); project.set_starting_realm("Realm 2547");
+        CHECK(project.get_starting_realm()=="Realm 2547");
+    }
+    TEST_CASE("batch2547 realm path map supports empty path values without rejecting metadata") {
+        Salix::Project project; project.add_realm_path("EmptyPath","");
+        REQUIRE(project.get_realm_paths().count("EmptyPath")==1); CHECK(project.get_realm_paths().at("EmptyPath").empty());
+    }
+    TEST_CASE("batch2547 realm path map supports empty realm name as exact key") {
+        Salix::Project project; project.add_realm_path("","NoName.realm");
+        REQUIRE(project.get_realm_paths().count("")==1); CHECK(project.get_realm_paths().at("")=="NoName.realm");
+    }
+    TEST_CASE("batch2547 removing one of duplicate path values removes exactly one map entry") {
+        Salix::Project project; const std::string shared="Batch2547Shared.realm";
+        project.add_realm_path("A",shared); project.add_realm_path("B",shared); REQUIRE(project.get_realm_paths().size()==2);
+        CHECK(project.remove_realm_path(shared)); CHECK(project.get_realm_paths().size()==1);
+        CHECK(project.get_realm_paths().begin()->second==shared);
+    }
+    TEST_CASE("batch2547 removing same mapped path twice reports success then failure") {
+        Salix::Project project; const std::string path="Batch2547Twice.realm"; project.add_realm_path("Only",path);
+        CHECK(project.remove_realm_path(path)); CHECK_FALSE(project.remove_realm_path(path)); CHECK(project.get_realm_paths().empty());
+    }
+    TEST_CASE("batch2547 remove path uses exact case-sensitive string matching") {
+        Salix::Project project; project.add_realm_path("Case","Assets/Realm2547.realm");
+        CHECK_FALSE(project.remove_realm_path("assets/realm2547.realm")); REQUIRE(project.get_realm_paths().size()==1);
+        CHECK(project.get_realm_paths().at("Case")=="Assets/Realm2547.realm");
+    }
+    TEST_CASE("batch2547 preinitialization lifecycle calls preserve all metadata collections") {
+        Salix::Project project("Meta2547","Root2547"); project.set_starting_realm("Start"); project.add_realm_path("Start","Start.realm");
+        project.update(123.f); project.render(nullptr); project.shutdown();
+        CHECK(project.get_name()=="Meta2547"); CHECK(project.get_path()=="Root2547"); CHECK(project.get_starting_realm()=="Start");
+        REQUIRE(project.get_realm_paths().size()==1); CHECK(project.get_realm_manager()==nullptr);
+    }
+    TEST_CASE("batch2547 create default realm before initialization does not mutate configured realm metadata") {
+        Salix::Project project; project.add_realm_path("Default","ConfiguredDefault.realm"); project.set_starting_realm("Default");
+        project.create_and_save_default_realm();
+        CHECK(project.get_starting_realm()=="Default"); REQUIRE(project.get_realm_paths().size()==1);
+        CHECK(project.get_realm_paths().at("Default")=="ConfiguredDefault.realm"); CHECK(project.get_realm_manager()==nullptr);
+    }
+}
+
