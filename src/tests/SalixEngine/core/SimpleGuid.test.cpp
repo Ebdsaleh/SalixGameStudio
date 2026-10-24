@@ -423,3 +423,71 @@ TEST_SUITE("Salix::core::SimpleGuidClosure1747") {
         CHECK(it->get_value() == 100ULL);
     }
 }
+
+TEST_SUITE("Salix::core::SimpleGuidBatch2147") {
+    TEST_CASE("batch2147 default and explicit zero GUIDs are both invalid and equal") {
+        const Salix::SimpleGuid a;
+        const auto b = Salix::SimpleGuid::from_value(0);
+        CHECK_FALSE(a.is_valid());
+        CHECK_FALSE(b.is_valid());
+        CHECK(a == b);
+    }
+    TEST_CASE("batch2147 nonzero explicit GUID retains its complete unsigned value") {
+        const auto guid = Salix::SimpleGuid::from_value(0x123456789abcdef0ULL);
+        CHECK(guid.is_valid());
+        CHECK(guid.get_value() == 0x123456789abcdef0ULL);
+    }
+    TEST_CASE("batch2147 equality and inequality are strict complements") {
+        const auto a = Salix::SimpleGuid::from_value(77);
+        const auto b = Salix::SimpleGuid::from_value(77);
+        const auto c = Salix::SimpleGuid::from_value(78);
+        CHECK(a == b);
+        CHECK_FALSE(a != b);
+        CHECK(a != c);
+        CHECK_FALSE(a == c);
+    }
+    TEST_CASE("batch2147 ordering follows raw numeric identifier order") {
+        CHECK(Salix::SimpleGuid::from_value(1) < Salix::SimpleGuid::from_value(2));
+        CHECK_FALSE(Salix::SimpleGuid::from_value(2) < Salix::SimpleGuid::from_value(1));
+        CHECK_FALSE(Salix::SimpleGuid::from_value(2) < Salix::SimpleGuid::from_value(2));
+    }
+    TEST_CASE("batch2147 invalid factory matches default constructed invalid identity") {
+        const auto invalid = Salix::SimpleGuid::invalid();
+        const Salix::SimpleGuid fresh;
+        CHECK(invalid == fresh);
+        CHECK(invalid.get_value() == 0);
+    }
+    TEST_CASE("batch2147 reset makes the next generated identifier one again") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto first = Salix::SimpleGuid::generate();
+        CHECK(first.get_value() == 1);
+        CHECK(first.is_valid());
+    }
+    TEST_CASE("batch2147 generation increments identifiers monotonically after reset") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto a = Salix::SimpleGuid::generate();
+        const auto b = Salix::SimpleGuid::generate();
+        const auto c = Salix::SimpleGuid::generate();
+        CHECK(a.get_value() == 1);
+        CHECK(b.get_value() == 2);
+        CHECK(c.get_value() == 3);
+    }
+    TEST_CASE("batch2147 update next id advances generation beyond a higher known identifier") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(500);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 501);
+    }
+    TEST_CASE("batch2147 update next id never moves an already advanced counter backwards") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(100);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 101);
+        Salix::SimpleGuid::update_next_id(10);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 102);
+    }
+    TEST_CASE("batch2147 standard hash agrees for equal GUID values") {
+        const auto a = Salix::SimpleGuid::from_value(9999);
+        const auto b = Salix::SimpleGuid::from_value(9999);
+        CHECK(std::hash<Salix::SimpleGuid>{}(a) == std::hash<Salix::SimpleGuid>{}(b));
+    }
+}
+
