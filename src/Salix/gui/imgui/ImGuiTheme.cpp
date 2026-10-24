@@ -117,6 +117,7 @@ namespace Salix {
         std::string name;
         std::string file_path;
         std::unique_ptr<ImGuiThemeData> theme_data;
+        bool has_explicit_name = false;
     };
 
     // Constructors
@@ -124,12 +125,14 @@ namespace Salix {
         pimpl->name = "Default ImGui Theme"; // Default name
         pimpl->file_path = "";
         pimpl->theme_data = std::make_unique<ImGuiThemeData>(); // Default data
+        pimpl->has_explicit_name = false;
     }
 
     ImGuiTheme::ImGuiTheme(const std::string& theme_name) : pimpl(std::make_unique<Pimpl>()) {
         pimpl->name = theme_name;
         pimpl->file_path = "";
-        pimpl->theme_data = std::make_unique<ImGuiThemeData>(); 
+        pimpl->theme_data = std::make_unique<ImGuiThemeData>();
+        pimpl->has_explicit_name = true; 
     }
 
     ImGuiTheme::ImGuiTheme(const std::string& theme_name, const std::string& file_path)
@@ -137,6 +140,7 @@ namespace Salix {
         pimpl->name = theme_name;
         pimpl->file_path = file_path;
         pimpl->theme_data = std::make_unique<ImGuiThemeData>(theme_name); // Pass name to data constructor
+        pimpl->has_explicit_name = true;
     }
 
     // Destructor (must be defined in .cpp for unique_ptr Pimpl)
@@ -366,7 +370,17 @@ namespace Salix {
             }
 
             // --- Load Metadata ---
-            if (root["name"]) pimpl->theme_data->name = root["name"].as<std::string>();
+            if (root["name"]) {
+                const std::string loaded_name = root["name"].as<std::string>();
+                pimpl->theme_data->name = loaded_name;
+
+                // Default-constructed themes are used by the internal/directory loaders,
+                // so their public identity must follow the YAML metadata. Explicitly named
+                // themes keep the caller-provided registry identity.
+                if (!pimpl->has_explicit_name) {
+                    pimpl->name = loaded_name;
+                }
+            }
             if (root["gui_type"]) pimpl->theme_data->gui_type = root["gui_type"].as<std::string>();
 
             // --- Load Font Properties ---
@@ -547,6 +561,7 @@ namespace Salix {
                     pimpl->theme_data->hover_flags_for_tooltip_nav);
             }
 
+            pimpl->file_path = file_path;
             std::cout << "ImGuiTheme: Loaded from YAML file '" << file_path << "'" << std::endl;
             return true;
 
