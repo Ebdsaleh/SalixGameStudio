@@ -300,3 +300,102 @@ TEST_SUITE("Salix::gui::ImGuiFontDataBatch1947") {
         CHECK(copy.config.ellipsis_char == static_cast<ImWchar>(0x2026));
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontDataBatch2447") {
+    TEST_CASE("batch2447 default config exposes canonical rasterization defaults") {
+        Salix::ImGuiFontData data;
+        CHECK_FALSE(data.config.merge_mode);
+        CHECK_FALSE(data.config.pixel_snap_h);
+        CHECK(data.config.pixel_snap_v);
+        CHECK(data.config.font_no == 0);
+        CHECK(data.config.oversample_h == 2);
+        CHECK(data.config.oversample_v == 1);
+    }
+
+    TEST_CASE("batch2447 parameterized constructor synchronizes initial config pixel size") {
+        Salix::ImGuiFontData data("Body2447", "body2447.ttf", 27.5f);
+        CHECK(data.get_font_size() == doctest::Approx(27.5f));
+        CHECK(data.config.size_pixels == doctest::Approx(27.5f));
+    }
+
+    TEST_CASE("batch2447 font size setter changes metadata without rewriting explicit config size") {
+        Salix::ImGuiFontData data("Body2447", "body2447.ttf", 16.0f);
+        data.config.size_pixels = 48.0f;
+        data.set_font_size(22.0f);
+        CHECK(data.get_font_size() == doctest::Approx(22.0f));
+        CHECK(data.config.size_pixels == doctest::Approx(48.0f));
+    }
+
+    TEST_CASE("batch2447 font metadata preserves negative diagnostic size assignments") {
+        Salix::ImGuiFontData data;
+        data.set_font_size(-12.5f);
+        CHECK(data.get_font_size() == doctest::Approx(-12.5f));
+        CHECK(data.config.size_pixels == doctest::Approx(20.0f));
+    }
+
+    TEST_CASE("batch2447 GUI identity remains ImGui after public metadata mutation") {
+        Salix::ImGuiFontData data;
+        data.name = "Renamed2447";
+        data.file_path = "renamed2447.otf";
+        data.set_font_size(31.0f);
+        CHECK(data.get_gui_type() == "ImGui");
+        CHECK(data.get_name() == "Renamed2447");
+        CHECK(data.get_file_path() == "renamed2447.otf");
+    }
+
+    TEST_CASE("batch2447 copied config scalar state becomes independently mutable") {
+        Salix::ImGuiFontData original("Original2447", "o.ttf", 18.0f);
+        original.config.rasterizer_multiply = 1.5f;
+        original.config.rasterizer_density = 2.0f;
+        Salix::ImGuiFontData copy = original;
+        copy.config.rasterizer_multiply = 0.5f;
+        copy.config.rasterizer_density = 3.0f;
+        CHECK(original.config.rasterizer_multiply == doctest::Approx(1.5f));
+        CHECK(original.config.rasterizer_density == doctest::Approx(2.0f));
+        CHECK(copy.config.rasterizer_multiply == doctest::Approx(0.5f));
+        CHECK(copy.config.rasterizer_density == doctest::Approx(3.0f));
+    }
+
+    TEST_CASE("batch2447 copied config preserves caller-owned glyph range pointers") {
+        static const ImWchar ranges[] = {0x20, 0x7E, 0};
+        static const ImWchar excluded[] = {0x30, 0x39, 0};
+        Salix::ImGuiFontData original;
+        original.config.glyph_ranges = ranges;
+        original.config.glyph_exclude_ranges = excluded;
+        Salix::ImGuiFontData copy = original;
+        CHECK(copy.config.glyph_ranges == ranges);
+        CHECK(copy.config.glyph_exclude_ranges == excluded);
+    }
+
+    TEST_CASE("batch2447 loader flags and ellipsis codepoint remain independently assignable") {
+        Salix::ImGuiFontData data;
+        data.config.font_loader_flags = 0xA5A5u;
+        data.config.ellipsis_char = static_cast<ImWchar>(0x2026);
+        CHECK(data.config.font_loader_flags == 0xA5A5u);
+        CHECK(data.config.ellipsis_char == static_cast<ImWchar>(0x2026));
+        CHECK(data.config.glyph_ranges == nullptr);
+    }
+
+    TEST_CASE("batch2447 IFontData dispatch updates concrete font size") {
+        Salix::ImGuiFontData data("Interface2447", "interface.ttf", 14.0f);
+        Salix::IFontData* base = &data;
+        base->set_font_size(26.0f);
+        CHECK(base->get_font_size() == doctest::Approx(26.0f));
+        CHECK(base->get_name() == "Interface2447");
+        CHECK(base->get_gui_type() == "ImGui");
+    }
+
+    TEST_CASE("batch2447 separate font data objects keep independent config and metadata") {
+        Salix::ImGuiFontData first("First2447", "first.ttf", 12.0f);
+        Salix::ImGuiFontData second("Second2447", "second.ttf", 24.0f);
+        first.config.merge_mode = true;
+        second.config.pixel_snap_h = true;
+        CHECK(first.get_name() == "First2447");
+        CHECK(second.get_name() == "Second2447");
+        CHECK(first.config.merge_mode);
+        CHECK_FALSE(second.config.merge_mode);
+        CHECK_FALSE(first.config.pixel_snap_h);
+        CHECK(second.config.pixel_snap_h);
+    }
+}
+
