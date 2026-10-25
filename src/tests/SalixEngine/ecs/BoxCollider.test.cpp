@@ -465,3 +465,61 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::ecs::BoxColliderBatch2847") {
+    TEST_CASE("batch2847 scalar constructor-style size assignments remain exact") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(1.25f,2.5f,5.0f));
+        CHECK(collider.get_size()==Salix::Vector3(1.25f,2.5f,5.0f));
+    }
+    TEST_CASE("batch2847 repeated identical size assignments are idempotent") {
+        Salix::BoxCollider collider;
+        const Salix::Vector3 size(-3.0f,4.0f,9.0f);
+        collider.set_size(size); collider.set_size(size);
+        CHECK(collider.get_size()==size);
+    }
+    TEST_CASE("batch2847 zero size survives lifecycle calls unchanged") {
+        Salix::BoxCollider collider; Salix::InitContext context{};
+        collider.set_size(Salix::Vector3::Zero);
+        collider.initialize(); collider.on_load(context); collider.update(1.0f);
+        CHECK(collider.get_size()==Salix::Vector3::Zero);
+    }
+    TEST_CASE("batch2847 negative dimensions survive lifecycle calls unchanged") {
+        Salix::BoxCollider collider; Salix::InitContext context{};
+        collider.set_size(Salix::Vector3(-1.f,-2.f,-3.f));
+        collider.initialize(); collider.on_load(context); collider.update(-5.0f);
+        CHECK(collider.get_size()==Salix::Vector3(-1.f,-2.f,-3.f));
+    }
+    TEST_CASE("batch2847 owner removal never alters collider dimensions") {
+        Salix::Entity owner; Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(2.f,4.f,8.f)); collider.set_owner(&owner); collider.set_owner(nullptr);
+        CHECK(collider.get_owner()==nullptr); CHECK(collider.get_size()==Salix::Vector3(2.f,4.f,8.f));
+    }
+    TEST_CASE("batch2847 display-name replacement never alters collider dimensions") {
+        Salix::BoxCollider collider; collider.set_size(Salix::Vector3(7.f,6.f,5.f));
+        collider.set_name("Collider 2847");
+        CHECK(collider.get_name()=="Collider 2847"); CHECK(collider.get_size()==Salix::Vector3(7.f,6.f,5.f));
+    }
+    TEST_CASE("batch2847 visibility off and on preserves dimensions") {
+        Salix::BoxCollider collider; collider.set_size(Salix::Vector3(3.f,6.f,9.f));
+        collider.set_visibility(false); collider.set_visibility(true);
+        CHECK(collider.is_visible()); CHECK(collider.get_size()==Salix::Vector3(3.f,6.f,9.f));
+    }
+    TEST_CASE("batch2847 JSON roundtrip preserves zero and negative size components") {
+        Salix::BoxCollider source; source.set_size(Salix::Vector3(0.f,-4.f,2.5f));
+        std::stringstream ss; { cereal::JSONOutputArchive out(ss); out(source); }
+        Salix::BoxCollider restored; { cereal::JSONInputArchive in(ss); in(restored); }
+        CHECK(restored.get_size()==source.get_size());
+    }
+    TEST_CASE("batch2847 binary roundtrip preserves display name and asymmetric size") {
+        Salix::BoxCollider source; source.set_name("Binary Collider 2847"); source.set_size(Salix::Vector3(0.5f,4.f,32.f));
+        std::stringstream ss; { cereal::BinaryOutputArchive out(ss); out(source); }
+        Salix::BoxCollider restored; { cereal::BinaryInputArchive in(ss); in(restored); }
+        CHECK(restored.get_name()=="Binary Collider 2847"); CHECK(restored.get_size()==source.get_size());
+    }
+    TEST_CASE("batch2847 size storage remains stable after repeated setter replacements") {
+        Salix::BoxCollider collider; const Salix::Vector3* storage=&collider.get_size();
+        collider.set_size(Salix::Vector3(1.f)); collider.set_size(Salix::Vector3(2.f)); collider.set_size(Salix::Vector3(3.f));
+        CHECK(&collider.get_size()==storage); CHECK(*storage==Salix::Vector3(3.f));
+    }
+}
+
