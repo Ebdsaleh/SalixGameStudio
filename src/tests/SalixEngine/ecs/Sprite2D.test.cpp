@@ -807,3 +807,47 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch2647") {
     }
 }
 
+TEST_SUITE("Salix::ecs::Sprite2DBatch2947") {
+    TEST_CASE("batch2947 mutable property references update underlying sprite state") {
+        Salix::Sprite2D sprite; sprite.get_local_rotation()=12.5f; sprite.get_flip_h()=true; sprite.get_flip_v()=true; sprite.get_sorting_layer()=-7;
+        CHECK(sprite.get_local_rotation()==doctest::Approx(12.5f)); CHECK(sprite.get_flip_h()); CHECK(sprite.get_flip_v()); CHECK(sprite.get_sorting_layer()==-7);
+    }
+    TEST_CASE("batch2947 mutable vector and color references update underlying sprite state") {
+        Salix::Sprite2D sprite; sprite.get_offset()=Salix::Vector2(-3.f,4.f); sprite.get_pivot()=Salix::Vector2(0.25f,0.75f); sprite.get_color()=Salix::Color(0.1f,0.2f,0.3f,0.4f);
+        CHECK(sprite.get_offset()==Salix::Vector2(-3.f,4.f)); CHECK(sprite.get_pivot()==Salix::Vector2(0.25f,0.75f)); CHECK(sprite.get_color()==Salix::Color(0.1f,0.2f,0.3f,0.4f));
+    }
+    TEST_CASE("batch2947 texture path setter alone never synthesizes runtime texture state") {
+        Salix::Sprite2D sprite; sprite.set_texture_path("art/not-loaded2947.png");
+        CHECK(sprite.get_texture_path()=="art/not-loaded2947.png"); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0);
+    }
+    TEST_CASE("batch2947 failed texture load preserves requested portable path while clearing runtime dimensions") {
+        MockIRenderer renderer; renderer.should_texture_load_fail=true; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite;
+        sprite.load_texture(&assets,"art/fail2947.png"); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0); CHECK(sprite.get_texture_path()=="art/fail2947.png");
+    }
+    TEST_CASE("batch2947 successful load after failed load recovers runtime texture and dimensions") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite;
+        renderer.should_texture_load_fail=true; sprite.load_texture(&assets,"art/recover2947.png"); REQUIRE(sprite.get_texture()==nullptr);
+        renderer.should_texture_load_fail=false; sprite.load_texture(&assets,"art/recover2947.png"); REQUIRE(sprite.get_texture()!=nullptr); CHECK(sprite.get_texture_width()==16); CHECK(sprite.get_texture_height()==16);
+    }
+    TEST_CASE("batch2947 empty direct load clears runtime texture without erasing prior portable path") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/keep-path2947.png"); REQUIRE(sprite.get_texture()!=nullptr);
+        const auto path_before=sprite.get_texture_path(); sprite.load_texture(&assets,""); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0); CHECK(sprite.get_texture_path()==path_before);
+    }
+    TEST_CASE("batch2947 render without owner performs no draw despite valid texture") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/ownerless2947.png"); REQUIRE(sprite.get_texture()!=nullptr);
+        sprite.render(&renderer); CHECK(renderer.draw_sprite_call_count==0);
+    }
+    TEST_CASE("batch2947 loaded sprite with owner and null renderer performs no draw side effects") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Entity owner; auto* sprite=owner.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        sprite->load_texture(&assets,"art/null2947.png"); REQUIRE(sprite->get_texture()!=nullptr); sprite->render(nullptr); CHECK(renderer.draw_sprite_call_count==0);
+    }
+    TEST_CASE("batch2947 sorting and transform-independent properties survive successful texture load") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.set_sorting_layer(2947); sprite.set_local_rotation(-33.f); sprite.set_use_entity_rotation(true);
+        sprite.load_texture(&assets,"art/state2947.png"); REQUIRE(sprite.get_texture()!=nullptr); CHECK(sprite.get_sorting_layer()==2947); CHECK(sprite.get_local_rotation()==doctest::Approx(-33.f)); CHECK(sprite.get_use_entity_rotation());
+    }
+    TEST_CASE("batch2947 on_load with empty path does not call renderer or change default dimensions") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; Salix::InitContext context{}; context.asset_manager=&assets;
+        sprite.on_load(context); CHECK(renderer.load_texture_calls==0); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0);
+    }
+}
+
