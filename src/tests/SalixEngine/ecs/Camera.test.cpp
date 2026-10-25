@@ -330,3 +330,53 @@ TEST_SUITE("Salix::ecs::CameraBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CameraBatch2947") {
+    TEST_CASE("batch2947 zero height viewport leaves perspective projection unchanged") {
+        Salix::Camera camera; camera.set_viewport_size(1280,720); const auto before=camera.get_projection_matrix();
+        camera.set_viewport_size(1920,0); const auto after=camera.get_projection_matrix();
+        CHECK(before==after);
+    }
+    TEST_CASE("batch2947 owner transform getter returns exact mandatory transform pointer") {
+        Salix::Entity entity; Salix::Camera camera; camera.set_owner(&entity);
+        CHECK(camera.get_transform()==entity.get_transform());
+    }
+    TEST_CASE("batch2947 ownerless view remains identity after activation and update") {
+        Salix::Camera camera; camera.activate(); camera.update(0.5f);
+        CHECK(camera.get_view_matrix()==glm::mat4(1.0f));
+    }
+    TEST_CASE("batch2947 repeated same projection mode rebuild remains numerically stable") {
+        Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Perspective); const auto first=camera.get_projection_matrix();
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective); const auto second=camera.get_projection_matrix();
+        CHECK(first==second);
+    }
+    TEST_CASE("batch2947 perspective projection responds to field of view change") {
+        Salix::Camera camera; const auto before=camera.get_projection_matrix();
+        camera.set_field_of_view(75.0f); const auto after=camera.get_projection_matrix();
+        CHECK(batch1947_camera_matrix_differs(before,after)); CHECK(camera.get_field_of_view()==doctest::Approx(75.0f));
+    }
+    TEST_CASE("batch2947 orthographic projection responds to orthographic size change") {
+        Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Orthographic); const auto before=camera.get_projection_matrix();
+        camera.set_orthographic_size(22.0f); const auto after=camera.get_projection_matrix();
+        CHECK(batch1947_camera_matrix_differs(before,after)); CHECK(camera.get_orthographic_size()==doctest::Approx(22.0f));
+    }
+    TEST_CASE("batch2947 active toggle never alters projection configuration") {
+        Salix::Camera camera; camera.set_field_of_view(61.0f); camera.set_near_clip(0.2f); camera.set_far_clip(400.0f);
+        camera.activate(); camera.deactivate();
+        CHECK(camera.get_field_of_view()==doctest::Approx(61.0f)); CHECK(camera.get_near_clip()==doctest::Approx(0.2f)); CHECK(camera.get_far_clip()==doctest::Approx(400.0f));
+    }
+    TEST_CASE("batch2947 initialize preserves selected projection mode") {
+        Salix::Camera camera; camera.set_projection_mode(Salix::ProjectionMode::Orthographic); camera.initialize();
+        CHECK(camera.get_projection_mode()==Salix::ProjectionMode::Orthographic);
+    }
+    TEST_CASE("batch2947 viewport width change alters perspective projection while preserving mode") {
+        Salix::Camera camera; camera.set_viewport_size(800,600); const auto first=camera.get_projection_matrix();
+        camera.set_viewport_size(1600,600); const auto second=camera.get_projection_matrix();
+        CHECK(batch1947_camera_matrix_differs(first,second)); CHECK(camera.get_projection_mode()==Salix::ProjectionMode::Perspective);
+    }
+    TEST_CASE("batch2947 owner translation changes view while leaving projection matrix stable") {
+        Salix::Entity entity; Salix::Camera camera; camera.set_owner(&entity); const auto projection=camera.get_projection_matrix(); const auto first=camera.get_view_matrix();
+        entity.get_transform()->set_position(3.0f,-2.0f,9.0f); const auto second=camera.get_view_matrix();
+        CHECK(batch1947_camera_matrix_differs(first,second)); CHECK(camera.get_projection_matrix()==projection);
+    }
+}
+
