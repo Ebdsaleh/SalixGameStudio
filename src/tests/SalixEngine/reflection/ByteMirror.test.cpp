@@ -441,3 +441,47 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch2647") {
     }
 }
 
+TEST_SUITE("Salix::reflection::ByteMirrorBatch2947") {
+    TEST_CASE("batch2947 repeated register all types remains idempotently queryable") {
+        Salix::ByteMirror::register_all_types(); Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::get_type_info_by_name("Transform")!=nullptr); CHECK(Salix::ByteMirror::get_type_info_by_name("Sprite2D")!=nullptr);
+    }
+    TEST_CASE("batch2947 registered Transform constructor creates concrete transform") {
+        Salix::ByteMirror::register_all_types(); std::unique_ptr<Salix::Element> created(Salix::ByteMirror::create_element_by_name("Transform"));
+        REQUIRE(created!=nullptr); CHECK(dynamic_cast<Salix::Transform*>(created.get())!=nullptr);
+    }
+    TEST_CASE("batch2947 registered BoxCollider constructor creates concrete collider") {
+        Salix::ByteMirror::register_all_types(); std::unique_ptr<Salix::Element> created(Salix::ByteMirror::create_element_by_name("BoxCollider"));
+        REQUIRE(created!=nullptr); CHECK(dynamic_cast<Salix::BoxCollider*>(created.get())!=nullptr);
+    }
+    TEST_CASE("batch2947 registered Sprite2D constructor creates concrete sprite") {
+        Salix::ByteMirror::register_all_types(); std::unique_ptr<Salix::Element> created(Salix::ByteMirror::create_element_by_name("Sprite2D"));
+        REQUIRE(created!=nullptr); CHECK(dynamic_cast<Salix::Sprite2D*>(created.get())!=nullptr);
+    }
+    TEST_CASE("batch2947 registered CppScript constructor creates concrete script") {
+        Salix::ByteMirror::register_all_types(); std::unique_ptr<Salix::Element> created(Salix::ByteMirror::create_element_by_name("CppScript"));
+        REQUIRE(created!=nullptr); CHECK(dynamic_cast<Salix::CppScript*>(created.get())!=nullptr);
+    }
+    TEST_CASE("batch2947 Element flattened properties expose id name and visible") {
+        Salix::ByteMirror::register_all_types(); const auto* info=Salix::ByteMirror::get_type_info_by_name("Element"); REQUIRE(info!=nullptr);
+        const auto props=Salix::ByteMirror::get_all_properties_for_type(info); CHECK(batch1147_has_property(props,"id")); CHECK(batch1147_has_property(props,"name")); CHECK(batch1147_has_property(props,"visible"));
+    }
+    TEST_CASE("batch2947 Transform flattened properties include local transform and inherited metadata") {
+        Salix::ByteMirror::register_all_types(); const auto* info=Salix::ByteMirror::get_type_info_by_name("Transform"); REQUIRE(info!=nullptr);
+        const auto props=Salix::ByteMirror::get_all_properties_for_type(info); CHECK(batch1147_has_property(props,"position")); CHECK(batch1147_has_property(props,"rotation")); CHECK(batch1147_has_property(props,"scale")); CHECK(batch1147_has_property(props,"name"));
+    }
+    TEST_CASE("batch2947 live Transform handles contain each editable local transform property") {
+        Salix::ByteMirror::register_all_types(); Salix::Transform transform; const auto handles=Salix::ByteMirror::create_handles_for(&transform); std::vector<std::string> names;
+        for(const auto& handle:handles){REQUIRE(handle!=nullptr); names.push_back(handle->get_name());}
+        CHECK(std::find(names.begin(),names.end(),"position")!=names.end()); CHECK(std::find(names.begin(),names.end(),"rotation")!=names.end()); CHECK(std::find(names.begin(),names.end(),"scale")!=names.end());
+    }
+    TEST_CASE("batch2947 reflected Transform position follows latest live mutation") {
+        Salix::ByteMirror::register_all_types(); Salix::Transform transform; transform.set_position(Salix::Vector3(29.f,47.f,-3.f));
+        const auto value=Salix::ByteMirror::get_property_value(&transform,"position"); REQUIRE(std::holds_alternative<Salix::Vector3>(value)); CHECK(std::get<Salix::Vector3>(value)==Salix::Vector3(29.f,47.f,-3.f));
+    }
+    TEST_CASE("batch2947 exact type lookup and name lookup point to same Transform metadata") {
+        Salix::ByteMirror::register_all_types(); const auto* by_type=Salix::ByteMirror::get_type_info(typeid(Salix::Transform)); const auto* by_name=Salix::ByteMirror::get_type_info_by_name("Transform");
+        REQUIRE(by_type!=nullptr); REQUIRE(by_name!=nullptr); CHECK(by_type==by_name);
+    }
+}
+
