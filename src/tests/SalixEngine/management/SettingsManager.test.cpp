@@ -478,3 +478,90 @@ TEST_SUITE("Salix::management::SettingsManagerBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::management::SettingsManagerBatch2847") {
+    TEST_CASE("batch2847 saving to an empty path fails without creating output") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        CHECK_FALSE(manager.save_settings("",config));
+    }
+    TEST_CASE("batch2847 invalid application state serializes through Launch fallback") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        config.initial_state=static_cast<Salix::AppStateType>(999);
+        const std::string path="settings_batch2847_invalid_state.yaml";
+        REQUIRE(manager.save_settings(path,config));
+        std::ifstream in(path); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());
+        CHECK(text.find("initial_state: Launch")!=std::string::npos);
+        in.close(); std::filesystem::remove(path);
+    }
+    TEST_CASE("batch2847 invalid renderer serializes through SDL fallback") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        config.renderer_type=static_cast<Salix::RendererType>(999);
+        const std::string path="settings_batch2847_invalid_renderer.yaml";
+        REQUIRE(manager.save_settings(path,config));
+        std::ifstream in(path); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());
+        CHECK(text.find("Renderer:")!=std::string::npos); CHECK(text.find("type: SDL")!=std::string::npos);
+        in.close(); std::filesystem::remove(path);
+    }
+    TEST_CASE("batch2847 invalid GUI selection serializes through ImGui fallback") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        config.gui_type=static_cast<Salix::GuiType>(999);
+        const std::string path="settings_batch2847_invalid_gui.yaml";
+        REQUIRE(manager.save_settings(path,config));
+        std::ifstream in(path); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());
+        CHECK(text.find("GUI:")!=std::string::npos); CHECK(text.find("type: ImGui")!=std::string::npos);
+        in.close(); std::filesystem::remove(path);
+    }
+    TEST_CASE("batch2847 invalid timer selection serializes through SDL fallback") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        config.timer_type=static_cast<Salix::TimerType>(999);
+        const std::string path="settings_batch2847_invalid_timer.yaml";
+        REQUIRE(manager.save_settings(path,config));
+        std::ifstream in(path); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());
+        CHECK(text.find("Timer:")!=std::string::npos); CHECK(text.find("type: SDL")!=std::string::npos);
+        in.close(); std::filesystem::remove(path);
+    }
+    TEST_CASE("batch2847 full OpenGL ImGui Chrono Game configuration roundtrips through YAML") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig source;
+        source.window_config.title="Roundtrip 2847"; source.window_config.width=1600; source.window_config.height=900;
+        source.initial_state=Salix::AppStateType::Game; source.renderer_type=Salix::RendererType::OpenGL; source.gui_type=Salix::GuiType::ImGui; source.timer_type=Salix::TimerType::Chrono; source.target_fps=144;
+        const std::string path="settings_batch2847_roundtrip.yaml",cache="settings_batch2847_roundtrip.cache"; std::filesystem::remove(cache);
+        REQUIRE(manager.save_settings(path,source));
+        Salix::ApplicationConfig loaded; REQUIRE(manager.load_settings(path,loaded));
+        CHECK(loaded.window_config.title=="Roundtrip 2847"); CHECK(loaded.window_config.width==1600); CHECK(loaded.window_config.height==900);
+        CHECK(loaded.initial_state==Salix::AppStateType::Game); CHECK(loaded.renderer_type==Salix::RendererType::OpenGL); CHECK(loaded.gui_type==Salix::GuiType::ImGui); CHECK(loaded.timer_type==Salix::TimerType::Chrono); CHECK(loaded.target_fps==144);
+        std::filesystem::remove(path); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2847 missing YAML preserves caller supplied configuration") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        config.window_config.title="Keep 2847"; config.window_config.width=321; config.target_fps=77;
+        const std::string path="settings_batch2847_missing.yaml"; std::filesystem::remove(path); std::filesystem::remove("settings_batch2847_missing.cache");
+        REQUIRE(manager.load_settings(path,config));
+        CHECK(config.window_config.title=="Keep 2847"); CHECK(config.window_config.width==321); CHECK(config.target_fps==77);
+    }
+    TEST_CASE("batch2847 partial YAML changes only supplied fields") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        config.window_config.title="KeepTitle2847"; config.window_config.width=111; config.window_config.height=222; config.target_fps=30;
+        const std::string path="settings_batch2847_partial.yaml",cache="settings_batch2847_partial.cache"; std::filesystem::remove(cache);
+        create_temp_config(path,"Window:\n  height: 720\nEngine:\n  target_fps: 120\n");
+        REQUIRE(manager.load_settings(path,config));
+        CHECK(config.window_config.title=="KeepTitle2847"); CHECK(config.window_config.width==111); CHECK(config.window_config.height==720); CHECK(config.target_fps==120);
+        std::filesystem::remove(path); std::filesystem::remove(cache);
+    }
+    TEST_CASE("batch2847 malformed YAML returns false and leaves cache absent") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        const std::string path="settings_batch2847_malformed.yaml",cache="settings_batch2847_malformed.cache"; std::filesystem::remove(cache);
+        create_temp_config(path,"Window: [unterminated");
+        CHECK_FALSE(manager.load_settings(path,config)); CHECK_FALSE(std::filesystem::exists(cache));
+        std::filesystem::remove(path);
+    }
+    TEST_CASE("batch2847 second load can restore values from fresh binary cache") {
+        Salix::SettingsManager manager; Salix::ApplicationConfig first;
+        const std::string path="settings_batch2847_cache.yaml",cache="settings_batch2847_cache.cache"; std::filesystem::remove(cache);
+        create_temp_config(path,"Window:\n  title: Cached2847\n  width: 777\nEngine:\n  target_fps: 88\n");
+        REQUIRE(manager.load_settings(path,first)); REQUIRE(std::filesystem::is_regular_file(cache));
+        Salix::ApplicationConfig second; second.window_config.title="Wrong"; second.window_config.width=1; second.target_fps=1;
+        REQUIRE(manager.load_settings(path,second));
+        CHECK(second.window_config.title=="Cached2847"); CHECK(second.window_config.width==777); CHECK(second.target_fps==88);
+        std::filesystem::remove(path); std::filesystem::remove(cache);
+    }
+}
+
