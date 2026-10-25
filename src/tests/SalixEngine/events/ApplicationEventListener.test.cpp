@@ -300,3 +300,48 @@ TEST_SUITE("Salix::events::ApplicationEventListenerBatch2547") {
     }
 }
 
+TEST_SUITE("Salix::events::ApplicationEventListenerBatch2947") {
+    TEST_CASE("batch2947 close event never marks event handled while stopping engine") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close; CHECK_FALSE(close.handled); listener.on_event(close); CHECK_FALSE(engine.is_running()); CHECK_FALSE(close.handled);
+    }
+    TEST_CASE("batch2947 already handled close still stops initialized engine") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close; close.handled=true; listener.on_event(close); CHECK_FALSE(engine.is_running()); CHECK(close.handled);
+    }
+    TEST_CASE("batch2947 resize with zero dimensions leaves running engine untouched") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent resize(0,0); listener.on_event(resize); CHECK(engine.is_running()); CHECK(resize.get_width()==0); CHECK(resize.get_height()==0);
+    }
+    TEST_CASE("batch2947 resize with negative diagnostic dimensions leaves running engine untouched") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent resize(-10,-20); listener.on_event(resize); CHECK(engine.is_running()); CHECK(resize.get_width()==-10); CHECK(resize.get_height()==-20);
+    }
+    TEST_CASE("batch2947 failed null initialization after valid target preserves close routing") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine)); CHECK_FALSE(listener.initialize(nullptr));
+        Salix::WindowCloseEvent close; listener.on_event(close); CHECK_FALSE(engine.is_running());
+    }
+    TEST_CASE("batch2947 multiple failed null initializations never erase valid target") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        CHECK_FALSE(listener.initialize(nullptr)); CHECK_FALSE(listener.initialize(nullptr)); Salix::WindowCloseEvent close; listener.on_event(close); CHECK_FALSE(engine.is_running());
+    }
+    TEST_CASE("batch2947 retarget chain shuts down only final engine") {
+        Salix::Engine a,b,c; a.is_running(true); b.is_running(true); c.is_running(true); Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&a)); REQUIRE(listener.initialize(&b)); REQUIRE(listener.initialize(&c)); Salix::WindowCloseEvent close; listener.on_event(close);
+        CHECK(a.is_running()); CHECK(b.is_running()); CHECK_FALSE(c.is_running());
+    }
+    TEST_CASE("batch2947 tick preserves already stopped engine state") {
+        Salix::Engine engine; engine.is_running(false); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Batch1847TickEvent tick; listener.on_event(tick); CHECK_FALSE(engine.is_running()); CHECK_FALSE(tick.handled);
+    }
+    TEST_CASE("batch2947 repeated resize events preserve running state and handled flags independently") {
+        Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent first(100,200),second(300,400); first.handled=true; listener.on_event(first); listener.on_event(second);
+        CHECK(engine.is_running()); CHECK(first.handled); CHECK_FALSE(second.handled);
+    }
+    TEST_CASE("batch2947 polymorphic close delivery can stop restarted engine repeatedly") {
+        Salix::Engine engine; Salix::ApplicationEventListener concrete; REQUIRE(concrete.initialize(&engine)); Salix::IEventListener& base=concrete;
+        Salix::WindowCloseEvent close; engine.is_running(true); base.on_event(close); CHECK_FALSE(engine.is_running()); engine.is_running(true); base.on_event(close); CHECK_FALSE(engine.is_running());
+    }
+}
+
