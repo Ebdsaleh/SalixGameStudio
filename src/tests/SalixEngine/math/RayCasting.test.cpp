@@ -543,3 +543,66 @@ TEST_SUITE("Salix::math::RayCastingBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::math::RayCastingBatch2847") {
+    TEST_CASE("batch2847 positive Y ray hits lower face at expected parameter") {
+        const Salix::Ray ray{{0.f,-5.f,0.f},{0.f,1.f,0.f}}; float distance=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),distance));
+        CHECK(distance==doctest::Approx(4.f));
+    }
+    TEST_CASE("batch2847 negative Y ray hits upper face at expected parameter") {
+        const Salix::Ray ray{{0.f,5.f,0.f},{0.f,-1.f,0.f}}; float distance=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),distance));
+        CHECK(distance==doctest::Approx(4.f));
+    }
+    TEST_CASE("batch2847 positive Z ray hits near face at expected parameter") {
+        const Salix::Ray ray{{0.f,0.f,-8.f},{0.f,0.f,1.f}}; float distance=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-2.f),glm::vec3(2.f),distance));
+        CHECK(distance==doctest::Approx(6.f));
+    }
+    TEST_CASE("batch2847 negative Z ray hits far side from positive origin") {
+        const Salix::Ray ray{{0.f,0.f,8.f},{0.f,0.f,-1.f}}; float distance=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-2.f),glm::vec3(2.f),distance));
+        CHECK(distance==doctest::Approx(6.f));
+    }
+    TEST_CASE("batch2847 parallel ray outside X slab misses and preserves output distance") {
+        const Salix::Ray ray{{3.f,0.f,-5.f},{0.f,0.f,1.f}}; float distance=2847.f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-1.f),glm::vec3(1.f),distance));
+        CHECK(distance==2847.f);
+    }
+    TEST_CASE("batch2847 ray starting inside asymmetric box exits through positive X face") {
+        const Salix::Ray ray{{1.f,2.f,3.f},{1.f,0.f,0.f}}; float distance=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,glm::vec3(-4.f,-5.f,-6.f),glm::vec3(7.f,8.f,9.f),distance));
+        CHECK(distance==doctest::Approx(6.f));
+    }
+    TEST_CASE("batch2847 Vector3 and GLM AABB overloads agree on asymmetric hit") {
+        const Salix::Ray ray{{-10.f,1.f,2.f},{1.f,0.f,0.f}};
+        const Salix::Vector3 lower(-3.f,-2.f,-1.f),upper(4.f,5.f,6.f);
+        float a=-1.f,b=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,lower,upper,a));
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray,lower.to_glm(),upper.to_glm(),b));
+        CHECK(a==doctest::Approx(b)); CHECK(a==doctest::Approx(7.f));
+    }
+    TEST_CASE("batch2847 translated OBB along X reports translated entry distance") {
+        const Salix::Ray ray{{-10.f,0.f,0.f},{1.f,0.f,0.f}};
+        const auto model=glm::translate(glm::mat4(1.f),glm::vec3(5.f,0.f,0.f)); float distance=-1.f;
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray,model,glm::vec3(2.f,1.f,1.f),distance));
+        CHECK(distance==doctest::Approx(13.f));
+    }
+    TEST_CASE("batch2847 translated OBB miss leaves caller distance untouched") {
+        const Salix::Ray ray{{-10.f,10.f,0.f},{1.f,0.f,0.f}};
+        const auto model=glm::translate(glm::mat4(1.f),glm::vec3(5.f,0.f,0.f)); float distance=123.f;
+        CHECK_FALSE(Salix::Raycast::IntersectsOBB(ray,model,glm::vec3(2.f,1.f,1.f),distance));
+        CHECK(distance==123.f);
+    }
+    TEST_CASE("batch2847 Vector2 and ImVec2 screen wrappers agree away from viewport origin") {
+        MockICamera camera;
+        glm::mat4& view=const_cast<glm::mat4&>(camera.get_view_matrix()); view=glm::mat4(1.f);
+        glm::mat4& projection=const_cast<glm::mat4&>(camera.get_projection_matrix()); projection=glm::mat4(1.f);
+        const auto a=Salix::Raycast::CreateRayFromScreen(&camera,Salix::Vector2(125.f,90.f),Salix::Vector2(25.f,40.f),Salix::Vector2(200.f,100.f));
+        const auto b=Salix::Raycast::CreateRayFromScreen(&camera,ImVec2(125.f,90.f),ImVec2(25.f,40.f),ImVec2(200.f,100.f));
+        check_vec3_approx(a.origin,b.origin);
+        check_vec3_approx(a.direction,b.direction);
+        CHECK(glm::length(a.direction)==doctest::Approx(1.f));
+    }
+}
+
