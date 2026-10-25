@@ -665,3 +665,52 @@ TEST_SUITE("Salix::ecs::RealmBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::ecs::RealmBatch2947") {
+    TEST_CASE("batch2947 duplicate entity names remain distinct objects while name lookup returns first match") {
+        Salix::Realm realm; auto* first=realm.create_entity("Duplicate2947"); auto* second=realm.create_entity("Duplicate2947");
+        REQUIRE(first!=nullptr); REQUIRE(second!=nullptr); CHECK(first!=second); CHECK(realm.get_entity_by_name("Duplicate2947")==first); CHECK(realm.get_entities().size()==2);
+    }
+    TEST_CASE("batch2947 explicit invalid GUID entity remains retrievable by invalid identifier") {
+        Salix::Realm realm; auto* entity=realm.create_entity(Salix::SimpleGuid::invalid(),"InvalidId2947"); REQUIRE(entity!=nullptr);
+        CHECK_FALSE(entity->get_id().is_valid()); CHECK(realm.get_entity_by_id(Salix::SimpleGuid::invalid())==entity);
+    }
+    TEST_CASE("batch2947 null active camera assignment leaves existing active camera unchanged") {
+        Salix::Realm realm; Salix::Camera camera; realm.set_active_camera(&camera); CHECK(realm.get_active_camera()==&camera);
+        realm.set_active_camera(nullptr); CHECK(realm.get_active_camera()==&camera);
+    }
+    TEST_CASE("batch2947 invalid active camera entity selection clears prior camera pointer and identifier") {
+        Salix::Realm realm; auto* entity=realm.create_entity("Camera2947"); auto* camera=entity->add_element<Salix::Camera>(); REQUIRE(camera!=nullptr);
+        realm.set_active_camera_entity(entity->get_id()); REQUIRE(realm.get_active_camera()==camera); REQUIRE(camera->get_is_active());
+        realm.set_active_camera_entity(Salix::SimpleGuid::invalid()); CHECK(realm.get_active_camera()==nullptr); CHECK(realm.get_main_camera_entity_id()==Salix::SimpleGuid::invalid()); CHECK_FALSE(camera->get_is_active());
+    }
+    TEST_CASE("batch2947 selecting entity without camera stores identifier but leaves active camera null") {
+        Salix::Realm realm; auto* entity=realm.create_entity("NoCamera2947"); REQUIRE(entity!=nullptr);
+        realm.set_active_camera_entity(entity->get_id()); CHECK(realm.get_main_camera_entity_id()==entity->get_id()); CHECK(realm.get_active_camera()==nullptr);
+    }
+    TEST_CASE("batch2947 switching camera entities deactivates old camera and activates new camera") {
+        Salix::Realm realm; auto* first=realm.create_entity("FirstCamera2947"); auto* second=realm.create_entity("SecondCamera2947");
+        auto* a=first->add_element<Salix::Camera>(); auto* b=second->add_element<Salix::Camera>(); REQUIRE(a!=nullptr); REQUIRE(b!=nullptr);
+        realm.set_active_camera_entity(first->get_id()); REQUIRE(a->get_is_active()); CHECK_FALSE(b->get_is_active());
+        realm.set_active_camera_entity(second->get_id()); CHECK_FALSE(a->get_is_active()); CHECK(b->get_is_active()); CHECK(realm.get_active_camera()==b);
+    }
+    TEST_CASE("batch2947 clearing all entities also clears selected camera metadata") {
+        Salix::Realm realm; auto* entity=realm.create_entity("ClearCamera2947"); auto* camera=entity->add_element<Salix::Camera>(); REQUIRE(camera!=nullptr);
+        realm.set_active_camera_entity(entity->get_id()); REQUIRE(realm.get_active_camera()!=nullptr); realm.clear_all_entities();
+        CHECK(realm.get_entities().empty()); CHECK(realm.get_active_camera()==nullptr); CHECK(realm.get_main_camera_entity_id()==Salix::SimpleGuid::invalid());
+    }
+    TEST_CASE("batch2947 maintain removes purged selected camera and clears selection") {
+        Salix::AssetManager assets; Salix::InitContext context{}; context.asset_manager=&assets; Salix::Realm realm; realm.set_context(context);
+        auto* entity=realm.create_entity("PurgedCamera2947"); auto* camera=entity->add_element<Salix::Camera>(); REQUIRE(camera!=nullptr); const auto id=entity->get_id();
+        realm.set_active_camera_entity(id); REQUIRE(realm.get_active_camera()==camera); entity->simple_purge(); realm.maintain();
+        CHECK(realm.get_entity_by_id(id)==nullptr); CHECK(realm.get_active_camera()==nullptr); CHECK(realm.get_main_camera_entity_id()==Salix::SimpleGuid::invalid());
+    }
+    TEST_CASE("batch2947 empty name and path updates preserve previous realm metadata") {
+        Salix::Realm realm("Stable2947","Scenes/Stable2947.json"); realm.set_name(""); realm.set_path("");
+        CHECK(realm.get_name()=="Stable2947"); CHECK(realm.get_path()=="Scenes/Stable2947.json");
+    }
+    TEST_CASE("batch2947 clear all entities is idempotent on already empty realm") {
+        Salix::Realm realm; CHECK(realm.get_entities().empty()); CHECK_NOTHROW(realm.clear_all_entities()); CHECK_NOTHROW(realm.clear_all_entities());
+        CHECK(realm.get_entities().empty()); CHECK(realm.get_active_camera()==nullptr);
+    }
+}
+
