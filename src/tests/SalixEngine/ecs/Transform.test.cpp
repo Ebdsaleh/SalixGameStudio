@@ -1071,3 +1071,67 @@ TEST_SUITE("Salix::ecs::TransformBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::ecs::TransformBatch2847") {
+    TEST_CASE("batch2847 child-of null is always false") {
+        Salix::Transform t;
+        CHECK_FALSE(t.is_child_of(nullptr));
+    }
+    TEST_CASE("batch2847 grandchild recognizes every ancestor in its chain") {
+        Salix::Transform root,parent,child;
+        parent.set_parent(&root); child.set_parent(&parent);
+        CHECK(child.is_child_of(&parent));
+        CHECK(child.is_child_of(&root));
+        CHECK_FALSE(root.is_child_of(&child));
+    }
+    TEST_CASE("batch2847 calculate local position against null returns current world translation") {
+        Salix::Transform t; t.set_position(7.f,-3.f,11.f);
+        const auto local=t.calculate_local_pos_if_child_of(nullptr);
+        CHECK(local.x==doctest::Approx(7.f)); CHECK(local.y==doctest::Approx(-3.f)); CHECK(local.z==doctest::Approx(11.f));
+    }
+    TEST_CASE("batch2847 prospective translated parent produces compensating local position") {
+        Salix::Transform parent,child;
+        parent.set_position(10.f,20.f,30.f); child.set_position(13.f,26.f,39.f);
+        const auto local=child.calculate_local_pos_if_child_of(&parent);
+        CHECK(local.x==doctest::Approx(3.f)); CHECK(local.y==doctest::Approx(6.f)); CHECK(local.z==doctest::Approx(9.f));
+    }
+    TEST_CASE("batch2847 rotated direction basis remains unit length") {
+        Salix::Transform t; t.set_rotation(33.f,-47.f,81.f);
+        CHECK(glm::length(t.get_forward())==doctest::Approx(1.f));
+        CHECK(glm::length(t.get_up())==doctest::Approx(1.f));
+        CHECK(glm::length(t.get_right())==doctest::Approx(1.f));
+    }
+    TEST_CASE("batch2847 direction basis remains mutually orthogonal after rotation") {
+        Salix::Transform t; t.set_rotation(17.f,29.f,-43.f);
+        const auto f=t.get_forward(),u=t.get_up(),r=t.get_right();
+        CHECK(glm::dot(f,u)==doctest::Approx(0.f).epsilon(0.001));
+        CHECK(glm::dot(f,r)==doctest::Approx(0.f).epsilon(0.001));
+        CHECK(glm::dot(u,r)==doctest::Approx(0.f).epsilon(0.001));
+    }
+    TEST_CASE("batch2847 root point conversion roundtrip survives translation rotation and scale") {
+        Salix::Transform t; t.set_position(4.f,-5.f,6.f); t.set_rotation(10.f,20.f,30.f); t.set_scale(2.f,3.f,4.f);
+        const Salix::Vector3 local(1.5f,-2.f,0.25f);
+        const auto world=t.get_world_position_of_local_point(local);
+        const auto restored=t.get_local_position_of_world_point(world);
+        CHECK(restored.x==doctest::Approx(local.x).epsilon(0.001));
+        CHECK(restored.y==doctest::Approx(local.y).epsilon(0.001));
+        CHECK(restored.z==doctest::Approx(local.z).epsilon(0.001));
+    }
+    TEST_CASE("batch2847 translated parent world-position setter computes expected local offset") {
+        Salix::Transform parent,child; parent.set_position(100.f,-50.f,25.f); child.set_parent(&parent);
+        child.set_world_position(Salix::Vector3(110.f,-30.f,5.f));
+        CHECK(child.get_position().x==doctest::Approx(10.f));
+        CHECK(child.get_position().y==doctest::Approx(20.f));
+        CHECK(child.get_position().z==doctest::Approx(-20.f));
+    }
+    TEST_CASE("batch2847 root model matrix translation column matches configured position") {
+        Salix::Transform t; t.set_position(-9.f,8.f,7.f); t.set_rotation(25.f,35.f,45.f); t.set_scale(2.f,2.f,2.f);
+        const auto m=t.get_model_matrix();
+        CHECK(m[3].x==doctest::Approx(-9.f)); CHECK(m[3].y==doctest::Approx(8.f)); CHECK(m[3].z==doctest::Approx(7.f));
+    }
+    TEST_CASE("batch2847 child local-world helper uses parent transform rather than child local state") {
+        Salix::Transform parent,child; parent.set_position(10.f,0.f,0.f); child.set_parent(&parent); child.set_position(99.f,99.f,99.f);
+        const auto world=child.local_to_world_position(Salix::Vector3(1.f,2.f,3.f));
+        CHECK(world.x==doctest::Approx(11.f)); CHECK(world.y==doctest::Approx(2.f)); CHECK(world.z==doctest::Approx(3.f));
+    }
+}
+
