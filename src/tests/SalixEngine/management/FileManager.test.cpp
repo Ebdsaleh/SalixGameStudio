@@ -578,3 +578,67 @@ TEST_SUITE("Salix::management::FileManagerBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::management::FileManagerBatch2847") {
+    TEST_CASE("batch2847 nested directory creation is repeatable at the same path") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned);
+        const auto nested=temp.root/"one"/"two"/"three";
+        REQUIRE(Salix::FileManager::create_directories(nested.string()));
+        CHECK(Salix::FileManager::create_directories(nested.string()));
+        CHECK(std::filesystem::is_directory(nested));
+    }
+    TEST_CASE("batch2847 regular-file predicate rejects missing paths and directories") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned);
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(temp.root.string()));
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(temp.file("missing2847.bin")));
+    }
+    TEST_CASE("batch2847 empty file reads empty while still existing as a regular file") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("empty2847.bin","");
+        CHECK(Salix::FileManager::read_file_content(temp.file("empty2847.bin")).empty());
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("empty2847.bin")));
+        CHECK(Salix::FileManager::get_file_size(temp.file("empty2847.bin"))==0);
+    }
+    TEST_CASE("batch2847 multiline text is read byte for byte") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned);
+        const std::string text="first\nsecond\r\nthird";
+        temp.write("text2847.txt",text);
+        CHECK(Salix::FileManager::read_file_content(temp.file("text2847.txt"))==text);
+    }
+    TEST_CASE("batch2847 overwrite copy replaces longer destination content completely") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned);
+        temp.write("src2847.txt","short"); temp.write("dst2847.txt","this destination used to be much longer");
+        REQUIRE(Salix::FileManager::copy_file(temp.file("src2847.txt"),temp.file("dst2847.txt")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("dst2847.txt"))=="short");
+    }
+    TEST_CASE("batch2847 one-byte hex dump includes length hex byte and ASCII group") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("one2847.bin","A");
+        const auto dump=Salix::FileManager::generate_hex_dump(temp.file("one2847.bin"));
+        CHECK(dump.find("Length: 1 bytes")!=std::string::npos);
+        CHECK(dump.find("41 ")!=std::string::npos);
+        CHECK(dump.find("A\n")!=std::string::npos);
+    }
+    TEST_CASE("batch2847 fifteen-byte hex dump exercises padded final ASCII row") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("fifteen2847.bin","123456789ABCDEF");
+        const auto dump=Salix::FileManager::generate_hex_dump(temp.file("fifteen2847.bin"));
+        CHECK(dump.find("Length: 15 bytes")!=std::string::npos);
+        CHECK(dump.find("123456789ABCDEF")!=std::string::npos);
+    }
+    TEST_CASE("batch2847 sixteen-byte hex dump emits a complete ASCII row") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("sixteen2847.bin","123456789ABCDEFG");
+        const auto dump=Salix::FileManager::generate_hex_dump(temp.file("sixteen2847.bin"));
+        CHECK(dump.find("Length: 16 bytes")!=std::string::npos);
+        CHECK(dump.find("123456789ABCDEFG")!=std::string::npos);
+    }
+    TEST_CASE("batch2847 string relative conversion preserves nested filename after separator normalization") {
+        const std::string root="D:\\Games\\Project";
+        const std::string child="D:/Games/Project/Assets\\Models\\ship.obj";
+        CHECK(Salix::FileManager::convert_to_relative(root,child)=="Assets/Models/ship.obj");
+    }
+    TEST_CASE("batch2847 filesystem relative conversion can walk from root to sibling path") {
+        FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned);
+        const auto root=temp.root/"Project"; const auto sibling=temp.root/"Sibling"/"file.txt";
+        std::filesystem::create_directories(root); std::filesystem::create_directories(sibling.parent_path());
+        const auto rel=std::filesystem::path(Salix::FileManager::convert_to_relative_path(root.string(),sibling.string())).generic_string();
+        CHECK(rel=="../Sibling/file.txt");
+    }
+}
+
