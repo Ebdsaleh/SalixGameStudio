@@ -396,3 +396,53 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch2547") {
     }
 }
 
+namespace { struct Batch2947YamlEnumTag {}; }
+
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch2947") {
+    TEST_CASE("batch2947 signed integer property supports negative roundtrip") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Count2947",Salix::PropertyType::Int),&node);
+        handle.set_value(Salix::PropertyValue{-2947}); CHECK(node["Count2947"].as<int>()==-2947); CHECK(std::get<int>(handle.get_value())==-2947);
+    }
+    TEST_CASE("batch2947 uint64 property preserves value above signed range") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Id2947",Salix::PropertyType::UInt64),&node);
+        const std::uint64_t value=(std::uint64_t{1}<<63)+2947ULL; handle.set_value(Salix::PropertyValue{value});
+        CHECK(node["Id2947"].as<std::uint64_t>()==value); CHECK(std::get<std::uint64_t>(handle.get_value())==value);
+    }
+    TEST_CASE("batch2947 Vector3 property preserves fractional signed coordinates") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Position2947",Salix::PropertyType::Vector3),&node);
+        const Salix::Vector3 value(-2.947f,0.125f,99.5f); handle.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Vector3>(handle.get_value())==value);
+    }
+    TEST_CASE("batch2947 plain Enum property preserves negative integer representation") {
+        YAML::Node node; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Enum2947",Salix::PropertyType::Enum),&node);
+        handle.set_value(Salix::PropertyValue{-17}); CHECK(node["Enum2947"].as<int>()==-17); CHECK(std::get<int>(handle.get_value())==-17);
+    }
+    TEST_CASE("batch2947 registered EnumClass unknown YAML name resolves to registry missing sentinel") {
+        Salix::EnumRegistry::EnumData data; data.value_to_string[1]="One2947"; data.value_to_string[2]="Two2947"; data.ordered_names={"One2947","Two2947"};
+        Salix::EnumRegistry::register_enum(typeid(Batch2947YamlEnumTag),std::move(data)); Salix::TypeInfo contained; contained.name="Batch2947YamlEnumTag"; contained.type_index=typeid(Batch2947YamlEnumTag);
+        auto property=batch1047_yaml_property("Mode2947",Salix::PropertyType::EnumClass); property.contained_type_info=&contained; YAML::Node node; node["Mode2947"]="Missing2947";
+        Salix::PropertyHandleYaml handle(property,&node); CHECK(std::get<int>(handle.get_value())==-1);
+    }
+    TEST_CASE("batch2947 registered EnumClass mismatched variant write preserves existing YAML name") {
+        Salix::EnumRegistry::EnumData data; data.value_to_string[3]="Three2947"; data.ordered_names={"Three2947"};
+        Salix::EnumRegistry::register_enum(typeid(Batch2947YamlEnumTag),std::move(data)); Salix::TypeInfo contained; contained.name="Batch2947YamlEnumTag"; contained.type_index=typeid(Batch2947YamlEnumTag);
+        auto property=batch1047_yaml_property("Mode2947B",Salix::PropertyType::EnumClass); property.contained_type_info=&contained; YAML::Node node; node["Mode2947B"]="Three2947";
+        Salix::PropertyHandleYaml handle(property,&node); handle.set_value(Salix::PropertyValue{std::string("wrong")}); CHECK(node["Mode2947B"].as<std::string>()=="Three2947");
+    }
+    TEST_CASE("batch2947 integer setter ignores mismatched float without replacing YAML scalar") {
+        YAML::Node node; node["Count2947C"]=81; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Count2947C",Salix::PropertyType::Int),&node);
+        handle.set_value(Salix::PropertyValue{8.1f}); CHECK(node["Count2947C"].as<int>()==81); CHECK(std::get<int>(handle.get_value())==81);
+    }
+    TEST_CASE("batch2947 Vector3 setter ignores mismatched Vector2 and preserves existing value") {
+        YAML::Node node; node["V2947"]=Salix::Vector3(1.f,2.f,3.f); Salix::PropertyHandleYaml handle(batch1047_yaml_property("V2947",Salix::PropertyType::Vector3),&node);
+        handle.set_value(Salix::PropertyValue{Salix::Vector2(9.f,9.f)}); CHECK(std::get<Salix::Vector3>(handle.get_value())==Salix::Vector3(1.f,2.f,3.f));
+    }
+    TEST_CASE("batch2947 missing property remains absent after read and unrelated key survives") {
+        YAML::Node node; node["Keep2947"]="untouched"; Salix::PropertyHandleYaml handle(batch1047_yaml_property("Absent2947",Salix::PropertyType::Bool),&node);
+        const auto value=handle.get_value(); CHECK(std::holds_alternative<int>(value)); CHECK(std::get<int>(value)==0); CHECK_FALSE(node["Absent2947"]); CHECK(node["Keep2947"].as<std::string>()=="untouched");
+    }
+    TEST_CASE("batch2947 null node rejects repeated reads and writes without side effects") {
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Null2947",Salix::PropertyType::String),nullptr);
+        CHECK(std::get<int>(handle.get_value())==0); CHECK_NOTHROW(handle.set_value(Salix::PropertyValue{std::string("ignored")})); CHECK(std::get<int>(handle.get_value())==0);
+    }
+}
+
