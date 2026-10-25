@@ -381,3 +381,81 @@ TEST_SUITE("Salix::assets::AssetManagerBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::assets::AssetManagerBatch2847") {
+    TEST_CASE("batch2847 three lexical aliases collapse to one cache entry") {
+        CountingAssetRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        auto* a=assets.get_texture("assets/ui/icon2847.png");
+        auto* b=assets.get_texture("assets/ui/./icon2847.png");
+        auto* c=assets.get_texture("assets/temp/../ui/icon2847.png");
+        REQUIRE(a!=nullptr); CHECK(a==b); CHECK(b==c); CHECK(renderer.calls==1);
+    }
+    TEST_CASE("batch2847 unrelated successful loads never disturb an earlier cached pointer") {
+        CountingAssetRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        auto* first=assets.get_texture("assets/first2847.png"); REQUIRE(first!=nullptr);
+        REQUIRE(assets.get_texture("assets/second2847.png")!=nullptr);
+        CHECK(assets.get_texture("assets/first2847.png")==first);
+        CHECK(renderer.calls==2);
+    }
+    TEST_CASE("batch2847 failed load of one path leaves another cached path usable") {
+        CountingAssetRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        auto* good=assets.get_texture("assets/good2847.png"); REQUIRE(good!=nullptr);
+        renderer.should_texture_load_fail=true;
+        CHECK(assets.get_texture("assets/bad2847.png")==nullptr);
+        CHECK(assets.get_texture("assets/good2847.png")==good);
+    }
+    TEST_CASE("batch2847 shutdown followed by retry uses renderer again for every previous cache key") {
+        CountingAssetRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("assets/a2847.png")!=nullptr);
+        REQUIRE(assets.get_texture("assets/b2847.png")!=nullptr);
+        CHECK(renderer.calls==2);
+        assets.shutdown();
+        REQUIRE(assets.get_texture("assets/a2847.png")!=nullptr);
+        REQUIRE(assets.get_texture("assets/b2847.png")!=nullptr);
+        CHECK(renderer.calls==4);
+    }
+    TEST_CASE("batch2847 switching renderers affects only uncached requests") {
+        CountingAssetRenderer first,second; Salix::AssetManager assets; assets.initialize(&first);
+        auto* cached=assets.get_texture("assets/cached2847.png"); REQUIRE(cached!=nullptr);
+        assets.initialize(&second);
+        CHECK(assets.get_texture("assets/cached2847.png")==cached);
+        REQUIRE(assets.get_texture("assets/new2847.png")!=nullptr);
+        CHECK(first.calls==1); CHECK(second.calls==1);
+    }
+    TEST_CASE("batch2847 failed request after renderer switch is not cached") {
+        CountingAssetRenderer first,second; Salix::AssetManager assets; assets.initialize(&first);
+        REQUIRE(assets.get_texture("assets/base2847.png")!=nullptr);
+        second.should_texture_load_fail=true;
+        assets.initialize(&second);
+        CHECK(assets.get_texture("assets/retry-switch2847.png")==nullptr);
+        CHECK(assets.get_texture("assets/retry-switch2847.png")==nullptr);
+        CHECK(second.calls==2);
+    }
+    TEST_CASE("batch2847 recovery after renderer switch caches the first successful retry") {
+        CountingAssetRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        renderer.should_texture_load_fail=true;
+        CHECK(assets.get_texture("assets/recover2847.png")==nullptr);
+        renderer.should_texture_load_fail=false;
+        auto* recovered=assets.get_texture("assets/recover2847.png"); REQUIRE(recovered!=nullptr);
+        CHECK(assets.get_texture("assets/recover2847.png")==recovered);
+        CHECK(renderer.calls==2);
+    }
+    TEST_CASE("batch2847 each manager independently normalizes identical logical paths") {
+        CountingAssetRenderer renderer; Salix::AssetManager a,b; a.initialize(&renderer); b.initialize(&renderer);
+        auto* first=a.get_texture("assets/./shared2847.png");
+        auto* second=b.get_texture("assets/temp/../shared2847.png");
+        REQUIRE(first!=nullptr); REQUIRE(second!=nullptr); CHECK(first!=second); CHECK(renderer.calls==2);
+    }
+    TEST_CASE("batch2847 renderer sees lexically normalized parent traversal path") {
+        CountingAssetRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("assets/a/b/../../final2847.png")!=nullptr);
+        REQUIRE(renderer.paths.size()==1);
+        CHECK(std::filesystem::path(renderer.paths[0]).generic_string()=="assets/final2847.png");
+    }
+    TEST_CASE("batch2847 repeated shutdown remains safe before a fresh load") {
+        CountingAssetRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer);
+        CHECK_NOTHROW(assets.shutdown()); CHECK_NOTHROW(assets.shutdown());
+        REQUIRE(assets.get_texture("assets/post-shutdown2847.png")!=nullptr);
+        CHECK(renderer.calls==1);
+    }
+}
+
