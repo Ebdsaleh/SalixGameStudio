@@ -904,3 +904,43 @@ TEST_SUITE("Salix::ecs::EntityBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::ecs::EntityBatch2947") {
+    TEST_CASE("batch2947 entity name setter preserves whitespace and punctuation exactly") {
+        Salix::Entity entity; entity.set_name("  Player #1 / Boss  "); CHECK(entity.get_name()=="  Player #1 / Boss  ");
+    }
+    TEST_CASE("batch2947 mandatory element type-name query returns exactly one transform") {
+        Salix::Entity entity; const auto matches=entity.get_elements_by_type_name("Transform");
+        REQUIRE(matches.size()==1); CHECK(matches.front()==entity.get_transform());
+    }
+    TEST_CASE("batch2947 adding Sprite2D makes it discoverable by type name and identifier") {
+        Salix::Entity entity; auto* sprite=entity.add_element<Salix::Sprite2D>(); REQUIRE(sprite!=nullptr);
+        CHECK(entity.get_element_by_type_name("Sprite2D")==sprite); CHECK(entity.get_element_by_id(sprite->get_id())==sprite);
+    }
+    TEST_CASE("batch2947 reparenting removes child from old parent and inserts into new parent") {
+        Salix::Entity a,b,child; child.set_parent(&a); REQUIRE(a.get_children().size()==1);
+        child.set_parent(&b); CHECK(a.get_children().empty()); REQUIRE(b.get_children().size()==1); CHECK(b.get_children().front()==&child); CHECK(child.get_parent()==&b);
+    }
+    TEST_CASE("batch2947 self parent assignment is rejected without hierarchy mutation") {
+        Salix::Entity entity; entity.set_parent(&entity); CHECK(entity.get_parent()==nullptr); CHECK(entity.get_children().empty());
+    }
+    TEST_CASE("batch2947 purge is idempotent and keeps entity marked purged") {
+        Salix::Entity entity; entity.purge(); entity.purge(); CHECK(entity.is_purged());
+    }
+    TEST_CASE("batch2947 full purge after simple purge still orphans children") {
+        Salix::Entity parent,child; child.set_parent(&parent); parent.simple_purge(); REQUIRE(child.get_parent()==&parent);
+        parent.purge(); CHECK(parent.is_purged()); CHECK(child.get_parent()==nullptr); CHECK(parent.get_children().empty());
+    }
+    TEST_CASE("batch2947 invisible entity still updates non-purged elements") {
+        Salix::Entity entity; auto* probe=entity.add_element<Batch2347EntityProbe>(); REQUIRE(probe!=nullptr); entity.set_visible(false);
+        entity.update(0.75f); CHECK(probe->updates==1); CHECK(probe->last_delta==doctest::Approx(0.75f));
+    }
+    TEST_CASE("batch2947 purged entity suppresses render callbacks") {
+        Salix::Entity entity; auto* renderable=entity.add_element<MockRenderableElement>(); REQUIRE(renderable!=nullptr);
+        entity.simple_purge(); entity.render(nullptr); CHECK(renderable->render_call_count==0);
+    }
+    TEST_CASE("batch2947 on_load keeps mandatory transform pointer synchronized with exact type lookup") {
+        Salix::Entity entity; Salix::InitContext context{}; entity.on_load(context);
+        REQUIRE(entity.get_transform()!=nullptr); CHECK(entity.get_transform()==entity.get_element<Salix::Transform>()); CHECK(entity.get_transform()==entity.get_element_internal(typeid(Salix::Transform)));
+    }
+}
+
