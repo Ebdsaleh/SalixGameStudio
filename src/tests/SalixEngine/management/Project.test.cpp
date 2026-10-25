@@ -407,3 +407,54 @@ TEST_SUITE("Salix::management::ProjectBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectBatch2947") {
+    TEST_CASE("batch2947 independent realm names may intentionally share the same path") {
+        Salix::Project project; project.add_realm_path("A2947","Shared2947.realm"); project.add_realm_path("B2947","Shared2947.realm");
+        REQUIRE(project.get_realm_paths().size()==2); CHECK(project.get_realm_paths().at("A2947")=="Shared2947.realm"); CHECK(project.get_realm_paths().at("B2947")=="Shared2947.realm");
+    }
+    TEST_CASE("batch2947 removing shared realm path removes one matching mapping per call") {
+        Salix::Project project; project.add_realm_path("A2947","Shared2947.realm"); project.add_realm_path("B2947","Shared2947.realm");
+        CHECK(project.remove_realm_path("Shared2947.realm")); CHECK(project.get_realm_paths().size()==1);
+        CHECK(project.remove_realm_path("Shared2947.realm")); CHECK(project.get_realm_paths().empty());
+    }
+    TEST_CASE("batch2947 removing same unique path twice succeeds then reports absence") {
+        Salix::Project project; project.add_realm_path("Only2947","Only2947.realm");
+        CHECK(project.remove_realm_path("Only2947.realm")); CHECK_FALSE(project.remove_realm_path("Only2947.realm")); CHECK(project.get_realm_paths().empty());
+    }
+    TEST_CASE("batch2947 starting realm replacement never mutates realm path map") {
+        Salix::Project project; project.add_realm_path("One","One.realm"); project.add_realm_path("Two","Two.realm");
+        project.set_starting_realm("One"); project.set_starting_realm("Two");
+        CHECK(project.get_starting_realm()=="Two"); CHECK(project.get_realm_paths().size()==2);
+    }
+    TEST_CASE("batch2947 initialize rebuilds configured realm shells without altering metadata") {
+        Salix::Project project("Batch2947MissingDllInit","Root2947"); project.add_realm_path("Menu2947","Menu2947.realm"); project.add_realm_path("Game2947","Game2947.realm");
+        Salix::InitContext context{}; project.initialize(context); auto* manager=project.get_realm_manager(); REQUIRE(manager!=nullptr);
+        REQUIRE(manager->set_active_realm("Menu2947")); REQUIRE(manager->get_active_realm()!=nullptr); CHECK(manager->get_active_realm()->get_path()=="Menu2947.realm");
+        CHECK(project.get_realm_paths().size()==2); project.shutdown();
+    }
+    TEST_CASE("batch2947 initialized missing starting realm returns false without clearing manager") {
+        Salix::Project project("Batch2947MissingDllUnknownStart","Root2947"); project.add_realm_path("Known2947","Known2947.realm"); project.set_starting_realm("Unknown2947");
+        Salix::InitContext context{}; project.initialize(context); auto* manager=project.get_realm_manager(); REQUIRE(manager!=nullptr);
+        CHECK_FALSE(project.load_starting_realm()); CHECK(project.get_realm_manager()==manager); project.shutdown();
+    }
+    TEST_CASE("batch2947 successful starting realm load can be repeated idempotently") {
+        Salix::Project project("Batch2947MissingDllRepeatStart","Root2947"); project.add_realm_path("Main2947","Main2947.realm"); project.set_starting_realm("Main2947");
+        Salix::InitContext context{}; project.initialize(context); REQUIRE(project.load_starting_realm()); auto* first=project.get_realm_manager()->get_active_realm(); REQUIRE(first!=nullptr);
+        REQUIRE(project.load_starting_realm()); CHECK(project.get_realm_manager()->get_active_realm()==first); project.shutdown();
+    }
+    TEST_CASE("batch2947 shutdown preserves persistent project metadata and realm mappings") {
+        Salix::Project project("Batch2947MissingDllShutdown","Root2947"); project.add_realm_path("Main2947","Main2947.realm"); project.set_starting_realm("Main2947"); Salix::InitContext context{};
+        project.initialize(context); project.shutdown(); CHECK(project.get_realm_manager()==nullptr); CHECK(project.get_name()=="Batch2947MissingDllShutdown"); CHECK(project.get_path()=="Root2947");
+        CHECK(project.get_starting_realm()=="Main2947"); CHECK(project.get_realm_paths().at("Main2947")=="Main2947.realm");
+    }
+    TEST_CASE("batch2947 update and render become harmless again after shutdown") {
+        Salix::Project project("Batch2947MissingDllLifecycle","Root2947"); Salix::InitContext context{}; project.initialize(context); project.shutdown();
+        CHECK_NOTHROW(project.update(1.0f)); CHECK_NOTHROW(project.render(nullptr)); CHECK(project.get_realm_manager()==nullptr);
+    }
+    TEST_CASE("batch2947 derived filenames remain stable across realm metadata mutations") {
+        Salix::Project project("Stable2947","D:/Root2947"); const auto project_file=project.get_project_file_name(); const auto dll=project.get_game_dll_name();
+        project.add_realm_path("R","R.realm"); project.set_starting_realm("R"); project.remove_realm_path("R.realm");
+        CHECK(project.get_project_file_name()==project_file); CHECK(project.get_game_dll_name()==dll); CHECK(project.get_name()=="Stable2947"); CHECK(project.get_path()=="D:/Root2947");
+    }
+}
+
