@@ -439,3 +439,79 @@ TEST_SUITE("Salix::management::RealmManagerBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::management::RealmManagerBatch2847") {
+    TEST_CASE("batch2847 creating several realms never implicitly selects one") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Menu2847","Menu2847.json")!=nullptr);
+        REQUIRE(manager.create_realm("Game2847","Game2847.json")!=nullptr);
+        REQUIRE(manager.create_realm("Credits2847","Credits2847.json")!=nullptr);
+        CHECK(manager.get_active_realm()==nullptr);
+    }
+    TEST_CASE("batch2847 explicit selection can move between existing realms") {
+        Salix::RealmManager manager;
+        auto* first=manager.create_realm("First2847","First.json");
+        auto* second=manager.create_realm("Second2847","Second.json");
+        REQUIRE(first!=nullptr); REQUIRE(second!=nullptr);
+        REQUIRE(manager.set_active_realm("First2847")); CHECK(manager.get_active_realm()==first);
+        REQUIRE(manager.set_active_realm("Second2847")); CHECK(manager.get_active_realm()==second);
+    }
+    TEST_CASE("batch2847 replacing active realm keeps same logical selection on replacement") {
+        Salix::RealmManager manager;
+        auto* old=manager.create_realm("Replace2847","Old2847.json"); REQUIRE(old!=nullptr);
+        REQUIRE(manager.set_active_realm("Replace2847"));
+        auto* replacement=manager.create_realm("Replace2847","New2847.json"); REQUIRE(replacement!=nullptr);
+        CHECK(manager.get_active_realm()==replacement);
+        CHECK(replacement->get_path()=="New2847.json");
+    }
+    TEST_CASE("batch2847 replacing inactive realm preserves different active selection") {
+        Salix::RealmManager manager;
+        auto* active=manager.create_realm("Active2847","Active.json"); REQUIRE(active!=nullptr);
+        REQUIRE(manager.create_realm("Other2847","Old.json")!=nullptr);
+        REQUIRE(manager.set_active_realm("Active2847"));
+        REQUIRE(manager.create_realm("Other2847","New.json")!=nullptr);
+        CHECK(manager.get_active_realm()==active);
+    }
+    TEST_CASE("batch2847 invalid empty name and path creations leave existing active realm unchanged") {
+        Salix::RealmManager manager;
+        auto* active=manager.create_realm("Stable2847","Stable.json"); REQUIRE(active!=nullptr); REQUIRE(manager.set_active_realm("Stable2847"));
+        CHECK(manager.create_realm("","Valid.json")==nullptr);
+        CHECK(manager.create_realm("Valid","")==nullptr);
+        CHECK(manager.get_active_realm()==active);
+    }
+    TEST_CASE("batch2847 empty project-root update cannot erase configured root") {
+        Salix::RealmManager manager;
+        manager.set_project_root_path("C:/Project2847");
+        manager.set_project_root_path("");
+        CHECK(manager.get_project_root_path()=="C:/Project2847");
+    }
+    TEST_CASE("batch2847 shutdown clears active and stored realms but preserves project root") {
+        Salix::RealmManager manager;
+        manager.set_project_root_path("Root2847");
+        REQUIRE(manager.create_realm("Temp2847","Temp.json")!=nullptr);
+        REQUIRE(manager.set_active_realm("Temp2847"));
+        manager.shutdown();
+        CHECK(manager.get_active_realm()==nullptr);
+        CHECK(manager.get_project_root_path()=="Root2847");
+        CHECK_FALSE(manager.set_active_realm("Temp2847"));
+    }
+    TEST_CASE("batch2847 load active realm fails when no realm is selected") {
+        Salix::RealmManager manager; Salix::InitContext context{}; manager.initialize(context);
+        CHECK_FALSE(manager.load_active_realm());
+    }
+    TEST_CASE("batch2847 empty manager update and render remain safe after initialization") {
+        Salix::RealmManager manager; Salix::InitContext context{}; manager.initialize(context);
+        CHECK_NOTHROW(manager.update(0.016f));
+        CHECK_NOTHROW(manager.update(-1.0f));
+        CHECK_NOTHROW(manager.render(nullptr));
+        CHECK(manager.get_active_realm()==nullptr);
+    }
+    TEST_CASE("batch2847 active empty realm loads when context supplies asset manager") {
+        Salix::AssetManager assets; Salix::InitContext context{}; context.asset_manager=&assets;
+        Salix::RealmManager manager; manager.initialize(context);
+        auto* realm=manager.create_realm("Load2847","Load2847.json"); REQUIRE(realm!=nullptr);
+        REQUIRE(manager.set_active_realm("Load2847"));
+        CHECK(manager.load_active_realm());
+        CHECK(manager.get_active_realm()==realm);
+    }
+}
+
