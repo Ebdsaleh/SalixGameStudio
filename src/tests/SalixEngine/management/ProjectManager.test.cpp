@@ -253,3 +253,83 @@ TEST_SUITE("Salix::management::ProjectManagerBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectManagerBatch2847") {
+    TEST_CASE("batch2847 initialized fresh manager keeps empty selection metadata") {
+        Salix::ProjectManager manager; Salix::InitContext context{};
+        manager.initialize(context);
+        CHECK(manager.get_active_project()==nullptr);
+        CHECK(manager.get_project_to_load().empty());
+        CHECK(manager.get_loaded_project_directory().empty());
+    }
+    TEST_CASE("batch2847 project file selection supports spaces and punctuation exactly") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("D:/Projects/My Game-2847/My Game.salixproj");
+        CHECK(manager.get_project_to_load()=="D:/Projects/My Game-2847/My Game.salixproj");
+    }
+    TEST_CASE("batch2847 loaded directory replacement never alters selected project file") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Root/Game.salixproj");
+        manager.set_loaded_project_directory("Root");
+        manager.set_loaded_project_directory("Other Root");
+        CHECK(manager.get_project_to_load()=="Root/Game.salixproj");
+        CHECK(manager.get_loaded_project_directory()=="Other Root");
+    }
+    TEST_CASE("batch2847 simple project creation builds every canonical asset directory") {
+        Batch1947ProjectRoot root; Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(root.path.string(),"Tree2847"));
+        const auto p=root.path/"Tree2847"/"Assets";
+        CHECK(std::filesystem::is_directory(p/"Realms"));
+        CHECK(std::filesystem::is_directory(p/"Scripts"));
+        CHECK(std::filesystem::is_directory(p/"Images"));
+        CHECK(std::filesystem::is_directory(p/"Audio"));
+        CHECK(std::filesystem::is_directory(p/"Models"));
+    }
+    TEST_CASE("batch2847 generated project file contains project name and starting realm metadata") {
+        Batch1947ProjectRoot root; Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(root.path.string(),"Metadata2847"));
+        std::ifstream in(root.path/"Metadata2847"/"Metadata2847.salixproj");
+        REQUIRE(in.is_open());
+        const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());
+        CHECK(text.find("ProjectName: Metadata2847")!=std::string::npos);
+        CHECK(text.find("StartingRealm: MainLevel")!=std::string::npos);
+    }
+    TEST_CASE("batch2847 recreating an existing project never overwrites its project file") {
+        Batch1947ProjectRoot root; Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(root.path.string(),"Existing2847"));
+        const auto file=root.path/"Existing2847"/"Existing2847.salixproj";
+        { std::ofstream out(file,std::ios::trunc); out<<"custom2847"; }
+        REQUIRE(manager.create_new_project(root.path.string(),"Existing2847"));
+        std::ifstream in(file); const std::string text((std::istreambuf_iterator<char>(in)),std::istreambuf_iterator<char>());
+        CHECK(text=="custom2847");
+    }
+    TEST_CASE("batch2847 project creation works inside an already existing nested root") {
+        Batch1947ProjectRoot root; const auto nested=root.path/"Nested"/"Workspace";
+        std::filesystem::create_directories(nested);
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(nested.string(),"Nested2847"));
+        CHECK(std::filesystem::is_regular_file(nested/"Nested2847"/"Nested2847.salixproj"));
+    }
+    TEST_CASE("batch2847 project creation fails when project directory is blocked by a regular file") {
+        Batch1947ProjectRoot root; const auto blocker=root.path/"Blocked2847";
+        { std::ofstream out(blocker); out<<"block"; }
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_project(root.path.string(),"Blocked2847"));
+        CHECK(std::filesystem::is_regular_file(blocker));
+    }
+    TEST_CASE("batch2847 malformed project load preserves pending path metadata") {
+        Batch1947ProjectRoot root; const auto file=root.path/"malformed2847.salixproj";
+        { std::ofstream out(file); out<<"not-json"; }
+        Salix::ProjectManager manager; manager.set_project_to_load("pending2847.salixproj"); manager.set_loaded_project_directory("pending2847");
+        CHECK_FALSE(manager.load_project(file.string()));
+        CHECK(manager.get_project_to_load()=="pending2847.salixproj");
+        CHECK(manager.get_loaded_project_directory()=="pending2847");
+    }
+    TEST_CASE("batch2847 malformed pointer load returns null without installing an active project") {
+        Batch1947ProjectRoot root; const auto file=root.path/"malformed-pointer2847.salixproj";
+        { std::ofstream out(file); out<<"{"; }
+        Salix::ProjectManager manager;
+        CHECK(manager.load_project_from_file(file.string())==nullptr);
+        CHECK(manager.get_active_project()==nullptr);
+    }
+}
+
