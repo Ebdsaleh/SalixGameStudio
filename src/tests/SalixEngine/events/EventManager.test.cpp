@@ -842,3 +842,51 @@ TEST_SUITE("Salix::events::EventManagerBatch2647") {
     }
 }
 
+TEST_SUITE("Salix::events::EventManagerBatch2947") {
+    TEST_CASE("batch2947 fresh manager starts with an empty queue") {
+        Salix::EventManager manager; CHECK(manager.is_queue_empty());
+    }
+    TEST_CASE("batch2947 processing fresh empty queue is harmless and remains empty") {
+        Salix::EventManager manager; CHECK_NOTHROW(manager.process_queue()); CHECK(manager.is_queue_empty());
+    }
+    TEST_CASE("batch2947 queued event with no subscribers is discarded after processing") {
+        Salix::EventManager manager; manager.dispatch(std::make_unique<Salix::MockEvent>()); CHECK_FALSE(manager.is_queue_empty());
+        manager.process_queue(); CHECK(manager.is_queue_empty());
+    }
+    TEST_CASE("batch2947 subscriber in unrelated category does not receive application event") {
+        Salix::EventManager manager; Salix::MockListener listener; int calls=0; listener.on_event_handler=[&](Salix::IEvent&){++calls;};
+        manager.subscribe(Salix::EventCategory::Editor,&listener); manager.dispatch(std::make_unique<Salix::MockEvent>()); manager.process_queue(); CHECK(calls==0);
+    }
+    TEST_CASE("batch2947 removing listener from unrelated category preserves its application subscription") {
+        Salix::EventManager manager; Salix::MockListener listener; int calls=0; listener.on_event_handler=[&](Salix::IEvent&){++calls;};
+        manager.subscribe(Salix::EventCategory::Application,&listener); manager.unsubscribe(Salix::EventCategory::Editor,&listener);
+        manager.dispatch(std::make_unique<Salix::MockEvent>()); manager.process_queue(); CHECK(calls==1);
+    }
+    TEST_CASE("batch2947 three queued unhandled events are delivered in one processing pass") {
+        Salix::EventManager manager; Salix::MockListener listener; int calls=0; listener.on_event_handler=[&](Salix::IEvent&){++calls;};
+        manager.subscribe(Salix::EventCategory::Application,&listener);
+        manager.dispatch(std::make_unique<Salix::MockEvent>()); manager.dispatch(std::make_unique<Salix::MockEvent>()); manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue(); CHECK(calls==3); CHECK(manager.is_queue_empty());
+    }
+    TEST_CASE("batch2947 handled first queued event does not prevent later queued event delivery") {
+        Salix::EventManager manager; Salix::MockListener listener; int calls=0;
+        listener.on_event_handler=[&](Salix::IEvent& event){++calls; if(calls==1) event.handled=true;};
+        manager.subscribe(Salix::EventCategory::Application,&listener); manager.dispatch(std::make_unique<Salix::MockEvent>()); manager.dispatch(std::make_unique<Salix::MockEvent>());
+        manager.process_queue(); CHECK(calls==2); CHECK(manager.is_queue_empty());
+    }
+    TEST_CASE("batch2947 clone dispatch preserves source handled flag and processes clone") {
+        Salix::EventManager manager; Salix::MockListener listener; int calls=0; listener.on_event_handler=[&](Salix::IEvent&){++calls;};
+        manager.subscribe(Salix::EventCategory::Application,&listener); Salix::MockEvent source; source.handled=false; manager.dispatch(source); manager.process_queue();
+        CHECK(calls==1); CHECK_FALSE(source.handled);
+    }
+    TEST_CASE("batch2947 blocked unique event never changes queue emptiness") {
+        Salix::EventManager manager; CHECK(manager.is_queue_empty()); manager.dispatch(std::make_unique<Salix::MockBlockingEvent>()); CHECK(manager.is_queue_empty());
+    }
+    TEST_CASE("batch2947 unsubscribe all known listeners leaves later processing callback free") {
+        Salix::EventManager manager; Salix::MockListener a,b; int calls=0; a.on_event_handler=[&](Salix::IEvent&){++calls;}; b.on_event_handler=[&](Salix::IEvent&){++calls;};
+        manager.subscribe(Salix::EventCategory::Application,&a); manager.subscribe(Salix::EventCategory::Application,&b);
+        manager.unsubscribe(Salix::EventCategory::Application,&a); manager.unsubscribe(Salix::EventCategory::Application,&b);
+        manager.dispatch(std::make_unique<Salix::MockEvent>()); manager.process_queue(); CHECK(calls==0); CHECK(manager.is_queue_empty());
+    }
+}
+
