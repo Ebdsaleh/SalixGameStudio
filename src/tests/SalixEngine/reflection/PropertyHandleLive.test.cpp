@@ -527,3 +527,64 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch2647") {
     }
 }
 
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch2947") {
+    TEST_CASE("batch2947 null live instance read returns default property variant") {
+        auto p=batch2647_live_property("i",Salix::PropertyType::Int,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->integer;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->integer=*static_cast<int*>(v);});
+        Salix::PropertyHandleLive handle(p,nullptr); const auto value=handle.get_value();
+        CHECK(std::holds_alternative<int>(value)); CHECK(std::get<int>(value)==0);
+    }
+    TEST_CASE("batch2947 null live instance write never invokes setter callback") {
+        int setter_calls=0; auto p=batch2647_live_property("i",Salix::PropertyType::Int,
+            [](void*)->void*{return nullptr;},[&](void*,void*){++setter_calls;});
+        Salix::PropertyHandleLive handle(p,nullptr); handle.set_value(Salix::PropertyValue{42}); CHECK(setter_calls==0);
+    }
+    TEST_CASE("batch2947 missing getter still allows valid setter to update live storage") {
+        Batch2647LiveElement e; Salix::Property p; p.name="i"; p.type=Salix::PropertyType::Int;
+        p.set_data=[](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->integer=*static_cast<int*>(v);};
+        Salix::PropertyHandleLive handle(p,&e); CHECK(std::get<int>(handle.get_value())==0); handle.set_value(Salix::PropertyValue{2947}); CHECK(e.integer==2947);
+    }
+    TEST_CASE("batch2947 missing setter still exposes current live value") {
+        Batch2647LiveElement e; Salix::Property p; p.name="i"; p.type=Salix::PropertyType::Int;
+        p.get_data=[](void* x)->void*{return &static_cast<Batch2647LiveElement*>(x)->integer;};
+        Salix::PropertyHandleLive handle(p,&e); CHECK(std::get<int>(handle.get_value())==1); handle.set_value(Salix::PropertyValue{99}); CHECK(e.integer==1);
+    }
+    TEST_CASE("batch2947 int setter ignores mismatched string variant") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("i",Salix::PropertyType::Int,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->integer;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->integer=*static_cast<int*>(v);});
+        Salix::PropertyHandleLive handle(p,&e); handle.set_value(Salix::PropertyValue{std::string("wrong")}); CHECK(e.integer==1);
+    }
+    TEST_CASE("batch2947 uint64 setter ignores mismatched signed integer variant") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("u",Salix::PropertyType::UInt64,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->u64;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->u64=*static_cast<std::uint64_t*>(v);});
+        Salix::PropertyHandleLive handle(p,&e); handle.set_value(Salix::PropertyValue{7}); CHECK(e.u64==2);
+    }
+    TEST_CASE("batch2947 enum setter ignores mismatched float variant") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("enum",Salix::PropertyType::Enum,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->enum_value;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->enum_value=*static_cast<int*>(v);});
+        Salix::PropertyHandleLive handle(p,&e); handle.set_value(Salix::PropertyValue{3.5f}); CHECK(e.enum_value==3);
+    }
+    TEST_CASE("batch2947 float setter ignores mismatched integer variant") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("float",Salix::PropertyType::Float,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->scalar;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->scalar=*static_cast<float*>(v);});
+        Salix::PropertyHandleLive handle(p,&e); handle.set_value(Salix::PropertyValue{12}); CHECK(e.scalar==doctest::Approx(5.5f));
+    }
+    TEST_CASE("batch2947 bool setter ignores mismatched integer variant") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("bool",Salix::PropertyType::Bool,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->flag;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->flag=*static_cast<bool*>(v);});
+        Salix::PropertyHandleLive handle(p,&e); handle.set_value(Salix::PropertyValue{1}); CHECK_FALSE(e.flag);
+    }
+    TEST_CASE("batch2947 string setter ignores mismatched boolean variant") {
+        Batch2647LiveElement e; auto p=batch2647_live_property("string",Salix::PropertyType::String,
+            [](void* x){return &static_cast<Batch2647LiveElement*>(x)->text;},
+            [](void* x,void* v){static_cast<Batch2647LiveElement*>(x)->text=*static_cast<std::string*>(v);});
+        Salix::PropertyHandleLive handle(p,&e); handle.set_value(Salix::PropertyValue{true}); CHECK(e.text=="old");
+    }
+}
+
