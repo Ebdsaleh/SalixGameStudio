@@ -371,3 +371,88 @@ TEST_SUITE("Salix::core::ChronoTimerBatch2447") {
     }
 }
 
+TEST_SUITE("Salix::core::ChronoTimerBatch2847") {
+    TEST_CASE("batch2847 one FPS target exposes nearly a full second sleep budget immediately") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(1);
+        timer.tick_start();
+        const float remaining = timer.calculate_sleep_duration().count();
+        CHECK(remaining > 900.0f);
+        CHECK(remaining <= 1000.0f);
+    }
+    TEST_CASE("batch2847 high FPS target still produces a positive immediate budget") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(100);
+        timer.tick_start();
+        const float remaining = timer.calculate_sleep_duration().count();
+        CHECK(remaining > 0.0f);
+        CHECK(remaining <= 10.0f);
+    }
+    TEST_CASE("batch2847 raising FPS reduces the current frame sleep budget") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(20);
+        timer.tick_start();
+        const float low_fps = timer.calculate_sleep_duration().count();
+        timer.set_target_fps(100);
+        timer.tick_start();
+        const float high_fps = timer.calculate_sleep_duration().count();
+        CHECK(low_fps > high_fps);
+    }
+    TEST_CASE("batch2847 switching a capped timer to zero immediately disables calculated sleep") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(60);
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() > 0.0f);
+        timer.set_target_fps(0);
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+    TEST_CASE("batch2847 negative FPS is equivalent to uncapped sleep calculation") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(-240);
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+    TEST_CASE("batch2847 injected delay receives one positive duration for a short capped frame") {
+        int calls = 0;
+        std::chrono::milliseconds captured{0};
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds d) { ++calls; captured = d; });
+        timer.set_target_fps(20);
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(calls == 1);
+        CHECK(captured.count() > 0);
+        CHECK(captured.count() <= 50);
+    }
+    TEST_CASE("batch2847 long frame bypasses injected delay at a one millisecond target") {
+        int calls = 0;
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds) { ++calls; });
+        timer.set_target_fps(1000);
+        timer.tick_start();
+        SDL_Delay(3);
+        timer.tick_end();
+        CHECK(calls == 0);
+    }
+    TEST_CASE("batch2847 tick counter is monotonic across immediate observations") {
+        const auto a = Salix::ChronoTimer::get_ticks_ms();
+        const auto b = Salix::ChronoTimer::get_ticks_ms();
+        const auto c = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(b >= a);
+        CHECK(c >= b);
+    }
+    TEST_CASE("batch2847 zero millisecond delay helper returns without disturbing monotonic ticks") {
+        const auto before = Salix::ChronoTimer::get_ticks_ms();
+        CHECK_NOTHROW(Salix::ChronoTimer::delay_for(0u));
+        const auto after = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(after >= before);
+    }
+    TEST_CASE("batch2847 ITimer dispatch preserves finite delta and uncapped completion") {
+        Salix::ChronoTimer concrete;
+        Salix::ITimer& timer = concrete;
+        timer.set_target_fps(0);
+        timer.tick_start();
+        CHECK(std::isfinite(timer.get_delta_time()));
+        CHECK(timer.get_delta_time() >= 0.0f);
+        CHECK_NOTHROW(timer.tick_end());
+    }
+}
+
