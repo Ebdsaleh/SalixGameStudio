@@ -884,10 +884,10 @@ TEST_SUITE("Salix::ecs::EntityBatch2747") {
         Salix::Entity entity; entity.add_child(nullptr); CHECK(entity.get_children().empty());
     }
     TEST_CASE("batch2747 duplicate child insertion stores one pointer") {
-        Salix::Entity parent,child; parent.add_child(&child); parent.add_child(&child); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&child);
+        Salix::Entity parent,child; parent.add_child(&child); parent.add_child(&child); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&child); parent.remove_child(&child);
     }
     TEST_CASE("batch2747 removing absent child leaves existing children unchanged") {
-        Salix::Entity parent,a,b; parent.add_child(&a); parent.remove_child(&b); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&a);
+        Salix::Entity parent,a,b; parent.add_child(&a); parent.remove_child(&b); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&a); parent.remove_child(&a);
     }
     TEST_CASE("batch2747 repeated same parent assignment never duplicates hierarchy links") {
         Salix::Entity parent,child; child.set_parent(&parent); child.set_parent(&parent); REQUIRE(parent.get_children().size()==1); CHECK(child.get_parent()==&parent);
