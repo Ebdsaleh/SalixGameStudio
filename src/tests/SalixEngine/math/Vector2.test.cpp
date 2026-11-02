@@ -720,3 +720,71 @@ TEST_SUITE("Salix::math::Vector2Batch2147") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector2Batch3147") {
+    TEST_CASE("batch3147 vector2 five twelve triangle has magnitude thirteen") {
+        CHECK(Salix::Vector2(5.0f, 12.0f).length() == doctest::Approx(13.0f));
+    }
+
+    TEST_CASE("batch3147 vector2 normalization preserves negative direction while producing unit length") {
+        Salix::Vector2 v(-5.0f, -12.0f);
+        v.normalize();
+        CHECK(v.x == doctest::Approx(-5.0f / 13.0f));
+        CHECK(v.y == doctest::Approx(-12.0f / 13.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3147 vector2 zero normalization remains exact zero") {
+        Salix::Vector2 v(0.0f, 0.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector2(0.0f, 0.0f));
+    }
+
+    TEST_CASE("batch3147 vector2 lerp clamps negative interpolation to start") {
+        const Salix::Vector2 a(-3.0f, 7.0f), b(9.0f, -5.0f);
+        CHECK(Salix::Vector2::lerp(a, b, -10.0f) == a);
+    }
+
+    TEST_CASE("batch3147 vector2 lerp clamps oversized interpolation to end") {
+        const Salix::Vector2 a(-3.0f, 7.0f), b(9.0f, -5.0f);
+        CHECK(Salix::Vector2::lerp(a, b, 10.0f) == b);
+    }
+
+    TEST_CASE("batch3147 vector2 interpolation computes independent quarter point axes") {
+        const auto v = Salix::Vector2::lerp({-4.0f, 8.0f}, {12.0f, -8.0f}, 0.25f);
+        CHECK(v.x == doctest::Approx(0.0f));
+        CHECK(v.y == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch3147 vector2 ImGui conversion preserves signed components") {
+        Salix::Vector2 v(-1.25f, 9.5f);
+        const auto im = v.to_im_vec2();
+        CHECK(im.x == v.x);
+        CHECK(im.y == v.y);
+    }
+
+    TEST_CASE("batch3147 vector2 YAML partial decode clears omitted axis") {
+        Salix::Vector2 v(7.0f, 8.0f);
+        const YAML::Node node = YAML::Load("{x: -2.5}");
+        node >> v;
+        CHECK(v.x == doctest::Approx(-2.5f));
+        CHECK(v.y == 0.0f);
+    }
+
+    TEST_CASE("batch3147 vector2 YAML emitter output roundtrips signed finite coordinates") {
+        const Salix::Vector2 original(-12.25f, 0.375f);
+        YAML::Emitter out; out << original;
+        Salix::Vector2 restored;
+        YAML::Load(out.c_str()) >> restored;
+        CHECK(restored.x == doctest::Approx(original.x));
+        CHECK(restored.y == doctest::Approx(original.y));
+    }
+
+    TEST_CASE("batch3147 vector2 compound add and subtract return the same object reference") {
+        Salix::Vector2 v(1.0f, 2.0f);
+        Salix::Vector2& add_ref = (v += Salix::Vector2(3.0f, 4.0f));
+        CHECK(&add_ref == &v);
+        Salix::Vector2& sub_ref = (v -= Salix::Vector2(3.0f, 4.0f));
+        CHECK(&sub_ref == &v);
+        CHECK(v == Salix::Vector2(1.0f, 2.0f));
+    }
+}
