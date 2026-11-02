@@ -333,3 +333,113 @@ TEST_SUITE("Salix::management::ProjectManagerBatch2847") {
     }
 }
 
+
+TEST_SUITE("Salix::management::ProjectManagerBatch3047") {
+    TEST_CASE("batch3047 repeated initialization preserves pending file and directory selections") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Selected3047.salixproj");
+        manager.set_loaded_project_directory("Root3047");
+        Salix::InitContext first{}, second{};
+        manager.initialize(first);
+        manager.initialize(second);
+        CHECK(manager.get_project_to_load() == "Selected3047.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "Root3047");
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch3047 missing project load leaves an existing placeholder project installed") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Placeholder");
+        auto* before = manager.get_active_project();
+        REQUIRE(before != nullptr);
+        CHECK_FALSE(manager.load_project("__batch3047_missing_project__.salixproj"));
+        CHECK(manager.get_active_project() == before);
+        CHECK(manager.get_active_project()->get_name() == "TestProject");
+    }
+
+    TEST_CASE("batch3047 missing pointer load leaves an existing placeholder project installed") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Placeholder");
+        auto* before = manager.get_active_project();
+        REQUIRE(before != nullptr);
+        CHECK(manager.load_project_from_file("__batch3047_missing_pointer_project__.salixproj") == nullptr);
+        CHECK(manager.get_active_project() == before);
+    }
+
+    TEST_CASE("batch3047 shutdown after placeholder ownership preserves path selection metadata") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending3047.salixproj");
+        manager.set_loaded_project_directory("PendingRoot3047");
+        manager.set_active_project("Placeholder");
+        REQUIRE(manager.get_active_project() != nullptr);
+        manager.shutdown();
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(manager.get_project_to_load() == "Pending3047.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "PendingRoot3047");
+    }
+
+    TEST_CASE("batch3047 placeholder project can be recreated after shutdown with canonical metadata") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("First");
+        manager.shutdown();
+        manager.set_active_project("Second");
+        auto* project = manager.get_active_project();
+        REQUIRE(project != nullptr);
+        CHECK(project->get_name() == "TestProject");
+        CHECK(project->get_path() == "Sandbox/TestProject");
+        CHECK(project->get_project_file_name() == "TestProject.salixproj");
+    }
+
+    TEST_CASE("batch3047 simple project creation preserves spaces in directory and file names") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(root.path.string(), "Project 3047"));
+        const auto project = root.path / "Project 3047";
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Realms"));
+        CHECK(std::filesystem::is_regular_file(project / "Project 3047.salixproj"));
+    }
+
+    TEST_CASE("batch3047 two simple projects created under one root remain independent") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(root.path.string(), "Alpha3047"));
+        REQUIRE(manager.create_new_project(root.path.string(), "Beta3047"));
+        CHECK(std::filesystem::is_regular_file(root.path / "Alpha3047" / "Alpha3047.salixproj"));
+        CHECK(std::filesystem::is_regular_file(root.path / "Beta3047" / "Beta3047.salixproj"));
+    }
+
+    TEST_CASE("batch3047 simple project creation works beneath an already existing nested root") {
+        Batch1947ProjectRoot root;
+        const auto nested = root.path / "Existing" / "Nested";
+        std::filesystem::create_directories(nested);
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(nested.string(), "Child3047"));
+        CHECK(std::filesystem::is_directory(nested / "Child3047" / "Assets" / "Models"));
+        CHECK(std::filesystem::is_regular_file(nested / "Child3047" / "Child3047.salixproj"));
+    }
+
+    TEST_CASE("batch3047 simple project punctuation remains exact in generated starter metadata") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        const std::string name = "Project-3047_v1";
+        REQUIRE(manager.create_new_project(root.path.string(), name));
+        std::ifstream in(root.path / name / (name + ".salixproj"));
+        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CHECK(text.find("ProjectName: " + name) != std::string::npos);
+        CHECK(text.find("StartingRealm: MainLevel") != std::string::npos);
+    }
+
+    TEST_CASE("batch3047 update and render remain safe across placeholder shutdown and recreation") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("One");
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK_NOTHROW(manager.update(0.0f));
+        CHECK_NOTHROW(manager.render(nullptr));
+        manager.shutdown();
+        CHECK_NOTHROW(manager.update(-1.0f));
+        CHECK_NOTHROW(manager.render(nullptr));
+        manager.set_active_project("Two");
+        CHECK_NOTHROW(manager.update(1.0f));
+        CHECK_NOTHROW(manager.render(nullptr));
+    }
+}
