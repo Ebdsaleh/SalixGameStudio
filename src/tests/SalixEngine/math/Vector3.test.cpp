@@ -923,3 +923,69 @@ TEST_SUITE("Salix::math::Vector3Batch2147") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector3Batch3147") {
+    TEST_CASE("batch3147 vector3 six eight zero triangle has magnitude ten") {
+        CHECK(Salix::Vector3(6.0f, 8.0f, 0.0f).length() == doctest::Approx(10.0f));
+    }
+
+    TEST_CASE("batch3147 vector3 normalization preserves signed direction and unit magnitude") {
+        Salix::Vector3 v(-2.0f, 0.0f, 0.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector3(-1.0f, 0.0f, 0.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3147 vector3 zero normalization remains canonical Zero constant") {
+        Salix::Vector3 v;
+        v.normalize();
+        CHECK(v == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch3147 vector3 lerp clamps negative interpolation to start") {
+        const Salix::Vector3 a(-1.0f, 2.0f, -3.0f), b(4.0f, -5.0f, 6.0f);
+        CHECK(Salix::Vector3::lerp(a, b, -0.25f) == a);
+    }
+
+    TEST_CASE("batch3147 vector3 lerp clamps oversized interpolation to end") {
+        const Salix::Vector3 a(-1.0f, 2.0f, -3.0f), b(4.0f, -5.0f, 6.0f);
+        CHECK(Salix::Vector3::lerp(a, b, 1.25f) == b);
+    }
+
+    TEST_CASE("batch3147 vector3 interpolation computes independent quarter point axes") {
+        const auto v = Salix::Vector3::lerp({0.0f, 4.0f, 8.0f}, {8.0f, -4.0f, 0.0f}, 0.25f);
+        CHECK(v.x == doctest::Approx(2.0f)); CHECK(v.y == doctest::Approx(2.0f)); CHECK(v.z == doctest::Approx(6.0f));
+    }
+
+    TEST_CASE("batch3147 vector3 GLM roundtrip preserves diagnostic signed coordinates") {
+        const Salix::Vector3 original(-7.25f, 0.125f, 1024.5f);
+        const auto restored = Salix::Vector3::from_glm(original.to_glm());
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch3147 vector3 YAML partial decode clears both omitted axes") {
+        Salix::Vector3 v(1.0f, 2.0f, 3.0f);
+        const YAML::Node node = YAML::Load("{z: -9.5}");
+        node >> v;
+        CHECK(v.x == 0.0f); CHECK(v.y == 0.0f); CHECK(v.z == doctest::Approx(-9.5f));
+    }
+
+    TEST_CASE("batch3147 vector3 YAML emitter roundtrips all signed finite coordinates") {
+        const Salix::Vector3 original(-0.5f, 2.75f, -8.125f);
+        YAML::Emitter out; out << original;
+        Salix::Vector3 restored;
+        YAML::Load(out.c_str()) >> restored;
+        CHECK(restored.x == doctest::Approx(original.x));
+        CHECK(restored.y == doctest::Approx(original.y));
+        CHECK(restored.z == doctest::Approx(original.z));
+    }
+
+    TEST_CASE("batch3147 vector3 compound scale and divide return self and restore original value") {
+        Salix::Vector3 v(1.5f, -2.0f, 4.0f);
+        const Salix::Vector3 original = v;
+        Salix::Vector3& mul_ref = (v *= 4.0f);
+        CHECK(&mul_ref == &v);
+        Salix::Vector3& div_ref = (v /= 4.0f);
+        CHECK(&div_ref == &v);
+        CHECK(v == original);
+    }
+}
