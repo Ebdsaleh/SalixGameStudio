@@ -607,3 +607,64 @@ TEST_SUITE("Salix::math::RectBatch2547") {
     }
 }
 
+TEST_SUITE("Salix::math::RectBatch3147") {
+    TEST_CASE("batch3147 Rect alias remains exactly integer Rect specialization") {
+        CHECK((std::is_same_v<Salix::Rect, Salix::Rect_<int>>));
+        CHECK((std::is_same_v<Salix::Rect, Salix::RectI>));
+    }
+
+    TEST_CASE("batch3147 float rectangle constructor converts integral arguments independently") {
+        const Salix::RectF r(-1, 2, 3, -4);
+        CHECK(r == Salix::RectF(-1.0f, 2.0f, 3.0f, -4.0f));
+    }
+
+    TEST_CASE("batch3147 double rectangle constructor preserves mixed finite arithmetic arguments") {
+        const Salix::RectD r(-1.25f, 2, 3.5, -4LL);
+        CHECK(r.x == doctest::Approx(-1.25)); CHECK(r.y == doctest::Approx(2.0));
+        CHECK(r.w == doctest::Approx(3.5)); CHECK(r.h == doctest::Approx(-4.0));
+    }
+
+    TEST_CASE("batch3147 explicit double to float conversion preserves moderate fractional coordinates") {
+        const Salix::RectD source(-1.25, 2.5, -3.75, 4.0);
+        const Salix::RectF converted(source);
+        CHECK(converted == Salix::RectF(-1.25f, 2.5f, -3.75f, 4.0f));
+    }
+
+    TEST_CASE("batch3147 integer to double conversion preserves negative extents exactly") {
+        const Salix::RectI source(12, -34, -56, 78);
+        const Salix::RectD converted(source);
+        CHECK(converted == Salix::RectD(12.0, -34.0, -56.0, 78.0));
+    }
+
+    TEST_CASE("batch3147 equality distinguishes a Y-only change") {
+        const Salix::RectI a(1, 2, 3, 4), b(1, 9, 3, 4);
+        CHECK(a != b); CHECK_FALSE(a == b);
+    }
+
+    TEST_CASE("batch3147 equality distinguishes a height-only change") {
+        const Salix::RectF a(1.0f, 2.0f, 3.0f, 4.0f), b(1.0f, 2.0f, 3.0f, 5.0f);
+        CHECK(a != b); CHECK_FALSE(a == b);
+    }
+
+    TEST_CASE("batch3147 ostream formatting preserves zero integer rectangle") {
+        const Salix::RectI r(0, 0, 0, 0);
+        std::stringstream stream; stream << r;
+        CHECK(stream.str() == "{ x: 0, y: 0, w: 0, h: 0 }");
+    }
+
+    TEST_CASE("batch3147 JSON roundtrip preserves mixed signed float rectangle") {
+        const Salix::RectF original(-0.125f, 1.5f, -32.25f, 64.75f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::RectF restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch3147 copy assignment transfers all four double members independently") {
+        Salix::RectD target(1.0, 2.0, 3.0, 4.0);
+        const Salix::RectD source(-5.0, 6.25, -7.5, 8.75);
+        target = source;
+        CHECK(target == source);
+    }
+}
