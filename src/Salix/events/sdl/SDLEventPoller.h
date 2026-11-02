@@ -6,6 +6,7 @@
 // Salix/events/SDLEventPoller.h
 #pragma once
 
+#include <Salix/core/Core.h>
 #include <Salix/events/IEventPoller.h> // Inherit from our interface
 #include <map>        // For storing raw event callbacks with handles
 #include <mutex>      // For thread safety if raw event callbacks are added/removed from different threads
@@ -16,7 +17,7 @@ union SDL_Event; // Note: union is correct for SDL_Event
 
 namespace Salix {
 
-    class SDLEventPoller : public IEventPoller {
+    class SALIX_API SDLEventPoller : public IEventPoller {
     public:
         SDLEventPoller(); // Constructor
         ~SDLEventPoller() override; // Destructor, marked override
