@@ -515,3 +515,104 @@ TEST_SUITE("Salix::management::RealmManagerBatch2847") {
     }
 }
 
+
+TEST_SUITE("Salix::management::RealmManagerBatch3047") {
+    TEST_CASE("batch3047 load realm returns true immediately when matching stem is already registered") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Already3047", "Original.json") != nullptr);
+        CHECK(manager.load_realm("Already3047.realm"));
+        CHECK(manager.get_active_realm() == nullptr);
+    }
+
+    TEST_CASE("batch3047 duplicate load by stem does not replace existing realm metadata") {
+        Salix::RealmManager manager;
+        auto* realm = manager.create_realm("Stem3047", "OriginalPath.json");
+        REQUIRE(realm != nullptr);
+        REQUIRE(manager.load_realm("nested/Stem3047.realm"));
+        CHECK(realm->get_path() == "OriginalPath.json");
+        CHECK(realm->get_name() == "Stem3047");
+    }
+
+    TEST_CASE("batch3047 active realm selection remains exact and case sensitive") {
+        Salix::RealmManager manager;
+        auto* realm = manager.create_realm("Case3047", "Case.json");
+        REQUIRE(realm != nullptr);
+        CHECK_FALSE(manager.set_active_realm("case3047"));
+        CHECK(manager.get_active_realm() == nullptr);
+        REQUIRE(manager.set_active_realm("Case3047"));
+        CHECK(manager.get_active_realm() == realm);
+    }
+
+    TEST_CASE("batch3047 empty selection attempt preserves an existing active realm") {
+        Salix::RealmManager manager;
+        auto* realm = manager.create_realm("Active3047", "Active.json");
+        REQUIRE(realm != nullptr);
+        REQUIRE(manager.set_active_realm("Active3047"));
+        CHECK_FALSE(manager.set_active_realm(""));
+        CHECK(manager.get_active_realm() == realm);
+    }
+
+    TEST_CASE("batch3047 repeated project root assignments retain the latest nonempty value") {
+        Salix::RealmManager manager;
+        manager.set_project_root_path("Root/One");
+        manager.set_project_root_path("Root/Two");
+        manager.set_project_root_path("");
+        CHECK(manager.get_project_root_path() == "Root/Two");
+    }
+
+    TEST_CASE("batch3047 reinitializing context can make an existing active realm loadable") {
+        Salix::RealmManager manager;
+        Salix::InitContext empty{};
+        manager.initialize(empty);
+        auto* realm = manager.create_realm("Load3047", "Load3047.json");
+        REQUIRE(realm != nullptr);
+        REQUIRE(manager.set_active_realm("Load3047"));
+        CHECK_FALSE(manager.load_active_realm());
+
+        Salix::AssetManager assets;
+        Salix::InitContext ready{};
+        ready.asset_manager = &assets;
+        manager.initialize(ready);
+        CHECK(manager.load_active_realm());
+        CHECK(manager.get_active_realm() == realm);
+    }
+
+    TEST_CASE("batch3047 replacing an inactive realm keeps manager with no implicit selection") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Replace3047", "Before.json") != nullptr);
+        auto* replacement = manager.create_realm("Replace3047", "After.json");
+        REQUIRE(replacement != nullptr);
+        CHECK(manager.get_active_realm() == nullptr);
+        CHECK(replacement->get_path() == "After.json");
+    }
+
+    TEST_CASE("batch3047 replacing active realm preserves configured project root") {
+        Salix::RealmManager manager;
+        manager.set_project_root_path("ProjectRoot3047");
+        REQUIRE(manager.create_realm("World3047", "Before.json") != nullptr);
+        REQUIRE(manager.set_active_realm("World3047"));
+        auto* replacement = manager.create_realm("World3047", "After.json");
+        REQUIRE(replacement != nullptr);
+        CHECK(manager.get_active_realm() == replacement);
+        CHECK(manager.get_project_root_path() == "ProjectRoot3047");
+    }
+
+    TEST_CASE("batch3047 shutdown removes duplicate load shortcut for previously registered realm name") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Gone3047", "Original.json") != nullptr);
+        REQUIRE(manager.load_realm("Gone3047.realm"));
+        manager.shutdown();
+        CHECK_FALSE(manager.load_realm("__batch3047_missing__/Gone3047.realm"));
+        CHECK(manager.get_active_realm() == nullptr);
+    }
+
+    TEST_CASE("batch3047 failed missing file load never disrupts a selected realm") {
+        Salix::RealmManager manager;
+        auto* active = manager.create_realm("Stable3047", "Stable.json");
+        REQUIRE(active != nullptr);
+        REQUIRE(manager.set_active_realm("Stable3047"));
+        CHECK_FALSE(manager.load_realm("__batch3047_missing__/Other3047.realm"));
+        CHECK(manager.get_active_realm() == active);
+        CHECK(active->get_path() == "Stable.json");
+    }
+}
