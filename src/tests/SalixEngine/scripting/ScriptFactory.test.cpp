@@ -253,3 +253,123 @@ TEST_SUITE("Salix::scripting::ScriptFactoryBatch2147") {
     }
 }
 
+
+#include <vector>
+
+namespace {
+class Batch3047ScriptA : public Salix::ScriptElement {
+public: const char* get_class_name() const override { return "Batch3047ScriptA"; }
+};
+class Batch3047ScriptB : public Salix::ScriptElement {
+public: const char* get_class_name() const override { return "Batch3047ScriptB"; }
+};
+}
+
+TEST_SUITE("Salix::scripting::ScriptFactoryBatch3047") {
+    TEST_CASE("batch3047 UTF8 registration key is preserved as an exact map key") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = std::string("Batch3047::caf") + "\xC3\xA9" + "-controller";
+        factory.register_script(key, [] { return std::make_unique<Batch3047ScriptA>(); });
+        auto created = factory.create_script(key);
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch3047ScriptA*>(created.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3047 embedded NUL bytes are valid registration key data") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key("Batch3047\0Hidden", 16);
+        factory.register_script(key, [] { return std::make_unique<Batch3047ScriptA>(); });
+        CHECK(factory.create_script(key) != nullptr);
+        CHECK(factory.create_script("Batch3047") == nullptr);
+    }
+
+    TEST_CASE("batch3047 replacement with null creator affects only future requests") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = "Batch3047::replace-null";
+        factory.register_script(key, [] { return std::make_unique<Batch3047ScriptA>(); });
+        auto existing = factory.create_script(key);
+        REQUIRE(existing != nullptr);
+        factory.register_script(key, []() -> std::unique_ptr<Salix::ScriptElement> { return nullptr; });
+        CHECK(factory.create_script(key) == nullptr);
+        CHECK(dynamic_cast<Batch3047ScriptA*>(existing.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3047 throwing creator can be replaced by a working creator") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = "Batch3047::recover-throw";
+        factory.register_script(key, []() -> std::unique_ptr<Salix::ScriptElement> {
+            throw std::runtime_error("batch3047");
+        });
+        CHECK_THROWS_AS(factory.create_script(key), std::runtime_error);
+        factory.register_script(key, [] { return std::make_unique<Batch3047ScriptB>(); });
+        auto recovered = factory.create_script(key);
+        REQUIRE(recovered != nullptr);
+        CHECK(dynamic_cast<Batch3047ScriptB*>(recovered.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3047 creator can assign distinct names from captured invocation count") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto calls = std::make_shared<int>(0);
+        const std::string key = "Batch3047::numbered";
+        factory.register_script(key, [calls] {
+            auto script = std::make_unique<Batch3047ScriptA>();
+            script->set_name("Instance" + std::to_string(++*calls));
+            return script;
+        });
+        auto first = factory.create_script(key);
+        auto second = factory.create_script(key);
+        REQUIRE(first != nullptr); REQUIRE(second != nullptr);
+        CHECK(first->get_name() == "Instance1");
+        CHECK(second->get_name() == "Instance2");
+    }
+
+    TEST_CASE("batch3047 keys differing only by trailing slash remain independent") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch3047::path", [] { return std::make_unique<Batch3047ScriptA>(); });
+        factory.register_script("Batch3047::path/", [] { return std::make_unique<Batch3047ScriptB>(); });
+        CHECK(dynamic_cast<Batch3047ScriptA*>(factory.create_script("Batch3047::path").get()) != nullptr);
+        CHECK(dynamic_cast<Batch3047ScriptB*>(factory.create_script("Batch3047::path/").get()) != nullptr);
+    }
+
+    TEST_CASE("batch3047 creator invocation order follows request order across different keys") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto order = std::make_shared<std::vector<int>>();
+        factory.register_script("Batch3047::order-a", [order] { order->push_back(1); return std::make_unique<Batch3047ScriptA>(); });
+        factory.register_script("Batch3047::order-b", [order] { order->push_back(2); return std::make_unique<Batch3047ScriptB>(); });
+        factory.create_script("Batch3047::order-b");
+        factory.create_script("Batch3047::order-a");
+        REQUIRE(order->size() == 2);
+        CHECK((*order)[0] == 2);
+        CHECK((*order)[1] == 1);
+    }
+
+    TEST_CASE("batch3047 moved creator remains callable after registration") {
+        auto& factory = Salix::ScriptFactory::get();
+        Salix::ScriptFactory::Creator creator = [] { return std::make_unique<Batch3047ScriptA>(); };
+        factory.register_script("Batch3047::moved-creator", std::move(creator));
+        auto created = factory.create_script("Batch3047::moved-creator");
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch3047ScriptA*>(created.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3047 registration through one singleton reference is visible through another") {
+        auto& first = Salix::ScriptFactory::get();
+        auto& second = Salix::ScriptFactory::get();
+        first.register_script("Batch3047::shared-reference", [] { return std::make_unique<Batch3047ScriptB>(); });
+        auto created = second.create_script("Batch3047::shared-reference");
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch3047ScriptB*>(created.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3047 creator can preconfigure inherited element visibility before transfer") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch3047::hidden", [] {
+            auto script = std::make_unique<Batch3047ScriptA>();
+            script->set_visibility(false);
+            return script;
+        });
+        auto created = factory.create_script("Batch3047::hidden");
+        REQUIRE(created != nullptr);
+        CHECK_FALSE(created->is_visible());
+    }
+}
