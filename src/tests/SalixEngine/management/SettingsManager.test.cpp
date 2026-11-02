@@ -565,3 +565,134 @@ TEST_SUITE("Salix::management::SettingsManagerBatch2847") {
     }
 }
 
+
+TEST_SUITE("Salix::management::SettingsManagerBatch3047") {
+    TEST_CASE("batch3047 unknown application state text preserves caller supplied state") {
+        const std::string path = "settings_batch3047_state.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_state.cache");
+        create_temp_config(path, "Engine:\n  initial_state: FutureState\n");
+        Salix::SettingsManager manager; Salix::ApplicationConfig config; config.initial_state = Salix::AppStateType::Game;
+        REQUIRE(manager.load_settings(path, config));
+        CHECK(config.initial_state == Salix::AppStateType::Game);
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_state.cache");
+    }
+
+    TEST_CASE("batch3047 unknown renderer text preserves caller supplied renderer") {
+        const std::string path = "settings_batch3047_renderer.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_renderer.cache");
+        create_temp_config(path, "Renderer:\n  type: VulkanFuture\n");
+        Salix::SettingsManager manager; Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::OpenGL;
+        REQUIRE(manager.load_settings(path, config));
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_renderer.cache");
+    }
+
+    TEST_CASE("batch3047 unknown GUI text preserves caller supplied GUI selection") {
+        const std::string path = "settings_batch3047_gui.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_gui.cache");
+        create_temp_config(path, "GUI:\n  type: FutureGUI\n");
+        Salix::SettingsManager manager; Salix::ApplicationConfig config; config.gui_type = Salix::GuiType::None;
+        REQUIRE(manager.load_settings(path, config));
+        CHECK(config.gui_type == Salix::GuiType::None);
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_gui.cache");
+    }
+
+    TEST_CASE("batch3047 unknown timer text preserves caller supplied timer selection") {
+        const std::string path = "settings_batch3047_timer.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_timer.cache");
+        create_temp_config(path, "Timer:\n  type: FutureTimer\n");
+        Salix::SettingsManager manager; Salix::ApplicationConfig config; config.timer_type = Salix::TimerType::Chrono;
+        REQUIRE(manager.load_settings(path, config));
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_timer.cache");
+    }
+
+    TEST_CASE("batch3047 partial window YAML changes title without resetting caller dimensions") {
+        const std::string path = "settings_batch3047_window.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_window.cache");
+        create_temp_config(path, "Window:\n  title: Partial3047\n");
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        config.window_config.width = 1234; config.window_config.height = 567;
+        REQUIRE(manager.load_settings(path, config));
+        CHECK(config.window_config.title == "Partial3047");
+        CHECK(config.window_config.width == 1234);
+        CHECK(config.window_config.height == 567);
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_window.cache");
+    }
+
+    TEST_CASE("batch3047 GUI numeric fields accept zero negative and fractional values independently") {
+        const std::string path = "settings_batch3047_gui_numbers.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_gui_numbers.cache");
+        create_temp_config(path,
+            "GUI:\n"
+            "  dialog_width_ratio: 0.0\n"
+            "  dialog_height_ratio: -0.5\n"
+            "  font_scaling: 1.25\n"
+            "  global_dpi_scaling: 2.75\n");
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        REQUIRE(manager.load_settings(path, config));
+        CHECK(config.gui_settings.dialog_width_ratio == doctest::Approx(0.0f));
+        CHECK(config.gui_settings.dialog_height_ratio == doctest::Approx(-0.5f));
+        CHECK(config.gui_settings.font_scaling == doctest::Approx(1.25f));
+        CHECK(config.gui_settings.global_dpi_scaling == doctest::Approx(2.75f));
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_gui_numbers.cache");
+    }
+
+    TEST_CASE("batch3047 save and load preserve empty title zero dimensions and zero target FPS") {
+        const std::string path = "settings_batch3047_zero.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_zero.cache");
+        Salix::SettingsManager manager; Salix::ApplicationConfig source;
+        source.window_config.title = ""; source.window_config.width = 0; source.window_config.height = 0; source.target_fps = 0;
+        REQUIRE(manager.save_settings(path, source));
+        Salix::ApplicationConfig loaded; REQUIRE(manager.load_settings(path, loaded));
+        CHECK(loaded.window_config.title.empty());
+        CHECK(loaded.window_config.width == 0);
+        CHECK(loaded.window_config.height == 0);
+        CHECK(loaded.target_fps == 0);
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_zero.cache");
+    }
+
+    TEST_CASE("batch3047 save and load preserve negative diagnostic numeric configuration") {
+        const std::string path = "settings_batch3047_negative.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_negative.cache");
+        Salix::SettingsManager manager; Salix::ApplicationConfig source;
+        source.target_fps = -144;
+        source.gui_settings.dialog_width_ratio = -1.0f;
+        source.gui_settings.dialog_height_ratio = -2.0f;
+        source.gui_settings.font_scaling = -3.0f;
+        source.gui_settings.global_dpi_scaling = -4.0f;
+        REQUIRE(manager.save_settings(path, source));
+        Salix::ApplicationConfig loaded; REQUIRE(manager.load_settings(path, loaded));
+        CHECK(loaded.target_fps == -144);
+        CHECK(loaded.gui_settings.dialog_width_ratio == doctest::Approx(-1.0f));
+        CHECK(loaded.gui_settings.dialog_height_ratio == doctest::Approx(-2.0f));
+        CHECK(loaded.gui_settings.font_scaling == doctest::Approx(-3.0f));
+        CHECK(loaded.gui_settings.global_dpi_scaling == doctest::Approx(-4.0f));
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_negative.cache");
+    }
+
+    TEST_CASE("batch3047 loading multi extension YAML creates cache by replacing only final extension") {
+        const std::string path = "settings.batch3047.profile.yaml";
+        const std::string cache = "settings.batch3047.profile.cache";
+        std::filesystem::remove(path); std::filesystem::remove(cache);
+        create_temp_config(path, "Engine:\n  target_fps: 75\n");
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        REQUIRE(manager.load_settings(path, config));
+        CHECK(config.target_fps == 75);
+        CHECK(std::filesystem::is_regular_file(cache));
+        std::filesystem::remove(path); std::filesystem::remove(cache);
+    }
+
+    TEST_CASE("batch3047 YAML containing no recognized sections leaves preconfigured values untouched") {
+        const std::string path = "settings_batch3047_unknown_section.yaml";
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_unknown_section.cache");
+        create_temp_config(path, "FutureSection:\n  value: 3047\n");
+        Salix::SettingsManager manager; Salix::ApplicationConfig config;
+        config.window_config.title = "Keep3047"; config.target_fps = 91; config.renderer_type = Salix::RendererType::OpenGL;
+        REQUIRE(manager.load_settings(path, config));
+        CHECK(config.window_config.title == "Keep3047");
+        CHECK(config.target_fps == 91);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_unknown_section.cache");
+    }
+}
