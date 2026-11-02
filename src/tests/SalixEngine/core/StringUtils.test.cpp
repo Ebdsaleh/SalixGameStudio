@@ -768,3 +768,47 @@ TEST_SUITE("Salix::core::StringUtilsBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::core::StringUtilsBatch3147") {
+    TEST_CASE("batch3147 uppercase desnake replaces valid interior separator but preserves edge separators") {
+        CHECK(Salix::StringUtils::to_upper("_alpha_beta_", true) == "_ALPHA BETA_");
+    }
+
+    TEST_CASE("batch3147 lowercase desnake preserves doubled separator while replacing later valid separator") {
+        CHECK(Salix::StringUtils::to_lower("A__B_C", true) == "a__b c");
+    }
+
+    TEST_CASE("batch3147 title case recognizes tab and newline as word boundaries") {
+        CHECK(Salix::StringUtils::to_title_case("hELLO\twORLD\naGAIN") == "Hello\tWorld\nAgain");
+    }
+
+    TEST_CASE("batch3147 capitalize with desnake lowercases complete suffix including numeric token") {
+        CHECK(Salix::StringUtils::capitalize("MIXED_CASE_123", true) == "Mixed case 123");
+    }
+
+    TEST_CASE("batch3147 snake validation accepts numeric segments separated by underscores") {
+        CHECK(Salix::StringUtils::is_snake_case("1_2_3"));
+        CHECK(Salix::StringUtils::is_snake_case("A1_2B_33"));
+    }
+
+    TEST_CASE("batch3147 snake validation requires at least one underscore") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("ABC123"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("123"));
+    }
+
+    TEST_CASE("batch3147 snake substring detection can find a valid pair inside punctuation") {
+        CHECK(Salix::StringUtils::contains_snake_case("!bad?a_b;tail"));
+    }
+
+    TEST_CASE("batch3147 snake conversion preserves doubled separator and converts independent valid separator") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("a__b_c") == "a__b c");
+    }
+
+    TEST_CASE("batch3147 Pascal substring detection requires lowercase directly before uppercase") {
+        CHECK(Salix::StringUtils::contains_pascal_case("aB1"));
+        CHECK_FALSE(Salix::StringUtils::contains_pascal_case("a1B"));
+    }
+
+    TEST_CASE("batch3147 Pascal conversion separates acronym digit and following capitalized word boundaries") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("HTTP2Server") == "HTTP 2 Server");
+    }
+}
