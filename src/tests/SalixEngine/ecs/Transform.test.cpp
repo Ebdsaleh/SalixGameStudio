@@ -1135,3 +1135,120 @@ TEST_SUITE("Salix::ecs::TransformBatch2847") {
     }
 }
 
+
+TEST_SUITE("Salix::ecs::TransformBatch3047") {
+    TEST_CASE("batch3047 self parenting is rejected without changing hierarchy or local state") {
+        Salix::Transform t;
+        t.set_position(3.f, 4.f, 5.f);
+        t.set_parent(&t);
+        CHECK(t.get_parent() == nullptr);
+        CHECK(t.get_children().empty());
+        CHECK(t.get_position() == Salix::Vector3(3.f, 4.f, 5.f));
+    }
+
+    TEST_CASE("batch3047 circular parenting through a descendant is rejected") {
+        Salix::Transform root, child, grandchild;
+        child.set_parent(&root);
+        grandchild.set_parent(&child);
+        root.set_parent(&grandchild);
+        CHECK(root.get_parent() == nullptr);
+        CHECK(child.get_parent() == &root);
+        CHECK(grandchild.get_parent() == &child);
+        CHECK(root.get_children().size() == 1);
+    }
+
+    TEST_CASE("batch3047 releasing a root transform from parent is a complete no op") {
+        Salix::Transform root;
+        root.set_position(7.f, -8.f, 9.f);
+        root.set_rotation(10.f, 20.f, 30.f);
+        root.set_scale(2.f, 3.f, 4.f);
+        root.release_from_parent();
+        CHECK(root.get_parent() == nullptr);
+        CHECK(root.get_position() == Salix::Vector3(7.f, -8.f, 9.f));
+        CHECK(root.get_rotation() == Salix::Vector3(10.f, 20.f, 30.f));
+        CHECK(root.get_scale() == Salix::Vector3(2.f, 3.f, 4.f));
+    }
+
+    TEST_CASE("batch3047 release from translated parent preserves child world position") {
+        Salix::Transform parent, child;
+        parent.set_position(50.f, -20.f, 5.f);
+        child.set_parent(&parent);
+        child.set_position(3.f, 4.f, 5.f);
+        const auto before = child.get_world_position();
+        child.release_from_parent();
+        const auto after = child.get_world_position();
+        CHECK(child.get_parent() == nullptr);
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+    }
+
+    TEST_CASE("batch3047 reparenting updates both old and new parent child collections") {
+        Salix::Transform first, second, child;
+        child.set_parent(&first);
+        REQUIRE(first.get_children().size() == 1);
+        child.set_parent(&second);
+        CHECK(first.get_children().empty());
+        REQUIRE(second.get_children().size() == 1);
+        CHECK(second.get_children()[0] == &child);
+        CHECK(child.get_parent() == &second);
+    }
+
+    TEST_CASE("batch3047 destroying one child removes only that child from a multi child parent") {
+        Salix::Transform parent;
+        auto first = std::make_unique<Salix::Transform>();
+        auto second = std::make_unique<Salix::Transform>();
+        first->set_parent(&parent);
+        second->set_parent(&parent);
+        REQUIRE(parent.get_children().size() == 2);
+        first.reset();
+        REQUIRE(parent.get_children().size() == 1);
+        CHECK(parent.get_children()[0] == second.get());
+        CHECK(second->get_parent() == &parent);
+    }
+
+    TEST_CASE("batch3047 destroying a parent orphans every surviving child") {
+        Salix::Transform first, second, third;
+        {
+            auto parent = std::make_unique<Salix::Transform>();
+            first.set_parent(parent.get());
+            second.set_parent(parent.get());
+            third.set_parent(parent.get());
+            REQUIRE(parent->get_children().size() == 3);
+        }
+        CHECK(first.get_parent() == nullptr);
+        CHECK(second.get_parent() == nullptr);
+        CHECK(third.get_parent() == nullptr);
+    }
+
+    TEST_CASE("batch3047 translate overloads accumulate into one local position") {
+        Salix::Transform t;
+        t.translate(Salix::Vector3(1.f, 2.f, 3.f));
+        t.translate(4.f, 5.f, 6.f);
+        t.translate(glm::vec3(-2.f, 1.f, -4.f));
+        CHECK(t.get_position().x == doctest::Approx(3.f));
+        CHECK(t.get_position().y == doctest::Approx(8.f));
+        CHECK(t.get_position().z == doctest::Approx(5.f));
+    }
+
+    TEST_CASE("batch3047 rotate overloads accumulate into one local rotation") {
+        Salix::Transform t;
+        t.rotate(Salix::Vector3(1.f, 2.f, 3.f));
+        t.rotate(4.f, 5.f, 6.f);
+        t.rotate(glm::vec3(-2.f, 1.f, -4.f));
+        CHECK(t.get_rotation().x == doctest::Approx(3.f));
+        CHECK(t.get_rotation().y == doctest::Approx(8.f));
+        CHECK(t.get_rotation().z == doctest::Approx(5.f));
+    }
+
+    TEST_CASE("batch3047 nonuniform parent scale contributes componentwise to child world scale") {
+        Salix::Transform parent, child;
+        parent.set_scale(2.f, 3.f, 4.f);
+        child.set_parent(&parent);
+        child.set_scale(5.f, 6.f, 7.f);
+        const auto world = child.get_world_scale();
+        CHECK(world.x == doctest::Approx(10.f));
+        CHECK(world.y == doctest::Approx(18.f));
+        CHECK(world.z == doctest::Approx(28.f));
+    }
+}
