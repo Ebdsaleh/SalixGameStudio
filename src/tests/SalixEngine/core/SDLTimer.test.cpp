@@ -238,3 +238,106 @@ TEST_SUITE("Salix::core::SDLTimerBatch2247") {
     }
 }
 
+
+#include <limits>
+
+TEST_SUITE("Salix::core::SDLTimerBatch3047") {
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 tick end before first tick is safe when uncapped") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(0);
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 negative target after positive target restores uncapped behavior") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(60);
+        timer.set_target_fps(-60);
+        timer.tick_start();
+        const float before = timer.get_delta_time();
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == before);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 maximum positive FPS remains a valid finite timer configuration") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps((std::numeric_limits<int>::max)());
+        timer.tick_start();
+        CHECK(std::isfinite(timer.get_delta_time()));
+        CHECK_NOTHROW(timer.tick_end());
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 minimum negative FPS behaves as uncapped") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps((std::numeric_limits<int>::min)());
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 repeated zero target assignments never synthesize delta time") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(0);
+        timer.set_target_fps(0);
+        timer.set_target_fps(0);
+        CHECK(timer.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 three delayed ticks keep reporting finite positive elapsed time") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        for (int i = 0; i < 3; ++i) {
+            SDL_Delay(2);
+            timer.tick_start();
+            CHECK(timer.get_delta_time() > 0.0f);
+            CHECK(std::isfinite(timer.get_delta_time()));
+        }
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 changing cap after a measured tick never rewrites that delta") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(30);
+        timer.set_target_fps(240);
+        timer.set_target_fps(0);
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 separate timers keep uncapped and capped configuration independent") {
+        Salix::SDLTimer capped;
+        Salix::SDLTimer uncapped;
+        capped.set_target_fps(1000000);
+        uncapped.set_target_fps(0);
+        capped.tick_start();
+        uncapped.tick_start();
+        CHECK_NOTHROW(capped.tick_end());
+        CHECK_NOTHROW(uncapped.tick_end());
+        CHECK(std::isfinite(capped.get_delta_time()));
+        CHECK(std::isfinite(uncapped.get_delta_time()));
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 ITimer dispatch accepts positive zero and negative target transitions") {
+        Salix::SDLTimer concrete;
+        Salix::ITimer& timer = concrete;
+        timer.set_target_fps(120);
+        timer.set_target_fps(0);
+        timer.set_target_fps(-1);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch3047 very high cap can execute capped tick end without changing delta state") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(1000000);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == measured);
+    }
+}
