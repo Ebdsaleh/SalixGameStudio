@@ -5,6 +5,7 @@
 // =================================================================================
 #pragma once
 
+#include <Salix/core/Core.h>
 #include <functional>
 #include <cstdint> // For uint64_t
 
@@ -18,7 +19,7 @@ namespace Salix {
     // A simple handle for registered raw event callbacks.
     using RawEventCallbackHandle = uint64_t; // Using uint64_t for a unique ID
 
-    class IEventPoller {
+    class SALIX_API IEventPoller {
     public:
         // Your existing callback type for processed IEvents.
         using event_callback_fn = std::function<void(IEvent&)>; 
