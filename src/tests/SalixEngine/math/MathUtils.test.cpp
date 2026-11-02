@@ -525,3 +525,48 @@ TEST_SUITE("Salix::math::MathUtilsBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::math::MathUtilsBatch3147") {
+    TEST_CASE("batch3147 half pi constant doubles to pi") {
+        CHECK(Salix::PI_2 * 2.0f == doctest::Approx(Salix::PI));
+    }
+
+    TEST_CASE("batch3147 quarter pi constant quadruples to pi") {
+        CHECK(Salix::PI_4 * 4.0f == doctest::Approx(Salix::PI));
+    }
+
+    TEST_CASE("batch3147 tau remains exactly two pi within float precision") {
+        CHECK(Salix::TAU == doctest::Approx(Salix::PI * 2.0f));
+    }
+
+    TEST_CASE("batch3147 interpolation epsilon constants retain intended magnitude ordering") {
+        CHECK(Salix::EPSILON_SQRT < Salix::EPSILON);
+        CHECK(Salix::EPSILON < Salix::EPSILON_LERP);
+    }
+
+    TEST_CASE("batch3147 inverse lerp intentionally extrapolates below and above interval") {
+        CHECK(Salix::inverse_lerp(0.0f, 10.0f, -5.0f) == doctest::Approx(-0.5f));
+        CHECK(Salix::inverse_lerp(0.0f, 10.0f, 15.0f) == doctest::Approx(1.5f));
+    }
+
+    TEST_CASE("batch3147 remap intentionally extrapolates beyond output interval") {
+        CHECK(Salix::remap(15.0f, 0.0f, 10.0f, 100.0f, 200.0f) == doctest::Approx(250.0f));
+    }
+
+    TEST_CASE("batch3147 smooth step reaches half at midpoint of shifted interval") {
+        CHECK(Salix::smooth_step(10.0f, 30.0f, 20.0f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch3147 smoother step reaches half at midpoint of shifted interval") {
+        CHECK(Salix::smoother_step(-10.0f, 10.0f, 0.0f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch3147 wrap preserves position when adding many complete nonzero origin periods") {
+        const float base = Salix::wrap(13.25f, 10.0f, 14.0f);
+        const float shifted = Salix::wrap(13.25f + 40.0f, 10.0f, 14.0f);
+        CHECK(base == doctest::Approx(shifted));
+    }
+
+    TEST_CASE("batch3147 cubic interpolation of uniform samples stays linear at quarter point") {
+        CHECK(Salix::cubic_interpolate(0.0f, 10.0f, 20.0f, 30.0f, 0.25f) == doctest::Approx(12.5f));
+    }
+}
