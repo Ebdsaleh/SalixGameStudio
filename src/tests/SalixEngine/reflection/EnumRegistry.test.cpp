@@ -332,3 +332,114 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch2747") {
     }
 }
 
+
+#include <stdexcept>
+
+namespace {
+struct Batch3047EnumA {};
+struct Batch3047EnumB {};
+struct Batch3047EnumC {};
+struct Batch3047EnumD {};
+struct Batch3047EnumNeverRegistered {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch3047") {
+    TEST_CASE("batch3047 custom enum supports zero numeric key and empty display string") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[0] = "";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumA), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3047EnumA));
+        CHECK(stored.get_name(0).empty());
+        CHECK(stored.get_value("") == 0);
+    }
+
+    TEST_CASE("batch3047 custom enum preserves whitespace rich names exactly") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[7] = "  Seven  ";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumB), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3047EnumB));
+        CHECK(stored.get_name(7) == "  Seven  ");
+        CHECK(stored.get_value("Seven") == -1);
+        CHECK(stored.get_value("  Seven  ") == 7);
+    }
+
+    TEST_CASE("batch3047 ordered names preserve duplicates and insertion order") {
+        Salix::EnumRegistry::EnumData data;
+        data.ordered_names = {"First", "First", "Second"};
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumC), std::move(data));
+        const auto& names = Salix::EnumRegistry::get_enum_data(typeid(Batch3047EnumC)).get_names();
+        REQUIRE(names.size() == 3);
+        CHECK(names[0] == "First");
+        CHECK(names[1] == "First");
+        CHECK(names[2] == "Second");
+    }
+
+    TEST_CASE("batch3047 pointer lookup and reference lookup identify the same stored object") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[3] = "Three";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumD), std::move(data));
+        const auto* ptr = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3047EnumD));
+        REQUIRE(ptr != nullptr);
+        CHECK(ptr == &Salix::EnumRegistry::get_enum_data(typeid(Batch3047EnumD)));
+    }
+
+    TEST_CASE("batch3047 stored enum pointer remains valid after unrelated registrations") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[1] = "One";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumA), std::move(first));
+        const auto* before = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3047EnumA));
+        REQUIRE(before != nullptr);
+        Salix::EnumRegistry::EnumData other;
+        other.value_to_string[2] = "Two";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumB), std::move(other));
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3047EnumA)) == before);
+        CHECK(before->get_name(1) == "One");
+    }
+
+    TEST_CASE("batch3047 replacing one registration updates content at its existing registry entry") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[1] = "Before";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumC), std::move(first));
+        const auto* before = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3047EnumC));
+        REQUIRE(before != nullptr);
+        Salix::EnumRegistry::EnumData replacement;
+        replacement.value_to_string[2] = "After";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumC), std::move(replacement));
+        const auto* after = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3047EnumC));
+        REQUIRE(after != nullptr);
+        CHECK(after == before);
+        CHECK(after->get_name(1) == "Unknown");
+        CHECK(after->get_name(2) == "After");
+    }
+
+    TEST_CASE("batch3047 canonical registration does not remove unrelated custom enum data") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[3047] = "Custom";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumD), std::move(data));
+        Salix::EnumRegistry::register_all_enums();
+        const auto* custom = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3047EnumD));
+        REQUIRE(custom != nullptr);
+        CHECK(custom->get_name(3047) == "Custom");
+    }
+
+    TEST_CASE("batch3047 custom registration does not disturb canonical projection data") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto before = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_names();
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[9] = "Nine";
+        Salix::EnumRegistry::register_enum(typeid(Batch3047EnumA), std::move(data));
+        const auto after = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_names();
+        CHECK(after == before);
+    }
+
+    TEST_CASE("batch3047 missing pointer lookup remains null even after canonical registrations") {
+        Salix::EnumRegistry::register_all_enums();
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3047EnumNeverRegistered)) == nullptr);
+    }
+
+    TEST_CASE("batch3047 reference lookup of an unregistered type preserves out of range failure contract") {
+        CHECK_THROWS_AS(
+            Salix::EnumRegistry::get_enum_data(typeid(Batch3047EnumNeverRegistered)),
+            std::out_of_range);
+    }
+}
