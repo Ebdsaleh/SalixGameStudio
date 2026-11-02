@@ -617,3 +617,62 @@ TEST_SUITE("Salix::math::ColorBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::math::ColorBatch3147") {
+    TEST_CASE("batch3147 HSV thirty degrees reaches midpoint between red and yellow") {
+        const auto c = Salix::Color::from_hsv(30.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(1.0f)); CHECK(c.g == doctest::Approx(0.5f)); CHECK(c.b == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch3147 HSV ninety degrees reaches midpoint between yellow and green") {
+        const auto c = Salix::Color::from_hsv(90.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(0.5f)); CHECK(c.g == doctest::Approx(1.0f)); CHECK(c.b == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch3147 HSV one hundred fifty degrees reaches midpoint between green and cyan") {
+        const auto c = Salix::Color::from_hsv(150.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(0.0f)); CHECK(c.g == doctest::Approx(1.0f)); CHECK(c.b == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch3147 HSV two hundred ten degrees reaches midpoint between cyan and blue") {
+        const auto c = Salix::Color::from_hsv(210.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(0.0f)); CHECK(c.g == doctest::Approx(0.5f)); CHECK(c.b == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3147 HSV two hundred seventy degrees reaches midpoint between blue and magenta") {
+        const auto c = Salix::Color::from_hsv(270.0f, 1.0f, 1.0f);
+        CHECK(c.r == doctest::Approx(0.5f)); CHECK(c.g == doctest::Approx(0.0f)); CHECK(c.b == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3147 HSV sector calculation preserves caller alpha independently") {
+        const auto c = Salix::Color::from_hsv(330.0f, 0.75f, 0.5f, 0.125f);
+        CHECK(c.a == doctest::Approx(0.125f));
+    }
+
+    TEST_CASE("batch3147 ImVec4 conversion transports diagnostic out of range channels unchanged") {
+        const Salix::Color c(-2.0f, 0.25f, 3.5f, -0.75f);
+        const auto v = c.to_imvec4();
+        CHECK(v.x == c.r); CHECK(v.y == c.g); CHECK(v.z == c.b); CHECK(v.w == c.a);
+    }
+
+    TEST_CASE("batch3147 YAML partial decode zeros every omitted channel") {
+        Salix::Color c(9.0f, 8.0f, 7.0f, 6.0f);
+        const YAML::Node node = YAML::Load("{g: 0.375}");
+        node >> c;
+        CHECK(c.r == 0.0f); CHECK(c.g == doctest::Approx(0.375f)); CHECK(c.b == 0.0f); CHECK(c.a == 0.0f);
+    }
+
+    TEST_CASE("batch3147 YAML emitter output decodes back to equivalent finite channels") {
+        const Salix::Color original(0.125f, -0.25f, 1.5f, 0.875f);
+        YAML::Emitter out; out << original;
+        const YAML::Node node = YAML::Load(out.c_str());
+        Salix::Color restored; node >> restored;
+        CHECK(restored.r == doctest::Approx(original.r)); CHECK(restored.g == doctest::Approx(original.g));
+        CHECK(restored.b == doctest::Approx(original.b)); CHECK(restored.a == doctest::Approx(original.a));
+    }
+
+    TEST_CASE("batch3147 nonpositive saturation grayscale branch preserves value and alpha exactly") {
+        const auto c = Salix::Color::from_hsv(271.0f, -0.001f, -0.5f, 0.625f);
+        CHECK(c.r == doctest::Approx(-0.5f)); CHECK(c.g == doctest::Approx(-0.5f));
+        CHECK(c.b == doctest::Approx(-0.5f)); CHECK(c.a == doctest::Approx(0.625f));
+    }
+}
