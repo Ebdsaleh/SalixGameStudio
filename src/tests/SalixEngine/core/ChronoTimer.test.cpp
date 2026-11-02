@@ -456,3 +456,109 @@ TEST_SUITE("Salix::core::ChronoTimerBatch2847") {
     }
 }
 
+TEST_SUITE("Salix::core::ChronoTimerBatch3147") {
+    TEST_CASE("batch3147 two FPS cap exposes a large positive immediate frame budget") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(2);
+        timer.tick_start();
+        const float remaining = timer.calculate_sleep_duration().count();
+        CHECK(remaining > 100.0f);
+        CHECK(remaining <= 500.0f);
+    }
+
+    TEST_CASE("batch3147 lowering target FPS increases the immediate sleep budget") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(100);
+        timer.tick_start();
+        const float fast_budget = timer.calculate_sleep_duration().count();
+        timer.set_target_fps(5);
+        timer.tick_start();
+        const float slow_budget = timer.calculate_sleep_duration().count();
+        CHECK(slow_budget > fast_budget);
+    }
+
+    TEST_CASE("batch3147 positive cap can be restored after temporarily disabling it") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(10);
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() > 0.0f);
+        timer.set_target_fps(0);
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+        timer.set_target_fps(10);
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() > 0.0f);
+    }
+
+    TEST_CASE("batch3147 injected delay receives bounded duration for a two FPS target") {
+        int calls = 0;
+        std::chrono::milliseconds captured{0};
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds d) { ++calls; captured = d; });
+        timer.set_target_fps(2);
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(calls == 1);
+        CHECK(captured.count() > 0);
+        CHECK(captured.count() <= 500);
+    }
+
+    TEST_CASE("batch3147 zero and negative caps both bypass injected delay") {
+        int calls = 0;
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds) { ++calls; });
+        timer.set_target_fps(0);
+        timer.tick_start();
+        timer.tick_end();
+        timer.set_target_fps(-120);
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE("batch3147 changing target FPS never rewrites the most recent delta time") {
+        Salix::ChronoTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        REQUIRE(measured > 0.0f);
+        timer.set_target_fps(30);
+        CHECK(timer.get_delta_time() == measured);
+        timer.set_target_fps(0);
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE("batch3147 separate timers retain independent target frame budgets") {
+        Salix::ChronoTimer slow;
+        Salix::ChronoTimer fast;
+        slow.set_target_fps(5);
+        fast.set_target_fps(100);
+        slow.tick_start();
+        fast.tick_start();
+        CHECK(slow.calculate_sleep_duration().count() > fast.calculate_sleep_duration().count());
+    }
+
+    TEST_CASE("batch3147 ITimer virtual sleep calculation reaches ChronoTimer implementation") {
+        Salix::ChronoTimer concrete;
+        Salix::ITimer& timer = concrete;
+        timer.set_target_fps(5);
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() > 0.0f);
+    }
+
+    TEST_CASE("batch3147 negative floating delay helper leaves monotonic tick observation intact") {
+        const auto before = Salix::ChronoTimer::get_ticks_ms();
+        CHECK_NOTHROW(Salix::ChronoTimer::delay_for(std::chrono::duration<float, std::milli>(-0.5f)));
+        const auto after = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(after >= before);
+    }
+
+    TEST_CASE("batch3147 repeated uncapped tick ends never invoke injected delay") {
+        int calls = 0;
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds) { ++calls; });
+        timer.set_target_fps(0);
+        timer.tick_start();
+        timer.tick_end();
+        timer.tick_end();
+        timer.tick_end();
+        CHECK(calls == 0);
+    }
+}
