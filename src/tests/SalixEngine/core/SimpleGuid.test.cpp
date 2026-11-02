@@ -616,3 +616,84 @@ TEST_SUITE("Salix::core::SimpleGuidBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::core::SimpleGuidBatch3147") {
+    TEST_CASE("batch3147 explicit zero remains invalid without advancing generator state") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto zero = Salix::SimpleGuid::from_value(0);
+        CHECK_FALSE(zero.is_valid());
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch3147 explicit large value does not reserve generator range") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto explicit_id = Salix::SimpleGuid::from_value(3147000ULL);
+        CHECK(explicit_id.get_value() == 3147000ULL);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch3147 applying the same watermark twice advances only once") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(50);
+        Salix::SimpleGuid::update_next_id(50);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 51);
+    }
+
+    TEST_CASE("batch3147 stale watermark after high watermark never rewinds generator") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(1000);
+        Salix::SimpleGuid::update_next_id(10);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1001);
+    }
+
+    TEST_CASE("batch3147 default explicit zero and invalid factory share one sentinel identity") {
+        const Salix::SimpleGuid default_id;
+        const auto explicit_zero = Salix::SimpleGuid::from_value(0);
+        const auto invalid = Salix::SimpleGuid::invalid();
+        CHECK(default_id == explicit_zero);
+        CHECK(explicit_zero == invalid);
+    }
+
+    TEST_CASE("batch3147 invalid sentinel sorts below any ordinary explicit identifier") {
+        const auto invalid = Salix::SimpleGuid::invalid();
+        const auto ordinary = Salix::SimpleGuid::from_value(3147);
+        CHECK(invalid < ordinary);
+        CHECK_FALSE(ordinary < invalid);
+    }
+
+    TEST_CASE("batch3147 copy assignment replaces complete identifier value") {
+        Salix::SimpleGuid target = Salix::SimpleGuid::from_value(1);
+        const auto source = Salix::SimpleGuid::from_value(987654321ULL);
+        target = source;
+        CHECK(target == source);
+        CHECK(target.get_value() == 987654321ULL);
+    }
+
+    TEST_CASE("batch3147 hash agrees for every representation of invalid sentinel") {
+        const Salix::SimpleGuid a;
+        const auto b = Salix::SimpleGuid::invalid();
+        const auto c = Salix::SimpleGuid::from_value(0);
+        CHECK(std::hash<Salix::SimpleGuid>{}(a) == std::hash<Salix::SimpleGuid>{}(b));
+        CHECK(std::hash<Salix::SimpleGuid>{}(b) == std::hash<Salix::SimpleGuid>{}(c));
+    }
+
+    TEST_CASE("batch3147 generated identifiers remain strictly ordered across four allocations") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto a = Salix::SimpleGuid::generate();
+        const auto b = Salix::SimpleGuid::generate();
+        const auto c = Salix::SimpleGuid::generate();
+        const auto d = Salix::SimpleGuid::generate();
+        CHECK(a < b);
+        CHECK(b < c);
+        CHECK(c < d);
+    }
+
+    TEST_CASE("batch3147 JSON roundtrip preserves representative nontrivial identifier") {
+        const auto original = Salix::SimpleGuid::from_value(3147003147ULL);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::SimpleGuid restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+        CHECK(restored.is_valid());
+    }
+}
