@@ -227,3 +227,93 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch2147") {
     }
 }
 
+
+#include <cmath>
+#include <limits>
+
+TEST_SUITE("Salix::rendering::DummyCameraBatch3047") {
+    TEST_CASE("batch3047 orthographic size preserves positive infinity exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size((std::numeric_limits<float>::infinity)());
+        CHECK(std::isinf(camera.get_orthographic_size()));
+        CHECK(camera.get_orthographic_size() > 0.0f);
+    }
+
+    TEST_CASE("batch3047 orthographic size preserves negative infinity exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-(std::numeric_limits<float>::infinity)());
+        CHECK(std::isinf(camera.get_orthographic_size()));
+        CHECK(camera.get_orthographic_size() < 0.0f);
+    }
+
+    TEST_CASE("batch3047 orthographic size preserves NaN diagnostic values") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size((std::numeric_limits<float>::quiet_NaN)());
+        CHECK(std::isnan(camera.get_orthographic_size()));
+    }
+
+    TEST_CASE("batch3047 negative zero orthographic size retains its sign bit") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-0.0f);
+        CHECK(camera.get_orthographic_size() == 0.0f);
+        CHECK(std::signbit(camera.get_orthographic_size()));
+    }
+
+    TEST_CASE("batch3047 matrix references remain stable through repeated activation transitions") {
+        Salix::DummyCamera camera;
+        const auto* view = &camera.get_view_matrix();
+        const auto* projection = &camera.get_projection_matrix();
+        camera.activate();
+        camera.deactivate();
+        camera.activate();
+        CHECK(view == &camera.get_view_matrix());
+        CHECK(projection == &camera.get_projection_matrix());
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch3047 camera interface can change size while inactive without activating camera") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.deactivate();
+        camera.set_orthographic_size(3047.5f);
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(concrete.get_orthographic_size() == doctest::Approx(3047.5f));
+    }
+
+    TEST_CASE("batch3047 camera interface can toggle active state without changing extreme size") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_orthographic_size(-9999.25f);
+        camera.activate();
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(concrete.get_orthographic_size() == doctest::Approx(-9999.25f));
+    }
+
+    TEST_CASE("batch3047 identical size assignments remain isolated between separate cameras") {
+        Salix::DummyCamera first, second;
+        first.set_orthographic_size(12.25f);
+        second.set_orthographic_size(12.25f);
+        first.activate();
+        CHECK(first.get_is_active());
+        CHECK_FALSE(second.get_is_active());
+        CHECK(first.get_orthographic_size() == second.get_orthographic_size());
+    }
+
+    TEST_CASE("batch3047 projection mode remains perspective after extreme orthographic size assignments") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size((std::numeric_limits<float>::max)());
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_orthographic_size() == (std::numeric_limits<float>::max)());
+    }
+
+    TEST_CASE("batch3047 mutating size and activity never changes identity matrices") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-1234.5f);
+        camera.set_is_active(true);
+        camera.set_is_active(false);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+}
