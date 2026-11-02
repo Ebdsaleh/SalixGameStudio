@@ -111,3 +111,86 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch2447") {
     }
 }
 
+
+TEST_SUITE("Salix::events::SDLEventPollerBatch3047") {
+    TEST_CASE("batch3047 first registered raw callback receives handle one") {
+        Salix::SDLEventPoller poller;
+        const auto handle = poller.register_raw_event_callback([](void*) {});
+        CHECK(handle == static_cast<Salix::RawEventCallbackHandle>(1));
+    }
+
+    TEST_CASE("batch3047 raw callback handles increase monotonically from one") {
+        Salix::SDLEventPoller poller;
+        const auto first = poller.register_raw_event_callback([](void*) {});
+        const auto second = poller.register_raw_event_callback([](void*) {});
+        const auto third = poller.register_raw_event_callback([](void*) {});
+        CHECK(first == 1);
+        CHECK(second == 2);
+        CHECK(third == 3);
+    }
+
+    TEST_CASE("batch3047 registering an empty raw callback still allocates a handle") {
+        Salix::SDLEventPoller poller;
+        Salix::RawEventCallback empty{};
+        const auto handle = poller.register_raw_event_callback(empty);
+        CHECK(handle == 1);
+    }
+
+    TEST_CASE("batch3047 unregistering a registered raw callback is safe") {
+        Salix::SDLEventPoller poller;
+        const auto handle = poller.register_raw_event_callback([](void*) {});
+        CHECK_NOTHROW(poller.unregister_raw_event_callback(handle));
+    }
+
+    TEST_CASE("batch3047 unregistering an unknown raw callback handle is a no op") {
+        Salix::SDLEventPoller poller;
+        CHECK_NOTHROW(poller.unregister_raw_event_callback(3047));
+    }
+
+    TEST_CASE("batch3047 unregistering the same raw callback twice remains safe") {
+        Salix::SDLEventPoller poller;
+        const auto handle = poller.register_raw_event_callback([](void*) {});
+        poller.unregister_raw_event_callback(handle);
+        CHECK_NOTHROW(poller.unregister_raw_event_callback(handle));
+    }
+
+    TEST_CASE("batch3047 unregistering a callback never reuses its old handle") {
+        Salix::SDLEventPoller poller;
+        const auto first = poller.register_raw_event_callback([](void*) {});
+        poller.unregister_raw_event_callback(first);
+        const auto second = poller.register_raw_event_callback([](void*) {});
+        CHECK(first == 1);
+        CHECK(second == 2);
+    }
+
+    TEST_CASE("batch3047 removing a middle callback preserves monotonic future handle allocation") {
+        Salix::SDLEventPoller poller;
+        const auto first = poller.register_raw_event_callback([](void*) {});
+        const auto second = poller.register_raw_event_callback([](void*) {});
+        const auto third = poller.register_raw_event_callback([](void*) {});
+        poller.unregister_raw_event_callback(second);
+        const auto fourth = poller.register_raw_event_callback([](void*) {});
+        CHECK(first == 1);
+        CHECK(third == 3);
+        CHECK(fourth == 4);
+    }
+
+    TEST_CASE("batch3047 separate pollers own independent callback handle sequences") {
+        Salix::SDLEventPoller first;
+        Salix::SDLEventPoller second;
+        CHECK(first.register_raw_event_callback([](void*) {}) == 1);
+        CHECK(first.register_raw_event_callback([](void*) {}) == 2);
+        CHECK(second.register_raw_event_callback([](void*) {}) == 1);
+    }
+
+    TEST_CASE("batch3047 raw callback registration works through event poller interface dispatch") {
+        Salix::SDLEventPoller concrete;
+        Salix::IEventPoller& poller = concrete;
+        const auto first = poller.register_raw_event_callback([](void*) {});
+        const auto second = poller.register_raw_event_callback([](void*) {});
+        CHECK(first == 1);
+        CHECK(second == 2);
+        CHECK_NOTHROW(poller.unregister_raw_event_callback(first));
+        CHECK_NOTHROW(poller.unregister_raw_event_callback(second));
+    }
+}
