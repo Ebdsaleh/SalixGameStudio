@@ -642,3 +642,97 @@ TEST_SUITE("Salix::management::FileManagerBatch2847") {
     }
 }
 
+
+TEST_SUITE("Salix::management::FileManagerBatch3047") {
+    TEST_CASE("batch3047 create directory fails when its parent directory does not exist") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto target = temp.root / "missing-parent" / "child";
+        CHECK_FALSE(Salix::FileManager::create_directory(target.string()));
+        CHECK_FALSE(std::filesystem::exists(target));
+    }
+
+    TEST_CASE("batch3047 create directory rejects a path already occupied by a regular file") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("occupied", "data");
+        CHECK_FALSE(Salix::FileManager::create_directory(temp.file("occupied")));
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("occupied")));
+    }
+
+    TEST_CASE("batch3047 create directories rejects a target already occupied by a regular file") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("occupied-tree", "data");
+        CHECK_FALSE(Salix::FileManager::create_directories(temp.file("occupied-tree")));
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("occupied-tree")));
+    }
+
+    TEST_CASE("batch3047 copying a file onto itself fails without changing its bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("same.txt", "same-content");
+        CHECK_FALSE(Salix::FileManager::copy_file(temp.file("same.txt"), temp.file("same.txt")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("same.txt")) == "same-content");
+    }
+
+    TEST_CASE("batch3047 exact sixteen byte read preserves every byte") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string bytes = "0123456789ABCDEF";
+        temp.write("sixteen-read.bin", bytes);
+        CHECK(Salix::FileManager::read_file_content(temp.file("sixteen-read.bin")) == bytes);
+        CHECK(Salix::FileManager::get_file_size(temp.file("sixteen-read.bin")) == 16);
+    }
+
+    TEST_CASE("batch3047 thirty two byte hex dump emits two complete ASCII rows") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string bytes = "0123456789ABCDEFabcdefghijklmnop";
+        REQUIRE(bytes.size() == 32);
+        temp.write("thirty-two.bin", bytes);
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("thirty-two.bin"));
+        CHECK(dump.find("Length: 32 bytes") != std::string::npos);
+        CHECK(dump.find("0123456789ABCDEF") != std::string::npos);
+        CHECK(dump.find("abcdefghijklmnop") != std::string::npos);
+    }
+
+    TEST_CASE("batch3047 filesystem relative conversion of a path to itself returns dot") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto relative = std::filesystem::path(
+            Salix::FileManager::convert_to_relative_path(temp.root.string(), temp.root.string())
+        ).generic_string();
+        CHECK(relative == ".");
+    }
+
+    TEST_CASE("batch3047 filesystem relative conversion can walk from nested root to its parent file") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto nested_root = temp.root / "Project" / "Nested";
+        std::filesystem::create_directories(nested_root);
+        const auto parent_file = temp.root / "Project" / "config.txt";
+        temp.write("Project/config.txt", "cfg");
+        const auto relative = std::filesystem::path(
+            Salix::FileManager::convert_to_relative_path(nested_root.string(), parent_file.string())
+        ).generic_string();
+        CHECK(relative == "../config.txt");
+    }
+
+    TEST_CASE("batch3047 string relative conversion preserves spaces in nested path components") {
+        const std::string root = "C:/Project Root";
+        const std::string child = "C:/Project Root/Assets/My Images/player one.png";
+        CHECK(Salix::FileManager::convert_to_relative(root, child) == "Assets/My Images/player one.png");
+    }
+
+    TEST_CASE("batch3047 copy overwrite can replace a one byte destination with binary payload") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("\0A\x7f\xffZ", 5);
+        temp.write("binary-source.bin", payload);
+        temp.write("binary-destination.bin", "x");
+        REQUIRE(Salix::FileManager::copy_file(
+            temp.file("binary-source.bin"), temp.file("binary-destination.bin")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("binary-destination.bin")) == payload);
+    }
+}
