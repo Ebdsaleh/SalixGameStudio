@@ -700,3 +700,59 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch2747") {
     }
 }
 
+TEST_SUITE("Salix::core::ValidationUtilsBatch3147") {
+    TEST_CASE("batch3147 every standard ASCII whitespace character is rejected as whitespace only by default") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string(" \t\n\v\f\r"));
+    }
+
+    TEST_CASE("batch3147 mixed text and all surrounding whitespace kinds remains a valid nonempty string") {
+        CHECK(Salix::ValidationUtils::is_valid_string("\t\n value \r\f"));
+    }
+
+    TEST_CASE("batch3147 empty string policy is controlled solely by allow empty") {
+        CHECK(Salix::ValidationUtils::is_valid_string("", true, false));
+        CHECK(Salix::ValidationUtils::is_valid_string("", true, true));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string("", false, true));
+    }
+
+    TEST_CASE("batch3147 int8 validator accepts max minus one and rejects max sentinel") {
+        const auto max = std::numeric_limits<int8_t>::max();
+        CHECK(Salix::ValidationUtils::is_valid_int8_t(static_cast<int8_t>(max - 1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int8_t(max));
+    }
+
+    TEST_CASE("batch3147 int16 validator accepts largest nonnegative nonsentinel value") {
+        const auto max = std::numeric_limits<int16_t>::max();
+        CHECK(Salix::ValidationUtils::is_valid_int16_t(static_cast<int16_t>(max - 1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int16_t(max));
+    }
+
+    TEST_CASE("batch3147 uint8 validator reserves only maximum sentinel") {
+        const auto max = std::numeric_limits<uint8_t>::max();
+        CHECK(Salix::ValidationUtils::is_valid_uint8_t(static_cast<uint8_t>(max - 1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint8_t(max));
+    }
+
+    TEST_CASE("batch3147 intmax validator accepts zero and rejects signed maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_valid_intmax_t(static_cast<intmax_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intmax_t(std::numeric_limits<intmax_t>::max()));
+    }
+
+    TEST_CASE("batch3147 uintmax validator accepts zero and rejects unsigned maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_valid_uintmax_t(static_cast<uintmax_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uintmax_t(std::numeric_limits<uintmax_t>::max()));
+    }
+
+    TEST_CASE("batch3147 long double validator accepts finite negative value and rejects infinities") {
+        CHECK(Salix::ValidationUtils::is_valid_long_double(-12345.625L));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_long_double(std::numeric_limits<long double>::infinity()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_long_double(-std::numeric_limits<long double>::infinity()));
+    }
+
+    TEST_CASE("batch3147 complex long double validator requires both channels finite") {
+        using T = long double;
+        CHECK(Salix::ValidationUtils::is_valid_complex_long_double({1.0L, -2.0L}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_long_double({std::numeric_limits<T>::quiet_NaN(), 0.0L}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_long_double({0.0L, std::numeric_limits<T>::infinity()}));
+    }
+}
