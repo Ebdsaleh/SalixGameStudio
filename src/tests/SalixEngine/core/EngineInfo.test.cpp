@@ -64,3 +64,16 @@ TEST_SUITE("Salix::core::EngineInfoBatch847") {
         const auto& v=Salix::EngineInfo::get_engine_version(); CHECK(v.rfind("0.1.0",0)==0); CHECK(v.substr(0,5)=="0.1.0");
     }
 }
+
+TEST_SUITE("Salix::core::EngineInfoBatch3247") {
+ TEST_CASE("batch3247 engine version remains exact public compatibility string") { CHECK(Salix::EngineInfo::get_engine_version()=="0.1.0-Alpha"); }
+ TEST_CASE("batch3247 semantic version delimiters occupy expected positions") { const auto& v=Salix::EngineInfo::get_engine_version(); REQUIRE(v.size()>=6); CHECK(v[1]=='.'); CHECK(v[3]=='.'); CHECK(v[5]=='-'); }
+ TEST_CASE("batch3247 major component is zero") { const auto& v=Salix::EngineInfo::get_engine_version(); CHECK(v.substr(0,1)=="0"); }
+ TEST_CASE("batch3247 minor component is one") { const auto& v=Salix::EngineInfo::get_engine_version(); CHECK(v.substr(2,1)=="1"); }
+ TEST_CASE("batch3247 patch component is zero") { const auto& v=Salix::EngineInfo::get_engine_version(); CHECK(v.substr(4,1)=="0"); }
+ TEST_CASE("batch3247 prerelease component is exactly Alpha") { const auto& v=Salix::EngineInfo::get_engine_version(); CHECK(v.substr(v.find('-')+1)=="Alpha"); }
+ TEST_CASE("batch3247 repeated accessor returns identical c string storage") { const auto& a=Salix::EngineInfo::get_engine_version(); const auto& b=Salix::EngineInfo::get_engine_version(); CHECK(a.c_str()==b.c_str()); }
+ TEST_CASE("batch3247 version metadata contains no embedded null characters") { const auto& v=Salix::EngineInfo::get_engine_version(); CHECK(v.find('\0')==std::string::npos); }
+ TEST_CASE("batch3247 mutable copy cannot alter static version reference") { std::string copy=Salix::EngineInfo::get_engine_version(); copy.replace(0,5,"9.9.9"); CHECK(copy=="9.9.9-Alpha"); CHECK(Salix::EngineInfo::get_engine_version()=="0.1.0-Alpha"); }
+ TEST_CASE("batch3247 repeated access preserves exact reference address") { const std::string* p=&Salix::EngineInfo::get_engine_version(); for(int i=0;i<16;++i) CHECK(&Salix::EngineInfo::get_engine_version()==p); }
+}
