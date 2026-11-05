@@ -523,3 +523,15 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch2847") {
     }
 }
 
+TEST_SUITE("Salix::ecs::BoxColliderBatch3247") {
+ TEST_CASE("batch3247 default size reference remains stable across read access") { Salix::BoxCollider c; const auto* p=&c.get_size(); CHECK(&c.get_size()==p); CHECK(*p==Salix::Vector3::One); }
+ TEST_CASE("batch3247 size setter updates stable backing storage") { Salix::BoxCollider c; const auto* p=&c.get_size(); c.set_size({3.25f,-4.5f,8.75f}); CHECK(&c.get_size()==p); CHECK(*p==Salix::Vector3(3.25f,-4.5f,8.75f)); }
+ TEST_CASE("batch3247 initialize preserves identifier name and geometry") { Salix::BoxCollider c; c.set_name("Collider3247"); c.set_size({2.f,3.f,4.f}); const auto id=c.get_id(); c.initialize(); CHECK(c.get_id()==id); CHECK(c.get_name()=="Collider3247"); CHECK(c.get_size()==Salix::Vector3(2.f,3.f,4.f)); }
+ TEST_CASE("batch3247 update with diagnostic delta preserves geometry") { Salix::BoxCollider c; c.set_size({-7.f,0.f,9.f}); c.update(-3247.f); CHECK(c.get_size()==Salix::Vector3(-7.f,0.f,9.f)); }
+ TEST_CASE("batch3247 null renderer load preserves geometry and metadata") { Salix::BoxCollider c; Salix::InitContext context{}; c.set_name("Load3247"); c.set_size({1.f,5.f,25.f}); c.on_load(context); CHECK(c.get_name()=="Load3247"); CHECK(c.get_size()==Salix::Vector3(1.f,5.f,25.f)); }
+ TEST_CASE("batch3247 owner and visibility changes are independent of size") { Salix::Entity owner; Salix::BoxCollider c; c.set_size({2.f,4.f,6.f}); c.set_owner(&owner); c.set_visibility(false); CHECK(c.get_owner()==&owner); CHECK_FALSE(c.is_visible()); CHECK(c.get_size()==Salix::Vector3(2.f,4.f,6.f)); }
+ TEST_CASE("batch3247 zero negative and fractional components are stored verbatim") { Salix::BoxCollider c; c.set_size({0.f,-0.125f,3247.5f}); CHECK(c.get_size()==Salix::Vector3(0.f,-0.125f,3247.5f)); }
+ TEST_CASE("batch3247 repeated identical size assignment is idempotent") { Salix::BoxCollider c; const Salix::Vector3 v(11.f,22.f,33.f); c.set_size(v); c.set_size(v); c.set_size(v); CHECK(c.get_size()==v); }
+ TEST_CASE("batch3247 JSON roundtrip preserves name visibility and geometry") { Salix::BoxCollider s; s.set_name("Json3247"); s.set_visibility(false); s.set_size({-1.f,2.5f,9.f}); std::stringstream ss; {cereal::JSONOutputArchive out(ss); out(s);} Salix::BoxCollider d; {cereal::JSONInputArchive in(ss); in(d);} CHECK(d.get_name()=="Json3247"); CHECK_FALSE(d.is_visible()); CHECK(d.get_size()==s.get_size()); }
+ TEST_CASE("batch3247 two colliders remain independent after copying size value") { Salix::BoxCollider a,b; a.set_size({4.f,5.f,6.f}); b.set_size(a.get_size()); a.set_size({7.f,8.f,9.f}); CHECK(b.get_size()==Salix::Vector3(4.f,5.f,6.f)); CHECK(a.get_size()!=b.get_size()); }
+}
