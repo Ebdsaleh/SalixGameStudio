@@ -313,9 +313,11 @@ TEST_SUITE("Salix::events::ApplicationEventListenerBatch2947") {
         Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
         Salix::WindowResizeEvent resize(0,0); listener.on_event(resize); CHECK(engine.is_running()); CHECK(resize.get_width()==0); CHECK(resize.get_height()==0);
     }
-    TEST_CASE("batch2947 resize with negative diagnostic dimensions leaves running engine untouched") {
+    TEST_CASE("batch2947 resize with large unsigned diagnostic dimensions leaves running engine untouched") {
         Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine));
-        Salix::WindowResizeEvent resize(-10,-20); listener.on_event(resize); CHECK(engine.is_running()); CHECK(resize.get_width()==-10); CHECK(resize.get_height()==-20);
+        constexpr unsigned int width = 4000000000u;
+        constexpr unsigned int height = 3000000000u;
+        Salix::WindowResizeEvent resize(width,height); listener.on_event(resize); CHECK(engine.is_running()); CHECK(resize.get_width()==width); CHECK(resize.get_height()==height);
     }
     TEST_CASE("batch2947 failed null initialization after valid target preserves close routing") {
         Salix::Engine engine; engine.is_running(true); Salix::ApplicationEventListener listener; REQUIRE(listener.initialize(&engine)); CHECK_FALSE(listener.initialize(nullptr));
