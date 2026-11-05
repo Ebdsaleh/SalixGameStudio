@@ -267,7 +267,8 @@ TEST_SUITE("Salix::core::LoggingBatch647") {
     TEST_CASE("a satisfied logging assertion neither emits output nor evaluates its message") {
         std::stringstream captured;CerrRedirect redirect(captured);
         int evaluated=0;
-        LOG_ASSERT(2+2==4,(++evaluated,"unreachable"));
+        volatile int runtime_two=2;
+        LOG_ASSERT(runtime_two+2==4,(++evaluated,"unreachable"));
         CHECK(evaluated==0);
         CHECK(captured.str().empty());
     }
