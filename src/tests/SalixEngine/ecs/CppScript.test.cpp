@@ -143,3 +143,15 @@ TEST_SUITE("Salix::ecs::CppScriptBatch2247") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CppScriptBatch3247") {
+ TEST_CASE("batch3247 fresh script combines canonical identity and empty runtime name") { Salix::CppScript s; CHECK(std::string(s.get_class_name())=="CppScript"); CHECK(s.get_name()=="CppScript"); CHECK(s.get_script_name().empty()); }
+ TEST_CASE("batch3247 UTF8 runtime script name is preserved byte for byte") { Salix::CppScript s; const std::string v=u8"Player_控制_3247"; s.set_script_name(v); CHECK(s.get_script_name()==v); CHECK(s.get_script_name().size()==v.size()); }
+ TEST_CASE("batch3247 script name accepts path-like separators without normalization") { Salix::CppScript s; s.set_script_name("Gameplay/Actors\\Player.Controller"); CHECK(s.get_script_name()=="Gameplay/Actors\\Player.Controller"); }
+ TEST_CASE("batch3247 script name accepts leading and trailing whitespace exactly") { Salix::CppScript s; s.set_script_name("\t Player3247 \n"); CHECK(s.get_script_name()=="\t Player3247 \n"); }
+ TEST_CASE("batch3247 clearing runtime name preserves customized display name") { Salix::CppScript s; s.set_name("Editor Script 3247"); s.set_script_name("Runtime3247"); s.set_script_name(""); CHECK(s.get_script_name().empty()); CHECK(s.get_name()=="Editor Script 3247"); }
+ TEST_CASE("batch3247 runtime name replacement preserves element identifier") { Salix::CppScript s; const auto id=s.get_id(); s.set_script_name("A"); s.set_script_name("A much longer runtime script name 3247"); CHECK(s.get_id()==id); }
+ TEST_CASE("batch3247 owner changes preserve display and runtime names") { Salix::Entity a,b; Salix::CppScript s; s.set_name("Display3247"); s.set_script_name("Runtime3247"); s.set_owner(&a); s.set_owner(&b); CHECK(s.get_owner()==&b); CHECK(s.get_name()=="Display3247"); CHECK(s.get_script_name()=="Runtime3247"); }
+ TEST_CASE("batch3247 visibility changes preserve display and runtime names") { Salix::CppScript s; s.set_name("Display3247"); s.set_script_name("Runtime3247"); s.set_visibility(false); s.set_visibility(true); CHECK(s.is_visible()); CHECK(s.get_name()=="Display3247"); CHECK(s.get_script_name()=="Runtime3247"); }
+ TEST_CASE("batch3247 lifecycle sequence preserves all public metadata") { Salix::CppScript s; s.set_name("Lifecycle3247"); s.set_script_name("Runtime3247"); const auto id=s.get_id(); s.initialize(); s.update(0.f); s.update(-3.f); s.shutdown(); CHECK(s.get_id()==id); CHECK(s.get_name()=="Lifecycle3247"); CHECK(s.get_script_name()=="Runtime3247"); }
+ TEST_CASE("batch3247 script name backing string reference remains stable across clear and refill") { Salix::CppScript s; const std::string* p=&s.get_script_name(); s.set_script_name("First3247"); s.set_script_name(""); s.set_script_name("Second3247Longer"); CHECK(&s.get_script_name()==p); CHECK(*p=="Second3247Longer"); }
+}
