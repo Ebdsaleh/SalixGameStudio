@@ -426,3 +426,15 @@ TEST_SUITE("Salix::core::LoggingBatch2547") {
     }
 }
 
+TEST_SUITE("Salix::core::LoggingBatch3247") {
+ TEST_CASE("batch3247 direct info ignores supplied source location") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::INFO,"info3247","source3247.cpp",3247); CHECK(o.str().find("[INFO] info3247")!=std::string::npos); CHECK(o.str().find("source3247.cpp")==std::string::npos); }
+ TEST_CASE("batch3247 direct warning ignores supplied source location") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::WARNING,"warn3247","source3247.cpp",3247); CHECK(o.str().find("[WARN] warn3247")!=std::string::npos); CHECK(o.str().find("source3247.cpp")==std::string::npos); }
+ TEST_CASE("batch3247 direct error preserves exact positive source line") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::ERROR,"error3247","error source.cpp",3247); CHECK(o.str().find("[ERROR]")!=std::string::npos); CHECK(o.str().find("[error source.cpp:3247]")!=std::string::npos); }
+ TEST_CASE("batch3247 direct debug preserves zero source line") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::DEBUG,"debug3247","debug.cpp",0); CHECK(o.str().find("[debug.cpp:0]")!=std::string::npos); }
+ TEST_CASE("batch3247 unknown severity stays blank and omits source location") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(static_cast<Salix::LogLevel>(999),"unknown3247","hidden.cpp",9); CHECK(o.str().find("[] unknown3247")!=std::string::npos); CHECK(o.str().find("hidden.cpp")==std::string::npos); }
+ TEST_CASE("batch3247 tab characters in payload are preserved verbatim") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::INFO,"a\tb\tc","x",1); CHECK(o.str().find("a\tb\tc")!=std::string::npos); }
+ TEST_CASE("batch3247 empty filename remains representable for error location") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::ERROR,"empty-file","",17); CHECK(o.str().find("[:17]")!=std::string::npos); }
+ TEST_CASE("batch3247 negative debug line remains textual diagnostic value") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::DEBUG,"negative-line","diag.cpp",-3247); CHECK(o.str().find("[diag.cpp:-3247]")!=std::string::npos); }
+ TEST_CASE("batch3247 payload bracket text is never parsed as severity") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::WARNING,"[ERROR] payload3247","x",1); CHECK(o.str().find("[WARN] [ERROR] payload3247")!=std::string::npos); }
+ TEST_CASE("batch3247 two direct records each terminate with one newline") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::INFO,"first3247","x",1); Salix::LogMessage(Salix::LogLevel::DEBUG,"second3247","y",2); CHECK(std::count(o.str().begin(),o.str().end(),'\n')==2); }
+}
