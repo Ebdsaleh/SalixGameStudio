@@ -253,3 +253,15 @@ TEST_SUITE("Salix::core::EngineBatch2847") {
     }
 }
 
+TEST_SUITE("Salix::core::EngineBatch3247") {
+ TEST_CASE("batch3247 fresh engine combines stopped neutral unit-scale defaults") { Salix::Engine e; CHECK_FALSE(e.is_running()); CHECK(e.get_mode()==Salix::EngineMode::None); CHECK(e.get_time_scale()==doctest::Approx(1.f)); }
+ TEST_CASE("batch3247 starting engine never changes mode or time scale") { Salix::Engine e; e.set_mode(Salix::EngineMode::Debug); e.set_time_scale(2.25f); CHECK(e.is_running(true)); CHECK(e.get_mode()==Salix::EngineMode::Debug); CHECK(e.get_time_scale()==doctest::Approx(2.25f)); }
+ TEST_CASE("batch3247 stopping engine never changes mode or time scale") { Salix::Engine e; e.is_running(true); e.set_mode(Salix::EngineMode::Game); e.set_time_scale(0.5f); CHECK_FALSE(e.is_running(false)); CHECK(e.get_mode()==Salix::EngineMode::Game); CHECK(e.get_time_scale()==doctest::Approx(0.5f)); }
+ TEST_CASE("batch3247 full mode traversal leaves running state untouched") { Salix::Engine e; e.is_running(true); for(auto m:{Salix::EngineMode::Launch,Salix::EngineMode::Editor,Salix::EngineMode::Game,Salix::EngineMode::Options,Salix::EngineMode::Debug,Salix::EngineMode::None}) e.set_mode(m); CHECK(e.is_running()); CHECK(e.get_mode()==Salix::EngineMode::None); }
+ TEST_CASE("batch3247 negative zero time scale preserves sign bit") { Salix::Engine e; e.set_time_scale(-0.0f); CHECK(e.get_time_scale()==0.0f); CHECK(std::signbit(e.get_time_scale())); }
+ TEST_CASE("batch3247 maximum finite time scale is stored verbatim") { Salix::Engine e; e.set_time_scale((std::numeric_limits<float>::max)()); CHECK(e.get_time_scale()==(std::numeric_limits<float>::max)()); }
+ TEST_CASE("batch3247 lowest finite time scale is stored verbatim") { Salix::Engine e; e.set_time_scale((std::numeric_limits<float>::lowest)()); CHECK(e.get_time_scale()==(std::numeric_limits<float>::lowest)()); }
+ TEST_CASE("batch3247 no-op state stack calls preserve a running configured engine") { Salix::Engine e; e.is_running(true); e.set_mode(Salix::EngineMode::Editor); e.set_time_scale(3.f); e.push_state(nullptr); e.change_state(nullptr); e.pop_state(); CHECK(e.is_running()); CHECK(e.get_mode()==Salix::EngineMode::Editor); CHECK(e.get_time_scale()==doctest::Approx(3.f)); }
+ TEST_CASE("batch3247 EngineInterface can configure running mode and scale together") { std::unique_ptr<Salix::EngineInterface> e=std::make_unique<Salix::Engine>(); CHECK(e->is_running(true)); e->set_mode(Salix::EngineMode::Options); e->set_time_scale(-1.25f); CHECK(e->is_running()); CHECK(e->get_mode()==Salix::EngineMode::Options); CHECK(e->get_time_scale()==doctest::Approx(-1.25f)); }
+ TEST_CASE("batch3247 mutating one engine never changes a fresh peer") { Salix::Engine a,b; a.is_running(true); a.set_mode(Salix::EngineMode::Debug); a.set_time_scale(99.f); CHECK_FALSE(b.is_running()); CHECK(b.get_mode()==Salix::EngineMode::None); CHECK(b.get_time_scale()==doctest::Approx(1.f)); }
+}
