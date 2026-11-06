@@ -944,3 +944,47 @@ TEST_SUITE("Salix::ecs::EntityBatch2947") {
     }
 }
 
+TEST_SUITE("Salix::ecs::EntityBatch3347") {
+    TEST_CASE("batch3347 mandatory components are owned by their constructing entity") {
+        Salix::Entity entity;
+        auto* transform=entity.get_element<Salix::Transform>(); auto* collider=entity.get_element<Salix::BoxCollider>();
+        REQUIRE(transform!=nullptr); REQUIRE(collider!=nullptr); CHECK(transform->get_owner()==&entity); CHECK(collider->get_owner()==&entity);
+    }
+    TEST_CASE("batch3347 entity identity replacement never changes mandatory component identities") {
+        Salix::Entity entity; auto* transform=entity.get_transform(); auto* collider=entity.get_element<Salix::BoxCollider>(); REQUIRE(transform); REQUIRE(collider);
+        const auto transform_id=transform->get_id(); const auto collider_id=collider->get_id(); entity.set_id(Salix::SimpleGuid::from_value(3347001ULL));
+        CHECK(entity.get_id().get_value()==3347001ULL); CHECK(transform->get_id()==transform_id); CHECK(collider->get_id()==collider_id);
+    }
+    TEST_CASE("batch3347 raw element adoption establishes owner and type lookup") {
+        Salix::Entity entity; auto* sprite=new Salix::Sprite2D(); const auto id=sprite->get_id(); entity.add_element(sprite);
+        CHECK(sprite->get_owner()==&entity); CHECK(entity.get_element_by_type_name("Sprite2D")==sprite); CHECK(entity.get_element_by_id(id)==sprite);
+    }
+    TEST_CASE("batch3347 unique element adoption establishes owner and increments snapshot") {
+        Salix::Entity entity; const auto before=entity.get_all_elements().size(); auto sprite=std::make_unique<Salix::Sprite2D>(); auto* raw=sprite.get();
+        entity.add_element(std::move(sprite)); CHECK(raw->get_owner()==&entity); CHECK(entity.get_all_elements().size()==before+1); CHECK(entity.get_element<Salix::Sprite2D>()==raw);
+    }
+    TEST_CASE("batch3347 repeated concrete type additions preserve insertion order in type query") {
+        Salix::Entity entity; auto* first=entity.add_element<Salix::Sprite2D>(); auto* second=entity.add_element<Salix::Sprite2D>(); const auto matches=entity.get_elements_by_type_name("Sprite2D");
+        REQUIRE(matches.size()==2); CHECK(matches[0]==first); CHECK(matches[1]==second);
+    }
+    TEST_CASE("batch3347 renamed element is discoverable by display name without changing class lookup") {
+        Salix::Entity entity; auto* transform=entity.get_transform(); REQUIRE(transform); transform->set_name("Transform 3347");
+        CHECK(entity.get_element_by_name("Transform 3347")==transform); CHECK(entity.get_element_by_type_name("Transform")==transform);
+    }
+    TEST_CASE("batch3347 unknown type query returns an empty collection without changing ownership") {
+        Salix::Entity entity; const auto before=entity.get_all_elements().size(); const auto matches=entity.get_elements_by_type_name("Missing3347");
+        CHECK(matches.empty()); CHECK(entity.get_all_elements().size()==before);
+    }
+    TEST_CASE("batch3347 purge blocks public element lookup while owned snapshot remains inspectable") {
+        Salix::Entity entity; auto* transform=entity.get_transform(); REQUIRE(transform); const auto id=transform->get_id(); entity.simple_purge();
+        CHECK(entity.get_element_by_id(id)==nullptr); CHECK(entity.get_element_by_type_name("Transform")==nullptr); CHECK(entity.get_elements_by_type_name("Transform").empty()); CHECK(entity.get_all_elements().size()==2);
+    }
+    TEST_CASE("batch3347 three level hierarchy reports every transitive ancestor") {
+        Salix::Entity root,parent,child; parent.set_parent(&root); child.set_parent(&parent);
+        CHECK(child.is_child_of(&parent)); CHECK(child.is_child_of(&root)); CHECK(parent.is_child_of(&root)); CHECK_FALSE(root.is_child_of(&child));
+    }
+    TEST_CASE("batch3347 visibility changes never disturb established hierarchy") {
+        Salix::Entity parent,child; child.set_parent(&parent); child.set_visible(false); parent.set_visible(false);
+        CHECK(child.get_parent()==&parent); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&child); CHECK_FALSE(child.is_visible()); CHECK_FALSE(parent.is_visible());
+    }
+}
