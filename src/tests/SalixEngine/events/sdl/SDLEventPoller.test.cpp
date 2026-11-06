@@ -194,3 +194,143 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch3047") {
         CHECK_NOTHROW(poller.unregister_raw_event_callback(second));
     }
 }
+#include <SDL.h>
+#include <vector>
+
+namespace {
+struct Batch3447SDLEventQueueFixture {
+    Batch3447SDLEventQueueFixture() {
+        SDL_InitSubSystem(SDL_INIT_EVENTS);
+        SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    }
+    ~Batch3447SDLEventQueueFixture() {
+        SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
+    }
+};
+}
+
+TEST_SUITE("Salix::events::SDLEventPollerBatch3447") {
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 user event reaches raw callback without producing Salix event") {
+        Salix::SDLEventPoller poller;
+        int raw_count = 0;
+        int processed_count = 0;
+        poller.register_raw_event_callback([&](void* raw) {
+            REQUIRE(raw != nullptr);
+            ++raw_count;
+            CHECK(static_cast<SDL_Event*>(raw)->type == SDL_USEREVENT);
+        });
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed_count; });
+        CHECK(raw_count == 1);
+        CHECK(processed_count == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 raw callbacks execute in monotonically assigned handle order") {
+        Salix::SDLEventPoller poller;
+        std::vector<int> order;
+        poller.register_raw_event_callback([&](void*) { order.push_back(1); });
+        poller.register_raw_event_callback([&](void*) { order.push_back(2); });
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        REQUIRE(order.size() == 2);
+        CHECK(order[0] == 1);
+        CHECK(order[1] == 2);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 unregistered raw callback is absent from subsequent poll") {
+        Salix::SDLEventPoller poller;
+        int first_count = 0;
+        int second_count = 0;
+        const auto first = poller.register_raw_event_callback([&](void*) { ++first_count; });
+        poller.register_raw_event_callback([&](void*) { ++second_count; });
+        poller.unregister_raw_event_callback(first);
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        CHECK(first_count == 0);
+        CHECK(second_count == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 empty raw callback is skipped safely during polling") {
+        Salix::SDLEventPoller poller;
+        Salix::RawEventCallback empty;
+        poller.register_raw_event_callback(empty);
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        CHECK_NOTHROW(poller.poll_events([](Salix::IEvent&) {}));
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 SDL quit event dispatches one Salix event") {
+        Salix::SDLEventPoller poller;
+        int processed_count = 0;
+        SDL_Event event{}; event.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed_count; });
+        CHECK(processed_count == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 resized window event dispatches one Salix event") {
+        Salix::SDLEventPoller poller;
+        int processed_count = 0;
+        SDL_Event event{};
+        event.type = SDL_WINDOWEVENT;
+        event.window.event = SDL_WINDOWEVENT_RESIZED;
+        event.window.data1 = 1280;
+        event.window.data2 = 720;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed_count; });
+        CHECK(processed_count == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 text input remains raw only") {
+        Salix::SDLEventPoller poller;
+        int raw_count = 0;
+        int processed_count = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw_count; });
+        SDL_Event event{}; event.type = SDL_TEXTINPUT;
+        event.text.text[0] = 'A'; event.text.text[1] = '\0';
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed_count; });
+        CHECK(raw_count == 1);
+        CHECK(processed_count == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 key down event dispatches one Salix event") {
+        Salix::SDLEventPoller poller;
+        int processed_count = 0;
+        SDL_Event event{};
+        event.type = SDL_KEYDOWN;
+        event.key.keysym.sym = SDLK_a;
+        event.key.repeat = 0;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed_count; });
+        CHECK(processed_count == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 mouse motion event dispatches one Salix event") {
+        Salix::SDLEventPoller poller;
+        int processed_count = 0;
+        SDL_Event event{};
+        event.type = SDL_MOUSEMOTION;
+        event.motion.x = 344;
+        event.motion.y = 700;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed_count; });
+        CHECK(processed_count == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch3447 mouse wheel event dispatches one Salix event") {
+        Salix::SDLEventPoller poller;
+        int processed_count = 0;
+        SDL_Event event{};
+        event.type = SDL_MOUSEWHEEL;
+        event.wheel.x = -2;
+        event.wheel.y = 3;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed_count; });
+        CHECK(processed_count == 1);
+    }
+}
+
