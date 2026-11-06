@@ -350,4 +350,105 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch2447") {
         CHECK(second.icons.get_icon_by_name("Camera").path != "Assets/Icons/Batch2447/first-camera.png");
     }
 }
+TEST_SUITE("Salix::gui::ImGuiIconManagerBatch3447") {
+    TEST_CASE("batch3447 successful Default update immediately changes unknown-name fallback") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-new.png");
+        const auto& registered = fixture.icons.get_icon_by_name("Default");
+        const auto& fallback = fixture.icons.get_icon_by_name("Missing3447");
+        CHECK(registered.path == "Assets/Icons/Batch3447/default-new.png");
+        CHECK(fallback.path == registered.path);
+        CHECK(fallback.texture_id == registered.texture_id);
+    }
+
+    TEST_CASE("batch3447 null entity follows the latest successful Default update") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-entity.png");
+        const auto& icon = fixture.icons.get_icon_for_entity(nullptr);
+        CHECK(icon.path == "Assets/Icons/Batch3447/default-entity.png");
+        CHECK(icon.texture_id == fixture.icons.get_icon_by_name("Default").texture_id);
+    }
+
+    TEST_CASE("batch3447 null element follows the latest successful Default update") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-element.png");
+        const auto& icon = fixture.icons.get_icon_for_element(nullptr);
+        CHECK(icon.path == "Assets/Icons/Batch3447/default-element.png");
+        CHECK(icon.texture_id == fixture.icons.get_icon_by_name("Default").texture_id);
+    }
+
+    TEST_CASE("batch3447 unregistered element type follows the latest Default update") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-script.png");
+        Salix::CppScript script;
+        const auto& icon = fixture.icons.get_icon_for_element(&script);
+        CHECK(icon.path == "Assets/Icons/Batch3447/default-script.png");
+        CHECK(icon.texture_id == fixture.icons.get_icon_by_name("Default").texture_id);
+    }
+
+    TEST_CASE("batch3447 successful Default update preserves fallback icon size metadata") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto before = fixture.icons.get_icon_by_name("Default");
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-size.png");
+        const auto& after = fixture.icons.get_icon_by_name("MissingSize3447");
+        CHECK(after.size.x == doctest::Approx(before.size.x));
+        CHECK(after.size.y == doctest::Approx(before.size.y));
+        CHECK(after.path == "Assets/Icons/Batch3447/default-size.png");
+    }
+
+    TEST_CASE("batch3447 updating nondefault icon never changes current fallback mapping") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto fallback_before = fixture.icons.get_icon_by_name("Default");
+        fixture.icons.update_icon("Camera", "Assets/Icons/Batch3447/camera-only.png");
+        const auto& fallback_after = fixture.icons.get_icon_by_name("MissingCamera3447");
+        CHECK(fallback_after.path == fallback_before.path);
+        CHECK(fallback_after.texture_id == fallback_before.texture_id);
+        CHECK(fixture.icons.get_icon_by_name("Camera").path == "Assets/Icons/Batch3447/camera-only.png");
+    }
+
+    TEST_CASE("batch3447 two successful Default updates expose only the latest fallback") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-first.png");
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-second.png");
+        CHECK(fixture.icons.get_icon_by_name("Default").path == "Assets/Icons/Batch3447/default-second.png");
+        CHECK(fixture.icons.get_icon_by_name("MissingLatest3447").path == "Assets/Icons/Batch3447/default-second.png");
+    }
+
+    TEST_CASE("batch3447 default registration after override restores canonical fallback path") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-override.png");
+        fixture.icons.register_default_icons();
+        const std::string canonical = "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_153.png";
+        CHECK(fixture.icons.get_icon_by_name("Default").path == canonical);
+        CHECK(fixture.icons.get_icon_by_name("MissingCanonical3447").path == canonical);
+    }
+
+    TEST_CASE("batch3447 successful updates never grow the canonical registry") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        REQUIRE(fixture.icons.get_icon_registry().size() == 7);
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch3447/default-registry.png");
+        fixture.icons.update_icon("Camera", "Assets/Icons/Batch3447/camera-registry.png");
+        fixture.icons.update_icon("Transform", "Assets/Icons/Batch3447/transform-registry.png");
+        CHECK(fixture.icons.get_icon_registry().size() == 7);
+    }
+
+    TEST_CASE("batch3447 separate managers keep independently updated Default fallbacks") {
+        Batch1947IconFixture first;
+        Batch1947IconFixture second;
+        first.icons.register_default_icons();
+        second.icons.register_default_icons();
+        first.icons.update_icon("Default", "Assets/Icons/Batch3447/first-default.png");
+        CHECK(first.icons.get_icon_by_name("Missing3447").path == "Assets/Icons/Batch3447/first-default.png");
+        CHECK(second.icons.get_icon_by_name("Missing3447").path != "Assets/Icons/Batch3447/first-default.png");
+    }
+}
 
