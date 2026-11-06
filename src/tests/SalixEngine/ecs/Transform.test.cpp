@@ -1252,3 +1252,110 @@ TEST_SUITE("Salix::ecs::TransformBatch3047") {
         CHECK(world.z == doctest::Approx(28.f));
     }
 }
+TEST_SUITE("Salix::ecs::TransformBatch3447") {
+    TEST_CASE("batch3447 parenting under a translated parent preserves existing world position") {
+        Salix::Transform parent, child;
+        parent.set_position(25.f, -10.f, 5.f);
+        child.set_position(3.f, 4.f, 5.f);
+        const Salix::Vector3 before = child.get_world_position();
+        child.set_parent(&parent);
+        const Salix::Vector3 after = child.get_world_position();
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+        REQUIRE(parent.get_children().size() == 1);
+        CHECK(parent.get_children()[0] == &child);
+    }
+
+    TEST_CASE("batch3447 reparenting between translated parents preserves child world position") {
+        Salix::Transform first, second, child;
+        first.set_position(10.f, 0.f, 0.f);
+        second.set_position(-20.f, 5.f, 0.f);
+        child.set_position(4.f, 6.f, 8.f);
+        child.set_parent(&first);
+        const Salix::Vector3 before = child.get_world_position();
+        child.set_parent(&second);
+        const Salix::Vector3 after = child.get_world_position();
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+        CHECK(first.get_children().empty());
+        REQUIRE(second.get_children().size() == 1);
+    }
+
+    TEST_CASE("batch3447 assigning the same parent twice never duplicates child membership") {
+        Salix::Transform parent, child;
+        child.set_parent(&parent);
+        child.set_parent(&parent);
+        REQUIRE(parent.get_children().size() == 1);
+        CHECK(parent.get_children()[0] == &child);
+        CHECK(child.get_parent() == &parent);
+    }
+
+    TEST_CASE("batch3447 root world position setter writes the identical local position") {
+        Salix::Transform root;
+        root.set_world_position(Salix::Vector3(-7.f, 11.f, 13.f));
+        CHECK(root.get_position() == Salix::Vector3(-7.f, 11.f, 13.f));
+        CHECK(root.get_world_position() == Salix::Vector3(-7.f, 11.f, 13.f));
+    }
+
+    TEST_CASE("batch3447 child world position setter compensates for translated parent") {
+        Salix::Transform parent, child;
+        parent.set_position(10.f, 20.f, 30.f);
+        child.set_parent(&parent);
+        child.set_world_position(Salix::Vector3(15.f, 27.f, 39.f));
+        CHECK(child.get_position().x == doctest::Approx(5.f));
+        CHECK(child.get_position().y == doctest::Approx(7.f));
+        CHECK(child.get_position().z == doctest::Approx(9.f));
+        CHECK(child.get_world_position().x == doctest::Approx(15.f));
+        CHECK(child.get_world_position().y == doctest::Approx(27.f));
+        CHECK(child.get_world_position().z == doctest::Approx(39.f));
+    }
+
+    TEST_CASE("batch3447 root world rotation setter mirrors local rotation storage") {
+        Salix::Transform root;
+        root.set_world_rotation(Salix::Vector3(12.f, -23.f, 34.f));
+        CHECK(root.get_rotation() == Salix::Vector3(12.f, -23.f, 34.f));
+    }
+
+    TEST_CASE("batch3447 root world scale setter mirrors local nonuniform scale") {
+        Salix::Transform root;
+        root.set_world_scale(Salix::Vector3(2.f, 3.f, 4.f));
+        CHECK(root.get_scale() == Salix::Vector3(2.f, 3.f, 4.f));
+        const auto world = root.get_world_scale();
+        CHECK(world.x == doctest::Approx(2.f));
+        CHECK(world.y == doctest::Approx(3.f));
+        CHECK(world.z == doctest::Approx(4.f));
+    }
+
+    TEST_CASE("batch3447 translated parent local world conversion roundtrips an arbitrary point") {
+        Salix::Transform parent, child;
+        parent.set_position(100.f, -50.f, 25.f);
+        child.set_parent(&parent);
+        const Salix::Vector3 local(-7.f, 3.f, 11.f);
+        const Salix::Vector3 world = child.local_to_world_position(local);
+        const Salix::Vector3 restored = child.world_to_local_position(world);
+        CHECK(restored.x == doctest::Approx(local.x));
+        CHECK(restored.y == doctest::Approx(local.y));
+        CHECK(restored.z == doctest::Approx(local.z));
+    }
+
+    TEST_CASE("batch3447 root local and world position conversion helpers are identity transforms") {
+        Salix::Transform root;
+        const Salix::Vector3 point(8.f, -9.f, 10.f);
+        CHECK(root.local_to_world_position(point) == point);
+        CHECK(root.world_to_local_position(point) == point);
+    }
+
+    TEST_CASE("batch3447 update leaves configured transform state unchanged") {
+        Salix::Transform transform;
+        transform.set_position(1.f, 2.f, 3.f);
+        transform.set_rotation(4.f, 5.f, 6.f);
+        transform.set_scale(7.f, 8.f, 9.f);
+        transform.update(123.456f);
+        CHECK(transform.get_position() == Salix::Vector3(1.f, 2.f, 3.f));
+        CHECK(transform.get_rotation() == Salix::Vector3(4.f, 5.f, 6.f));
+        CHECK(transform.get_scale() == Salix::Vector3(7.f, 8.f, 9.f));
+    }
+}
+
