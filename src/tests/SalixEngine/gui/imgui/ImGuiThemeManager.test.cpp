@@ -296,4 +296,123 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch2447") {
         CHECK(std::filesystem::file_size(file) > 0);
     }
 }
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch3447") {
+    TEST_CASE("batch3447 case distinct theme names coexist independently") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Theme3447")));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("theme3447")));
+        CHECK(manager.get_theme("Theme3447") != nullptr);
+        CHECK(manager.get_theme("theme3447") != nullptr);
+        CHECK(manager.get_registered_themes().size() == 2);
+    }
+
+    TEST_CASE("batch3447 whitespace rich theme name remains an exact registry key") {
+        Salix::ImGuiThemeManager manager;
+        const std::string name = "  Theme 3447  ";
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>(name)));
+        CHECK(manager.get_theme(name) != nullptr);
+        CHECK(manager.get_theme("Theme 3447") == nullptr);
+    }
+
+    TEST_CASE("batch3447 active selection switches from first theme to second theme") {
+        Salix::ImGuiThemeManager manager;
+        auto first = std::make_unique<MockITheme>("First3447");
+        auto second = std::make_unique<MockITheme>("Second3447");
+        MockITheme* first_raw = first.get();
+        MockITheme* second_raw = second.get();
+        REQUIRE(manager.register_theme(std::move(first)));
+        REQUIRE(manager.register_theme(std::move(second)));
+        REQUIRE(manager.set_active_theme("First3447"));
+        CHECK(manager.get_active_theme() == first_raw);
+        REQUIRE(manager.set_active_theme("Second3447"));
+        CHECK(manager.get_active_theme() == second_raw);
+    }
+
+    TEST_CASE("batch3447 failed selection after switch preserves latest active theme") {
+        Salix::ImGuiThemeManager manager;
+        auto first = std::make_unique<MockITheme>("First3447Keep");
+        auto second = std::make_unique<MockITheme>("Second3447Keep");
+        MockITheme* second_raw = second.get();
+        REQUIRE(manager.register_theme(std::move(first)));
+        REQUIRE(manager.register_theme(std::move(second)));
+        REQUIRE(manager.set_active_theme("First3447Keep"));
+        REQUIRE(manager.set_active_theme("Second3447Keep"));
+        CHECK_FALSE(manager.set_active_theme("Missing3447Keep"));
+        CHECK(manager.get_active_theme() == second_raw);
+    }
+
+    TEST_CASE("batch3447 purging inactive theme removes it while preserving active identity") {
+        Salix::ImGuiThemeManager manager;
+        auto active = std::make_unique<MockITheme>("Active3447");
+        MockITheme* active_raw = active.get();
+        REQUIRE(manager.register_theme(std::move(active)));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Inactive3447")));
+        REQUIRE(manager.set_active_theme("Active3447"));
+        REQUIRE(manager.purge_theme("Inactive3447"));
+        CHECK(manager.get_active_theme() == active_raw);
+        CHECK(manager.get_theme("Inactive3447") == nullptr);
+    }
+
+    TEST_CASE("batch3447 purging missing name preserves registry and active theme") {
+        Salix::ImGuiThemeManager manager;
+        auto active = std::make_unique<MockITheme>("Keep3447");
+        MockITheme* active_raw = active.get();
+        REQUIRE(manager.register_theme(std::move(active)));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Other3447")));
+        REQUIRE(manager.set_active_theme("Keep3447"));
+        CHECK_FALSE(manager.purge_theme("Missing3447"));
+        CHECK(manager.get_active_theme() == active_raw);
+        CHECK(manager.get_registered_themes().size() == 2);
+    }
+
+    TEST_CASE("batch3447 unregistering active theme leaves remaining theme available for selection") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Remove3447")));
+        auto remaining = std::make_unique<MockITheme>("Remain3447");
+        MockITheme* remaining_raw = remaining.get();
+        REQUIRE(manager.register_theme(std::move(remaining)));
+        REQUIRE(manager.set_active_theme("Remove3447"));
+        REQUIRE(manager.unregister_theme("Remove3447"));
+        CHECK(manager.get_active_theme() == nullptr);
+        REQUIRE(manager.set_active_theme("Remain3447"));
+        CHECK(manager.get_active_theme() == remaining_raw);
+    }
+
+    TEST_CASE("batch3447 repeated shutdown is safe and manager can register again afterward") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("BeforeShutdown3447")));
+        REQUIRE(manager.set_active_theme("BeforeShutdown3447"));
+        manager.shutdown();
+        CHECK_NOTHROW(manager.shutdown());
+        CHECK(manager.get_active_theme() == nullptr);
+        CHECK(manager.get_registered_themes().empty());
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("AfterShutdown3447")));
+        CHECK(manager.get_theme("AfterShutdown3447") != nullptr);
+    }
+
+    TEST_CASE("batch3447 rejected duplicate registration preserves active original object") {
+        Salix::ImGuiThemeManager manager;
+        auto original = std::make_unique<MockITheme>("Duplicate3447", "original3447.theme");
+        MockITheme* original_raw = original.get();
+        REQUIRE(manager.register_theme(std::move(original)));
+        REQUIRE(manager.set_active_theme("Duplicate3447"));
+        CHECK_FALSE(manager.register_theme(std::make_unique<MockITheme>("Duplicate3447", "replacement3447.theme")));
+        CHECK(manager.get_active_theme() == original_raw);
+        REQUIRE(manager.get_theme("Duplicate3447") != nullptr);
+        CHECK(manager.get_theme("Duplicate3447")->get_file_path() == "original3447.theme");
+    }
+
+    TEST_CASE("batch3447 registered name list reflects exact survivor after removal") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("A3447")));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("B3447")));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("C3447")));
+        REQUIRE(manager.unregister_theme("B3447"));
+        auto names = manager.get_registered_themes();
+        std::sort(names.begin(), names.end());
+        REQUIRE(names.size() == 2);
+        CHECK(names[0] == "A3447");
+        CHECK(names[1] == "C3447");
+    }
+}
 
