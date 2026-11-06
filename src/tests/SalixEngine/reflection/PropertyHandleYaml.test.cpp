@@ -474,7 +474,7 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch3347") {
         YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Color3347",Salix::PropertyType::Color),&node); const Salix::Color value(.1f,.2f,.3f,.4f); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Color>(h.get_value())==value);
     }
     TEST_CASE("batch3347 Point YAML handle preserves negative coordinates") {
-        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Point3347",Salix::PropertyType::Point),&node); const Salix::Point value(-33,47); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Point>(h.get_value())==value);
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Point3347",Salix::PropertyType::Point),&node); const Salix::Point value{-33,47}; h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Point>(h.get_value())==value);
     }
     TEST_CASE("batch3347 Rect YAML handle preserves four integer channels") {
         YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Rect3347",Salix::PropertyType::Rect),&node); const Salix::Rect value(-3,4,33,47); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Rect>(h.get_value())==value);
