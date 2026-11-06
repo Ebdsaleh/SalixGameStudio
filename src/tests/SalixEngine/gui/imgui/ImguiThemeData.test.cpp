@@ -178,3 +178,44 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch2547") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeDataBatch3347") {
+    TEST_CASE("batch3347 named constructor preserves punctuation rich name and ImGui identity") {
+        Salix::ImGuiThemeData data("Theme #3347 / Dark"); CHECK(data.get_name()=="Theme #3347 / Dark"); CHECK(data.get_gui_type()=="ImGui");
+    }
+    TEST_CASE("batch3347 title and menu colors match deterministic dark style snapshot") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.title_bg_color.r==doctest::Approx(style.Colors[ImGuiCol_TitleBg].x)); CHECK(data.title_bg_active_color.g==doctest::Approx(style.Colors[ImGuiCol_TitleBgActive].y)); CHECK(data.menu_bar_bg_color.b==doctest::Approx(style.Colors[ImGuiCol_MenuBarBg].z));
+    }
+    TEST_CASE("batch3347 scrollbar and slider colors match dark style snapshot") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.scrollbar_bg_color.r==doctest::Approx(style.Colors[ImGuiCol_ScrollbarBg].x)); CHECK(data.scrollbar_grab_active_color.a==doctest::Approx(style.Colors[ImGuiCol_ScrollbarGrabActive].w)); CHECK(data.slider_grab_color.g==doctest::Approx(style.Colors[ImGuiCol_SliderGrab].y));
+    }
+    TEST_CASE("batch3347 header separator and resize colors match dark style snapshot") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.header_hovered_color.r==doctest::Approx(style.Colors[ImGuiCol_HeaderHovered].x)); CHECK(data.separator_active_color.b==doctest::Approx(style.Colors[ImGuiCol_SeparatorActive].z)); CHECK(data.resize_grip_hovered_color.a==doctest::Approx(style.Colors[ImGuiCol_ResizeGripHovered].w));
+    }
+    TEST_CASE("batch3347 tab and docking colors match dark style snapshot") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.tab_active_color.r==doctest::Approx(style.Colors[ImGuiCol_TabActive].x)); CHECK(data.tab_unfocused_color.g==doctest::Approx(style.Colors[ImGuiCol_TabUnfocused].y)); CHECK(data.docking_preview_color.a==doctest::Approx(style.Colors[ImGuiCol_DockingPreview].w));
+    }
+    TEST_CASE("batch3347 plot and table colors match dark style snapshot") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.plot_lines_hovered_color.r==doctest::Approx(style.Colors[ImGuiCol_PlotLinesHovered].x)); CHECK(data.plot_histogram_color.g==doctest::Approx(style.Colors[ImGuiCol_PlotHistogram].y)); CHECK(data.table_border_strong_color.b==doctest::Approx(style.Colors[ImGuiCol_TableBorderStrong].z));
+    }
+    TEST_CASE("batch3347 selection navigation and modal colors match dark style snapshot") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.text_selected_bg_color.a==doctest::Approx(style.Colors[ImGuiCol_TextSelectedBg].w)); CHECK(data.nav_windowing_highlight_color.r==doctest::Approx(style.Colors[ImGuiCol_NavWindowingHighlight].x)); CHECK(data.modal_window_dim_color.a==doctest::Approx(style.Colors[ImGuiCol_ModalWindowDimBg].w));
+    }
+    TEST_CASE("batch3347 child popup and frame scalar metrics match style snapshot") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.child_rounding==doctest::Approx(style.ChildRounding)); CHECK(data.popup_rounding==doctest::Approx(style.PopupRounding)); CHECK(data.frame_border_size==doctest::Approx(style.FrameBorderSize));
+    }
+    TEST_CASE("batch3347 spacing vectors match deterministic style snapshot") {
+        Salix::ImGuiThemeData data; ImGuiStyle style; ImGui::StyleColorsDark(&style);
+        CHECK(data.item_inner_spacing.x==doctest::Approx(style.ItemInnerSpacing.x)); CHECK(data.cell_padding.y==doctest::Approx(style.CellPadding.y)); CHECK(data.touch_extra_padding.x==doctest::Approx(style.TouchExtraPadding.x));
+    }
+    TEST_CASE("batch3347 registry pointer mutation updates the exact owned alpha field") {
+        Salix::ImGuiThemeData data; auto it=std::find_if(data.float_style_vars.begin(),data.float_style_vars.end(),[](const auto& item){return item.first=="Alpha";});
+        REQUIRE(it!=data.float_style_vars.end()); REQUIRE(it->second==&data.alpha); *it->second=0.3347f; CHECK(data.alpha==doctest::Approx(0.3347f));
+    }
+}
