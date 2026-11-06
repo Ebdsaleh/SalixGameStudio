@@ -696,3 +696,148 @@ TEST_SUITE("Salix::management::SettingsManagerBatch3047") {
         std::filesystem::remove(path); std::filesystem::remove("settings_batch3047_unknown_section.cache");
     }
 }
+namespace {
+struct Batch3447SettingsFiles {
+    explicit Batch3447SettingsFiles(const std::string& stem) {
+        root = std::filesystem::temp_directory_path() / ("SalixGameStudio_" + stem);
+        std::error_code ec;
+        std::filesystem::remove_all(root, ec);
+        std::filesystem::create_directories(root);
+        yaml = root / "settings.yaml";
+        cache = root / "settings.cache";
+    }
+    ~Batch3447SettingsFiles() {
+        std::error_code ec;
+        std::filesystem::remove_all(root, ec);
+    }
+    void write_yaml(const std::string& content) const {
+        std::ofstream out(yaml);
+        out << content;
+    }
+    std::filesystem::path root;
+    std::filesystem::path yaml;
+    std::filesystem::path cache;
+};
+}
+
+TEST_SUITE("Salix::management::SettingsManagerBatch3447") {
+    TEST_CASE("batch3447 missing YAML preserves caller supplied configuration and creates no cache") {
+        Batch3447SettingsFiles files("Batch3447_Missing");
+        std::filesystem::remove(files.yaml);
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Keep3447";
+        config.target_fps = 3447;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "Keep3447");
+        CHECK(config.target_fps == 3447);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        CHECK_FALSE(std::filesystem::exists(files.cache));
+    }
+
+    TEST_CASE("batch3447 orphan cache is ignored when YAML source is missing") {
+        Batch3447SettingsFiles files("Batch3447_OrphanCache");
+        { std::ofstream out(files.cache, std::ios::binary); out << "not-a-valid-cache"; }
+        Salix::ApplicationConfig config;
+        config.target_fps = 93;
+        config.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.target_fps == 93);
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch3447 partial Window width preserves caller title and height") {
+        Batch3447SettingsFiles files("Batch3447_WindowPartial");
+        files.write_yaml("Window:\n  width: 1234\n");
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Existing3447";
+        config.window_config.height = 777;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.width == 1234);
+        CHECK(config.window_config.title == "Existing3447");
+        CHECK(config.window_config.height == 777);
+    }
+
+    TEST_CASE("batch3447 Options initial state parses while absent target FPS is preserved") {
+        Batch3447SettingsFiles files("Batch3447_Options");
+        files.write_yaml("Engine:\n  initial_state: Options\n");
+        Salix::ApplicationConfig config;
+        config.target_fps = 165;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.initial_state == Salix::AppStateType::Options);
+        CHECK(config.target_fps == 165);
+    }
+
+    TEST_CASE("batch3447 OpenGL renderer parses without changing unrelated timer selection") {
+        Batch3447SettingsFiles files("Batch3447_Renderer");
+        files.write_yaml("Renderer:\n  type: OpenGL\n");
+        Salix::ApplicationConfig config;
+        config.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch3447 GUI None parses while absent numeric GUI fields remain caller supplied") {
+        Batch3447SettingsFiles files("Batch3447_Gui");
+        files.write_yaml("GUI:\n  type: None\n");
+        Salix::ApplicationConfig config;
+        config.gui_settings.dialog_width_ratio = 0.3447f;
+        config.gui_settings.font_scaling = 2.5f;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.gui_type == Salix::GuiType::None);
+        CHECK(config.gui_settings.dialog_width_ratio == doctest::Approx(0.3447f));
+        CHECK(config.gui_settings.font_scaling == doctest::Approx(2.5f));
+    }
+
+    TEST_CASE("batch3447 Chrono timer parses without changing unrelated renderer selection") {
+        Batch3447SettingsFiles files("Batch3447_Timer");
+        files.write_yaml("Timer:\n  type: Chrono\n");
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+    }
+
+    TEST_CASE("batch3447 save to missing parent directory fails without creating output") {
+        Batch3447SettingsFiles files("Batch3447_SaveMissingParent");
+        const auto missing = files.root / "missing" / "nested" / "settings.yaml";
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        CHECK_FALSE(manager.save_settings(missing.string(), config));
+        CHECK_FALSE(std::filesystem::exists(missing));
+        CHECK_FALSE(std::filesystem::exists(missing.parent_path()));
+    }
+
+    TEST_CASE("batch3447 save and load preserve whitespace colon and newline in window title") {
+        Batch3447SettingsFiles files("Batch3447_Title");
+        Salix::ApplicationConfig source;
+        source.window_config.title = "  Salix: Batch 3447\nSecond Line  ";
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.title == source.window_config.title);
+    }
+
+    TEST_CASE("batch3447 extensionless YAML path creates sibling cache with cache extension") {
+        Batch3447SettingsFiles files("Batch3447_Extensionless");
+        const auto extensionless = files.root / "settings3447";
+        const auto expected_cache = files.root / "settings3447.cache";
+        { std::ofstream out(extensionless); out << "Engine:\n  target_fps: 147\n"; }
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(extensionless.string(), config));
+        CHECK(config.target_fps == 147);
+        CHECK(std::filesystem::is_regular_file(expected_cache));
+    }
+}
+
