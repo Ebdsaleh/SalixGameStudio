@@ -399,3 +399,43 @@ TEST_SUITE("Salix::gui::ImGuiFontDataBatch2447") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiFontDataBatch3347") {
+    TEST_CASE("batch3347 default config converts canonical sampling booleans to ImGui") {
+        Salix::ImGuiFontData data; const auto cfg=data.config.to_imgui_font_config(); CHECK_FALSE(cfg.MergeMode); CHECK_FALSE(cfg.PixelSnapH); CHECK(cfg.PixelSnapV);
+    }
+    TEST_CASE("batch3347 custom sampling booleans convert exactly to ImGui") {
+        Salix::ImGuiFontData data; data.config.merge_mode=true; data.config.pixel_snap_h=true; data.config.pixel_snap_v=false; const auto cfg=data.config.to_imgui_font_config();
+        CHECK(cfg.MergeMode); CHECK(cfg.PixelSnapH); CHECK_FALSE(cfg.PixelSnapV);
+    }
+    TEST_CASE("batch3347 font index and oversampling channels convert exactly") {
+        Salix::ImGuiFontData data; data.config.font_no=3; data.config.oversample_h=4; data.config.oversample_v=2; const auto cfg=data.config.to_imgui_font_config();
+        CHECK(cfg.FontNo==3); CHECK(cfg.OversampleH==4); CHECK(cfg.OversampleV==2);
+    }
+    TEST_CASE("batch3347 configured pixel size converts independently from metadata size") {
+        Salix::ImGuiFontData data("Font3347","font3347.ttf",18.f); data.config.size_pixels=31.5f; const auto cfg=data.config.to_imgui_font_config();
+        CHECK(data.get_font_size()==doctest::Approx(18.f)); CHECK(cfg.SizePixels==doctest::Approx(31.5f));
+    }
+    TEST_CASE("batch3347 glyph range pointers convert without ownership changes") {
+        static const ImWchar ranges[]={0x20,0x7e,0}; static const ImWchar exclude[]={0x30,0x39,0}; Salix::ImGuiFontData data; data.config.glyph_ranges=ranges; data.config.glyph_exclude_ranges=exclude; const auto cfg=data.config.to_imgui_font_config();
+        CHECK(cfg.GlyphRanges==ranges); CHECK(cfg.GlyphExcludeRanges==exclude);
+    }
+    TEST_CASE("batch3347 glyph offset converts both signed coordinates") {
+        Salix::ImGuiFontData data; data.config.glyph_offset=ImVec2(-3.25f,7.5f); const auto cfg=data.config.to_imgui_font_config();
+        CHECK(cfg.GlyphOffset.x==doctest::Approx(-3.25f)); CHECK(cfg.GlyphOffset.y==doctest::Approx(7.5f));
+    }
+    TEST_CASE("batch3347 glyph advance bounds and extra advance convert exactly") {
+        Salix::ImGuiFontData data; data.config.glyph_min_advance_x=2.f; data.config.glyph_max_advance_x=19.f; data.config.glyph_extra_advance_x=1.25f; const auto cfg=data.config.to_imgui_font_config();
+        CHECK(cfg.GlyphMinAdvanceX==doctest::Approx(2.f)); CHECK(cfg.GlyphMaxAdvanceX==doctest::Approx(19.f)); CHECK(cfg.GlyphExtraAdvanceX==doctest::Approx(1.25f));
+    }
+    TEST_CASE("batch3347 loader flags and rasterizer controls convert exactly") {
+        Salix::ImGuiFontData data; data.config.font_loader_flags=0x3347u; data.config.rasterizer_multiply=1.5f; data.config.rasterizer_density=2.25f; const auto cfg=data.config.to_imgui_font_config();
+        CHECK(cfg.FontLoaderFlags==0x3347u); CHECK(cfg.RasterizerMultiply==doctest::Approx(1.5f)); CHECK(cfg.RasterizerDensity==doctest::Approx(2.25f));
+    }
+    TEST_CASE("batch3347 ellipsis codepoint converts exactly") {
+        Salix::ImGuiFontData data; data.config.ellipsis_char=static_cast<ImWchar>(0x2026); const auto cfg=data.config.to_imgui_font_config(); CHECK(cfg.EllipsisChar==static_cast<ImWchar>(0x2026));
+    }
+    TEST_CASE("batch3347 metadata size setter leaves explicitly configured rasterizer size unchanged") {
+        Salix::ImGuiFontData data("Font3347","font3347.ttf",20.f); data.config.size_pixels=42.f; data.set_font_size(12.f); const auto cfg=data.config.to_imgui_font_config();
+        CHECK(data.get_font_size()==doctest::Approx(12.f)); CHECK(cfg.SizePixels==doctest::Approx(42.f));
+    }
+}
