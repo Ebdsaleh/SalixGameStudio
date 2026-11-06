@@ -616,7 +616,7 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch3347") {
     }
     TEST_CASE("batch3347 Point handle replaces both integer coordinates") {
         Batch1147LiveElement e; auto p=batch1147_property("point",Salix::PropertyType::Point,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->point;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->point=*static_cast<Salix::Point*>(v);}); Salix::PropertyHandleLive h(p,&e);
-        const Salix::Point value(-33,47); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Point>(h.get_value())==value);
+        const Salix::Point value{-33,47}; h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Point>(h.get_value())==value);
     }
     TEST_CASE("batch3347 Color handle preserves alpha independently of RGB") {
         Batch1147LiveElement e; auto p=batch1147_property("color",Salix::PropertyType::Color,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->color;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->color=*static_cast<Salix::Color*>(v);}); Salix::PropertyHandleLive h(p,&e);
