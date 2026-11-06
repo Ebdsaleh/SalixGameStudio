@@ -8,6 +8,7 @@
 #include <Salix/math/Rect.h>
 #include <glm/glm.hpp>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <utility>
 
