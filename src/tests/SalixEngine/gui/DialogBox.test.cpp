@@ -289,3 +289,44 @@ TEST_SUITE("Salix::gui::DialogBoxBatch2447") {
     }
 }
 
+TEST_SUITE("Salix::gui::DialogBoxBatch3347") {
+    TEST_CASE("batch3347 parameterized file dialog preserves immutable identity through configuration") {
+        Salix::DialogBox dialog("file3347","Open 3347",Salix::DialogType::File,false); dialog.set_filters(".cpp").set_default_path("src").set_default_file_name("main.cpp");
+        CHECK(dialog.get_key()=="file3347"); CHECK(dialog.get_title()=="Open 3347"); CHECK(dialog.get_type()==Salix::DialogType::File);
+    }
+    TEST_CASE("batch3347 parameterized folder dialog preserves folder identity after filter assignment") {
+        Salix::DialogBox dialog("folder3347","Folder 3347",Salix::DialogType::Folder,false); dialog.set_filters("ignored-filter");
+        CHECK(dialog.get_type()==Salix::DialogType::Folder); CHECK(dialog.get_filters()=="ignored-filter"); CHECK(dialog.get_key()=="folder3347");
+    }
+    TEST_CASE("batch3347 default path setter keeps backing config synchronized after replacements") {
+        Salix::DialogBox dialog("k","t",Salix::DialogType::File,false); dialog.set_default_path("A").set_default_path("B/C");
+        CHECK(dialog.get_default_path()=="B/C"); CHECK(dialog.get_config().path=="B/C");
+    }
+    TEST_CASE("batch3347 filename setter keeps backing config synchronized after replacements") {
+        Salix::DialogBox dialog("k","t",Salix::DialogType::File,false); dialog.set_default_file_name("first.txt").set_default_file_name("second.txt");
+        CHECK(dialog.get_default_filename()=="second.txt"); CHECK(dialog.get_config().fileName=="second.txt");
+    }
+    TEST_CASE("batch3347 overwrite toggle changes only confirmation bit and preserves modal bit") {
+        Salix::DialogBox dialog("k","t",Salix::DialogType::File,false); REQUIRE((dialog.get_config().flags&ImGuiFileDialogFlags_Modal)!=0); dialog.set_overwrite(true);
+        CHECK((dialog.get_config().flags&ImGuiFileDialogFlags_Modal)!=0); CHECK((dialog.get_config().flags&ImGuiFileDialogFlags_ConfirmOverwrite)!=0); dialog.set_overwrite(false); CHECK((dialog.get_config().flags&ImGuiFileDialogFlags_Modal)!=0); CHECK((dialog.get_config().flags&ImGuiFileDialogFlags_ConfirmOverwrite)==0);
+    }
+    TEST_CASE("batch3347 overwrite toggling preserves configured path filename and selection count") {
+        Salix::DialogBox dialog("k","t",Salix::DialogType::File,false); dialog.set_default_path("Assets").set_default_file_name("save.realm"); dialog.get_config().countSelectionMax=7; dialog.set_overwrite(true); dialog.set_overwrite(false);
+        CHECK(dialog.get_config().path=="Assets"); CHECK(dialog.get_config().fileName=="save.realm"); CHECK(dialog.get_config().countSelectionMax==7);
+    }
+    TEST_CASE("batch3347 callback assignment stores callable without invoking it") {
+        Salix::DialogBox dialog("k","t",Salix::DialogType::File,false); int calls=0; dialog.set_callback([&](const Salix::FileDialogResult&){++calls;});
+        CHECK(static_cast<bool>(dialog.get_callback())); CHECK(calls==0);
+    }
+    TEST_CASE("batch3347 callback clearing restores empty callable state") {
+        Salix::DialogBox dialog("k","t",Salix::DialogType::File,false); dialog.set_callback([](const Salix::FileDialogResult&){}); REQUIRE(static_cast<bool>(dialog.get_callback())); dialog.set_callback(nullptr); CHECK_FALSE(static_cast<bool>(dialog.get_callback()));
+    }
+    TEST_CASE("batch3347 fluent setters dispatched through IDialog return same concrete instance") {
+        Salix::DialogBox dialog("k","t",Salix::DialogType::File,false); Salix::IDialog& base=dialog;
+        CHECK(&base.set_filters(".yaml")==&dialog); CHECK(&base.set_default_path("Themes")==&dialog); CHECK(&base.set_default_file_name("dark.yaml")==&dialog); CHECK(&base.set_overwrite(true)==&dialog);
+    }
+    TEST_CASE("batch3347 separate dialogs keep all mutable configuration isolated") {
+        Salix::DialogBox a("a","A",Salix::DialogType::File,false),b("b","B",Salix::DialogType::Folder,true); a.set_filters(".png").set_default_path("APath"); b.set_filters(".realm").set_default_path("BPath");
+        CHECK(a.get_filters()==".png"); CHECK(b.get_filters()==".realm"); CHECK(a.get_config().path=="APath"); CHECK(b.get_config().path=="BPath"); CHECK((a.get_config().flags&ImGuiFileDialogFlags_ConfirmOverwrite)==0); CHECK((b.get_config().flags&ImGuiFileDialogFlags_ConfirmOverwrite)!=0);
+    }
+}
