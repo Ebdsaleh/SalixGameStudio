@@ -714,3 +714,44 @@ TEST_SUITE("Salix::ecs::RealmBatch2947") {
     }
 }
 
+TEST_SUITE("Salix::ecs::RealmBatch3347") {
+    TEST_CASE("batch3347 entity creation never mutates realm metadata") {
+        Salix::Realm realm("Realm3347","Scenes/Realm3347.realm"); realm.create_entity("One"); realm.create_entity("Two");
+        CHECK(realm.get_name()=="Realm3347"); CHECK(realm.get_path()=="Scenes/Realm3347.realm"); CHECK(realm.get_entities().size()==2);
+    }
+    TEST_CASE("batch3347 duplicate entity names remain independently owned while name lookup returns first") {
+        Salix::Realm realm; auto* first=realm.create_entity("Duplicate3347"); auto* second=realm.create_entity("Duplicate3347");
+        REQUIRE(first); REQUIRE(second); CHECK(first!=second); CHECK(realm.get_entity_by_name("Duplicate3347")==first); CHECK(realm.get_entities().size()==2);
+    }
+    TEST_CASE("batch3347 entity snapshot preserves insertion order across three creations") {
+        Salix::Realm realm; auto* a=realm.create_entity("A3347"); auto* b=realm.create_entity("B3347"); auto* c=realm.create_entity("C3347"); const auto entities=realm.get_entities();
+        REQUIRE(entities.size()==3); CHECK(entities[0]==a); CHECK(entities[1]==b); CHECK(entities[2]==c);
+    }
+    TEST_CASE("batch3347 explicit high identifier roundtrips through realm lookup") {
+        Salix::Realm realm; const auto id=Salix::SimpleGuid::from_value((std::uint64_t{1}<<48)+3347ULL); auto* entity=realm.create_entity(id,"HighId3347");
+        REQUIRE(entity); CHECK(entity->get_id()==id); CHECK(realm.get_entity_by_id(id)==entity);
+    }
+    TEST_CASE("batch3347 clear all entities is repeatably idempotent after populated realm") {
+        Salix::Realm realm; realm.create_entity("A"); realm.create_entity("B"); realm.clear_all_entities(); realm.clear_all_entities();
+        CHECK(realm.get_entities().empty()); CHECK(realm.get_active_camera()==nullptr); CHECK_FALSE(realm.get_main_camera_entity_id().is_valid());
+    }
+    TEST_CASE("batch3347 maintain removes alternating purged entities and retains survivors in order") {
+        Salix::Realm realm; auto* a=realm.create_entity("A"); auto* b=realm.create_entity("B"); auto* c=realm.create_entity("C"); auto* d=realm.create_entity("D"); auto* e=realm.create_entity("E");
+        b->simple_purge(); d->simple_purge(); realm.maintain(); const auto entities=realm.get_entities(); REQUIRE(entities.size()==3); CHECK(entities[0]==a); CHECK(entities[1]==c); CHECK(entities[2]==e);
+    }
+    TEST_CASE("batch3347 direct main camera identifier is metadata until camera selection resolves it") {
+        Salix::Realm realm; const auto id=Salix::SimpleGuid::from_value(33470077ULL); realm.set_main_camera_entity(id);
+        CHECK(realm.get_main_camera_entity_id()==id); CHECK(realm.get_active_camera()==nullptr);
+    }
+    TEST_CASE("batch3347 selecting camera entity activates camera and records identifier") {
+        Salix::Realm realm; auto* entity=realm.create_entity("Camera3347"); REQUIRE(entity); auto* camera=entity->add_element<Salix::Camera>(); REQUIRE(camera);
+        realm.set_active_camera_entity(entity->get_id()); CHECK(realm.get_active_camera()==camera); CHECK(camera->get_is_active()); CHECK(realm.get_main_camera_entity_id()==entity->get_id());
+    }
+    TEST_CASE("batch3347 selecting invalid identifier deactivates previous camera and clears active pointer") {
+        Salix::Realm realm; auto* entity=realm.create_entity("Camera3347"); auto* camera=entity->add_element<Salix::Camera>(); REQUIRE(camera); realm.set_active_camera_entity(entity->get_id()); REQUIRE(camera->get_is_active());
+        realm.set_active_camera_entity(Salix::SimpleGuid::invalid()); CHECK_FALSE(camera->get_is_active()); CHECK(realm.get_active_camera()==nullptr); CHECK_FALSE(realm.get_main_camera_entity_id().is_valid());
+    }
+    TEST_CASE("batch3347 direct null active camera assignment preserves an existing direct camera pointer") {
+        Salix::Realm realm; Salix::Camera camera; realm.set_active_camera(&camera); REQUIRE(realm.get_active_camera()==&camera); realm.set_active_camera(nullptr); CHECK(realm.get_active_camera()==&camera);
+    }
+}
