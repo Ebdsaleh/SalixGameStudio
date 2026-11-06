@@ -2,6 +2,7 @@
 #include <Salix/reflection/PropertyHandleYaml.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <cstdint>
+#include <limits>
 #include <string>
 #include <typeindex>
 #include <utility>
