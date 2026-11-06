@@ -443,3 +443,120 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch3047") {
             std::out_of_range);
     }
 }
+namespace {
+struct Batch3447EnumA {};
+struct Batch3447EnumB {};
+struct Batch3447EnumC {};
+struct Batch3447EnumD {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch3447") {
+    TEST_CASE("batch3447 embedded null display string roundtrips through reverse lookup") {
+        const std::string label("Enum\0Label", 10);
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[3447] = label;
+        Salix::EnumRegistry::register_enum(typeid(Batch3447EnumA), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3447EnumA));
+        CHECK(stored.get_name(3447) == label);
+        CHECK(stored.get_value(label) == 3447);
+    }
+
+    TEST_CASE("batch3447 case distinct display strings map to independent numeric values") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[1] = "Mode3447";
+        data.value_to_string[2] = "mode3447";
+        Salix::EnumRegistry::register_enum(typeid(Batch3447EnumB), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3447EnumB));
+        CHECK(stored.get_value("Mode3447") == 1);
+        CHECK(stored.get_value("mode3447") == 2);
+    }
+
+    TEST_CASE("batch3447 replacing custom registration with empty data removes old maps and ordered names") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[7] = "Seven3447";
+        first.ordered_names = {"Seven3447"};
+        Salix::EnumRegistry::register_enum(typeid(Batch3447EnumC), std::move(first));
+        Salix::EnumRegistry::EnumData empty;
+        Salix::EnumRegistry::register_enum(typeid(Batch3447EnumC), std::move(empty));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3447EnumC));
+        CHECK(stored.get_name(7) == "Unknown");
+        CHECK(stored.get_value("Seven3447") == -1);
+        CHECK(stored.get_names().empty());
+    }
+
+    TEST_CASE("batch3447 canonical registration restores ProjectionMode after custom replacement") {
+        Salix::EnumRegistry::EnumData replacement;
+        replacement.value_to_string[3447] = "Temporary3447";
+        replacement.ordered_names = {"Temporary3447"};
+        Salix::EnumRegistry::register_enum(typeid(Salix::ProjectionMode), std::move(replacement));
+        Salix::EnumRegistry::register_all_enums();
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        CHECK(stored.get_value("Perspective") == static_cast<int>(Salix::ProjectionMode::Perspective));
+        CHECK(stored.get_value("Orthographic") == static_cast<int>(Salix::ProjectionMode::Orthographic));
+        CHECK(stored.get_value("Temporary3447") == -1);
+    }
+
+    TEST_CASE("batch3447 canonical registration restores EditorDataMode after custom replacement") {
+        Salix::EnumRegistry::EnumData replacement;
+        replacement.value_to_string[3447] = "Temporary3447";
+        replacement.ordered_names = {"Temporary3447"};
+        Salix::EnumRegistry::register_enum(typeid(Salix::EditorDataMode), std::move(replacement));
+        Salix::EnumRegistry::register_all_enums();
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode));
+        CHECK(stored.get_value("Live") == static_cast<int>(Salix::EditorDataMode::Live));
+        CHECK(stored.get_value("Yaml") == static_cast<int>(Salix::EditorDataMode::Yaml));
+        CHECK(stored.get_value("Temporary3447") == -1);
+    }
+
+    TEST_CASE("batch3447 unrelated custom registration survives repeated canonical registration") {
+        Salix::EnumRegistry::EnumData custom;
+        custom.value_to_string[-3447] = "Custom3447";
+        Salix::EnumRegistry::register_enum(typeid(Batch3447EnumD), std::move(custom));
+        Salix::EnumRegistry::register_all_enums();
+        Salix::EnumRegistry::register_all_enums();
+        const auto* stored = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3447EnumD));
+        REQUIRE(stored != nullptr);
+        CHECK(stored->get_name(-3447) == "Custom3447");
+    }
+
+    TEST_CASE("batch3447 repeated get names calls expose the same stored vector reference") {
+        Salix::EnumRegistry::EnumData data;
+        data.ordered_names = {"A3447", "B3447"};
+        Salix::EnumRegistry::register_enum(typeid(Batch3447EnumA), std::move(data));
+        const auto& first = Salix::EnumRegistry::get_enum_data(typeid(Batch3447EnumA)).get_names();
+        const auto& second = Salix::EnumRegistry::get_enum_data(typeid(Batch3447EnumA)).get_names();
+        CHECK(&first == &second);
+        REQUIRE(first.size() == 2);
+    }
+
+    TEST_CASE("batch3447 mapped values remain retrievable when omitted from ordered UI names") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[10] = "Visible3447";
+        data.value_to_string[20] = "Hidden3447";
+        data.ordered_names = {"Visible3447"};
+        Salix::EnumRegistry::register_enum(typeid(Batch3447EnumB), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3447EnumB));
+        CHECK(stored.get_value("Hidden3447") == 20);
+        CHECK(stored.get_name(20) == "Hidden3447");
+        REQUIRE(stored.get_names().size() == 1);
+    }
+
+    TEST_CASE("batch3447 ProjectionMode registry object address survives canonical refresh") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto* before = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Salix::ProjectionMode));
+        REQUIRE(before != nullptr);
+        Salix::EnumRegistry::register_all_enums();
+        const auto* after = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Salix::ProjectionMode));
+        CHECK(after == before);
+    }
+
+    TEST_CASE("batch3447 EditorDataMode registry object address survives canonical refresh") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto* before = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Salix::EditorDataMode));
+        REQUIRE(before != nullptr);
+        Salix::EnumRegistry::register_all_enums();
+        const auto* after = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Salix::EditorDataMode));
+        CHECK(after == before);
+    }
+}
+
