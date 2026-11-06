@@ -851,3 +851,43 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch2947") {
     }
 }
 
+TEST_SUITE("Salix::ecs::Sprite2DBatch3347") {
+    TEST_CASE("batch3347 mutable scalar references write directly into sprite state") {
+        Salix::Sprite2D sprite; sprite.get_use_entity_rotation()=true; sprite.get_local_rotation()=33.47f; sprite.get_flip_h()=true; sprite.get_flip_v()=true; sprite.get_sorting_layer()=-3347;
+        CHECK(sprite.get_use_entity_rotation()); CHECK(sprite.get_local_rotation()==doctest::Approx(33.47f)); CHECK(sprite.get_flip_h()); CHECK(sprite.get_flip_v()); CHECK(sprite.get_sorting_layer()==-3347);
+    }
+    TEST_CASE("batch3347 mutable structured references write directly into sprite state") {
+        Salix::Sprite2D sprite; sprite.get_color()=Salix::Color(.1f,.2f,.3f,.4f); sprite.get_offset()=Salix::Vector2(-3.f,4.f); sprite.get_pivot()=Salix::Vector2(.25f,.75f);
+        CHECK(sprite.get_color()==Salix::Color(.1f,.2f,.3f,.4f)); CHECK(sprite.get_offset()==Salix::Vector2(-3.f,4.f)); CHECK(sprite.get_pivot()==Salix::Vector2(.25f,.75f));
+    }
+    TEST_CASE("batch3347 const getters observe all latest public property mutations") {
+        Salix::Sprite2D sprite; sprite.set_use_entity_rotation(true); sprite.set_local_rotation(-90.f); sprite.set_flip_h(true); sprite.set_sorting_layer(42); const Salix::Sprite2D& view=sprite;
+        CHECK(view.get_use_entity_rotation()); CHECK(view.get_local_rotation()==doctest::Approx(-90.f)); CHECK(view.get_flip_h()); CHECK(view.get_sorting_layer()==42);
+    }
+    TEST_CASE("batch3347 texture path metadata alone never creates runtime texture state") {
+        Salix::Sprite2D sprite; sprite.set_texture_path("art/metadata3347.png"); CHECK(sprite.get_texture_path()=="art/metadata3347.png"); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0);
+    }
+    TEST_CASE("batch3347 successful direct load stores path texture and mock dimensions") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/success3347.png");
+        REQUIRE(sprite.get_texture()!=nullptr); CHECK(sprite.get_texture_path()=="art/success3347.png"); CHECK(sprite.get_texture_width()==16); CHECK(sprite.get_texture_height()==16);
+    }
+    TEST_CASE("batch3347 lexical aliases reuse the same runtime texture through asset cache") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/ui/icon3347.png"); auto* first=sprite.get_texture(); REQUIRE(first);
+        sprite.load_texture(&assets,"art/ui/./icon3347.png"); CHECK(sprite.get_texture()==first); CHECK(sprite.get_texture_width()==16); CHECK(sprite.get_texture_height()==16);
+    }
+    TEST_CASE("batch3347 empty direct load clears runtime resource but preserves prior portable path") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/prior3347.png"); REQUIRE(sprite.get_texture()!=nullptr);
+        sprite.load_texture(&assets,""); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0); CHECK(sprite.get_texture_path()=="art/prior3347.png");
+    }
+    TEST_CASE("batch3347 empty on load is safe with completely empty initialization context") {
+        Salix::Sprite2D sprite; Salix::InitContext context{}; CHECK_NOTHROW(sprite.on_load(context)); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_path().empty());
+    }
+    TEST_CASE("batch3347 configured path on load resolves through supplied asset manager") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::InitContext context{}; context.asset_manager=&assets; Salix::Sprite2D sprite; sprite.set_texture_path("art/onload3347.png");
+        sprite.on_load(context); REQUIRE(sprite.get_texture()!=nullptr); CHECK(sprite.get_texture_width()==16); CHECK(sprite.get_texture_height()==16); CHECK(sprite.get_texture_path()=="art/onload3347.png");
+    }
+    TEST_CASE("batch3347 failed replacement records attempted path while clearing runtime dimensions") {
+        MockIRenderer renderer; Salix::AssetManager assets; assets.initialize(&renderer); Salix::Sprite2D sprite; sprite.load_texture(&assets,"art/good3347.png"); REQUIRE(sprite.get_texture()!=nullptr);
+        renderer.should_texture_load_fail=true; sprite.load_texture(&assets,"art/missing3347.png"); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0); CHECK(sprite.get_texture_path()=="art/missing3347.png");
+    }
+}
