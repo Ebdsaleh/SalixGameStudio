@@ -134,6 +134,9 @@ namespace Salix {
             if (texture) {
                 pimpl->icon_registry[type_name].texture_id = texture->get_imgui_texture_id();
                 pimpl->icon_registry[type_name].path = new_path;
+                if (type_name == "Default") {
+                    pimpl->default_icon = pimpl->icon_registry[type_name];
+                }
             } else {
                 std::cerr << "ImGuiIconManager::update_icon - Failed to update icon, texture is nullptr!" <<
                 std::endl;
