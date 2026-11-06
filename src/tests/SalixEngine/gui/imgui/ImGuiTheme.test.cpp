@@ -433,3 +433,44 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch2447") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeBatch3347") {
+    TEST_CASE("batch3347 default theme public identity follows loaded YAML name") {
+        Batch1147ThemeTempFile file; file.write("name: Loaded3347\ngui_type: ImGui\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_name()=="Loaded3347"); CHECK(theme.get_data()->name=="Loaded3347");
+    }
+    TEST_CASE("batch3347 explicitly named theme keeps registry identity while data accepts YAML name") {
+        Batch1147ThemeTempFile file; file.write("name: Data3347\ngui_type: ImGui\n"); Salix::ImGuiTheme theme("Registry3347"); REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_name()=="Registry3347"); CHECK(theme.get_data()->name=="Data3347");
+    }
+    TEST_CASE("batch3347 YAML GUI type replaces only data GUI identity") {
+        Batch1147ThemeTempFile file; file.write("name: Theme3347\ngui_type: Custom3347\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->gui_type=="Custom3347"); CHECK(theme.get_name()=="Theme3347");
+    }
+    TEST_CASE("batch3347 Icons section replaces existing icon map completely") {
+        Batch1147ThemeTempFile file; file.write("name: Icons3347\nIcons:\n  Play: play3347.png\n  Stop: stop3347.png\n"); Salix::ImGuiTheme theme; theme.get_data()->icon_paths["Old"]="old.png"; REQUIRE(theme.load_from_yaml(file.path.string()));
+        REQUIRE(theme.get_data()->icon_paths.size()==2); CHECK(theme.get_data()->icon_paths.at("Play")=="play3347.png"); CHECK(theme.get_data()->icon_paths.at("Stop")=="stop3347.png"); CHECK(theme.get_data()->icon_paths.count("Old")==0);
+    }
+    TEST_CASE("batch3347 omitted Icons section preserves existing icon map") {
+        Batch1147ThemeTempFile file; file.write("name: NoIcons3347\nStyleFloats:\n  alpha: 0.75\n"); Salix::ImGuiTheme theme; theme.get_data()->icon_paths["Keep"]="keep3347.png"; REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->icon_paths.size()==1); CHECK(theme.get_data()->icon_paths.at("Keep")=="keep3347.png");
+    }
+    TEST_CASE("batch3347 StyleBools section updates all antialiasing switches independently") {
+        Batch1147ThemeTempFile file; file.write("name: Bools3347\nStyleBools:\n  anti_aliased_lines: false\n  anti_aliased_lines_use_tex: false\n  anti_aliased_fill: true\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK_FALSE(theme.get_data()->anti_aliased_lines); CHECK_FALSE(theme.get_data()->anti_aliased_lines_use_tex); CHECK(theme.get_data()->anti_aliased_fill);
+    }
+    TEST_CASE("batch3347 StyleFloats section updates independent metrics in one load") {
+        Batch1147ThemeTempFile file; file.write("name: Floats3347\nStyleFloats:\n  alpha: 0.3347\n  window_rounding: 7.5\n  scrollbar_size: 19.25\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->alpha==doctest::Approx(0.3347f)); CHECK(theme.get_data()->window_rounding==doctest::Approx(7.5f)); CHECK(theme.get_data()->scrollbar_size==doctest::Approx(19.25f));
+    }
+    TEST_CASE("batch3347 StyleVectors section updates independent vectors in one load") {
+        Batch1147ThemeTempFile file; file.write("name: Vectors3347\nStyleVectors:\n  window_padding: {x: 3.0, y: 4.0}\n  item_spacing: {x: 5.0, y: 6.0}\n  button_text_align: {x: 0.25, y: 0.75}\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->window_padding==Salix::Vector2(3.f,4.f)); CHECK(theme.get_data()->item_spacing==Salix::Vector2(5.f,6.f)); CHECK(theme.get_data()->button_text_align==Salix::Vector2(.25f,.75f));
+    }
+    TEST_CASE("batch3347 direction enums load left and right independently") {
+        Batch1147ThemeTempFile file; file.write("name: Enums3347\nEnums:\n  window_menu_button_position: ImGuiDir_Right\n  color_button_position: ImGuiDir_Left\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->window_menu_button_position==ImGuiDir_Right); CHECK(theme.get_data()->color_button_position==ImGuiDir_Left);
+    }
+    TEST_CASE("batch3347 successful load records exact source file path") {
+        Batch1147ThemeTempFile file; file.write("name: Path3347\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string())); CHECK(theme.get_file_path()==file.path.string());
+    }
+}
