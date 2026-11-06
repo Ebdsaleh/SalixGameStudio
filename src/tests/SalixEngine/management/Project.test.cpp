@@ -458,3 +458,39 @@ TEST_SUITE("Salix::management::ProjectBatch2947") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectBatch3347") {
+    TEST_CASE("batch3347 custom project preserves exact name root and derived filenames together") {
+        Salix::Project project("My Project #3347","D:/Projects/My Project #3347"); CHECK(project.get_name()=="My Project #3347"); CHECK(project.get_path()=="D:/Projects/My Project #3347"); CHECK(project.get_project_file_name()=="My Project #3347.salixproj"); CHECK(project.get_game_dll_name()=="My Project #3347.dll");
+    }
+    TEST_CASE("batch3347 adding same realm key repeatedly leaves one latest mapping") {
+        Salix::Project project; project.add_realm_path("World3347","one.realm"); project.add_realm_path("World3347","two.realm"); project.add_realm_path("World3347","three.realm");
+        REQUIRE(project.get_realm_paths().size()==1); CHECK(project.get_realm_paths().at("World3347")=="three.realm");
+    }
+    TEST_CASE("batch3347 case distinct realm keys coexist independently") {
+        Salix::Project project; project.add_realm_path("World","upper.realm"); project.add_realm_path("world","lower.realm"); REQUIRE(project.get_realm_paths().size()==2); CHECK(project.get_realm_paths().at("World")=="upper.realm"); CHECK(project.get_realm_paths().at("world")=="lower.realm");
+    }
+    TEST_CASE("batch3347 path removal remains exact and case sensitive") {
+        Salix::Project project; project.add_realm_path("Realm3347","Scenes/Realm3347.realm"); CHECK_FALSE(project.remove_realm_path("scenes/realm3347.realm")); REQUIRE(project.get_realm_paths().size()==1); CHECK(project.remove_realm_path("Scenes/Realm3347.realm")); CHECK(project.get_realm_paths().empty());
+    }
+    TEST_CASE("batch3347 shared path removals consume one mapping per successful call") {
+        Salix::Project project; project.add_realm_path("A","shared3347.realm"); project.add_realm_path("B","shared3347.realm"); project.add_realm_path("C","shared3347.realm");
+        CHECK(project.remove_realm_path("shared3347.realm")); CHECK(project.get_realm_paths().size()==2); CHECK(project.remove_realm_path("shared3347.realm")); CHECK(project.get_realm_paths().size()==1); CHECK(project.remove_realm_path("shared3347.realm")); CHECK(project.get_realm_paths().empty()); CHECK_FALSE(project.remove_realm_path("shared3347.realm"));
+    }
+    TEST_CASE("batch3347 starting realm accepts whitespace exactly without touching mappings") {
+        Salix::Project project; project.add_realm_path("Keep","keep.realm"); project.set_starting_realm("  Realm 3347  "); CHECK(project.get_starting_realm()=="  Realm 3347  "); CHECK(project.get_realm_paths().size()==1);
+    }
+    TEST_CASE("batch3347 preinitialization lifecycle sequence leaves persistent metadata untouched") {
+        Salix::Project project("Stable3347","Root3347"); project.add_realm_path("Realm","realm3347.realm"); project.set_starting_realm("Realm");
+        project.update(-1.f); project.render(nullptr); project.shutdown(); CHECK(project.get_name()=="Stable3347"); CHECK(project.get_path()=="Root3347"); CHECK(project.get_starting_realm()=="Realm"); CHECK(project.get_realm_paths().size()==1); CHECK(project.get_realm_manager()==nullptr);
+    }
+    TEST_CASE("batch3347 default realm creation before initialization remains harmless with empty metadata") {
+        Salix::Project project; CHECK_NOTHROW(project.create_and_save_default_realm()); CHECK(project.get_realm_manager()==nullptr); CHECK(project.get_realm_paths().empty()); CHECK(project.get_starting_realm().empty());
+    }
+    TEST_CASE("batch3347 metadata getter references remain attached to project storage") {
+        Salix::Project project("Ref3347","Root3347"); const std::string* name=&project.get_name(); const std::string* root=&project.get_path(); const std::string* version=&project.get_engine_version();
+        project.add_realm_path("A","a.realm"); project.set_starting_realm("A"); CHECK(&project.get_name()==name); CHECK(&project.get_path()==root); CHECK(&project.get_engine_version()==version); CHECK(*name=="Ref3347"); CHECK(*root=="Root3347");
+    }
+    TEST_CASE("batch3347 realm map reference remains stable while entries are inserted and removed") {
+        Salix::Project project; const auto* map=&project.get_realm_paths(); project.add_realm_path("A","a3347.realm"); project.add_realm_path("B","b3347.realm"); REQUIRE(&project.get_realm_paths()==map); CHECK(map->size()==2); CHECK(project.remove_realm_path("a3347.realm")); CHECK(&project.get_realm_paths()==map); CHECK(map->size()==1);
+    }
+}
