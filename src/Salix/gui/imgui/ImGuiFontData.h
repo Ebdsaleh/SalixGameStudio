@@ -67,7 +67,7 @@ namespace Salix {
 
             IMGUI_API ImFontConfig();
         };*/
-        struct Config {
+        struct SALIX_API Config {
             bool            merge_mode;             // false    // Merge into previous ImFont, so you can combine multiple inputs font into one ImFont (e.g. ASCII font + icons + Japanese glyphs). You may want to use GlyphOffset.y when merge font of different heights.
             bool            pixel_snap_h;             // false    // Align every glyph AdvanceX to pixel boundaries. Useful e.g. if you are merging a non-pixel aligned font with the default font. If enabled, you can set OversampleH/V to 1.
             bool            pixel_snap_v;             // true     // Align Scaled GlyphOffset.y to pixel boundaries.
