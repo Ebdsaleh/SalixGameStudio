@@ -588,3 +588,45 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch2947") {
     }
 }
 
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch3347") {
+    TEST_CASE("batch3347 repeated integer writes always expose latest live value") {
+        Batch1147LiveElement e; auto p=batch1147_property("integer",Salix::PropertyType::Int,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->integer;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->integer=*static_cast<int*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        h.set_value(Salix::PropertyValue{1}); h.set_value(Salix::PropertyValue{-3347}); CHECK(e.integer==-3347); CHECK(std::get<int>(h.get_value())==-3347);
+    }
+    TEST_CASE("batch3347 uint64 handle preserves maximum value") {
+        Batch1147LiveElement e; auto p=batch1147_property("identifier",Salix::PropertyType::UInt64,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->identifier;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->identifier=*static_cast<std::uint64_t*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        const std::uint64_t value=(std::numeric_limits<std::uint64_t>::max)(); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<std::uint64_t>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 float handle preserves negative fractional value") {
+        Batch1147LiveElement e; auto p=batch1147_property("scalar",Salix::PropertyType::Float,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->scalar;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->scalar=*static_cast<float*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        h.set_value(Salix::PropertyValue{-33.47f}); CHECK(e.scalar==doctest::Approx(-33.47f)); CHECK(std::get<float>(h.get_value())==doctest::Approx(-33.47f));
+    }
+    TEST_CASE("batch3347 string handle preserves embedded null bytes") {
+        Batch1147LiveElement e; auto p=batch1147_property("text",Salix::PropertyType::String,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->text;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->text=*static_cast<std::string*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        const std::string value("A\0B3347",7); h.set_value(Salix::PropertyValue{value}); CHECK(e.text==value); CHECK(std::get<std::string>(h.get_value()).size()==value.size());
+    }
+    TEST_CASE("batch3347 Vector2 handle preserves signed fractional coordinates") {
+        Batch1147LiveElement e; auto p=batch1147_property("vector2",Salix::PropertyType::Vector2,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->vector2;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->vector2=*static_cast<Salix::Vector2*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        const Salix::Vector2 value(-3.347f,99.25f); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Vector2>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 Vector3 handle preserves all independently signed coordinates") {
+        Batch1147LiveElement e; auto p=batch1147_property("vector3",Salix::PropertyType::Vector3,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->vector3;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->vector3=*static_cast<Salix::Vector3*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        const Salix::Vector3 value(-1.f,2.5f,-3.75f); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Vector3>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 Point handle replaces both integer coordinates") {
+        Batch1147LiveElement e; auto p=batch1147_property("point",Salix::PropertyType::Point,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->point;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->point=*static_cast<Salix::Point*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        const Salix::Point value(-33,47); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Point>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 Color handle preserves alpha independently of RGB") {
+        Batch1147LiveElement e; auto p=batch1147_property("color",Salix::PropertyType::Color,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->color;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->color=*static_cast<Salix::Color*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        const Salix::Color value(.9f,.1f,.4f,.3347f); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Color>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 Rect handle preserves all four integer channels") {
+        Batch1147LiveElement e; auto p=batch1147_property("rect",Salix::PropertyType::Rect,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->rect;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->rect=*static_cast<Salix::Rect*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        const Salix::Rect value(-3,4,33,47); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Rect>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 matrix handle reads latest live storage mutation while remaining write protected") {
+        Batch1147LiveElement e; auto p=batch1147_property("matrix",Salix::PropertyType::GlmMat4,[](void* i){return &static_cast<Batch1147LiveElement*>(i)->matrix;},[](void* i,void* v){static_cast<Batch1147LiveElement*>(i)->matrix=*static_cast<glm::mat4*>(v);}); Salix::PropertyHandleLive h(p,&e);
+        e.matrix[0][0]=3.347f; CHECK(std::get<glm::mat4>(h.get_value())[0][0]==doctest::Approx(3.347f)); h.set_value(Salix::PropertyValue{glm::mat4(9.f)}); CHECK(e.matrix[0][0]==doctest::Approx(3.347f));
+    }
+}
