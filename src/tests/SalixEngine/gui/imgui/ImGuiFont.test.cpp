@@ -273,4 +273,111 @@ TEST_SUITE("Salix::gui::ImGuiFontBatch2547") {
         Salix::ImGuiFont font; CHECK(font.get_family()=="undefined"); font.set_family(""); CHECK(font.get_family().empty()); CHECK(font.get_name()=="Default Font");
     }
 }
+TEST_SUITE("Salix::gui::ImGuiFontBatch3447") {
+    TEST_CASE("batch3447 owned data pointer remains stable across family mutations") {
+        Salix::ImGuiFont font("stable.ttf", "Stable", 14.f);
+        auto* data = font.get_data();
+        REQUIRE(data != nullptr);
+        font.set_family("First3447");
+        font.set_family("Second3447");
+        CHECK(font.get_data() == data);
+        CHECK(font.get_family() == "Second3447");
+    }
+
+    TEST_CASE("batch3447 clearing runtime font pointer preserves metadata and family") {
+        Salix::ImGuiFont font("runtime.ttf", "Runtime", 17.f);
+        font.set_family("RuntimeFamily3447");
+        ImFont* fake = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x3447));
+        font.set_imgui_font_ptr(fake);
+        REQUIRE(font.get_imgui_font_ptr() == fake);
+        font.set_imgui_font_ptr(nullptr);
+        CHECK(font.get_imgui_font_ptr() == nullptr);
+        CHECK(font.get_name() == "Runtime");
+        CHECK(font.get_family() == "RuntimeFamily3447");
+    }
+
+    TEST_CASE("batch3447 compatible data replacement installs a distinct owned allocation") {
+        Salix::ImGuiFont font("old.ttf", "Old", 10.f);
+        auto* before = font.get_data();
+        Salix::ImGuiFontData replacement("New3447", "new3447.ttf", 22.f);
+        font.set_data(&replacement);
+        REQUIRE(font.get_data() != nullptr);
+        CHECK(font.get_data() != before);
+        CHECK(font.get_name() == "New3447");
+    }
+
+    TEST_CASE("batch3447 replacing data from its own current snapshot is safe and value preserving") {
+        Salix::ImGuiFont font("self.ttf", "Self3447", 19.f);
+        auto* before = font.get_data();
+        REQUIRE(before != nullptr);
+        font.set_data(before);
+        REQUIRE(font.get_data() != nullptr);
+        CHECK(font.get_data() != before);
+        CHECK(font.get_name() == "Self3447");
+        CHECK(font.get_data()->get_file_path() == "self.ttf");
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(19.f));
+    }
+
+    TEST_CASE("batch3447 compatible replacement copies glyph offset configuration by value") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData replacement("Offset3447", "offset3447.ttf", 20.f);
+        replacement.config.glyph_offset = ImVec2(-4.5f, 6.25f);
+        font.set_data(&replacement);
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.glyph_offset.x == doctest::Approx(-4.5f));
+        CHECK(stored->config.glyph_offset.y == doctest::Approx(6.25f));
+    }
+
+    TEST_CASE("batch3447 compatible replacement preserves configured glyph range pointer identity") {
+        static const ImWchar ranges[] = {0x20, 0x7e, 0};
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData replacement("Ranges3447", "ranges3447.ttf", 16.f);
+        replacement.config.glyph_ranges = ranges;
+        font.set_data(&replacement);
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.glyph_ranges == ranges);
+    }
+
+    TEST_CASE("batch3447 IFont interface dispatch replaces compatible concrete data") {
+        Salix::ImGuiFont concrete;
+        Salix::IFont& base = concrete;
+        Salix::ImGuiFontData replacement("Base3447", "base3447.ttf", 23.f);
+        base.set_data(&replacement);
+        CHECK(base.get_name() == "Base3447");
+        REQUIRE(base.get_data() != nullptr);
+        CHECK(base.get_data()->get_file_path() == "base3447.ttf");
+    }
+
+    TEST_CASE("batch3447 family storage preserves case whitespace and punctuation exactly") {
+        Salix::ImGuiFont font;
+        const std::string family = "  Mono-Case_3447  ";
+        font.set_family(family);
+        CHECK(font.get_family() == family);
+        CHECK(font.get_family().size() == family.size());
+    }
+
+    TEST_CASE("batch3447 constructor preserves embedded null bytes in owned name and path strings") {
+        const std::string path("font\0path.ttf", 13);
+        const std::string name("Name\0Alt", 8);
+        Salix::ImGuiFont font(path, name, 11.f);
+        CHECK(font.get_name() == name);
+        REQUIRE(font.get_data() != nullptr);
+        CHECK(font.get_data()->get_file_path() == path);
+    }
+
+    TEST_CASE("batch3447 mutating owned font size through interface leaves family and runtime pointer intact") {
+        Salix::ImGuiFont font("mutable.ttf", "Mutable3447", 12.f);
+        font.set_family("Family3447");
+        ImFont* fake = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x34470));
+        font.set_imgui_font_ptr(fake);
+        Salix::IFontData* data = font.get_data();
+        REQUIRE(data != nullptr);
+        data->set_font_size(31.25f);
+        CHECK(data->get_font_size() == doctest::Approx(31.25f));
+        CHECK(font.get_family() == "Family3447");
+        CHECK(font.get_imgui_font_ptr() == fake);
+    }
+}
 
