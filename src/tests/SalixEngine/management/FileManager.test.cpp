@@ -777,7 +777,7 @@ TEST_SUITE("Salix::management::FileManagerBatch3447") {
     TEST_CASE("batch3447 copying binary payload to new destination preserves embedded bytes") {
         FileManagerOwnedTemp20261019 temp;
         REQUIRE(temp.owned);
-        const std::string payload("\0\x01A\x7f\xffZ", 6);
+        const std::string payload("\0\x01" "A\x7f\xff" "Z", 6);
         temp.write("source-binary3447.bin", payload);
         REQUIRE(Salix::FileManager::copy_file(
             temp.file("source-binary3447.bin"), temp.file("copy-binary3447.bin")));
@@ -798,7 +798,7 @@ TEST_SUITE("Salix::management::FileManagerBatch3447") {
     TEST_CASE("batch3447 hex dump renders nonprintable bytes as dots while retaining hex octets") {
         FileManagerOwnedTemp20261019 temp;
         REQUIRE(temp.owned);
-        const std::string payload("\x01A\x7f", 3);
+        const std::string payload("\x01" "A\x7f", 3);
         temp.write("nonprintable3447.bin", payload);
         const auto dump = Salix::FileManager::generate_hex_dump(temp.file("nonprintable3447.bin"));
         CHECK(dump.find("01 41 7f ") != std::string::npos);
