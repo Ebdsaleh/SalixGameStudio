@@ -269,4 +269,120 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch2447") {
         CHECK(manager.get_active_font() == nullptr);
     }
 }
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch3447") {
+    TEST_CASE("batch3447 active selection can switch between two registered font identities") {
+        Salix::ImGuiFontManager manager;
+        auto first = std::make_unique<MockIFont>("First3447", "FamilyA", 12.f);
+        auto second = std::make_unique<MockIFont>("Second3447", "FamilyB", 18.f);
+        MockIFont* first_raw = first.get();
+        MockIFont* second_raw = second.get();
+        REQUIRE(manager.register_font(std::move(first)));
+        REQUIRE(manager.register_font(std::move(second)));
+        REQUIRE(manager.set_active_font("First3447"));
+        CHECK(manager.get_active_font() == first_raw);
+        REQUIRE(manager.set_active_font("Second3447"));
+        CHECK(manager.get_active_font() == second_raw);
+    }
+
+    TEST_CASE("batch3447 empty active selection request preserves an existing active font") {
+        Salix::ImGuiFontManager manager;
+        auto font = std::make_unique<MockIFont>("Keep3447", "Family", 14.f);
+        MockIFont* raw = font.get();
+        REQUIRE(manager.register_font(std::move(font)));
+        REQUIRE(manager.set_active_font("Keep3447"));
+        CHECK_FALSE(manager.set_active_font(""));
+        CHECK(manager.get_active_font() == raw);
+    }
+
+    TEST_CASE("batch3447 case distinct font names coexist as separate registry keys") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Case3447", "Family", 10.f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("case3447", "Family", 11.f)));
+        CHECK(manager.get_font("Case3447") != nullptr);
+        CHECK(manager.get_font("case3447") != nullptr);
+        CHECK(manager.get_font_registry().size() == 2);
+    }
+
+    TEST_CASE("batch3447 embedded null font name remains an exact registry key") {
+        Salix::ImGuiFontManager manager;
+        const std::string name("Font\0Alt", 8);
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>(name, "BinaryFamily", 13.f)));
+        REQUIRE(manager.get_font(name) != nullptr);
+        CHECK(manager.get_font(name)->get_name() == name);
+        CHECK(manager.get_font_registry().count(name) == 1);
+    }
+
+    TEST_CASE("batch3447 family size query retains duplicate sizes from distinct registered fonts") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("DupSizeA3447", "DupFamily3447", 16.f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("DupSizeB3447", "DupFamily3447", 16.f)));
+        const auto sizes = manager.get_font_sizes_for_font_family("DupFamily3447");
+        REQUIRE(sizes.size() == 2);
+        CHECK(sizes[0] == doctest::Approx(16.f));
+        CHECK(sizes[1] == doctest::Approx(16.f));
+    }
+
+    TEST_CASE("batch3447 family size filtering remains case sensitive") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Upper3447", "Mono3447", 12.f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Lower3447", "mono3447", 24.f)));
+        const auto upper = manager.get_font_sizes_for_font_family("Mono3447");
+        const auto lower = manager.get_font_sizes_for_font_family("mono3447");
+        REQUIRE(upper.size() == 1);
+        REQUIRE(lower.size() == 1);
+        CHECK(upper[0] == doctest::Approx(12.f));
+        CHECK(lower[0] == doctest::Approx(24.f));
+    }
+
+    TEST_CASE("batch3447 registry reference object remains stable across insertion and removal") {
+        Salix::ImGuiFontManager manager;
+        const auto* registry = &manager.get_font_registry();
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("StableA3447", "A", 10.f)));
+        CHECK(&manager.get_font_registry() == registry);
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("StableB3447", "B", 20.f)));
+        CHECK(&manager.get_font_registry() == registry);
+        REQUIRE(manager.unregister_font("StableA3447"));
+        CHECK(&manager.get_font_registry() == registry);
+    }
+
+    TEST_CASE("batch3447 applying registered font with null runtime pointer preserves current active selection") {
+        Salix::ImGuiFontManager manager;
+        auto active = std::make_unique<MockIFont>("Active3447", "A", 12.f);
+        MockIFont* active_raw = active.get();
+        REQUIRE(manager.register_font(std::move(active)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("InvalidRuntime3447", "B", 14.f)));
+        REQUIRE(manager.set_active_font("Active3447"));
+        CHECK_FALSE(manager.apply_font("InvalidRuntime3447"));
+        CHECK(manager.get_active_font() == active_raw);
+    }
+
+    TEST_CASE("batch3447 active font name can be unregistered then re registered with new identity") {
+        Salix::ImGuiFontManager manager;
+        auto first = std::make_unique<MockIFont>("Recycle3447", "Old", 12.f);
+        MockIFont* first_raw = first.get();
+        REQUIRE(manager.register_font(std::move(first)));
+        REQUIRE(manager.set_active_font("Recycle3447"));
+        REQUIRE(manager.unregister_font("Recycle3447"));
+        CHECK(manager.get_active_font() == nullptr);
+        auto second = std::make_unique<MockIFont>("Recycle3447", "New", 22.f);
+        MockIFont* second_raw = second.get();
+        REQUIRE(manager.register_font(std::move(second)));
+        REQUIRE(manager.set_active_font("Recycle3447"));
+        CHECK(manager.get_active_font() == second_raw);
+        CHECK(second_raw != first_raw);
+        CHECK(manager.get_active_font()->get_family() == "New");
+    }
+
+    TEST_CASE("batch3447 shutdown permits clean registry reuse with a new font") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Before3447", "Before", 10.f)));
+        REQUIRE(manager.set_active_font("Before3447"));
+        manager.shutdown();
+        CHECK(manager.get_active_font() == nullptr);
+        CHECK(manager.get_font_registry().empty());
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("After3447", "After", 20.f)));
+        CHECK(manager.get_font("After3447") != nullptr);
+        CHECK(manager.get_font("Before3447") == nullptr);
+    }
+}
 
