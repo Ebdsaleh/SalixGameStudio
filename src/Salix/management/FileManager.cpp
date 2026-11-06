@@ -154,23 +154,28 @@ namespace Salix {
 
      std::string FileManager::convert_to_relative(const std::string& project_root, const std::string& absolute_path)
     {
-        // 1. Create copies to work with that we can modify.
+        // Work on normalized copies so callers can mix Windows and generic separators.
         std::string root = project_root;
         std::string abs_path = absolute_path;
-
-        // 2. Normalize all path separators to forward slashes for consistent comparison.
         std::replace(root.begin(), root.end(), '\\', '/');
         std::replace(abs_path.begin(), abs_path.end(), '\\', '/');
 
-        // 3. Check if the absolute path starts with the project root path.
-        //    string::rfind is a reliable C++ way to check for a prefix.
-        if (abs_path.rfind(root, 0) == 0) {
-            // 4. If it does, get the part of the string that comes after the root path.
-            //    The +1 is to also remove the leading slash from the result.
-            return abs_path.substr(root.length() + 1);
+        // A path is only inside the project when the root ends on a component boundary.
+        // Exact root equality is the conventional current-directory relative path.
+        if (abs_path == root) {
+            return ".";
         }
 
-        // 5. If the path is not inside the project, return the original absolute path as a fallback.
+        std::string root_prefix = root;
+        if (!root_prefix.empty() && root_prefix.back() != '/') {
+            root_prefix.push_back('/');
+        }
+
+        if (!root_prefix.empty() && abs_path.rfind(root_prefix, 0) == 0) {
+            return abs_path.substr(root_prefix.length());
+        }
+
+        // Prefix lookalikes such as C:/ProjectSibling are outside C:/Project.
         return absolute_path;
     }
 
