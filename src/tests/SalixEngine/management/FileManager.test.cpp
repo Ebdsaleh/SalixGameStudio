@@ -736,3 +736,84 @@ TEST_SUITE("Salix::management::FileManagerBatch3047") {
         CHECK(Salix::FileManager::read_file_content(temp.file("binary-destination.bin")) == payload);
     }
 }
+TEST_SUITE("Salix::management::FileManagerBatch3447") {
+    TEST_CASE("batch3447 string relative conversion of exact project root returns dot") {
+        CHECK(Salix::FileManager::convert_to_relative("C:/Project3447", "C:/Project3447") == ".");
+    }
+
+    TEST_CASE("batch3447 string relative conversion rejects prefix lookalike sibling directory") {
+        const std::string outside = "C:/Project3447Sibling/Assets/file.txt";
+        CHECK(Salix::FileManager::convert_to_relative("C:/Project3447", outside) == outside);
+    }
+
+    TEST_CASE("batch3447 string relative conversion accepts project root ending in slash") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:/Project3447/", "C:/Project3447/Assets/file.txt") == "Assets/file.txt");
+    }
+
+    TEST_CASE("batch3447 mixed separators preserve component boundary conversion") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:\\Project3447", "C:/Project3447\\Assets\\Nested\\file.bin") == "Assets/Nested/file.bin");
+    }
+
+    TEST_CASE("batch3447 missing source copy fails without altering existing destination") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("destination3447.txt", "keep-me");
+        CHECK_FALSE(Salix::FileManager::copy_file(
+            temp.file("missing-source3447.txt"), temp.file("destination3447.txt")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("destination3447.txt")) == "keep-me");
+    }
+
+    TEST_CASE("batch3447 copy into missing destination parent fails without creating directory tree") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("source3447.txt", "payload");
+        const auto missing_parent = temp.root / "missing3447" / "destination.txt";
+        CHECK_FALSE(Salix::FileManager::copy_file(temp.file("source3447.txt"), missing_parent.string()));
+        CHECK_FALSE(std::filesystem::exists(missing_parent.parent_path()));
+    }
+
+    TEST_CASE("batch3447 copying binary payload to new destination preserves embedded bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("\0\x01A\x7f\xffZ", 6);
+        temp.write("source-binary3447.bin", payload);
+        REQUIRE(Salix::FileManager::copy_file(
+            temp.file("source-binary3447.bin"), temp.file("copy-binary3447.bin")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("copy-binary3447.bin")) == payload);
+        CHECK(Salix::FileManager::get_file_size(temp.file("copy-binary3447.bin")) == payload.size());
+    }
+
+    TEST_CASE("batch3447 binary read preserves leading middle and trailing null bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("\0AB\0CD\0", 7);
+        temp.write("nulls3447.bin", payload);
+        const auto loaded = Salix::FileManager::read_file_content(temp.file("nulls3447.bin"));
+        CHECK(loaded.size() == payload.size());
+        CHECK(loaded == payload);
+    }
+
+    TEST_CASE("batch3447 hex dump renders nonprintable bytes as dots while retaining hex octets") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("\x01A\x7f", 3);
+        temp.write("nonprintable3447.bin", payload);
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("nonprintable3447.bin"));
+        CHECK(dump.find("01 41 7f ") != std::string::npos);
+        CHECK(dump.find(".A.") != std::string::npos);
+    }
+
+    TEST_CASE("batch3447 create directories succeeds when an intermediate parent already exists") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto existing = temp.root / "existing3447";
+        REQUIRE(std::filesystem::create_directory(existing));
+        const auto nested = existing / "child" / "grandchild";
+        REQUIRE(Salix::FileManager::create_directories(nested.string()));
+        CHECK(std::filesystem::is_directory(existing));
+        CHECK(std::filesystem::is_directory(nested));
+    }
+}
+
