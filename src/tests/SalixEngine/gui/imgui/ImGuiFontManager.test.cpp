@@ -358,7 +358,6 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch3447") {
     TEST_CASE("batch3447 active font name can be unregistered then re registered with new identity") {
         Salix::ImGuiFontManager manager;
         auto first = std::make_unique<MockIFont>("Recycle3447", "Old", 12.f);
-        MockIFont* first_raw = first.get();
         REQUIRE(manager.register_font(std::move(first)));
         REQUIRE(manager.set_active_font("Recycle3447"));
         REQUIRE(manager.unregister_font("Recycle3447"));
