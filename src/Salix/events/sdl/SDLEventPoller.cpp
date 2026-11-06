@@ -43,7 +43,10 @@ namespace Salix {
                 std::lock_guard<std::mutex> lock(callbacks_mutex); // Protect access during iteration
                 for (auto const& [handle, callback_fn] : raw_event_callbacks) {
                     // Pass the raw SDL_Event* (as void*) to the callback.
-                    callback_fn(&sdl_event); 
+                    // Empty std::function callbacks are valid registrations; skip them safely.
+                    if (callback_fn) {
+                        callback_fn(&sdl_event);
+                    }
                 }
             }
 
