@@ -446,3 +446,40 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch2947") {
     }
 }
 
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch3347") {
+    TEST_CASE("batch3347 integer YAML handle exposes latest repeated write") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Count3347",Salix::PropertyType::Int),&node); h.set_value(Salix::PropertyValue{1}); h.set_value(Salix::PropertyValue{-3347});
+        CHECK(node["Count3347"].as<int>()==-3347); CHECK(std::get<int>(h.get_value())==-3347);
+    }
+    TEST_CASE("batch3347 uint64 YAML handle preserves maximum value") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Id3347",Salix::PropertyType::UInt64),&node); const std::uint64_t value=(std::numeric_limits<std::uint64_t>::max)(); h.set_value(Salix::PropertyValue{value});
+        CHECK(node["Id3347"].as<std::uint64_t>()==value); CHECK(std::get<std::uint64_t>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 float YAML handle preserves negative fractional value") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Float3347",Salix::PropertyType::Float),&node); h.set_value(Salix::PropertyValue{-33.47f});
+        CHECK(node["Float3347"].as<float>()==doctest::Approx(-33.47f)); CHECK(std::get<float>(h.get_value())==doctest::Approx(-33.47f));
+    }
+    TEST_CASE("batch3347 boolean YAML handle toggles true false true") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Bool3347",Salix::PropertyType::Bool),&node); h.set_value(Salix::PropertyValue{true}); h.set_value(Salix::PropertyValue{false}); CHECK_FALSE(std::get<bool>(h.get_value())); h.set_value(Salix::PropertyValue{true}); CHECK(std::get<bool>(h.get_value()));
+    }
+    TEST_CASE("batch3347 string YAML handle preserves multiline whitespace") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Text3347",Salix::PropertyType::String),&node); const std::string value="  line one\nline two\t3347  "; h.set_value(Salix::PropertyValue{value});
+        CHECK(node["Text3347"].as<std::string>()==value); CHECK(std::get<std::string>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 Vector2 YAML handle preserves signed coordinates") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("V2_3347",Salix::PropertyType::Vector2),&node); const Salix::Vector2 value(-3.347f,47.25f); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Vector2>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 Color YAML handle preserves four channels") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Color3347",Salix::PropertyType::Color),&node); const Salix::Color value(.1f,.2f,.3f,.4f); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Color>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 Point YAML handle preserves negative coordinates") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Point3347",Salix::PropertyType::Point),&node); const Salix::Point value(-33,47); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Point>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 Rect YAML handle preserves four integer channels") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Rect3347",Salix::PropertyType::Rect),&node); const Salix::Rect value(-3,4,33,47); h.set_value(Salix::PropertyValue{value}); CHECK(std::get<Salix::Rect>(h.get_value())==value);
+    }
+    TEST_CASE("batch3347 matrix YAML handle preserves independently modified diagonal") {
+        YAML::Node node; Salix::PropertyHandleYaml h(batch1047_yaml_property("Matrix3347",Salix::PropertyType::GlmMat4),&node); glm::mat4 value(1.f); value[0][0]=3.347f; value[1][1]=4.347f; value[2][2]=5.347f; value[3][3]=6.347f; h.set_value(Salix::PropertyValue{value});
+        const auto roundtrip=std::get<glm::mat4>(h.get_value()); CHECK(roundtrip[0][0]==doctest::Approx(3.347f)); CHECK(roundtrip[1][1]==doctest::Approx(4.347f)); CHECK(roundtrip[2][2]==doctest::Approx(5.347f)); CHECK(roundtrip[3][3]==doctest::Approx(6.347f));
+    }
+}
