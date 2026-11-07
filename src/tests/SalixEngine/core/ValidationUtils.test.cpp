@@ -756,3 +756,66 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch3147") {
         CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_long_double({0.0L, std::numeric_limits<T>::infinity()}));
     }
 }
+TEST_SUITE("Salix::core::ValidationUtilsBatch3547") {
+    TEST_CASE("batch3547 c string validator accepts pointer whose first character is null") {
+        const char empty_buffer[1] = {'\0'};
+        CHECK(Salix::ValidationUtils::is_valid_c_str(empty_buffer));
+    }
+
+    TEST_CASE("batch3547 int32 validator accepts max minus one and rejects reserved maximum") {
+        const auto max = (std::numeric_limits<int32_t>::max)();
+        CHECK(Salix::ValidationUtils::is_valid_int32_t(max - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int32_t(max));
+    }
+
+    TEST_CASE("batch3547 int64 validator rejects negative one and maximum sentinel") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int64_t(static_cast<int64_t>(-1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int64_t((std::numeric_limits<int64_t>::max)()));
+    }
+
+    TEST_CASE("batch3547 uint16 validator accepts max minus one and rejects maximum sentinel") {
+        const auto max = (std::numeric_limits<uint16_t>::max)();
+        CHECK(Salix::ValidationUtils::is_valid_uint16_t(static_cast<uint16_t>(max - 1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint16_t(max));
+    }
+
+    TEST_CASE("batch3547 uint32 validator accepts zero and max minus one while reserving maximum") {
+        const auto max = (std::numeric_limits<uint32_t>::max)();
+        CHECK(Salix::ValidationUtils::is_valid_uint32_t(0));
+        CHECK(Salix::ValidationUtils::is_valid_uint32_t(max - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint32_t(max));
+    }
+
+    TEST_CASE("batch3547 least unsigned validators reserve their maximum sentinel") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least8_t((std::numeric_limits<uint_least8_t>::max)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least16_t((std::numeric_limits<uint_least16_t>::max)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least32_t((std::numeric_limits<uint_least32_t>::max)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least64_t((std::numeric_limits<uint_least64_t>::max)()));
+    }
+
+    TEST_CASE("batch3547 fast signed validators accept zero and reject negative values") {
+        CHECK(Salix::ValidationUtils::is_valid_int_fast8_t(static_cast<int_fast8_t>(0)));
+        CHECK(Salix::ValidationUtils::is_valid_int_fast16_t(static_cast<int_fast16_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int_fast32_t(static_cast<int_fast32_t>(-1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int_fast64_t(static_cast<int_fast64_t>(-1)));
+    }
+
+    TEST_CASE("batch3547 negative zero is a valid finite float double and long double") {
+        CHECK(Salix::ValidationUtils::is_valid_float(-0.0f));
+        CHECK(Salix::ValidationUtils::is_valid_double(-0.0));
+        CHECK(Salix::ValidationUtils::is_valid_long_double(-0.0L));
+    }
+
+    TEST_CASE("batch3547 long double validator rejects quiet NaN") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_long_double(
+            (std::numeric_limits<long double>::quiet_NaN)()));
+    }
+
+    TEST_CASE("batch3547 complex validators reject negative infinity in either component") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_float(
+            {-std::numeric_limits<float>::infinity(), 1.0f}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double(
+            {1.0, -std::numeric_limits<double>::infinity()}));
+    }
+}
+
