@@ -676,3 +676,73 @@ TEST_SUITE("Salix::math::ColorBatch3147") {
         CHECK(c.b == doctest::Approx(-0.5f)); CHECK(c.a == doctest::Approx(0.625f));
     }
 }
+TEST_SUITE("Salix::math::ColorBatch3547") {
+    TEST_CASE("batch3547 color lerp clamps negative interpolation to exact start") {
+        const Salix::Color start(-1.0f, 0.25f, 2.0f, 0.5f);
+        const Salix::Color end(3.0f, 4.0f, 5.0f, 1.0f);
+        CHECK(Salix::Color::lerp(start, end, -10.0f) == start);
+    }
+
+    TEST_CASE("batch3547 color lerp clamps oversized interpolation to exact end") {
+        const Salix::Color start(-1.0f, 0.25f, 2.0f, 0.5f);
+        const Salix::Color end(3.0f, 4.0f, 5.0f, 1.0f);
+        CHECK(Salix::Color::lerp(start, end, 10.0f) == end);
+    }
+
+    TEST_CASE("batch3547 color midpoint interpolation includes alpha channel") {
+        const Salix::Color start(0.0f, 2.0f, -2.0f, 0.25f);
+        const Salix::Color end(2.0f, 4.0f, 2.0f, 0.75f);
+        const auto mid = Salix::Color::lerp(start, end, 0.5f);
+        CHECK(mid.r == doctest::Approx(1.0f));
+        CHECK(mid.g == doctest::Approx(3.0f));
+        CHECK(mid.b == doctest::Approx(0.0f));
+        CHECK(mid.a == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch3547 color addition is componentwise including alpha") {
+        const Salix::Color a(1.0f, 2.0f, 3.0f, 4.0f);
+        const Salix::Color b(-0.5f, 1.5f, -2.0f, 0.25f);
+        CHECK(a + b == Salix::Color(0.5f, 3.5f, 1.0f, 4.25f));
+    }
+
+    TEST_CASE("batch3547 color subtraction is componentwise including alpha") {
+        const Salix::Color a(1.0f, 2.0f, 3.0f, 4.0f);
+        const Salix::Color b(-0.5f, 1.5f, -2.0f, 0.25f);
+        CHECK(a - b == Salix::Color(1.5f, 0.5f, 5.0f, 3.75f));
+    }
+
+    TEST_CASE("batch3547 scalar multiplication overloads are symmetric") {
+        const Salix::Color c(-1.0f, 0.5f, 2.0f, 0.25f);
+        CHECK(c * 2.0f == 2.0f * c);
+        CHECK(c * 2.0f == Salix::Color(-2.0f, 1.0f, 4.0f, 0.5f));
+    }
+
+    TEST_CASE("batch3547 predefined primary and secondary colors retain opaque alpha") {
+        CHECK(Salix::Red == Salix::Color(1.0f, 0.0f, 0.0f, 1.0f));
+        CHECK(Salix::Green == Salix::Color(0.0f, 1.0f, 0.0f, 1.0f));
+        CHECK(Salix::Blue == Salix::Color(0.0f, 0.0f, 1.0f, 1.0f));
+        CHECK(Salix::Cyan == Salix::Color(0.0f, 1.0f, 1.0f, 1.0f));
+        CHECK(Salix::Magenta == Salix::Color(1.0f, 0.0f, 1.0f, 1.0f));
+    }
+
+    TEST_CASE("batch3547 HSV hue exactly one turn is equivalent to zero degrees") {
+        const auto zero = Salix::Color::from_hsv(0.0f, 0.75f, 0.8f, 0.6f);
+        const auto full_turn = Salix::Color::from_hsv(360.0f, 0.75f, 0.8f, 0.6f);
+        CHECK(full_turn == zero);
+    }
+
+    TEST_CASE("batch3547 HSV negative fractional hue wraps to equivalent positive hue") {
+        const auto negative = Salix::Color::from_hsv(-30.0f, 1.0f, 1.0f, 0.4f);
+        const auto positive = Salix::Color::from_hsv(330.0f, 1.0f, 1.0f, 0.4f);
+        CHECK(negative == positive);
+    }
+
+    TEST_CASE("batch3547 integer color factory intentionally does not clamp diagnostic channel values") {
+        const auto c = Salix::Color::from_rgba_int(-1, 256, 510, -255);
+        CHECK(c.r == doctest::Approx(-1.0f / 255.0f));
+        CHECK(c.g == doctest::Approx(256.0f / 255.0f));
+        CHECK(c.b == doctest::Approx(2.0f));
+        CHECK(c.a == doctest::Approx(-1.0f));
+    }
+}
+
