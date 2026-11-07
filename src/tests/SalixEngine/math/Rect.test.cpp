@@ -668,3 +668,72 @@ TEST_SUITE("Salix::math::RectBatch3147") {
         CHECK(target == source);
     }
 }
+TEST_SUITE("Salix::math::RectBatch3547") {
+    TEST_CASE("batch3547 boolean arithmetic constructor converts true and false to integer components") {
+        const Salix::RectI r(true, false, true, false);
+        CHECK(r == Salix::RectI(1, 0, 1, 0));
+    }
+
+    TEST_CASE("batch3547 mixed small integral types convert independently into double rectangle") {
+        const Salix::RectD r(static_cast<signed char>(-8), static_cast<unsigned char>(9),
+                             static_cast<short>(-10), static_cast<unsigned short>(11));
+        CHECK(r == Salix::RectD(-8.0, 9.0, -10.0, 11.0));
+    }
+
+    TEST_CASE("batch3547 integer to float conversion preserves signed moderate extents") {
+        const Salix::RectI source(-101, 202, -303, 404);
+        const Salix::RectF converted(source);
+        CHECK(converted == Salix::RectF(-101.0f, 202.0f, -303.0f, 404.0f));
+    }
+
+    TEST_CASE("batch3547 float to double conversion preserves representative binary fractions") {
+        const Salix::RectF source(-0.5f, 0.25f, -8.125f, 16.75f);
+        const Salix::RectD converted(source);
+        CHECK(converted.x == doctest::Approx(-0.5));
+        CHECK(converted.y == doctest::Approx(0.25));
+        CHECK(converted.w == doctest::Approx(-8.125));
+        CHECK(converted.h == doctest::Approx(16.75));
+    }
+
+    TEST_CASE("batch3547 double to integer conversion truncates every signed fraction toward zero") {
+        const Salix::RectD source(-9.75, 8.75, -0.99, 0.99);
+        const Salix::RectI converted(source);
+        CHECK(converted == Salix::RectI(-9, 8, 0, 0));
+    }
+
+    TEST_CASE("batch3547 copy construction creates independent rectangle storage") {
+        Salix::RectI source(1, 2, 3, 4);
+        Salix::RectI copy(source);
+        source.x = 99; source.h = 88;
+        CHECK(copy == Salix::RectI(1, 2, 3, 4));
+    }
+
+    TEST_CASE("batch3547 copy assignment creates independent double rectangle storage") {
+        Salix::RectD source(-1.0, 2.0, -3.0, 4.0);
+        Salix::RectD copy;
+        copy = source;
+        source.y = 200.0;
+        source.w = 300.0;
+        CHECK(copy == Salix::RectD(-1.0, 2.0, -3.0, 4.0));
+    }
+
+    TEST_CASE("batch3547 floating negative zero rectangle compares equal to positive zero rectangle") {
+        const Salix::RectF negative_zero(-0.0f, 0.0f, -0.0f, 0.0f);
+        const Salix::RectF positive_zero(0.0f, 0.0f, 0.0f, 0.0f);
+        CHECK(negative_zero == positive_zero);
+        CHECK_FALSE(negative_zero != positive_zero);
+    }
+
+    TEST_CASE("batch3547 double rectangle ostream preserves component order and signs") {
+        const Salix::RectD r(-1.25, 2.5, -3.75, 4.125);
+        std::stringstream stream;
+        stream << r;
+        CHECK(stream.str() == "{ x: -1.25, y: 2.5, w: -3.75, h: 4.125 }");
+    }
+
+    TEST_CASE("batch3547 cross scalar rectangle conversion remains explicit but constructible") {
+        CHECK((std::is_constructible_v<Salix::RectI, const Salix::RectF&>));
+        CHECK_FALSE((std::is_convertible_v<Salix::RectF, Salix::RectI>));
+    }
+}
+
