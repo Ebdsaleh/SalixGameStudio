@@ -18,6 +18,10 @@ namespace Salix {
     EventManager::~EventManager() = default;
 
     void EventManager::subscribe(EventCategory category, IEventListener* listener) {
+        if (!listener) {
+            return;
+        }
+
         auto& listener_list = pimpl->subscribers[category];
 
         // --- THE FIX IS HERE ---
