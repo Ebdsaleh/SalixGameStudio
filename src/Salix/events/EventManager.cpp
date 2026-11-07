@@ -42,6 +42,10 @@ namespace Salix {
     }
 
     void EventManager::dispatch(std::unique_ptr<IEvent> event) {
+        if (!event) {
+            return;
+        }
+
         // Check the block flag here. If it's true, we
         // mimic the old behavior by simply returning and not adding
         // the event to the queue. It's effectively discarded.
