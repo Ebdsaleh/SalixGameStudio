@@ -697,3 +697,88 @@ TEST_SUITE("Salix::core::SimpleGuidBatch3147") {
         CHECK(restored.is_valid());
     }
 }
+TEST_SUITE("Salix::core::SimpleGuidBatch3547") {
+    TEST_CASE("batch3547 zero watermark on reset generator leaves first issued id at one") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(0);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch3547 watermark below already issued range never rewinds sequence") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 3);
+        Salix::SimpleGuid::update_next_id(1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 4);
+    }
+
+    TEST_CASE("batch3547 watermark exactly at next id advances beyond that value") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2);
+    }
+
+    TEST_CASE("batch3547 reset counter overrides an earlier high watermark for test isolation") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(5000);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 5001);
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch3547 explicit maximum minus one identifier remains valid and ordered below maximum") {
+        const auto a = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)() - 1);
+        const auto b = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)());
+        CHECK(a.is_valid());
+        CHECK(b.is_valid());
+        CHECK(a < b);
+    }
+
+    TEST_CASE("batch3547 hash differs for representative adjacent explicit identifiers") {
+        const auto a = Salix::SimpleGuid::from_value(3547000ULL);
+        const auto b = Salix::SimpleGuid::from_value(3547001ULL);
+        CHECK(a != b);
+        CHECK(std::hash<Salix::SimpleGuid>{}(a) != std::hash<Salix::SimpleGuid>{}(b));
+    }
+
+    TEST_CASE("batch3547 JSON roundtrip preserves invalid sentinel identity") {
+        const auto original = Salix::SimpleGuid::invalid();
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::SimpleGuid restored = Salix::SimpleGuid::from_value(99);
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == Salix::SimpleGuid::invalid());
+        CHECK_FALSE(restored.is_valid());
+    }
+
+    TEST_CASE("batch3547 JSON roundtrip does not advance generator counter") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto original = Salix::SimpleGuid::from_value(35473547ULL);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::SimpleGuid restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch3547 independently constructed equal ids remain mutually nonordered") {
+        const auto a = Salix::SimpleGuid::from_value(77);
+        const auto b = Salix::SimpleGuid::from_value(77);
+        CHECK(a == b);
+        CHECK_FALSE(a < b);
+        CHECK_FALSE(b < a);
+    }
+
+    TEST_CASE("batch3547 invalid sentinel remains unequal to every generated identifier after reset") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto invalid = Salix::SimpleGuid::invalid();
+        for (int i = 0; i < 4; ++i) {
+            const auto generated = Salix::SimpleGuid::generate();
+            CHECK(generated != invalid);
+            CHECK(generated.is_valid());
+        }
+    }
+}
+
