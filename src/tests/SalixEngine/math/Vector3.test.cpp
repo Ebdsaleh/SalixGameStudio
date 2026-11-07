@@ -989,3 +989,68 @@ TEST_SUITE("Salix::math::Vector3Batch3147") {
         CHECK(v == original);
     }
 }
+TEST_SUITE("Salix::math::Vector3Batch3547") {
+    TEST_CASE("batch3547 float scalar constructor broadcasts to all axes") {
+        const Salix::Vector3 v(3.5f);
+        CHECK(v == Salix::Vector3(3.5f, 3.5f, 3.5f));
+    }
+
+    TEST_CASE("batch3547 integer scalar constructor broadcasts exact float representation") {
+        const Salix::Vector3 v(-7);
+        CHECK(v == Salix::Vector3(-7.0f, -7.0f, -7.0f));
+    }
+
+    TEST_CASE("batch3547 vector3 dot with itself equals squared length for two three six vector") {
+        const Salix::Vector3 v(2.0f, 3.0f, 6.0f);
+        CHECK(Salix::dot(v, v) == doctest::Approx(49.0f));
+        CHECK(Salix::dot(v, v) == doctest::Approx(v.length() * v.length()));
+    }
+
+    TEST_CASE("batch3547 vector3 cross with itself is canonical zero") {
+        const Salix::Vector3 v(2.0f, -3.0f, 5.0f);
+        CHECK(Salix::cross(v, v) == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch3547 vector3 cross product is antisymmetric componentwise") {
+        const Salix::Vector3 a(2.0f, -3.0f, 5.0f);
+        const Salix::Vector3 b(7.0f, 11.0f, -13.0f);
+        const auto ab = Salix::cross(a, b);
+        const auto ba = Salix::cross(b, a);
+        CHECK(ab == ba * -1.0f);
+    }
+
+    TEST_CASE("batch3547 scalar addition overloads are symmetric") {
+        const Salix::Vector3 v(-1.0f, 2.0f, -3.0f);
+        CHECK(v + 4.0f == 4.0f + v);
+        CHECK(v + 4.0f == Salix::Vector3(3.0f, 6.0f, 1.0f));
+    }
+
+    TEST_CASE("batch3547 scalar subtraction overloads preserve operand order") {
+        const Salix::Vector3 v(1.0f, 2.0f, 3.0f);
+        CHECK(v - 2.0f == Salix::Vector3(-1.0f, 0.0f, 1.0f));
+        CHECK(10.0f - v == Salix::Vector3(9.0f, 8.0f, 7.0f));
+    }
+
+    TEST_CASE("batch3547 GLM converting constructor preserves signed coordinates") {
+        const glm::vec3 source(-1.25f, 2.5f, -3.75f);
+        const Salix::Vector3 converted(source);
+        CHECK(converted.x == source.x);
+        CHECK(converted.y == source.y);
+        CHECK(converted.z == source.z);
+    }
+
+    TEST_CASE("batch3547 compound division by zero returns self and resets to canonical zero") {
+        Salix::Vector3 v(4.0f, -5.0f, 6.0f);
+        Salix::Vector3& ref = (v /= 0.0f);
+        CHECK(&ref == &v);
+        CHECK(v == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch3547 YAML empty mapping clears all previously populated axes") {
+        Salix::Vector3 v(9.0f, -8.0f, 7.0f);
+        const YAML::Node node = YAML::Load("{}");
+        node >> v;
+        CHECK(v == Salix::Vector3::Zero);
+    }
+}
+
