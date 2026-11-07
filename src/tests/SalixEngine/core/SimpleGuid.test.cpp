@@ -735,11 +735,10 @@ TEST_SUITE("Salix::core::SimpleGuidBatch3547") {
         CHECK(a < b);
     }
 
-    TEST_CASE("batch3547 hash differs for representative adjacent explicit identifiers") {
-        const auto a = Salix::SimpleGuid::from_value(3547000ULL);
-        const auto b = Salix::SimpleGuid::from_value(3547001ULL);
-        CHECK(a != b);
-        CHECK(std::hash<Salix::SimpleGuid>{}(a) != std::hash<Salix::SimpleGuid>{}(b));
+    TEST_CASE("batch3547 hash delegates to the wrapped uint64 value") {
+        const auto guid = Salix::SimpleGuid::from_value(3547000ULL);
+        CHECK(std::hash<Salix::SimpleGuid>{}(guid) ==
+              std::hash<std::uint64_t>{}(3547000ULL));
     }
 
     TEST_CASE("batch3547 JSON roundtrip preserves invalid sentinel identity") {
