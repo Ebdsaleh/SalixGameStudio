@@ -788,3 +788,72 @@ TEST_SUITE("Salix::math::Vector2Batch3147") {
         CHECK(v == Salix::Vector2(1.0f, 2.0f));
     }
 }
+TEST_SUITE("Salix::math::Vector2Batch3547") {
+    TEST_CASE("batch3547 vector2 dot with itself equals squared length for three four vector") {
+        const Salix::Vector2 v(3.0f, 4.0f);
+        CHECK(Salix::dot(v, v) == doctest::Approx(v.length() * v.length()));
+        CHECK(Salix::dot(v, v) == doctest::Approx(25.0f));
+    }
+
+    TEST_CASE("batch3547 vector2 cross product is antisymmetric") {
+        const Salix::Vector2 a(2.0f, -3.0f);
+        const Salix::Vector2 b(5.0f, 7.0f);
+        CHECK(Salix::cross(a, b) == doctest::Approx(-Salix::cross(b, a)));
+    }
+
+    TEST_CASE("batch3547 perpendicular vector is orthogonal and preserves magnitude") {
+        const Salix::Vector2 v(5.0f, -12.0f);
+        const auto p = Salix::perp(v);
+        CHECK(Salix::dot(v, p) == doctest::Approx(0.0f));
+        CHECK(p.length() == doctest::Approx(v.length()));
+        CHECK(p == Salix::Vector2(12.0f, 5.0f));
+    }
+
+    TEST_CASE("batch3547 scalar addition overloads produce identical componentwise result") {
+        const Salix::Vector2 v(-2.0f, 3.0f);
+        CHECK(v + 4.0f == 4.0f + v);
+        CHECK(v + 4.0f == Salix::Vector2(2.0f, 7.0f));
+    }
+
+    TEST_CASE("batch3547 scalar subtraction overloads preserve operand order semantics") {
+        const Salix::Vector2 v(2.0f, 5.0f);
+        CHECK(v - 1.0f == Salix::Vector2(1.0f, 4.0f));
+        CHECK(10.0f - v == Salix::Vector2(8.0f, 5.0f));
+    }
+
+    TEST_CASE("batch3547 componentwise multiplication keeps independent signs") {
+        const Salix::Vector2 a(-2.0f, 3.0f);
+        const Salix::Vector2 b(4.0f, -5.0f);
+        CHECK(a * b == Salix::Vector2(-8.0f, -15.0f));
+    }
+
+    TEST_CASE("batch3547 nonzero componentwise division computes each axis independently") {
+        const Salix::Vector2 a(-8.0f, 15.0f);
+        const Salix::Vector2 b(2.0f, -3.0f);
+        CHECK(a / b == Salix::Vector2(-4.0f, -5.0f));
+    }
+
+    TEST_CASE("batch3547 scalar multiplication overloads are symmetric for negative scalar") {
+        const Salix::Vector2 v(2.0f, -3.0f);
+        CHECK(v * -2.0f == -2.0f * v);
+        CHECK(v * -2.0f == Salix::Vector2(-4.0f, 6.0f));
+    }
+
+    TEST_CASE("batch3547 compound scale and divide return self and restore finite vector") {
+        Salix::Vector2 v(1.25f, -2.5f);
+        const Salix::Vector2 original = v;
+        Salix::Vector2& mul_ref = (v *= 8.0f);
+        CHECK(&mul_ref == &v);
+        Salix::Vector2& div_ref = (v /= 8.0f);
+        CHECK(&div_ref == &v);
+        CHECK(v == original);
+    }
+
+    TEST_CASE("batch3547 YAML empty mapping clears both previously populated axes") {
+        Salix::Vector2 v(9.0f, -7.0f);
+        const YAML::Node node = YAML::Load("{}");
+        node >> v;
+        CHECK(v == Salix::Vector2(0.0f, 0.0f));
+    }
+}
+
