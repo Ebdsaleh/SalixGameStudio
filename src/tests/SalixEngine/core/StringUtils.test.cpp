@@ -812,3 +812,46 @@ TEST_SUITE("Salix::core::StringUtilsBatch3147") {
         CHECK(Salix::StringUtils::convert_from_pascal_case("HTTP2Server") == "HTTP 2 Server");
     }
 }
+TEST_SUITE("Salix::core::StringUtilsBatch3547") {
+    TEST_CASE("batch3547 uppercase without desnake preserves underscores while changing letters") {
+        CHECK(Salix::StringUtils::to_upper("alpha_beta_2d", false) == "ALPHA_BETA_2D");
+    }
+
+    TEST_CASE("batch3547 lowercase without desnake preserves underscores while changing letters") {
+        CHECK(Salix::StringUtils::to_lower("ALPHA_BETA_2D", false) == "alpha_beta_2d");
+    }
+
+    TEST_CASE("batch3547 title case treats carriage return and form feed as word boundaries") {
+        CHECK(Salix::StringUtils::to_title_case("hELLO\rwORLD\fNEXT") == "Hello\rWorld\fNext");
+    }
+
+    TEST_CASE("batch3547 capitalize accepts leading digit and lowercases following alphabetic suffix") {
+        CHECK(Salix::StringUtils::capitalize("1HELLO_WORLD", false) == "1hello_world");
+    }
+
+    TEST_CASE("batch3547 snake validation rejects consecutive underscores") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha__beta"));
+    }
+
+    TEST_CASE("batch3547 snake validation rejects hyphenated text even when underscore is present") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha_beta-gamma"));
+    }
+
+    TEST_CASE("batch3547 snake substring detection can ignore invalid edge underscores around valid interior pair") {
+        CHECK(Salix::StringUtils::contains_snake_case("_alpha_beta_"));
+    }
+
+    TEST_CASE("batch3547 snake conversion preserves edge underscores but converts valid interior separator") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("_alpha_beta_") == "_alpha beta_");
+    }
+
+    TEST_CASE("batch3547 Pascal validation accepts single uppercase letter and uppercase alphanumeric token") {
+        CHECK(Salix::StringUtils::is_pascal_case("A"));
+        CHECK(Salix::StringUtils::is_pascal_case("A1B2"));
+    }
+
+    TEST_CASE("batch3547 Pascal conversion keeps acronym run intact while splitting later lowercase transition and digit") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("XMLHttp2Parser") == "XMLHttp 2 Parser");
+    }
+}
+
