@@ -570,3 +570,54 @@ TEST_SUITE("Salix::math::MathUtilsBatch3147") {
         CHECK(Salix::cubic_interpolate(0.0f, 10.0f, 20.0f, 30.0f, 0.25f) == doctest::Approx(12.5f));
     }
 }
+TEST_SUITE("Salix::math::MathUtilsBatch3547") {
+    TEST_CASE("batch3547 Euler constant matches standard exponential identity") {
+        CHECK(Salix::E == doctest::Approx(std::exp(1.0f)).epsilon(1e-6));
+    }
+
+    TEST_CASE("batch3547 square root constants square back to their source integers") {
+        CHECK(Salix::SQRT2 * Salix::SQRT2 == doctest::Approx(2.0f).epsilon(1e-6));
+        CHECK(Salix::SQRT3 * Salix::SQRT3 == doctest::Approx(3.0f).epsilon(1e-6));
+    }
+
+    TEST_CASE("batch3547 golden ratio satisfies phi squared equals phi plus one") {
+        CHECK(Salix::GOLDEN_RATIO * Salix::GOLDEN_RATIO ==
+              doctest::Approx(Salix::GOLDEN_RATIO + 1.0f).epsilon(1e-6));
+    }
+
+    TEST_CASE("batch3547 degree and radian conversion factors roundtrip a half turn") {
+        CHECK(180.0f * Salix::DEG2RAD == doctest::Approx(Salix::PI).epsilon(1e-6));
+        CHECK(Salix::PI * Salix::RAD2DEG == doctest::Approx(180.0f).epsilon(1e-6));
+    }
+
+    TEST_CASE("batch3547 float lerp clamps both interpolation extremes") {
+        CHECK(Salix::lerp<float>(10.0f, 20.0f, -1.0f) == doctest::Approx(10.0f));
+        CHECK(Salix::lerp<float>(10.0f, 20.0f, 2.0f) == doctest::Approx(20.0f));
+    }
+
+    TEST_CASE("batch3547 inverse lerp handles reversed interval orientation") {
+        CHECK(Salix::inverse_lerp(10.0f, 0.0f, 10.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::inverse_lerp(10.0f, 0.0f, 5.0f) == doctest::Approx(0.5f));
+        CHECK(Salix::inverse_lerp(10.0f, 0.0f, 0.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3547 remap can reverse output range while preserving midpoint") {
+        CHECK(Salix::remap(5.0f, 0.0f, 10.0f, 100.0f, 0.0f) == doctest::Approx(50.0f));
+    }
+
+    TEST_CASE("batch3547 ping pong reaches both endpoints across one positive period") {
+        CHECK(Salix::ping_pong(0.0f, 4.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::ping_pong(4.0f, 4.0f) == doctest::Approx(4.0f));
+        CHECK(Salix::ping_pong(8.0f, 4.0f) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch3547 wrap maps exact upper boundary back to lower boundary") {
+        CHECK(Salix::wrap(10.0f, 0.0f, 10.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::wrap(5.0f, -5.0f, 5.0f) == doctest::Approx(-5.0f));
+    }
+
+    TEST_CASE("batch3547 inverse square root approximates one third for nine") {
+        CHECK(Salix::inv_sqrt(9.0f) == doctest::Approx(1.0f / 3.0f).epsilon(0.01));
+    }
+}
+
