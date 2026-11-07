@@ -34,6 +34,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch1247") {
     TEST_CASE("font manager rejects duplicate names and preserves first registration") {
         Salix::ImGuiFontManager manager;
         auto first = std::make_unique<MockIFont>("SharedName", "FirstFamily", 12.0f);
+        MockIFont* first_raw = first.get();
         REQUIRE(manager.register_font(std::move(first)));
         CHECK_FALSE(manager.register_font(std::make_unique<MockIFont>("SharedName", "SecondFamily", 24.0f)));
         CHECK(manager.get_font("SharedName") == first_raw);
