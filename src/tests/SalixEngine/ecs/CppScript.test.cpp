@@ -155,3 +155,117 @@ TEST_SUITE("Salix::ecs::CppScriptBatch3247") {
  TEST_CASE("batch3247 lifecycle sequence preserves all public metadata") { Salix::CppScript s; s.set_name("Lifecycle3247"); s.set_script_name("Runtime3247"); const auto id=s.get_id(); s.initialize(); s.update(0.f); s.update(-3.f); s.shutdown(); CHECK(s.get_id()==id); CHECK(s.get_name()=="Lifecycle3247"); CHECK(s.get_script_name()=="Runtime3247"); }
  TEST_CASE("batch3247 script name backing string reference remains stable across clear and refill") { Salix::CppScript s; const std::string* p=&s.get_script_name(); s.set_script_name("First3247"); s.set_script_name(""); s.set_script_name("Second3247Longer"); CHECK(&s.get_script_name()==p); CHECK(*p=="Second3247Longer"); }
 }
+#include <cereal/archives/json.hpp>
+#include <cereal/archives/binary.hpp>
+#include <sstream>
+
+TEST_SUITE("Salix::ecs::CppScriptBatch3647") {
+    TEST_CASE("batch3647 script setter copies source string rather than aliasing it") {
+        Salix::CppScript script;
+        std::string source = "Runtime3647";
+        script.set_script_name(source);
+        source.assign("MutatedSource");
+        CHECK(script.get_script_name() == "Runtime3647");
+    }
+
+    TEST_CASE("batch3647 entity identifier replacement leaves runtime script name unchanged") {
+        Salix::CppScript script;
+        script.set_script_name("Identity3647");
+        script.set_id(Salix::SimpleGuid::from_value(3647001ULL));
+        CHECK(script.get_id().get_value() == 3647001ULL);
+        CHECK(script.get_script_name() == "Identity3647");
+    }
+
+    TEST_CASE("batch3647 runtime script name changes never alter customized display name") {
+        Salix::CppScript script;
+        script.set_name("Editor Label 3647");
+        script.set_script_name("FirstRuntime");
+        script.set_script_name("SecondRuntime");
+        CHECK(script.get_name() == "Editor Label 3647");
+        CHECK(script.get_script_name() == "SecondRuntime");
+    }
+
+    TEST_CASE("batch3647 class identity remains canonical after display and runtime name changes") {
+        Salix::CppScript script;
+        script.set_name("NotCppScript");
+        script.set_script_name("AnotherName");
+        CHECK(std::string(script.get_class_name()) == "CppScript");
+        CHECK(script.get_name() == "NotCppScript");
+        CHECK(script.get_script_name() == "AnotherName");
+    }
+
+    TEST_CASE("batch3647 JSON roundtrip preserves script display and runtime names") {
+        Salix::CppScript source;
+        source.set_name("Json Script 3647");
+        source.set_script_name("Gameplay.Json.Controller");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name() == source.get_name());
+        CHECK(restored.get_script_name() == source.get_script_name());
+    }
+
+    TEST_CASE("batch3647 JSON roundtrip preserves explicit element identifier") {
+        Salix::CppScript source;
+        source.set_id(Salix::SimpleGuid::from_value(3647002ULL));
+        source.set_script_name("JsonId3647");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_id() == source.get_id());
+        CHECK(restored.get_script_name() == "JsonId3647");
+    }
+
+    TEST_CASE("batch3647 binary roundtrip preserves runtime script name and identifier") {
+        Salix::CppScript source;
+        source.set_id(Salix::SimpleGuid::from_value(3647003ULL));
+        source.set_script_name("BinaryRuntime3647");
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_id() == source.get_id());
+        CHECK(restored.get_script_name() == source.get_script_name());
+    }
+
+    TEST_CASE("batch3647 JSON load preserves destination runtime visibility state") {
+        Salix::CppScript source;
+        source.set_visibility(true);
+        source.set_script_name("VisibilityJson3647");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        restored.set_visibility(false);
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK_FALSE(restored.is_visible());
+        CHECK(restored.get_script_name() == "VisibilityJson3647");
+    }
+
+    TEST_CASE("batch3647 JSON load preserves destination runtime owner pointer") {
+        Salix::CppScript source;
+        source.set_script_name("OwnerJson3647");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::Entity owner;
+        Salix::CppScript restored;
+        restored.set_owner(&owner);
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_owner() == &owner);
+        CHECK(restored.get_script_name() == "OwnerJson3647");
+    }
+
+    TEST_CASE("batch3647 binary roundtrip preserves UTF8 runtime name byte for byte") {
+        Salix::CppScript source;
+        const std::string runtime = u8"脚本_café_3647";
+        source.set_script_name(runtime);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_script_name() == runtime);
+        CHECK(restored.get_script_name().size() == runtime.size());
+    }
+}
+
