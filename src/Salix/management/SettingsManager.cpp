@@ -238,12 +238,33 @@ namespace Salix {
     }
 
     // Helper to read a std::string safely from a binary stream
-    void read_string(std::ifstream& stream, std::string& str) {
-        size_t len;
-        stream.read(reinterpret_cast<char*>(&len), sizeof(len));
-        std::vector<char> buffer(len);
-        stream.read(buffer.data(), len);
-        str.assign(buffer.data(), len);
+    bool read_string(std::ifstream& stream, std::string& str) {
+        size_t len = 0;
+        if (!stream.read(reinterpret_cast<char*>(&len), sizeof(len))) {
+            return false;
+        }
+
+        const std::streampos data_start = stream.tellg();
+        stream.seekg(0, std::ios::end);
+        const std::streampos data_end = stream.tellg();
+        stream.seekg(data_start);
+
+        if (data_start < 0 || data_end < data_start) {
+            return false;
+        }
+
+        const auto remaining = static_cast<size_t>(data_end - data_start);
+        if (len > remaining) {
+            return false;
+        }
+
+        std::string value(len, '\0');
+        if (len > 0 && !stream.read(&value[0], static_cast<std::streamsize>(len))) {
+            return false;
+        }
+
+        str = std::move(value);
+        return true;
     }
 
     // Writes the entire config to a binary cache file
@@ -272,19 +293,28 @@ namespace Salix {
         std::ifstream in(cache_path, std::ios::binary);
         if (!in.is_open()) return false;
 
-        // Read simple types directly
-        in.read(reinterpret_cast<char*>(&out_config.window_config.width), sizeof(out_config.window_config.width));
-        in.read(reinterpret_cast<char*>(&out_config.window_config.height), sizeof(out_config.window_config.height));
-        in.read(reinterpret_cast<char*>(&out_config.renderer_type), sizeof(out_config.renderer_type));
-        in.read(reinterpret_cast<char*>(&out_config.initial_state), sizeof(out_config.initial_state));
-        in.read(reinterpret_cast<char*>(&out_config.gui_type), sizeof(out_config.gui_type));
-        in.read(reinterpret_cast<char*>(&out_config.timer_type), sizeof(out_config.timer_type));
-        in.read(reinterpret_cast<char*>(&out_config.target_fps), sizeof(out_config.target_fps));
-        in.read(reinterpret_cast<char*>(&out_config.gui_settings), sizeof(out_config.gui_settings));
+        // Parse into a temporary value so a truncated/corrupt cache never
+        // partially overwrites the caller before we know the whole record is valid.
+        ApplicationConfig candidate = out_config;
 
-        // Read string safely
-        read_string(in, out_config.window_config.title);
+        in.read(reinterpret_cast<char*>(&candidate.window_config.width), sizeof(candidate.window_config.width));
+        in.read(reinterpret_cast<char*>(&candidate.window_config.height), sizeof(candidate.window_config.height));
+        in.read(reinterpret_cast<char*>(&candidate.renderer_type), sizeof(candidate.renderer_type));
+        in.read(reinterpret_cast<char*>(&candidate.initial_state), sizeof(candidate.initial_state));
+        in.read(reinterpret_cast<char*>(&candidate.gui_type), sizeof(candidate.gui_type));
+        in.read(reinterpret_cast<char*>(&candidate.timer_type), sizeof(candidate.timer_type));
+        in.read(reinterpret_cast<char*>(&candidate.target_fps), sizeof(candidate.target_fps));
+        in.read(reinterpret_cast<char*>(&candidate.gui_settings), sizeof(candidate.gui_settings));
 
+        if (!in) {
+            return false;
+        }
+
+        if (!read_string(in, candidate.window_config.title)) {
+            return false;
+        }
+
+        out_config = std::move(candidate);
         return true;
     }
 
