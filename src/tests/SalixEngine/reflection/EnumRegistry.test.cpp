@@ -559,4 +559,110 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch3447") {
         CHECK(after == before);
     }
 }
+namespace {
+struct Batch3847EnumA {};
+struct Batch3847EnumB {};
+struct Batch3847EnumC {};
+struct Batch3847EnumD {};
+struct Batch3847NeverRegistered {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch3847") {
+    TEST_CASE("batch3847 enum data supports minimum and maximum signed integer keys") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[(std::numeric_limits<int>::min)()] = "Min3847";
+        data.value_to_string[(std::numeric_limits<int>::max)()] = "Max3847";
+        CHECK(data.get_name((std::numeric_limits<int>::min)()) == "Min3847");
+        CHECK(data.get_name((std::numeric_limits<int>::max)()) == "Max3847");
+        CHECK(data.get_value("Min3847") == (std::numeric_limits<int>::min)());
+        CHECK(data.get_value("Max3847") == (std::numeric_limits<int>::max)());
+    }
+
+    TEST_CASE("batch3847 empty enum data returns stable unknown fallbacks") {
+        Salix::EnumRegistry::EnumData data;
+        CHECK(data.get_name(0) == "Unknown");
+        CHECK(data.get_name(-3847) == "Unknown");
+        CHECK(data.get_value("") == -1);
+        CHECK(data.get_value("Missing3847") == -1);
+        CHECK(data.get_names().empty());
+    }
+
+    TEST_CASE("batch3847 ordered names may intentionally contain entries absent from value map") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[1] = "Mapped3847";
+        data.ordered_names = {"Mapped3847", "DisplayOnly3847"};
+        Salix::EnumRegistry::register_enum(typeid(Batch3847EnumA), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3847EnumA));
+        REQUIRE(stored.get_names().size() == 2);
+        CHECK(stored.get_names()[1] == "DisplayOnly3847");
+        CHECK(stored.get_value("DisplayOnly3847") == -1);
+    }
+
+    TEST_CASE("batch3847 value map may contain entries absent from ordered UI names") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[7] = "Hidden3847";
+        Salix::EnumRegistry::register_enum(typeid(Batch3847EnumB), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3847EnumB));
+        CHECK(stored.get_name(7) == "Hidden3847");
+        CHECK(stored.get_value("Hidden3847") == 7);
+        CHECK(stored.get_names().empty());
+    }
+
+    TEST_CASE("batch3847 replacement with empty data clears every previous mapping") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[4] = "Four3847";
+        first.ordered_names = {"Four3847"};
+        Salix::EnumRegistry::register_enum(typeid(Batch3847EnumC), std::move(first));
+        Salix::EnumRegistry::EnumData empty;
+        Salix::EnumRegistry::register_enum(typeid(Batch3847EnumC), std::move(empty));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3847EnumC));
+        CHECK(stored.get_name(4) == "Unknown");
+        CHECK(stored.get_value("Four3847") == -1);
+        CHECK(stored.get_names().empty());
+    }
+
+    TEST_CASE("batch3847 embedded null enum display name roundtrips by full string identity") {
+        const std::string name("Enum\0Name3847", 13);
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[38] = name;
+        data.ordered_names = {name};
+        Salix::EnumRegistry::register_enum(typeid(Batch3847EnumD), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch3847EnumD));
+        CHECK(stored.get_name(38) == name);
+        CHECK(stored.get_value(name) == 38);
+        CHECK(stored.get_names().front().size() == name.size());
+    }
+
+    TEST_CASE("batch3847 missing pointer lookup stays null after unrelated registrations") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[1] = "One3847";
+        Salix::EnumRegistry::register_enum(typeid(Batch3847EnumA), std::move(data));
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch3847NeverRegistered)) == nullptr);
+    }
+
+    TEST_CASE("batch3847 canonical refresh leaves unknown lookup fallback unchanged") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& projection = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        CHECK(projection.get_name(9993847) == "Unknown");
+        CHECK(projection.get_value("NotAProjection3847") == -1);
+    }
+
+    TEST_CASE("batch3847 canonical projection ordered names align with mapped values") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& projection = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        const auto& names = projection.get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(projection.get_value(names[0]) == static_cast<int>(Salix::ProjectionMode::Perspective));
+        CHECK(projection.get_value(names[1]) == static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
+    TEST_CASE("batch3847 canonical editor ordered names align with mapped values") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& editor = Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode));
+        const auto& names = editor.get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(editor.get_value(names[0]) == static_cast<int>(Salix::EditorDataMode::Live));
+        CHECK(editor.get_value(names[1]) == static_cast<int>(Salix::EditorDataMode::Yaml));
+    }
+}
 
