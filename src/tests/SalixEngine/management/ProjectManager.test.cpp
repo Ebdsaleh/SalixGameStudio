@@ -492,15 +492,21 @@ TEST_SUITE("Salix::management::ProjectManagerBatch3847") {
         CHECK(project->get_project_file_name() == "TestProject.salixproj");
     }
 
-    TEST_CASE("batch3847 replacing placeholder restores canonical values after prior mutation") {
+    TEST_CASE("batch3847 replacing placeholder discards prior placeholder persistent mutations") {
         Salix::ProjectManager manager;
         manager.set_active_project("First3847");
         REQUIRE(manager.get_active_project() != nullptr);
-        manager.get_active_project()->set_name("Mutated3847");
-        REQUIRE(manager.get_active_project()->get_name() == "Mutated3847");
+        manager.get_active_project()->set_starting_realm("MutatedRealm3847");
+        manager.get_active_project()->add_realm_path(
+            "Realm3847", "Assets/Realms/Realm3847.realm");
+        REQUIRE(manager.get_active_project()->get_starting_realm() == "MutatedRealm3847");
+        REQUIRE(manager.get_active_project()->get_realm_paths().size() == 1);
+
         manager.set_active_project("Second3847");
         REQUIRE(manager.get_active_project() != nullptr);
         CHECK(manager.get_active_project()->get_name() == "TestProject");
+        CHECK(manager.get_active_project()->get_starting_realm().empty());
+        CHECK(manager.get_active_project()->get_realm_paths().empty());
     }
 
     TEST_CASE("batch3847 blocked project creation preserves selection metadata and active placeholder") {
