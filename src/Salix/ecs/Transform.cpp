@@ -118,11 +118,24 @@ namespace Salix {
             set_rotation(Vector3(new_local_rotation_deg));
             set_scale(Vector3(new_local_scale));
         } else {
-            // If we are being orphaned, our new local state is our old world state.
-            // We use your existing helper methods that correctly capture the world state.
-            set_position(get_world_position());
-            set_rotation(get_world_rotation());
-            set_scale(get_world_scale());
+            // If we are being orphaned, the new local state must equal the world
+            // state captured before the parent pointer was cleared.
+            glm::vec3 world_position;
+            glm::quat world_rotation_quat;
+            glm::vec3 world_scale;
+            glm::vec3 skew;
+            glm::vec4 perspective;
+            glm::decompose(
+                old_child_world_matrix,
+                world_scale,
+                world_rotation_quat,
+                world_position,
+                skew,
+                perspective);
+
+            set_position(Vector3(world_position));
+            set_rotation(Vector3(glm::degrees(glm::eulerAngles(world_rotation_quat))));
+            set_scale(Vector3(world_scale));
         }
     }
 
