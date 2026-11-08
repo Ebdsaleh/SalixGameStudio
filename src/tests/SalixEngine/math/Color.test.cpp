@@ -746,3 +746,86 @@ TEST_SUITE("Salix::math::ColorBatch3547") {
     }
 }
 
+TEST_SUITE("Salix::math::ColorBatch3947") {
+    TEST_CASE("batch3947 default color remains opaque white") {
+        const Salix::Color c;
+        CHECK(c == Salix::Color(1.0f, 1.0f, 1.0f, 1.0f));
+    }
+
+    TEST_CASE("batch3947 integer factory preserves explicit transparent alpha") {
+        const auto c = Salix::Color::from_rgba_int(255, 128, 0, 0);
+        CHECK(c.r == doctest::Approx(1.0f));
+        CHECK(c.g == doctest::Approx(128.0f / 255.0f));
+        CHECK(c.b == doctest::Approx(0.0f));
+        CHECK(c.a == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch3947 HSV hue beyond two turns wraps to equivalent base hue") {
+        const auto wrapped = Salix::Color::from_hsv(750.0f, 0.6f, 0.8f, 0.5f);
+        const auto base = Salix::Color::from_hsv(30.0f, 0.6f, 0.8f, 0.5f);
+        CHECK(wrapped.r == doctest::Approx(base.r));
+        CHECK(wrapped.g == doctest::Approx(base.g));
+        CHECK(wrapped.b == doctest::Approx(base.b));
+        CHECK(wrapped.a == doctest::Approx(base.a));
+    }
+
+    TEST_CASE("batch3947 zero saturation ignores hue and produces grayscale") {
+        const auto c = Salix::Color::from_hsv(213.0f, 0.0f, 0.375f, 0.625f);
+        CHECK(c.r == doctest::Approx(0.375f));
+        CHECK(c.g == doctest::Approx(0.375f));
+        CHECK(c.b == doctest::Approx(0.375f));
+        CHECK(c.a == doctest::Approx(0.625f));
+    }
+
+    TEST_CASE("batch3947 zero HSV value produces black while preserving alpha") {
+        const auto c = Salix::Color::from_hsv(123.0f, 0.8f, 0.0f, 0.25f);
+        CHECK(c.r == doctest::Approx(0.0f));
+        CHECK(c.g == doctest::Approx(0.0f));
+        CHECK(c.b == doctest::Approx(0.0f));
+        CHECK(c.a == doctest::Approx(0.25f));
+    }
+
+    TEST_CASE("batch3947 quarter color interpolation advances every channel independently") {
+        const Salix::Color a(0.0f, 2.0f, 4.0f, 0.0f);
+        const Salix::Color b(4.0f, 6.0f, 8.0f, 1.0f);
+        const auto c = Salix::Color::lerp(a, b, 0.25f);
+        CHECK(c.r == doctest::Approx(1.0f));
+        CHECK(c.g == doctest::Approx(3.0f));
+        CHECK(c.b == doctest::Approx(5.0f));
+        CHECK(c.a == doctest::Approx(0.25f));
+    }
+
+    TEST_CASE("batch3947 multiplying color by zero clears all four channels") {
+        const Salix::Color c(-1.0f, 2.0f, 3.0f, 0.5f);
+        CHECK(c * 0.0f == Salix::Color(0.0f, 0.0f, 0.0f, 0.0f));
+    }
+
+    TEST_CASE("batch3947 YAML alpha only decode zeros omitted color channels") {
+        Salix::Color c(9.0f, 8.0f, 7.0f, 6.0f);
+        const YAML::Node node = YAML::Load("{a: 0.75}");
+        node >> c;
+        CHECK(c.r == 0.0f);
+        CHECK(c.g == 0.0f);
+        CHECK(c.b == 0.0f);
+        CHECK(c.a == doctest::Approx(0.75f));
+    }
+
+    TEST_CASE("batch3947 YAML emitter roundtrip preserves out of range diagnostic channels") {
+        const Salix::Color original(-0.25f, 1.25f, 2.5f, -1.0f);
+        YAML::Emitter out;
+        out << original;
+        Salix::Color restored;
+        YAML::Load(out.c_str()) >> restored;
+        CHECK(restored.r == doctest::Approx(original.r));
+        CHECK(restored.g == doctest::Approx(original.g));
+        CHECK(restored.b == doctest::Approx(original.b));
+        CHECK(restored.a == doctest::Approx(original.a));
+    }
+
+    TEST_CASE("batch3947 color ostream preserves channel order") {
+        const Salix::Color c(1.0f, -2.0f, 3.5f, 0.25f);
+        std::stringstream stream;
+        stream << c;
+        CHECK(stream.str() == "{ r: 1, g: -2, b: 3.5, a: 0.25 }");
+    }
+}
