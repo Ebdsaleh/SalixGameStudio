@@ -474,7 +474,8 @@ TEST_SUITE("Salix::assets::AssetManagerBatch3247") {
 TEST_SUITE("Salix::assets::AssetManagerBatch3647") {
     TEST_CASE("batch3647 texture request before initialization is a safe null result") {
         Salix::AssetManager assets;
-        CHECK_NOTHROW(CHECK(assets.get_texture("assets/preinit3647.png") == nullptr));
+        CHECK_NOTHROW((void)assets.get_texture("assets/preinit3647.png"));
+        CHECK(assets.get_texture("assets/preinit3647.png") == nullptr);
     }
 
     TEST_CASE("batch3647 explicit null renderer initialization keeps uncached requests safe") {
