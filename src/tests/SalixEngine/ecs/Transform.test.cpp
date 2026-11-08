@@ -1358,4 +1358,173 @@ TEST_SUITE("Salix::ecs::TransformBatch3447") {
         CHECK(transform.get_scale() == Salix::Vector3(7.f, 8.f, 9.f));
     }
 }
+TEST_SUITE("Salix::ecs::TransformBatch3847") {
+    TEST_CASE("batch3847 direct orphaning preserves translated world position") {
+        Salix::Transform parent, child;
+        parent.set_position(10.f, -20.f, 30.f);
+        child.set_position(1.f, 2.f, 3.f);
+        child.set_parent(&parent);
+        const auto before = child.get_world_position();
+        child.set_parent(nullptr);
+        const auto after = child.get_world_position();
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+        CHECK(child.get_parent() == nullptr);
+        CHECK(parent.get_children().empty());
+    }
+
+    TEST_CASE("batch3847 direct orphaning preserves nonuniform world scale") {
+        Salix::Transform parent, child;
+        parent.set_scale(2.f, 3.f, 4.f);
+        child.set_scale(5.f, 6.f, 7.f);
+        child.set_parent(&parent);
+        const auto before = child.get_world_scale();
+        child.set_parent(nullptr);
+        const auto after = child.get_world_scale();
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+    }
+
+    TEST_CASE("batch3847 direct orphaning preserves world orientation under rotated parent") {
+        Salix::Transform parent, child;
+        parent.set_rotation(0.f, 70.f, 0.f);
+        child.set_rotation(15.f, 10.f, -20.f);
+        child.set_parent(&parent);
+        const glm::quat before_q = glm::quat(glm::radians(child.get_world_rotation().to_glm()));
+        const glm::vec3 before_forward = before_q * glm::vec3(0.f, 0.f, -1.f);
+        child.set_parent(nullptr);
+        const glm::quat after_q = glm::quat(glm::radians(child.get_world_rotation().to_glm()));
+        const glm::vec3 after_forward = after_q * glm::vec3(0.f, 0.f, -1.f);
+        CHECK(after_forward.x == doctest::Approx(before_forward.x).epsilon(0.0001));
+        CHECK(after_forward.y == doctest::Approx(before_forward.y).epsilon(0.0001));
+        CHECK(after_forward.z == doctest::Approx(before_forward.z).epsilon(0.0001));
+    }
+
+    TEST_CASE("batch3847 direct orphaning preserves combined position rotation and scale") {
+        Salix::Transform parent, child;
+        parent.set_position(17.f, -9.f, 4.f);
+        parent.set_rotation(10.f, 25.f, -15.f);
+        parent.set_scale(1.5f, 1.5f, 1.5f);
+        child.set_position(-3.f, 5.f, 8.f);
+        child.set_rotation(-12.f, 6.f, 30.f);
+        child.set_scale(2.f, 2.f, 2.f);
+        child.set_parent(&parent);
+        const auto position_before = child.get_world_position();
+        const auto scale_before = child.get_world_scale();
+        const glm::quat rotation_before = glm::quat(glm::radians(child.get_world_rotation().to_glm()));
+        const glm::vec3 up_before = rotation_before * glm::vec3(0.f, 1.f, 0.f);
+        child.set_parent(nullptr);
+        const auto position_after = child.get_world_position();
+        const auto scale_after = child.get_world_scale();
+        const glm::quat rotation_after = glm::quat(glm::radians(child.get_world_rotation().to_glm()));
+        const glm::vec3 up_after = rotation_after * glm::vec3(0.f, 1.f, 0.f);
+        CHECK(position_after.x == doctest::Approx(position_before.x).epsilon(0.0001));
+        CHECK(position_after.y == doctest::Approx(position_before.y).epsilon(0.0001));
+        CHECK(position_after.z == doctest::Approx(position_before.z).epsilon(0.0001));
+        CHECK(scale_after.x == doctest::Approx(scale_before.x).epsilon(0.0001));
+        CHECK(scale_after.y == doctest::Approx(scale_before.y).epsilon(0.0001));
+        CHECK(scale_after.z == doctest::Approx(scale_before.z).epsilon(0.0001));
+        CHECK(up_after.x == doctest::Approx(up_before.x).epsilon(0.0001));
+        CHECK(up_after.y == doctest::Approx(up_before.y).epsilon(0.0001));
+        CHECK(up_after.z == doctest::Approx(up_before.z).epsilon(0.0001));
+    }
+
+    TEST_CASE("batch3847 destroying translated parent preserves surviving child world position") {
+        Salix::Transform child;
+        Salix::Vector3 before;
+        {
+            auto parent = std::make_unique<Salix::Transform>();
+            parent->set_position(40.f, 50.f, -60.f);
+            child.set_position(2.f, 4.f, 6.f);
+            child.set_parent(parent.get());
+            before = child.get_world_position();
+        }
+        CHECK(child.get_parent() == nullptr);
+        const auto after = child.get_world_position();
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+    }
+
+    TEST_CASE("batch3847 destroying scaled parent preserves surviving child world scale") {
+        Salix::Transform child;
+        Salix::Vector3 before;
+        {
+            auto parent = std::make_unique<Salix::Transform>();
+            parent->set_scale(3.f, 4.f, 5.f);
+            child.set_scale(2.f, 2.f, 2.f);
+            child.set_parent(parent.get());
+            before = child.get_world_scale();
+        }
+        const auto after = child.get_world_scale();
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+    }
+
+    TEST_CASE("batch3847 orphaning from a three level hierarchy preserves absolute position") {
+        Salix::Transform grandparent, parent, child;
+        grandparent.set_position(100.f, 0.f, 0.f);
+        parent.set_position(0.f, 20.f, 0.f);
+        child.set_position(0.f, 0.f, 3.f);
+        parent.set_parent(&grandparent);
+        child.set_parent(&parent);
+        const auto before = child.get_world_position();
+        child.set_parent(nullptr);
+        const auto after = child.get_world_position();
+        CHECK(after.x == doctest::Approx(before.x));
+        CHECK(after.y == doctest::Approx(before.y));
+        CHECK(after.z == doctest::Approx(before.z));
+        CHECK(parent.get_children().empty());
+        CHECK(grandparent.get_children().size() == 1);
+    }
+
+    TEST_CASE("batch3847 orphaning an already root transform is idempotent") {
+        Salix::Transform root;
+        root.set_position(-8.f, 9.f, 10.f);
+        root.set_rotation(11.f, 12.f, 13.f);
+        root.set_scale(2.f, 3.f, 4.f);
+        root.set_parent(nullptr);
+        root.set_parent(nullptr);
+        CHECK(root.get_position() == Salix::Vector3(-8.f, 9.f, 10.f));
+        CHECK(root.get_rotation() == Salix::Vector3(11.f, 12.f, 13.f));
+        CHECK(root.get_scale() == Salix::Vector3(2.f, 3.f, 4.f));
+    }
+
+    TEST_CASE("batch3847 reparent then orphan preserves the same world position across both operations") {
+        Salix::Transform first, second, child;
+        first.set_position(25.f, 0.f, 0.f);
+        second.set_position(-40.f, 10.f, 5.f);
+        child.set_position(7.f, 8.f, 9.f);
+        child.set_parent(&first);
+        const auto before = child.get_world_position();
+        child.set_parent(&second);
+        const auto after_reparent = child.get_world_position();
+        child.set_parent(nullptr);
+        const auto after_orphan = child.get_world_position();
+        CHECK(after_reparent.x == doctest::Approx(before.x));
+        CHECK(after_reparent.y == doctest::Approx(before.y));
+        CHECK(after_reparent.z == doctest::Approx(before.z));
+        CHECK(after_orphan.x == doctest::Approx(before.x));
+        CHECK(after_orphan.y == doctest::Approx(before.y));
+        CHECK(after_orphan.z == doctest::Approx(before.z));
+    }
+
+    TEST_CASE("batch3847 release_from_parent and direct orphaning agree on translated hierarchy result") {
+        Salix::Transform parent_a, parent_b, direct_child, released_child;
+        parent_a.set_position(12.f, -4.f, 9.f);
+        parent_b.set_position(12.f, -4.f, 9.f);
+        direct_child.set_position(3.f, 2.f, 1.f);
+        released_child.set_position(3.f, 2.f, 1.f);
+        direct_child.set_parent(&parent_a);
+        released_child.set_parent(&parent_b);
+        direct_child.set_parent(nullptr);
+        released_child.release_from_parent();
+        CHECK(direct_child.get_world_position().x == doctest::Approx(released_child.get_world_position().x));
+        CHECK(direct_child.get_world_position().y == doctest::Approx(released_child.get_world_position().y));
+        CHECK(direct_child.get_world_position().z == doctest::Approx(released_child.get_world_position().z));
+    }
+}
 
