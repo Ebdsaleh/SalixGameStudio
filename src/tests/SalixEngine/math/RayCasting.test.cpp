@@ -618,3 +618,88 @@ TEST_SUITE("Salix::math::RayCastingBatch3247") {
  TEST_CASE("batch3247 translated OBB miss preserves supplied distance") { const Salix::Ray ray{{0.f,10.f,0.f},{1.f,0.f,0.f}}; const auto model=glm::translate(glm::mat4(1.f),glm::vec3(5.f,0.f,0.f)); float d=88.f; CHECK_FALSE(Salix::Raycast::IntersectsOBB(ray,model,glm::vec3(1.f),d)); CHECK(d==88.f); }
  TEST_CASE("batch3247 screen ray wrappers remain identical at viewport center offset") { MockICamera camera; auto& view=const_cast<glm::mat4&>(camera.get_view_matrix()); auto& proj=const_cast<glm::mat4&>(camera.get_projection_matrix()); view=glm::mat4(1.f); proj=glm::mat4(1.f); const auto a=Salix::Raycast::CreateRayFromScreen(&camera,Salix::Vector2(150.f,100.f),Salix::Vector2(50.f,50.f),Salix::Vector2(200.f,100.f)); const auto b=Salix::Raycast::CreateRayFromScreen(&camera,ImVec2(150.f,100.f),ImVec2(50.f,50.f),ImVec2(200.f,100.f)); check_vec3_approx(a.origin,b.origin); check_vec3_approx(a.direction,b.direction); CHECK(glm::length(a.direction)==doctest::Approx(1.f)); }
 }
+TEST_SUITE("Salix::math::RayCastingBatch3647") {
+    TEST_CASE("batch3647 nonunit positive X direction reports scaled ray parameter") {
+        const Salix::Ray ray{{-5.0f, 0.0f, 0.0f}, {2.0f, 0.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch3647 nonunit negative X direction reports scaled ray parameter") {
+        const Salix::Ray ray{{5.0f, 0.0f, 0.0f}, {-2.0f, 0.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch3647 diagonal ray enters symmetric AABB when all slabs overlap") {
+        const Salix::Ray ray{{-5.0f, -5.0f, -5.0f}, {1.0f, 1.0f, 1.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch3647 Vector3 and GLM overloads agree for nonunit asymmetric hit") {
+        const Salix::Ray ray{{-10.0f, 1.0f, 2.0f}, {2.0f, 0.0f, 0.0f}};
+        const Salix::Vector3 lower(-3.0f, -2.0f, -1.0f);
+        const Salix::Vector3 upper(4.0f, 5.0f, 6.0f);
+        float a = -1.0f, b = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, lower, upper, a));
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, lower.to_glm(), upper.to_glm(), b));
+        CHECK(a == doctest::Approx(b));
+        CHECK(a == doctest::Approx(3.5f));
+    }
+
+    TEST_CASE("batch3647 ray with box entirely behind origin preserves caller distance") {
+        const Salix::Ray ray{{10.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        float distance = 3647.0f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-2.0f), glm::vec3(2.0f), distance));
+        CHECK(distance == 3647.0f);
+    }
+
+    TEST_CASE("batch3647 inside ray with nonunit direction reports scaled forward exit") {
+        const Salix::Ray ray{{1.0f, 0.0f, 0.0f}, {2.0f, 0.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(
+            ray, glm::vec3(-2.0f, -1.0f, -1.0f), glm::vec3(4.0f, 1.0f, 1.0f), distance));
+        CHECK(distance == doctest::Approx(1.5f));
+    }
+
+    TEST_CASE("batch3647 identity OBB from inside reports forward local exit distance") {
+        const Salix::Ray ray{{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 1.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray, glm::mat4(1.0f), glm::vec3(2.0f, 3.0f, 4.0f), distance));
+        CHECK(distance == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch3647 ninety degree Y rotated OBB uses rotated long axis for entry distance") {
+        const Salix::Ray ray{{0.0f, 0.0f, -10.0f}, {0.0f, 0.0f, 1.0f}};
+        const auto model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray, model, glm::vec3(2.0f, 1.0f, 1.0f), distance));
+        CHECK(distance == doctest::Approx(8.0f).epsilon(0.001));
+    }
+
+    TEST_CASE("batch3647 identity OBB miss preserves caller supplied distance") {
+        const Salix::Ray ray{{0.0f, 5.0f, -10.0f}, {0.0f, 0.0f, 1.0f}};
+        float distance = 73.0f;
+        CHECK_FALSE(Salix::Raycast::IntersectsOBB(ray, glm::mat4(1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == 73.0f);
+    }
+
+    TEST_CASE("batch3647 equivalent viewport center coordinates produce identical core screen ray") {
+        MockICamera camera;
+        auto& view = const_cast<glm::mat4&>(camera.get_view_matrix());
+        auto& projection = const_cast<glm::mat4&>(camera.get_projection_matrix());
+        view = glm::mat4(1.0f);
+        projection = glm::mat4(1.0f);
+        const auto offset = Salix::Raycast::CreateRayFromScreen(
+            &camera, Salix::Vector2(150.0f, 100.0f), Salix::Vector2(50.0f, 50.0f), Salix::Vector2(200.0f, 100.0f));
+        const auto origin = Salix::Raycast::CreateRayFromScreen(
+            &camera, Salix::Vector2(100.0f, 50.0f), Salix::Vector2(0.0f, 0.0f), Salix::Vector2(200.0f, 100.0f));
+        check_vec3_approx(offset.origin, origin.origin);
+        check_vec3_approx(offset.direction, origin.direction);
+    }
+}
+
