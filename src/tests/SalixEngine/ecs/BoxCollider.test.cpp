@@ -535,3 +535,128 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch3247") {
  TEST_CASE("batch3247 JSON roundtrip preserves name and geometry while visibility remains runtime local") { Salix::BoxCollider s; s.set_name("Json3247"); s.set_visibility(true); s.set_size({-1.f,2.5f,9.f}); std::stringstream ss; {cereal::JSONOutputArchive out(ss); out(s);} Salix::BoxCollider d; d.set_visibility(false); {cereal::JSONInputArchive in(ss); in(d);} CHECK(d.get_name()=="Json3247"); CHECK_FALSE(d.is_visible()); CHECK(d.get_size()==s.get_size()); }
  TEST_CASE("batch3247 two colliders remain independent after copying size value") { Salix::BoxCollider a,b; a.set_size({4.f,5.f,6.f}); b.set_size(a.get_size()); a.set_size({7.f,8.f,9.f}); CHECK(b.get_size()==Salix::Vector3(4.f,5.f,6.f)); CHECK(a.get_size()!=b.get_size()); }
 }
+TEST_SUITE("Salix::ecs::BoxColliderBatch3647") {
+    TEST_CASE("batch3647 fresh collider combines canonical identity with unit geometry") {
+        Salix::BoxCollider collider;
+        CHECK(std::string(collider.get_class_name()) == "BoxCollider");
+        CHECK(collider.get_name() == "BoxCollider");
+        CHECK(collider.get_size() == Salix::Vector3::One);
+    }
+
+    TEST_CASE("batch3647 size reference remains stable while finite and infinite components are replaced") {
+        Salix::BoxCollider collider;
+        const Salix::Vector3* storage = &collider.get_size();
+        collider.set_size(Salix::Vector3(
+            std::numeric_limits<float>::infinity(),
+            -std::numeric_limits<float>::infinity(),
+            0.0f));
+        CHECK(&collider.get_size() == storage);
+        CHECK(std::isinf(storage->x));
+        CHECK(std::isinf(storage->y));
+        CHECK(storage->z == 0.0f);
+    }
+
+    TEST_CASE("batch3647 entity identifier replacement never changes collider geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({3.0f, 6.0f, 9.0f});
+        collider.set_id(Salix::SimpleGuid::from_value(3647001ULL));
+        CHECK(collider.get_id().get_value() == 3647001ULL);
+        CHECK(collider.get_size() == Salix::Vector3(3.0f, 6.0f, 9.0f));
+    }
+
+    TEST_CASE("batch3647 customized display name survives geometry replacements") {
+        Salix::BoxCollider collider;
+        collider.set_name("Collision Volume 3647");
+        collider.set_size({1.0f, 2.0f, 3.0f});
+        collider.set_size({4.0f, 5.0f, 6.0f});
+        CHECK(collider.get_name() == "Collision Volume 3647");
+        CHECK(collider.get_size() == Salix::Vector3(4.0f, 5.0f, 6.0f));
+    }
+
+    TEST_CASE("batch3647 owner attach and detach preserve exact geometry") {
+        Salix::Entity owner;
+        Salix::BoxCollider collider;
+        collider.set_size({-2.0f, 0.5f, 8.0f});
+        collider.set_owner(&owner);
+        CHECK(collider.get_owner() == &owner);
+        collider.set_owner(nullptr);
+        CHECK(collider.get_owner() == nullptr);
+        CHECK(collider.get_size() == Salix::Vector3(-2.0f, 0.5f, 8.0f));
+    }
+
+    TEST_CASE("batch3647 lifecycle sequence preserves identifier display name visibility and geometry") {
+        Salix::BoxCollider collider;
+        Salix::InitContext context{};
+        collider.set_name("Lifecycle3647");
+        collider.set_visibility(false);
+        collider.set_size({7.0f, -8.0f, 9.5f});
+        const auto id = collider.get_id();
+        collider.initialize();
+        collider.on_load(context);
+        collider.update(-3647.0f);
+        CHECK(collider.get_id() == id);
+        CHECK(collider.get_name() == "Lifecycle3647");
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(7.0f, -8.0f, 9.5f));
+    }
+
+    TEST_CASE("batch3647 JSON roundtrip preserves explicit identifier display name and geometry") {
+        Salix::BoxCollider source;
+        source.set_id(Salix::SimpleGuid::from_value(3647002ULL));
+        source.set_name("Json Collider 3647");
+        source.set_size({-1.25f, 2.5f, 10.0f});
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_id() == source.get_id());
+        CHECK(restored.get_name() == source.get_name());
+        CHECK(restored.get_size() == source.get_size());
+    }
+
+    TEST_CASE("batch3647 binary roundtrip preserves explicit identifier name and asymmetric geometry") {
+        Salix::BoxCollider source;
+        source.set_id(Salix::SimpleGuid::from_value(3647003ULL));
+        source.set_name("Binary Collider 3647");
+        source.set_size({0.125f, -64.0f, 1024.5f});
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_id() == source.get_id());
+        CHECK(restored.get_name() == source.get_name());
+        CHECK(restored.get_size() == source.get_size());
+    }
+
+    TEST_CASE("batch3647 deserialization leaves destination runtime owner and visibility local") {
+        Salix::BoxCollider source;
+        source.set_name("Serialized3647");
+        source.set_visibility(true);
+        source.set_size({4.0f, 8.0f, 16.0f});
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+
+        Salix::Entity owner;
+        Salix::BoxCollider restored;
+        restored.set_owner(&owner);
+        restored.set_visibility(false);
+        { cereal::JSONInputArchive in(stream); in(restored); }
+
+        CHECK(restored.get_owner() == &owner);
+        CHECK_FALSE(restored.is_visible());
+        CHECK(restored.get_name() == "Serialized3647");
+        CHECK(restored.get_size() == source.get_size());
+    }
+
+    TEST_CASE("batch3647 two colliders retain independent size storage addresses and values") {
+        Salix::BoxCollider first, second;
+        const auto* first_storage = &first.get_size();
+        const auto* second_storage = &second.get_size();
+        CHECK(first_storage != second_storage);
+        first.set_size({1.0f, 3.0f, 5.0f});
+        second.set_size({2.0f, 4.0f, 6.0f});
+        CHECK(*first_storage == Salix::Vector3(1.0f, 3.0f, 5.0f));
+        CHECK(*second_storage == Salix::Vector3(2.0f, 4.0f, 6.0f));
+    }
+}
+
