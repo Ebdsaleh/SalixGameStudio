@@ -52,19 +52,11 @@ PropertyValue PropertyHandleLive::get_value() const
         case PropertyType::UInt64:
             return *static_cast<uint64_t*>(data_ptr);
 
-        case PropertyType::Enum:{ 
-            // Enums are handled as ints at this level
-            // 1. Get the pointer from the reflection getter, which we know is an int*.
-            void* data_ptr = data_ptr;
-            // 2. Cast it to the correct type (int*) and dereference it.
+        case PropertyType::Enum:
             return *static_cast<int*>(data_ptr);
-        }
-        case PropertyType::EnumClass: {
-        // 1. Get the pointer from the reflection getter, which we know is an int*.
-        void* data_ptr = data_ptr;
-        // 2. Cast it to the correct type (int*) and dereference it.
-        return *static_cast<int*>(data_ptr);
-        }
+
+        case PropertyType::EnumClass:
+            return *static_cast<int*>(data_ptr);
 
         case PropertyType::Float:
             return *static_cast<float*>(data_ptr);
