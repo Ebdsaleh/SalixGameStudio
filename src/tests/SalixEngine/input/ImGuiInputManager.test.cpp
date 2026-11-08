@@ -26,6 +26,7 @@ TEST_SUITE("Salix::input::ImGuiInputManager") {
 // Pure ImGui input context: no SDL window or graphics backend required.
 #include <vector>
 #include <Tests/SalixEngine/mocking/events/MockEventSystem.h>
+#include <limits>
 namespace {
 struct InputManagerContext {
     ImGuiContext* previous_test = ImGui::GetCurrentContext();
@@ -351,6 +352,102 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch2547") {
         InputManagerContext fixture; Salix::ImGuiInputManager m;
         CHECK(m.is_up(Salix::MouseButton::Left)); CHECK(m.is_up(Salix::MouseButton::Middle)); CHECK(m.is_up(Salix::MouseButton::Right));
         CHECK_FALSE(m.is_held_down(Salix::MouseButton::Left)); CHECK_FALSE(m.is_held_down(Salix::MouseButton::Middle)); CHECK_FALSE(m.is_held_down(Salix::MouseButton::Right));
+    }
+}
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch3747") {
+    TEST_CASE("batch3747 empty keyboard duration chord remains vacuously true for negative threshold") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::KeyCode> keys;
+        CHECK(manager.multiple_are_held_down_for(keys, -1.0f));
+    }
+
+    TEST_CASE("batch3747 empty mouse duration chord remains vacuously true for negative threshold") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::MouseButton> buttons;
+        CHECK(manager.multiple_are_held_down_for(buttons, -1.0f));
+    }
+
+    TEST_CASE("batch3747 duplicate unmapped keys remain inactive but universally up") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::KeyCode> keys{Salix::KeyCode::None, Salix::KeyCode::None};
+        CHECK_FALSE(manager.multiple_are_down(keys));
+        CHECK_FALSE(manager.multiple_are_held_down(keys));
+        CHECK_FALSE(manager.multiple_were_released(keys));
+        CHECK(manager.multiple_are_up(keys));
+    }
+
+    TEST_CASE("batch3747 duplicate unmapped mouse buttons remain inactive but universally up") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::MouseButton> buttons{Salix::MouseButton::None, Salix::MouseButton::None};
+        CHECK_FALSE(manager.multiple_are_down(buttons));
+        CHECK_FALSE(manager.multiple_are_held_down(buttons));
+        CHECK_FALSE(manager.multiple_were_released(buttons));
+        CHECK(manager.multiple_are_up(buttons));
+    }
+
+    TEST_CASE("batch3747 invalid key enum safely fails held duration query") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const auto invalid = static_cast<Salix::KeyCode>(9999);
+        CHECK_FALSE(manager.is_held_down_for(invalid, 0.0f));
+    }
+
+    TEST_CASE("batch3747 invalid mouse enum follows safe inactive and up semantics") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const auto invalid = static_cast<Salix::MouseButton>(9999);
+        CHECK_FALSE(manager.is_down(invalid));
+        CHECK_FALSE(manager.is_held_down(invalid));
+        CHECK_FALSE(manager.is_held_down_for(invalid, 0.0f));
+        CHECK_FALSE(manager.was_released(invalid));
+        CHECK(manager.is_up(invalid));
+    }
+
+    TEST_CASE("batch3747 positive infinite wheel delta is classified forward without normalization") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = std::numeric_limits<float>::infinity();
+        CHECK(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Backward));
+        CHECK(std::isinf(manager.get_mouse_scroll_delta()));
+        CHECK(manager.get_mouse_scroll_delta() > 0.0f);
+    }
+
+    TEST_CASE("batch3747 negative infinite wheel delta is classified backward without normalization") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = -std::numeric_limits<float>::infinity();
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK(manager.did_scroll(Salix::MouseScroll::Backward));
+        CHECK(std::isinf(manager.get_mouse_scroll_delta()));
+        CHECK(manager.get_mouse_scroll_delta() < 0.0f);
+    }
+
+    TEST_CASE("batch3747 update with NaN delta leaves GUI wheel and mouse position untouched") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = 3.747f;
+        ImGui::GetIO().MousePos = ImVec2(-17.75f, 42.5f);
+        manager.update(std::numeric_limits<float>::quiet_NaN());
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(manager.get_mouse_scroll_delta() == doctest::Approx(3.747f));
+        CHECK(x == -17);
+        CHECK(y == 42);
+    }
+
+    TEST_CASE("batch3747 test context bridge can clear and restore owned context explicitly") {
+        InputManagerContext fixture;
+        REQUIRE(Salix::ImGuiInputManager::get_context_for_testing() == fixture.owned);
+        Salix::ImGuiInputManager::set_context_for_testing(nullptr);
+        CHECK(Salix::ImGuiInputManager::get_context_for_testing() == nullptr);
+        Salix::ImGuiInputManager::set_context_for_testing(fixture.owned);
+        CHECK(Salix::ImGuiInputManager::get_context_for_testing() == fixture.owned);
+        CHECK(ImGui::GetCurrentContext() == fixture.owned);
     }
 }
 
