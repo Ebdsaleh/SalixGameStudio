@@ -377,6 +377,7 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch3747") {
         CHECK_FALSE(manager.multiple_are_down(keys));
         CHECK_FALSE(manager.multiple_are_held_down(keys));
         CHECK_FALSE(manager.multiple_were_released(keys));
+        CHECK_FALSE(manager.any_of_combo_was_released(keys));
         CHECK(manager.multiple_are_up(keys));
     }
 
@@ -394,7 +395,11 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch3747") {
         InputManagerContext fixture;
         Salix::ImGuiInputManager manager;
         const auto invalid = static_cast<Salix::KeyCode>(9999);
+        CHECK_FALSE(manager.is_down(invalid));
+        CHECK_FALSE(manager.is_held_down(invalid));
         CHECK_FALSE(manager.is_held_down_for(invalid, 0.0f));
+        CHECK_FALSE(manager.was_released(invalid));
+        CHECK(manager.is_up(invalid));
     }
 
     TEST_CASE("batch3747 invalid mouse enum follows safe inactive and up semantics") {
