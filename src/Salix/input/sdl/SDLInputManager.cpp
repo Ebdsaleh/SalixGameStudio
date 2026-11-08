@@ -147,8 +147,10 @@ namespace Salix {
     bool SDLInputManager::is_up(KeyCode key) const { return key_states.at(key) == InputState::Up; }
     
     bool SDLInputManager::is_held_down_for(KeyCode key, float duration) const {
-         return key_held_durations.at(key) >= duration; 
-        }
+        const InputState state = key_states.at(key);
+        return (state == InputState::Down || state == InputState::Held)
+            && key_held_durations.at(key) >= duration;
+    }
 
     // --- Keyboard Multiple keystrokes events (simultaneous)
 
@@ -284,8 +286,10 @@ namespace Salix {
     bool SDLInputManager::is_up(MouseButton button) const { return mouse_button_states.at(button) == InputState::Up; }
     
     bool SDLInputManager::is_held_down_for(MouseButton button, float duration) const {
-         return mouse_button_held_durations.at(button) >= duration;
-        }
+        const InputState state = mouse_button_states.at(button);
+        return (state == InputState::Down || state == InputState::Held)
+            && mouse_button_held_durations.at(button) >= duration;
+    }
 
 
     // --- Mouse  Multiple Button events (Additive)
