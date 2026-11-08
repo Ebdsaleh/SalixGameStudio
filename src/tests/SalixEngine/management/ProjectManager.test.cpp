@@ -443,3 +443,116 @@ TEST_SUITE("Salix::management::ProjectManagerBatch3047") {
         CHECK_NOTHROW(manager.render(nullptr));
     }
 }
+TEST_SUITE("Salix::management::ProjectManagerBatch3847") {
+    TEST_CASE("batch3847 project to load preserves embedded null bytes as owned metadata") {
+        Salix::ProjectManager manager;
+        const std::string value("Project\0Load3847.salixproj", 26);
+        manager.set_project_to_load(value);
+        CHECK(manager.get_project_to_load() == value);
+        CHECK(manager.get_project_to_load().size() == value.size());
+    }
+
+    TEST_CASE("batch3847 loaded project directory preserves embedded null bytes") {
+        Salix::ProjectManager manager;
+        const std::string value("Root\0Directory3847", 18);
+        manager.set_loaded_project_directory(value);
+        CHECK(manager.get_loaded_project_directory() == value);
+        CHECK(manager.get_loaded_project_directory().size() == value.size());
+    }
+
+    TEST_CASE("batch3847 empty metadata setters clear their fields independently") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending3847.salixproj");
+        manager.set_loaded_project_directory("Root3847");
+        manager.set_project_to_load("");
+        CHECK(manager.get_project_to_load().empty());
+        CHECK(manager.get_loaded_project_directory() == "Root3847");
+        manager.set_loaded_project_directory("");
+        CHECK(manager.get_loaded_project_directory().empty());
+    }
+
+    TEST_CASE("batch3847 initialize preserves an existing placeholder active project") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Placeholder3847");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        Salix::InitContext context{};
+        manager.initialize(context);
+        CHECK(manager.get_active_project() == active);
+        CHECK(manager.get_active_project()->get_name() == "TestProject");
+    }
+
+    TEST_CASE("batch3847 placeholder setter ignores requested name and exposes canonical placeholder metadata") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Requested Name 3847!");
+        auto* project = manager.get_active_project();
+        REQUIRE(project != nullptr);
+        CHECK(project->get_name() == "TestProject");
+        CHECK(project->get_path() == "Sandbox/TestProject");
+        CHECK(project->get_project_file_name() == "TestProject.salixproj");
+    }
+
+    TEST_CASE("batch3847 replacing placeholder restores canonical values after prior mutation") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("First3847");
+        REQUIRE(manager.get_active_project() != nullptr);
+        manager.get_active_project()->set_name("Mutated3847");
+        REQUIRE(manager.get_active_project()->get_name() == "Mutated3847");
+        manager.set_active_project("Second3847");
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_active_project()->get_name() == "TestProject");
+    }
+
+    TEST_CASE("batch3847 blocked project creation preserves selection metadata and active placeholder") {
+        Batch1947ProjectRoot root;
+        const auto blocker = root.path / "Blocked3847";
+        { std::ofstream out(blocker); out << "block"; }
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Keep3847.salixproj");
+        manager.set_loaded_project_directory("KeepRoot3847");
+        manager.set_active_project("KeepActive3847");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        CHECK_FALSE(manager.create_new_project(root.path.string(), "Blocked3847"));
+        CHECK(manager.get_project_to_load() == "Keep3847.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "KeepRoot3847");
+        CHECK(manager.get_active_project() == active);
+    }
+
+    TEST_CASE("batch3847 simple project creation does not implicitly install an active project") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.get_active_project() == nullptr);
+        REQUIRE(manager.create_new_project(root.path.string(), "NoActivate3847"));
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(std::filesystem::is_regular_file(
+            root.path / "NoActivate3847" / "NoActivate3847.salixproj"));
+    }
+
+    TEST_CASE("batch3847 separate managers keep project selection metadata independent") {
+        Salix::ProjectManager first;
+        Salix::ProjectManager second;
+        first.set_project_to_load("First3847.salixproj");
+        first.set_loaded_project_directory("FirstRoot3847");
+        second.set_project_to_load("Second3847.salixproj");
+        second.set_loaded_project_directory("SecondRoot3847");
+        CHECK(first.get_project_to_load() == "First3847.salixproj");
+        CHECK(first.get_loaded_project_directory() == "FirstRoot3847");
+        CHECK(second.get_project_to_load() == "Second3847.salixproj");
+        CHECK(second.get_loaded_project_directory() == "SecondRoot3847");
+    }
+
+    TEST_CASE("batch3847 shutdown with no active project preserves metadata and lifecycle no ops remain safe") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending3847.salixproj");
+        manager.set_loaded_project_directory("PendingRoot3847");
+        REQUIRE(manager.get_active_project() == nullptr);
+        manager.shutdown();
+        CHECK(manager.get_project_to_load() == "Pending3847.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "PendingRoot3847");
+        CHECK_NOTHROW(manager.update(-3847.0f));
+        CHECK_NOTHROW(manager.render(nullptr));
+        CHECK(manager.get_active_project() == nullptr);
+    }
+}
+
