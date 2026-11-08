@@ -474,3 +474,134 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch3347") {
         Batch1147ThemeTempFile file; file.write("name: Path3347\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string())); CHECK(theme.get_file_path()==file.path.string());
     }
 }
+TEST_SUITE("Salix::gui::ImGuiThemeBatch3847") {
+    TEST_CASE("batch3847 missing YAML load fails without changing object identity or source path") {
+        Salix::ImGuiTheme theme("Keep3847", "original3847.theme");
+        auto* data = theme.get_data();
+        REQUIRE(data != nullptr);
+        const float alpha = data->alpha;
+        CHECK_FALSE(theme.load_from_yaml("__batch3847_missing_theme__.yaml"));
+        CHECK(theme.get_name() == "Keep3847");
+        CHECK(theme.get_file_path() == "original3847.theme");
+        CHECK(theme.get_data() == data);
+        CHECK(theme.get_data()->alpha == doctest::Approx(alpha));
+    }
+
+    TEST_CASE("batch3847 unknown direction strings preserve existing enum defaults") {
+        Batch1947ThemeFile file;
+        file.write(
+            "name: UnknownDirs3847\nEnums:\n"
+            "  window_menu_button_position: FutureDirection3847\n"
+            "  color_button_position: OtherFutureDirection3847\n");
+        Salix::ImGuiTheme theme;
+        const auto window_before = theme.get_data()->window_menu_button_position;
+        const auto color_before = theme.get_data()->color_button_position;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->window_menu_button_position == window_before);
+        CHECK(theme.get_data()->color_button_position == color_before);
+    }
+
+    TEST_CASE("batch3847 unknown tree flag preserves existing default") {
+        Batch1947ThemeFile file;
+        file.write(
+            "name: UnknownTree3847\nEnums:\n"
+            "  tree_lines_flags: ImGuiTreeNodeFlags_Future3847\n");
+        Salix::ImGuiTheme theme;
+        const auto before = theme.get_data()->tree_lines_flags;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->tree_lines_flags == before);
+    }
+
+    TEST_CASE("batch3847 font size below safe minimum is ignored") {
+        Batch1947ThemeFile file;
+        file.write("name: SmallFont3847\nFonts:\n  font_size: 5.0\n");
+        Salix::ImGuiTheme theme;
+        const float before = theme.get_data()->font_size;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->font_size == doctest::Approx(before));
+    }
+
+    TEST_CASE("batch3847 font size at safe minimum is accepted") {
+        Batch1947ThemeFile file;
+        file.write("name: MinFont3847\nFonts:\n  font_size: 6.0\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->font_size == doctest::Approx(6.0f));
+    }
+
+    TEST_CASE("batch3847 invalid default font size does not block valid regular font size") {
+        Batch1947ThemeFile file;
+        file.write(
+            "name: MixedFont3847\nFonts:\n"
+            "  default_font_size: -2.0\n"
+            "  font_size: 18.5\n");
+        Salix::ImGuiTheme theme;
+        const float default_before = theme.get_data()->default_font_size;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->default_font_size == doctest::Approx(default_before));
+        CHECK(theme.get_data()->font_size == doctest::Approx(18.5f));
+    }
+
+    TEST_CASE("batch3847 second partial load preserves style values omitted by later YAML") {
+        Batch1947ThemeFile first;
+        Batch1947ThemeFile second;
+        first.write("name: First3847\nStyleFloats:\n  alpha: 0.42\n");
+        second.write("name: Second3847\ngui_type: ImGui\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(first.path.string()));
+        REQUIRE(theme.get_data()->alpha == doctest::Approx(0.42f));
+        REQUIRE(theme.load_from_yaml(second.path.string()));
+        CHECK(theme.get_data()->alpha == doctest::Approx(0.42f));
+        CHECK(theme.get_data()->name == "Second3847");
+    }
+
+    TEST_CASE("batch3847 empty Icons section clears a previously populated icon map") {
+        Batch1947ThemeFile first;
+        Batch1947ThemeFile second;
+        first.write(
+            "name: IconsFirst3847\nIcons:\n"
+            "  Entity: Assets/Icons/entity3847.png\n"
+            "  Camera: Assets/Icons/camera3847.png\n");
+        second.write("name: IconsSecond3847\nIcons: {}\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(first.path.string()));
+        REQUIRE(theme.get_data()->icon_paths.size() == 2);
+        REQUIRE(theme.load_from_yaml(second.path.string()));
+        CHECK(theme.get_data()->icon_paths.empty());
+    }
+
+    TEST_CASE("batch3847 font metadata with spaces and punctuation is preserved exactly") {
+        Batch1947ThemeFile file;
+        file.write(
+            "name: FontMeta3847\nFonts:\n"
+            "  default_font_path: \"Assets/My Fonts/Font-3847.ttf\"\n"
+            "  default_font_name: \"Font 3847 Regular\"\n"
+            "  font_family: \"Family-3847 Mono\"\n"
+            "  default_font_size: 17.0\n"
+            "  font_size: 19.0\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->default_font_path == "Assets/My Fonts/Font-3847.ttf");
+        CHECK(theme.get_data()->default_font_name == "Font 3847 Regular");
+        CHECK(theme.get_data()->font_family == "Family-3847 Mono");
+        CHECK(theme.get_data()->default_font_size == doctest::Approx(17.0f));
+        CHECK(theme.get_data()->font_size == doctest::Approx(19.0f));
+    }
+
+    TEST_CASE("batch3847 save and reload preserves independent font sizes and icon path") {
+        Batch1947ThemeFile file;
+        Salix::ImGuiTheme source("Roundtrip3847");
+        source.get_data()->default_font_size = 14.0f;
+        source.get_data()->font_size = 22.0f;
+        source.get_data()->font_family = "Roundtrip Family 3847";
+        source.get_data()->icon_paths["Entity"] = "Assets/Icons/round trip 3847.png";
+        REQUIRE(source.save_to_yaml(file.path.string()));
+        Salix::ImGuiTheme restored;
+        REQUIRE(restored.load_from_yaml(file.path.string()));
+        CHECK(restored.get_data()->default_font_size == doctest::Approx(14.0f));
+        CHECK(restored.get_data()->font_size == doctest::Approx(22.0f));
+        CHECK(restored.get_data()->font_family == "Roundtrip Family 3847");
+        CHECK(restored.get_data()->icon_paths.at("Entity") == "Assets/Icons/round trip 3847.png");
+    }
+}
+
