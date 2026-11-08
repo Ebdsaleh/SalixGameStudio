@@ -514,7 +514,7 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch3847") {
 
     TEST_CASE("batch3847 font size below safe minimum is ignored") {
         Batch1947ThemeFile file;
-        file.write("name: SmallFont3847\nFonts:\n  font_size: 5.0\n");
+        file.write("name: SmallFont3847\nFont:\n  font_size: 5.0\n");
         Salix::ImGuiTheme theme;
         const float before = theme.get_data()->font_size;
         REQUIRE(theme.load_from_yaml(file.path.string()));
@@ -523,7 +523,7 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch3847") {
 
     TEST_CASE("batch3847 font size at safe minimum is accepted") {
         Batch1947ThemeFile file;
-        file.write("name: MinFont3847\nFonts:\n  font_size: 6.0\n");
+        file.write("name: MinFont3847\nFont:\n  font_size: 6.0\n");
         Salix::ImGuiTheme theme;
         REQUIRE(theme.load_from_yaml(file.path.string()));
         CHECK(theme.get_data()->font_size == doctest::Approx(6.0f));
@@ -532,7 +532,7 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch3847") {
     TEST_CASE("batch3847 invalid default font size does not block valid regular font size") {
         Batch1947ThemeFile file;
         file.write(
-            "name: MixedFont3847\nFonts:\n"
+            "name: MixedFont3847\nFont:\n"
             "  default_font_size: -2.0\n"
             "  font_size: 18.5\n");
         Salix::ImGuiTheme theme;
@@ -573,7 +573,7 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch3847") {
     TEST_CASE("batch3847 font metadata with spaces and punctuation is preserved exactly") {
         Batch1947ThemeFile file;
         file.write(
-            "name: FontMeta3847\nFonts:\n"
+            "name: FontMeta3847\nFont:\n"
             "  default_font_path: \"Assets/My Fonts/Font-3847.ttf\"\n"
             "  default_font_name: \"Font 3847 Regular\"\n"
             "  font_family: \"Family-3847 Mono\"\n"
