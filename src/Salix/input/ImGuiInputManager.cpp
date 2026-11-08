@@ -138,26 +138,33 @@ namespace Salix {
 
     // --- Keyboard Queries ---
     bool ImGuiInputManager::is_down(KeyCode key) const {
-        return ImGui::IsKeyPressed(SalixKeyCodeToImGuiKey(key), false); // false for no repeat
+        const ImGuiKey imgui_key = SalixKeyCodeToImGuiKey(key);
+        if (imgui_key == ImGuiKey_None) return false;
+        return ImGui::IsKeyPressed(imgui_key, false); // false for no repeat
     }
 
     bool ImGuiInputManager::is_held_down(KeyCode key) const {
-        return ImGui::IsKeyDown(SalixKeyCodeToImGuiKey(key));
+        const ImGuiKey imgui_key = SalixKeyCodeToImGuiKey(key);
+        if (imgui_key == ImGuiKey_None) return false;
+        return ImGui::IsKeyDown(imgui_key);
     }
 
     bool ImGuiInputManager::is_held_down_for(KeyCode key, float duration) const {
-        ImGuiKey imgui_key = SalixKeyCodeToImGuiKey(key);
-        // Ensure the ImGuiKey is valid (not ImGuiKey_None) before accessing KeysData
+        const ImGuiKey imgui_key = SalixKeyCodeToImGuiKey(key);
         if (imgui_key == ImGuiKey_None) return false;
         return ImGui::IsKeyDown(imgui_key) && ImGui::GetIO().KeysData[static_cast<int>(imgui_key)].DownDuration >= duration;
     }
 
     bool ImGuiInputManager::was_released(KeyCode key) const {
-        return ImGui::IsKeyReleased(SalixKeyCodeToImGuiKey(key));
+        const ImGuiKey imgui_key = SalixKeyCodeToImGuiKey(key);
+        if (imgui_key == ImGuiKey_None) return false;
+        return ImGui::IsKeyReleased(imgui_key);
     }
 
     bool ImGuiInputManager::is_up(KeyCode key) const {
-        return !ImGui::IsKeyDown(SalixKeyCodeToImGuiKey(key));
+        const ImGuiKey imgui_key = SalixKeyCodeToImGuiKey(key);
+        if (imgui_key == ImGuiKey_None) return true;
+        return !ImGui::IsKeyDown(imgui_key);
     }
 
     bool ImGuiInputManager::multiple_are_down(const std::vector<KeyCode>& keys) const {
@@ -192,9 +199,10 @@ namespace Salix {
         if (keys.empty()) {
             return false;
         }
-        // Return true if any key in the list was just released this frame.
+        // Return true if any valid key in the list was just released this frame.
         for (const KeyCode key : keys) {
-            if (ImGui::IsKeyReleased(SalixKeyCodeToImGuiKey(key))) {
+            const ImGuiKey imgui_key = SalixKeyCodeToImGuiKey(key);
+            if (imgui_key != ImGuiKey_None && ImGui::IsKeyReleased(imgui_key)) {
                 return true;
             }
         }
