@@ -159,6 +159,11 @@ namespace Salix {
         ImGuiThemeData();
         ImGuiThemeData(const std::string theme_name);
 
+        // The style registries below contain pointers to this object's own fields.
+        // A shallow copy would leave those pointers bound to the source object.
+        ImGuiThemeData(const ImGuiThemeData&) = delete;
+        ImGuiThemeData& operator=(const ImGuiThemeData&) = delete;
+
         // --- IThemeData overrides ---
         const std::string& get_name() const override;
         const std::string& get_gui_type() const override;
