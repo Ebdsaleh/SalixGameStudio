@@ -255,6 +255,7 @@ TEST_SUITE("Salix::scripting::ScriptFactoryBatch2147") {
 
 
 #include <vector>
+#include <Salix/core/SimpleGuid.h>
 
 namespace {
 class Batch3047ScriptA : public Salix::ScriptElement {
