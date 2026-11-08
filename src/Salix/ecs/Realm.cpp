@@ -164,7 +164,6 @@ namespace Salix {
     }
 
     void Realm::set_context(const InitContext& context) {
-        if (context.asset_manager == nullptr) return;
         pimpl->context = context;
     }
     
