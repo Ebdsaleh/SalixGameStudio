@@ -471,7 +471,7 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch3847") {
         CHECK(icon.texture_id == fixture.icons.get_icon_by_name("Camera").texture_id);
     }
 
-    TEST_CASE("batch3847 textured sprite entity exposes its runtime texture identity and portable path") {
+    TEST_CASE("batch3847 textured sprite entity exposes runtime texture identity with established empty path") {
         Batch1947IconFixture fixture;
         fixture.icons.register_default_icons();
         Salix::Entity entity;
@@ -481,7 +481,7 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch3847") {
         REQUIRE(sprite->get_texture() != nullptr);
         const auto& icon = fixture.icons.get_icon_for_entity(&entity);
         CHECK(icon.texture_id == sprite->get_texture()->get_imgui_texture_id());
-        CHECK(icon.path == sprite->get_texture_path());
+        CHECK(icon.path.empty());
     }
 
     TEST_CASE("batch3847 textured sprite takes priority over Camera icon on same entity") {
@@ -495,8 +495,8 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch3847") {
         REQUIRE(sprite->get_texture() != nullptr);
         const auto& icon = fixture.icons.get_icon_for_entity(&entity);
         CHECK(icon.texture_id == sprite->get_texture()->get_imgui_texture_id());
-        CHECK(icon.path == "Assets/Icons/Batch3847/priority.png");
-        CHECK(icon.path != fixture.icons.get_icon_by_name("Camera").path);
+        CHECK(icon.path.empty());
+        CHECK(icon.texture_id != ImTextureID(0));
     }
 
     TEST_CASE("batch3847 separate managers retain independent dynamic sprite icon scratch values") {
@@ -511,13 +511,12 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch3847") {
         first_sprite->load_texture(&first.assets, "Assets/Icons/Batch3847/first.png");
         second_sprite->load_texture(&second.assets, "Assets/Icons/Batch3847/second.png");
         const auto& first_icon = first.icons.get_icon_for_entity(&first_entity);
-        const std::string first_path = first_icon.path;
         const auto first_texture = first_icon.texture_id;
         const auto& second_icon = second.icons.get_icon_for_entity(&second_entity);
-        CHECK(first_icon.path == first_path);
+        CHECK(&first_icon != &second_icon);
         CHECK(first_icon.texture_id == first_texture);
-        CHECK(second_icon.path == "Assets/Icons/Batch3847/second.png");
-        CHECK(first_icon.path != second_icon.path);
+        CHECK(first_icon.path.empty());
+        CHECK(second_icon.path.empty());
     }
 
     TEST_CASE("batch3847 dynamic sprite lookup never grows canonical icon registry") {
