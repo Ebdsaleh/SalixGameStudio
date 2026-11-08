@@ -484,3 +484,122 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch3347") {
         const auto roundtrip=std::get<glm::mat4>(h.get_value()); CHECK(roundtrip[0][0]==doctest::Approx(3.347f)); CHECK(roundtrip[1][1]==doctest::Approx(4.347f)); CHECK(roundtrip[2][2]==doctest::Approx(5.347f)); CHECK(roundtrip[3][3]==doctest::Approx(6.347f));
     }
 }
+namespace { struct Batch3747YamlEnumTag {}; }
+
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch3747") {
+    TEST_CASE("batch3747 contained type metadata pointer is preserved exactly") {
+        YAML::Node node;
+        Salix::TypeInfo contained;
+        contained.name = "Contained3747";
+        contained.type_index = typeid(Batch3747YamlEnumTag);
+        auto property = batch1047_yaml_property("Mode3747", Salix::PropertyType::EnumClass);
+        property.contained_type_info = &contained;
+        Salix::PropertyHandleYaml handle(property, &node);
+        CHECK(handle.get_contained_type_info() == &contained);
+        CHECK(handle.get_type() == Salix::PropertyType::EnumClass);
+    }
+
+    TEST_CASE("batch3747 boolean false write creates an explicit false scalar") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Flag3747", Salix::PropertyType::Bool), &node);
+        REQUIRE_FALSE(node["Flag3747"]);
+        handle.set_value(Salix::PropertyValue{false});
+        REQUIRE(node["Flag3747"]);
+        CHECK_FALSE(node["Flag3747"].as<bool>());
+        CHECK_FALSE(std::get<bool>(handle.get_value()));
+    }
+
+    TEST_CASE("batch3747 external YAML mutation is observed by an existing integer handle") {
+        YAML::Node node;
+        node["Count3747"] = 1;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Count3747", Salix::PropertyType::Int), &node);
+        CHECK(std::get<int>(handle.get_value()) == 1);
+        node["Count3747"] = -3747;
+        CHECK(std::get<int>(handle.get_value()) == -3747);
+    }
+
+    TEST_CASE("batch3747 two handles sharing one node update independent keys") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml a(batch1047_yaml_property("A3747", Salix::PropertyType::Int), &node);
+        Salix::PropertyHandleYaml b(batch1047_yaml_property("B3747", Salix::PropertyType::String), &node);
+        a.set_value(Salix::PropertyValue{3747});
+        b.set_value(Salix::PropertyValue{std::string("value3747")});
+        CHECK(node["A3747"].as<int>() == 3747);
+        CHECK(node["B3747"].as<std::string>() == "value3747");
+        CHECK(std::get<int>(a.get_value()) == 3747);
+        CHECK(std::get<std::string>(b.get_value()) == "value3747");
+    }
+
+    TEST_CASE("batch3747 Point setter and getter preserve signed integer limits") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Point3747", Salix::PropertyType::Point), &node);
+        const Salix::Point value{(std::numeric_limits<int>::min)(), (std::numeric_limits<int>::max)()};
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Point>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch3747 Rect setter and getter preserve signed boundary channels") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Rect3747", Salix::PropertyType::Rect), &node);
+        const Salix::Rect value((std::numeric_limits<int>::min)(), -1, 0, (std::numeric_limits<int>::max)());
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Rect>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch3747 matrix handle preserves signed off diagonal values") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Matrix3747", Salix::PropertyType::GlmMat4), &node);
+        glm::mat4 value(1.0f);
+        value[0][3] = -37.47f;
+        value[1][2] = 3.747f;
+        value[2][1] = -0.3747f;
+        value[3][0] = 3747.0f;
+        handle.set_value(Salix::PropertyValue{value});
+        const auto restored = std::get<glm::mat4>(handle.get_value());
+        CHECK(restored[0][3] == doctest::Approx(-37.47f));
+        CHECK(restored[1][2] == doctest::Approx(3.747f));
+        CHECK(restored[2][1] == doctest::Approx(-0.3747f));
+        CHECK(restored[3][0] == doctest::Approx(3747.0f));
+    }
+
+    TEST_CASE("batch3747 registered EnumClass maps negative and positive values exactly") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[-7] = "Negative3747";
+        data.value_to_string[9] = "Positive3747";
+        data.ordered_names = {"Negative3747", "Positive3747"};
+        Salix::EnumRegistry::register_enum(typeid(Batch3747YamlEnumTag), std::move(data));
+        Salix::TypeInfo contained;
+        contained.name = "Batch3747YamlEnumTag";
+        contained.type_index = typeid(Batch3747YamlEnumTag);
+        auto property = batch1047_yaml_property("Mode3747", Salix::PropertyType::EnumClass);
+        property.contained_type_info = &contained;
+        YAML::Node node;
+        node["Mode3747"] = "Negative3747";
+        Salix::PropertyHandleYaml handle(property, &node);
+        CHECK(std::get<int>(handle.get_value()) == -7);
+        handle.set_value(Salix::PropertyValue{9});
+        CHECK(node["Mode3747"].as<std::string>() == "Positive3747");
+        CHECK(std::get<int>(handle.get_value()) == 9);
+    }
+
+    TEST_CASE("batch3747 unsupported Class type read and write leave YAML untouched") {
+        YAML::Node node;
+        node["Keep3747"] = "stable";
+        auto property = batch1047_yaml_property("Class3747", Salix::PropertyType::Class);
+        Salix::PropertyHandleYaml handle(property, &node);
+        CHECK(std::get<int>(handle.get_value()) == 0);
+        handle.set_value(Salix::PropertyValue{3747});
+        CHECK_FALSE(node["Class3747"]);
+        CHECK(node["Keep3747"].as<std::string>() == "stable");
+    }
+
+    TEST_CASE("batch3747 mismatched Color write preserves existing YAML color") {
+        YAML::Node node;
+        const Salix::Color original(0.1f, 0.2f, 0.3f, 0.4f);
+        node["Tint3747"] = original;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Tint3747", Salix::PropertyType::Color), &node);
+        handle.set_value(Salix::PropertyValue{std::string("wrong-type")});
+        CHECK(std::get<Salix::Color>(handle.get_value()) == original);
+    }
+}
+
