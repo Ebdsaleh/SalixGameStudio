@@ -260,9 +260,9 @@ namespace Salix {
         cereal::make_nvp("game_dll_name", pimpl->game_dll_name)
     );
     }
-    template void Salix::Project::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive& );
-    template void Salix::Project::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive&);
-    template void Salix::Project::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
-    template void Salix::Project::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
+    template void SALIX_API Salix::Project::serialize<cereal::JSONOutputArchive>(cereal::JSONOutputArchive& );
+    template void SALIX_API Salix::Project::serialize<cereal::JSONInputArchive>(cereal::JSONInputArchive&);
+    template void SALIX_API Salix::Project::serialize<cereal::BinaryOutputArchive>(cereal::BinaryOutputArchive &);
+    template void SALIX_API Salix::Project::serialize<cereal::BinaryInputArchive>(cereal::BinaryInputArchive &);
 
 } // namespace Salix
