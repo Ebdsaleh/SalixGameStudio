@@ -1054,3 +1054,69 @@ TEST_SUITE("Salix::math::Vector3Batch3547") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector3Batch3947") {
+    TEST_CASE("batch3947 default vector remains canonical zero constant") {
+        const Salix::Vector3 v;
+        CHECK(v == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch3947 one two two vector has magnitude three") {
+        CHECK(Salix::Vector3(1.0f, 2.0f, 2.0f).length() == doctest::Approx(3.0f));
+    }
+
+    TEST_CASE("batch3947 normalization preserves signed zero three four direction") {
+        Salix::Vector3 v(0.0f, -3.0f, 4.0f);
+        v.normalize();
+        CHECK(v.x == doctest::Approx(0.0f));
+        CHECK(v.y == doctest::Approx(-0.6f));
+        CHECK(v.z == doctest::Approx(0.8f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3947 three quarter interpolation advances all axes independently") {
+        const auto v = Salix::Vector3::lerp({0.0f, 4.0f, -8.0f}, {8.0f, -4.0f, 8.0f}, 0.75f);
+        CHECK(v.x == doctest::Approx(6.0f));
+        CHECK(v.y == doctest::Approx(-2.0f));
+        CHECK(v.z == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch3947 component multiplication preserves three independent products") {
+        const auto v = Salix::Vector3(-2.0f, 3.0f, -4.0f) * Salix::Vector3(5.0f, -6.0f, -7.0f);
+        CHECK(v == Salix::Vector3(-10.0f, -18.0f, 28.0f));
+    }
+
+    TEST_CASE("batch3947 scalar multiplication overloads remain symmetric") {
+        const Salix::Vector3 v(-1.0f, 2.0f, -3.0f);
+        CHECK(v * 4.0f == 4.0f * v);
+        CHECK(v * 4.0f == Salix::Vector3(-4.0f, 8.0f, -12.0f));
+    }
+
+    TEST_CASE("batch3947 component division zeroes only zero divisor axis") {
+        const auto v = Salix::Vector3(8.0f, 9.0f, 10.0f) / Salix::Vector3(2.0f, 3.0f, 0.0f);
+        CHECK(v.x == doctest::Approx(4.0f));
+        CHECK(v.y == doctest::Approx(3.0f));
+        CHECK(v.z == 0.0f);
+    }
+
+    TEST_CASE("batch3947 GLM roundtrip preserves representative coordinates exactly") {
+        const Salix::Vector3 original(-0.125f, 16.5f, -2048.0f);
+        const auto restored = Salix::Vector3::from_glm(original.to_glm());
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch3947 YAML x only decode clears both omitted axes") {
+        Salix::Vector3 v(9.0f, 8.0f, 7.0f);
+        const YAML::Node node = YAML::Load("{x: 1.25}");
+        node >> v;
+        CHECK(v.x == doctest::Approx(1.25f));
+        CHECK(v.y == 0.0f);
+        CHECK(v.z == 0.0f);
+    }
+
+    TEST_CASE("batch3947 vector3 ostream preserves signed component order") {
+        const Salix::Vector3 v(-1.5f, 2.25f, -3.75f);
+        std::stringstream stream;
+        stream << v;
+        CHECK(stream.str() == "{ x: -1.5, y: 2.25, z: -3.75 }");
+    }
+}
