@@ -988,3 +988,104 @@ TEST_SUITE("Salix::ecs::EntityBatch3347") {
         CHECK(child.get_parent()==&parent); REQUIRE(parent.get_children().size()==1); CHECK(parent.get_children()[0]==&child); CHECK_FALSE(child.is_visible()); CHECK_FALSE(parent.is_visible());
     }
 }
+TEST_SUITE("Salix::ecs::EntityBatch3647") {
+    TEST_CASE("batch3647 raw null element adoption is ignored without changing ownership snapshot") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements().size();
+        entity.add_element(static_cast<Salix::Element*>(nullptr));
+        CHECK(entity.get_all_elements().size() == before);
+    }
+
+    TEST_CASE("batch3647 null unique element adoption is ignored without changing ownership snapshot") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements().size();
+        std::unique_ptr<Salix::Sprite2D> empty;
+        entity.add_element(std::move(empty));
+        CHECK(entity.get_all_elements().size() == before);
+    }
+
+    TEST_CASE("batch3647 fresh entity reports mandatory element presence through template API") {
+        const Salix::Entity entity;
+        CHECK(entity.has_element<Salix::Transform>());
+        CHECK(entity.has_element<Salix::BoxCollider>());
+        CHECK_FALSE(entity.has_element<Salix::Sprite2D>());
+    }
+
+    TEST_CASE("batch3647 adding sprite changes template presence without disturbing mandatory elements") {
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        CHECK(entity.has_element<Salix::Sprite2D>());
+        CHECK(entity.has_element<Salix::Transform>());
+        CHECK(entity.has_element<Salix::BoxCollider>());
+    }
+
+    TEST_CASE("batch3647 invalid entity identifier assignment leaves mandatory component identifiers untouched") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        REQUIRE(transform != nullptr); REQUIRE(collider != nullptr);
+        const auto transform_id = transform->get_id();
+        const auto collider_id = collider->get_id();
+        entity.set_id(Salix::SimpleGuid::invalid());
+        CHECK_FALSE(entity.get_id().is_valid());
+        CHECK(transform->get_id() == transform_id);
+        CHECK(collider->get_id() == collider_id);
+    }
+
+    TEST_CASE("batch3647 repeated same entity identifier assignment is idempotent") {
+        Salix::Entity entity;
+        const auto id = Salix::SimpleGuid::from_value(36473647ULL);
+        entity.set_id(id);
+        entity.set_id(id);
+        CHECK(entity.get_id() == id);
+    }
+
+    TEST_CASE("batch3647 root status follows parenting and release transitions") {
+        Salix::Entity parent, child;
+        CHECK(parent.is_root());
+        CHECK(child.is_root());
+        child.set_parent(&parent);
+        CHECK_FALSE(child.is_root());
+        CHECK(parent.is_root());
+        child.release_from_parent();
+        CHECK(child.is_root());
+        CHECK(parent.get_children().empty());
+    }
+
+    TEST_CASE("batch3647 explicit null parent assignment releases both entity and transform hierarchy") {
+        Salix::Entity parent, child;
+        child.set_parent(&parent);
+        REQUIRE(child.get_parent() == &parent);
+        REQUIRE(child.get_transform()->get_parent() == parent.get_transform());
+        child.set_parent(nullptr);
+        CHECK(child.get_parent() == nullptr);
+        CHECK(child.get_transform()->get_parent() == nullptr);
+        CHECK(parent.get_children().empty());
+    }
+
+    TEST_CASE("batch3647 purge orphans multiple children without purging them") {
+        Salix::Entity parent, first, second;
+        first.set_parent(&parent);
+        second.set_parent(&parent);
+        REQUIRE(parent.get_children().size() == 2);
+        parent.purge();
+        CHECK(parent.is_purged());
+        CHECK(first.get_parent() == nullptr);
+        CHECK(second.get_parent() == nullptr);
+        CHECK_FALSE(first.is_purged());
+        CHECK_FALSE(second.is_purged());
+        CHECK(parent.get_children().empty());
+    }
+
+    TEST_CASE("batch3647 const and mutable template lookup return same mandatory object") {
+        Salix::Entity entity;
+        auto* mutable_transform = entity.get_element<Salix::Transform>();
+        const Salix::Entity& view = entity;
+        const auto* const_transform = view.get_element<Salix::Transform>();
+        REQUIRE(mutable_transform != nullptr);
+        CHECK(mutable_transform == const_transform);
+        CHECK(mutable_transform == entity.get_transform());
+    }
+}
+
