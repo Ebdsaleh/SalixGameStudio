@@ -621,3 +621,53 @@ TEST_SUITE("Salix::math::MathUtilsBatch3547") {
     }
 }
 
+TEST_SUITE("Salix::math::MathUtilsBatch3947") {
+    TEST_CASE("batch3947 float lerp midpoint averages signed endpoints") {
+        CHECK(Salix::lerp<float>(-10.0f, 6.0f, 0.5f) == doctest::Approx(-2.0f));
+    }
+
+    TEST_CASE("batch3947 inverse lerp handles entirely negative interval") {
+        CHECK(Salix::inverse_lerp(-20.0f, -10.0f, -15.0f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch3947 remap supports reversed input range") {
+        CHECK(Salix::remap(7.5f, 10.0f, 0.0f, 0.0f, 100.0f) == doctest::Approx(25.0f));
+    }
+
+    TEST_CASE("batch3947 smooth step clamps values outside both edges") {
+        CHECK(Salix::smooth_step(2.0f, 6.0f, -100.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::smooth_step(2.0f, 6.0f, 100.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3947 smoother step clamps values outside both edges") {
+        CHECK(Salix::smoother_step(-2.0f, 2.0f, -100.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::smoother_step(-2.0f, 2.0f, 100.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3947 ping pong mirrors equal distances around positive peak") {
+        CHECK(Salix::ping_pong(1.5f, 4.0f) == doctest::Approx(1.5f));
+        CHECK(Salix::ping_pong(6.5f, 4.0f) == doctest::Approx(1.5f));
+    }
+
+    TEST_CASE("batch3947 cubic interpolation begins at y1 and ends at y2") {
+        CHECK(Salix::cubic_interpolate(-5.0f, 10.0f, 20.0f, 100.0f, 0.0f) == doctest::Approx(10.0f));
+        CHECK(Salix::cubic_interpolate(-5.0f, 10.0f, 20.0f, 100.0f, 1.0f) == doctest::Approx(20.0f));
+    }
+
+    TEST_CASE("batch3947 wrap handles multiple negative periods into nonzero origin range") {
+        CHECK(Salix::wrap(-17.0f, 10.0f, 14.0f) == doctest::Approx(11.0f));
+    }
+
+    TEST_CASE("batch3947 saturate preserves exact endpoints and clamps beyond them") {
+        CHECK(Salix::saturate(0.0f) == 0.0f);
+        CHECK(Salix::saturate(1.0f) == 1.0f);
+        CHECK(Salix::saturate(-1.0f) == 0.0f);
+        CHECK(Salix::saturate(2.0f) == 1.0f);
+    }
+
+    TEST_CASE("batch3947 zero epsilon equality is exact and inverse square root remains close for four") {
+        CHECK(Salix::nearly_equal(3.0f, 3.0f, 0.0f));
+        CHECK_FALSE(Salix::nearly_equal(3.0f, 3.0001f, 0.0f));
+        CHECK(Salix::inv_sqrt(4.0f) == doctest::Approx(0.5f).epsilon(0.01));
+    }
+}
