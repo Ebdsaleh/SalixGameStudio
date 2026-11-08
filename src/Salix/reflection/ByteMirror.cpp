@@ -540,7 +540,9 @@ namespace Salix {
                         &static_cast<Camera*>(instance)->get_view_matrix()));
                 },
 
-                [](void*, void*) { /* Setter is empty as this is a read-only property. */ }
+                [](void*, void*) { /* Setter is empty as this is a read-only property. */ },
+                UIHint::None,
+                true
             },
 
             // This is a read-only property. We provide an empty setter lambda.
@@ -551,7 +553,9 @@ namespace Salix {
                         &static_cast<Camera*>(instance)->get_projection_matrix()));
                 },
 
-                [](void*, void*) { /* Setter is empty as this is a read-only property. */ }
+                [](void*, void*) { /* Setter is empty as this is a read-only property. */ },
+                UIHint::None,
+                true
             }
         };
         type_info.type_index = typeid(Camera);
