@@ -317,3 +317,101 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch3047") {
         CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
     }
 }
+TEST_SUITE("Salix::rendering::DummyCameraBatch3747") {
+    TEST_CASE("batch3747 projection mode reference is process stable across instances") {
+        Salix::DummyCamera first, second;
+        const auto* a = &first.get_projection_mode();
+        const auto* b = &second.get_projection_mode();
+        CHECK(a == b);
+        CHECK(*a == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch3747 invalid projection mode request remains an intentional no op") {
+        Salix::DummyCamera camera;
+        camera.set_projection_mode(static_cast<Salix::ProjectionMode>(999));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch3747 maximum finite orthographic size is stored verbatim") {
+        Salix::DummyCamera camera;
+        const float value = (std::numeric_limits<float>::max)();
+        camera.set_orthographic_size(value);
+        CHECK(camera.get_orthographic_size() == value);
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch3747 lowest finite orthographic size is stored verbatim") {
+        Salix::DummyCamera camera;
+        const float value = (std::numeric_limits<float>::lowest)();
+        camera.set_orthographic_size(value);
+        CHECK(camera.get_orthographic_size() == value);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch3747 finite size can recover after NaN diagnostic assignment") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(std::numeric_limits<float>::quiet_NaN());
+        REQUIRE(std::isnan(camera.get_orthographic_size()));
+        camera.set_orthographic_size(37.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(37.47f));
+    }
+
+    TEST_CASE("batch3747 direct active setter leaves maximum finite size unchanged") {
+        Salix::DummyCamera camera;
+        const float value = (std::numeric_limits<float>::max)();
+        camera.set_orthographic_size(value);
+        camera.set_is_active(true);
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_orthographic_size() == value);
+        camera.set_is_active(false);
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(camera.get_orthographic_size() == value);
+    }
+
+    TEST_CASE("batch3747 interface dispatch keeps invalid projection request as no op") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        camera.set_projection_mode(static_cast<Salix::ProjectionMode>(-1));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch3747 all identity matrix components survive extreme state mutations") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-std::numeric_limits<float>::infinity());
+        camera.activate();
+        const auto& view = camera.get_view_matrix();
+        const auto& projection = camera.get_projection_matrix();
+        const glm::mat4 identity(1.0f);
+        for (int column = 0; column < 4; ++column) {
+            for (int row = 0; row < 4; ++row) {
+                CHECK(view[column][row] == identity[column][row]);
+                CHECK(projection[column][row] == identity[column][row]);
+            }
+        }
+    }
+
+    TEST_CASE("batch3747 destroying one camera cannot affect another retained camera state") {
+        Salix::DummyCamera survivor;
+        survivor.set_orthographic_size(74.37f);
+        survivor.activate();
+        {
+            Salix::DummyCamera temporary;
+            temporary.set_orthographic_size(-3747.0f);
+            temporary.deactivate();
+        }
+        CHECK(survivor.get_is_active());
+        CHECK(survivor.get_orthographic_size() == doctest::Approx(74.37f));
+    }
+
+    TEST_CASE("batch3747 copying scalar size value between cameras never aliases later mutations") {
+        Salix::DummyCamera first, second;
+        first.set_orthographic_size(12.5f);
+        second.set_orthographic_size(first.get_orthographic_size());
+        first.set_orthographic_size(99.0f);
+        CHECK(first.get_orthographic_size() == doctest::Approx(99.0f));
+        CHECK(second.get_orthographic_size() == doctest::Approx(12.5f));
+    }
+}
+
