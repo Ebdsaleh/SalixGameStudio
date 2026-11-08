@@ -19,54 +19,79 @@ PropertyValue PropertyHandleLive::get_value() const
         return {}; // Return empty variant if something is wrong
     }
 
+    // Reject unsupported reflection types before invoking a getter.
+    switch (property_info.type) {
+        case PropertyType::Int:
+        case PropertyType::UInt64:
+        case PropertyType::Enum:
+        case PropertyType::EnumClass:
+        case PropertyType::Float:
+        case PropertyType::Bool:
+        case PropertyType::String:
+        case PropertyType::Vector2:
+        case PropertyType::Vector3:
+        case PropertyType::Point:
+        case PropertyType::Color:
+        case PropertyType::Rect:
+        case PropertyType::GlmMat4:
+            break;
+        default:
+            return {};
+    }
+
+    void* data_ptr = property_info.get_data(instance);
+    if (!data_ptr) {
+        return {};
+    }
+
     // This switch is the bridge between the void* world and the variant world
     switch (property_info.type)
     {
         case PropertyType::Int:
-        return *static_cast<int*>(property_info.get_data(instance));
+        return *static_cast<int*>(data_ptr);
         case PropertyType::UInt64:
-            return *static_cast<uint64_t*>(property_info.get_data(instance));
+            return *static_cast<uint64_t*>(data_ptr);
 
         case PropertyType::Enum:{ 
             // Enums are handled as ints at this level
             // 1. Get the pointer from the reflection getter, which we know is an int*.
-            void* data_ptr = property_info.get_data(instance);
+            void* data_ptr = data_ptr;
             // 2. Cast it to the correct type (int*) and dereference it.
             return *static_cast<int*>(data_ptr);
         }
         case PropertyType::EnumClass: {
         // 1. Get the pointer from the reflection getter, which we know is an int*.
-        void* data_ptr = property_info.get_data(instance);
+        void* data_ptr = data_ptr;
         // 2. Cast it to the correct type (int*) and dereference it.
         return *static_cast<int*>(data_ptr);
         }
 
         case PropertyType::Float:
-            return *static_cast<float*>(property_info.get_data(instance));
+            return *static_cast<float*>(data_ptr);
 
         case PropertyType::Bool:
-            return *static_cast<bool*>(property_info.get_data(instance));
+            return *static_cast<bool*>(data_ptr);
 
         case PropertyType::String:
-            return *static_cast<std::string*>(property_info.get_data(instance));
+            return *static_cast<std::string*>(data_ptr);
 
         case PropertyType::Vector2:
-            return *static_cast<Vector2*>(property_info.get_data(instance));
+            return *static_cast<Vector2*>(data_ptr);
 
         case PropertyType::Vector3:
-            return *static_cast<Vector3*>(property_info.get_data(instance));
+            return *static_cast<Vector3*>(data_ptr);
 
         case PropertyType::Point:
-            return *static_cast<Point*>(property_info.get_data(instance));
+            return *static_cast<Point*>(data_ptr);
 
         case PropertyType::Color:
-            return *static_cast<Color*>(property_info.get_data(instance));
+            return *static_cast<Color*>(data_ptr);
 
         case PropertyType::Rect: // Your new Rect type
-            return *static_cast<Rect*>(property_info.get_data(instance));
+            return *static_cast<Rect*>(data_ptr);
 
         case PropertyType::GlmMat4:
-            return *static_cast<glm::mat4*>(property_info.get_data(instance));
+            return *static_cast<glm::mat4*>(data_ptr);
 
         default:
             // For unhandled types like Class/Struct, we return an empty variant
