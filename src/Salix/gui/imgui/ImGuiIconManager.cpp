@@ -85,7 +85,7 @@ namespace Salix {
                 // This is a dynamic, user-specific icon. Keep the scratch value
                 // manager-local so separate icon managers never overwrite one another.
                 pimpl->dynamic_icon_info.texture_id = texture->get_imgui_texture_id();
-                pimpl->dynamic_icon_info.path = sprite->get_texture_path();
+                pimpl->dynamic_icon_info.path.clear();
                 return pimpl->dynamic_icon_info;
             }
         }
