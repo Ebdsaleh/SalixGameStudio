@@ -781,3 +781,92 @@ TEST_SUITE("Salix::core::SimpleGuidBatch3547") {
     }
 }
 
+TEST_SUITE("Salix::core::SimpleGuidBatch3947") {
+    TEST_CASE("batch3947 reset generator emits the first five identifiers consecutively") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        for (std::uint64_t expected = 1; expected <= 5; ++expected) {
+            CHECK(Salix::SimpleGuid::generate().get_value() == expected);
+        }
+    }
+
+    TEST_CASE("batch3947 watermark ahead of issued identifiers resumes strictly above watermark") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2);
+        Salix::SimpleGuid::update_next_id(10);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 11);
+    }
+
+    TEST_CASE("batch3947 stale watermark after forward jump cannot rewind next identifier") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(100);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 101);
+        Salix::SimpleGuid::update_next_id(50);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 102);
+    }
+
+    TEST_CASE("batch3947 explicit and invalid factories never consume generator identifiers") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto explicit_id = Salix::SimpleGuid::from_value(3947);
+        const auto invalid = Salix::SimpleGuid::invalid();
+        CHECK(explicit_id.get_value() == 3947);
+        CHECK_FALSE(invalid.is_valid());
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch3947 two largest explicit identifiers preserve unsigned ordering") {
+        const auto below_max = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)() - 1);
+        const auto max_value = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)());
+        CHECK(below_max < max_value);
+        CHECK(below_max != max_value);
+    }
+
+    TEST_CASE("batch3947 equality remains transitive across independently constructed identifiers") {
+        const auto a = Salix::SimpleGuid::from_value(39473947ULL);
+        const auto b = Salix::SimpleGuid::from_value(39473947ULL);
+        const auto c = Salix::SimpleGuid::from_value(39473947ULL);
+        CHECK(a == b);
+        CHECK(b == c);
+        CHECK(a == c);
+    }
+
+    TEST_CASE("batch3947 inequality and strict ordering agree for adjacent explicit identifiers") {
+        const auto lower = Salix::SimpleGuid::from_value(7000);
+        const auto upper = Salix::SimpleGuid::from_value(7001);
+        CHECK(lower != upper);
+        CHECK(lower < upper);
+        CHECK_FALSE(upper < lower);
+    }
+
+    TEST_CASE("batch3947 JSON archive preserves two independent identifiers in sequence") {
+        const auto first = Salix::SimpleGuid::from_value(111);
+        const auto second = Salix::SimpleGuid::from_value(222);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(first, second); }
+        Salix::SimpleGuid restored_first, restored_second;
+        { cereal::JSONInputArchive in(stream); in(restored_first, restored_second); }
+        CHECK(restored_first == first);
+        CHECK(restored_second == second);
+    }
+
+    TEST_CASE("batch3947 binary archive preserves invalid and valid identifiers together") {
+        const auto invalid = Salix::SimpleGuid::invalid();
+        const auto valid = Salix::SimpleGuid::from_value(3947001ULL);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(invalid, valid); }
+        Salix::SimpleGuid restored_invalid = Salix::SimpleGuid::from_value(9);
+        Salix::SimpleGuid restored_valid;
+        { cereal::BinaryInputArchive in(stream); in(restored_invalid, restored_valid); }
+        CHECK(restored_invalid == invalid);
+        CHECK(restored_valid == valid);
+    }
+
+    TEST_CASE("batch3947 test reset restores deterministic first identifier after prior allocations") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        (void)Salix::SimpleGuid::generate();
+        (void)Salix::SimpleGuid::generate();
+        (void)Salix::SimpleGuid::generate();
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+}
