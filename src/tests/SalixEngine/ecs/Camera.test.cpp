@@ -392,3 +392,108 @@ TEST_SUITE("Salix::ecs::CameraBatch3247") {
  TEST_CASE("batch3247 owner rotation changes view while numeric projection configuration remains stable") { Salix::Entity e; Salix::Camera c; c.set_owner(&e); c.set_near_clip(.25f); c.set_far_clip(750.f); const auto before=c.get_view_matrix(); e.get_transform()->set_rotation(10.f,20.f,30.f); const auto after=c.get_view_matrix(); CHECK(batch1947_camera_matrix_differs(before,after)); CHECK(c.get_near_clip()==doctest::Approx(.25f)); CHECK(c.get_far_clip()==doctest::Approx(750.f)); }
  TEST_CASE("batch3247 initialize preserves mode activity and all configured numeric values") { Salix::Camera c; c.set_projection_mode(Salix::ProjectionMode::Orthographic); c.activate(); c.set_field_of_view(65.f); c.set_orthographic_size(18.f); c.set_near_clip(.2f); c.set_far_clip(300.f); c.initialize(); CHECK(c.get_projection_mode()==Salix::ProjectionMode::Orthographic); CHECK(c.get_is_active()); CHECK(c.get_field_of_view()==doctest::Approx(65.f)); CHECK(c.get_orthographic_size()==doctest::Approx(18.f)); CHECK(c.get_near_clip()==doctest::Approx(.2f)); CHECK(c.get_far_clip()==doctest::Approx(300.f)); }
 }
+TEST_SUITE("Salix::ecs::CameraBatch3647") {
+    TEST_CASE("batch3647 ownerless camera transform query is safely null") {
+        Salix::Camera camera;
+        CHECK_NOTHROW(CHECK(camera.get_transform() == nullptr));
+    }
+
+    TEST_CASE("batch3647 camera transform query follows owner attach and detach transitions") {
+        Salix::Entity entity;
+        Salix::Camera camera;
+        camera.set_owner(&entity);
+        CHECK(camera.get_transform() == entity.get_transform());
+        camera.set_owner(nullptr);
+        CHECK(camera.get_transform() == nullptr);
+    }
+
+    TEST_CASE("batch3647 direct active setter roundtrips without changing projection configuration") {
+        Salix::Camera camera;
+        const auto mode = camera.get_projection_mode();
+        const float fov = camera.get_field_of_view();
+        camera.set_is_active(true);
+        CHECK(camera.get_is_active());
+        camera.set_is_active(false);
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(camera.get_projection_mode() == mode);
+        CHECK(camera.get_field_of_view() == doctest::Approx(fov));
+    }
+
+    TEST_CASE("batch3647 field of view mutation in orthographic mode preserves orthographic matrix") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        const auto before = camera.get_projection_matrix();
+        camera.set_field_of_view(88.0f);
+        const auto after = camera.get_projection_matrix();
+        CHECK(camera.get_field_of_view() == doctest::Approx(88.0f));
+        CHECK_FALSE(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch3647 orthographic size mutation in perspective mode preserves perspective matrix") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
+        const auto before = camera.get_projection_matrix();
+        camera.set_orthographic_size(36.47f);
+        const auto after = camera.get_projection_matrix();
+        CHECK(camera.get_orthographic_size() == doctest::Approx(36.47f));
+        CHECK_FALSE(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch3647 repeated identical viewport assignment is projection idempotent") {
+        Salix::Camera camera;
+        camera.set_viewport_size(1280, 720);
+        const auto first = camera.get_projection_matrix();
+        camera.set_viewport_size(1280, 720);
+        const auto second = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(first, second));
+    }
+
+    TEST_CASE("batch3647 perspective orthographic perspective cycle restores original projection") {
+        Salix::Camera camera;
+        camera.set_viewport_size(800, 600);
+        const auto initial = camera.get_projection_matrix();
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        const auto orthographic = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(initial, orthographic));
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
+        const auto restored = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(initial, restored));
+    }
+
+    TEST_CASE("batch3647 initialize preserves owner transform identity and active state") {
+        Salix::Entity entity;
+        Salix::Camera camera;
+        camera.set_owner(&entity);
+        camera.activate();
+        auto* transform = camera.get_transform();
+        REQUIRE(transform != nullptr);
+        camera.initialize();
+        CHECK(camera.get_transform() == transform);
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch3647 near and far clip changes alter perspective matrix while preserving mode") {
+        Salix::Camera camera;
+        const auto before = camera.get_projection_matrix();
+        camera.set_near_clip(0.25f);
+        camera.set_far_clip(500.0f);
+        const auto after = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(before, after));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_near_clip() == doctest::Approx(0.25f));
+        CHECK(camera.get_far_clip() == doctest::Approx(500.0f));
+    }
+
+    TEST_CASE("batch3647 owner detachment leaves previously calculated view available without crashing") {
+        Salix::Entity entity;
+        entity.get_transform()->set_position(3.0f, 4.0f, 5.0f);
+        Salix::Camera camera;
+        camera.set_owner(&entity);
+        const auto before = camera.get_view_matrix();
+        camera.set_owner(nullptr);
+        CHECK_NOTHROW((void)camera.get_view_matrix());
+        const auto after = camera.get_view_matrix();
+        CHECK(after == before);
+    }
+}
+
