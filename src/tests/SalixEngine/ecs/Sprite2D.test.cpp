@@ -891,3 +891,139 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch3347") {
         renderer.should_texture_load_fail=true; sprite.load_texture(&assets,"art/missing3347.png"); CHECK(sprite.get_texture()==nullptr); CHECK(sprite.get_texture_width()==0); CHECK(sprite.get_texture_height()==0); CHECK(sprite.get_texture_path()=="art/missing3347.png");
     }
 }
+TEST_SUITE("Salix::ecs::Sprite2DBatch3747") {
+    TEST_CASE("batch3747 configured path on load is safe with empty context and clears runtime dimensions") {
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("assets/missing-context3747.png");
+        Salix::InitContext context{};
+        CHECK_NOTHROW(sprite.on_load(context));
+        CHECK(sprite.get_texture_path() == "assets/missing-context3747.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch3747 direct nonempty load without asset manager is a recoverable null result") {
+        Salix::Sprite2D sprite;
+        CHECK_NOTHROW(sprite.load_texture(nullptr, "assets/null-manager3747.png"));
+        CHECK(sprite.get_texture_path() == "assets/null-manager3747.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch3747 null manager replacement clears prior runtime texture and records requested path") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/loaded3747.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        REQUIRE(sprite.get_texture_width() > 0);
+        sprite.load_texture(nullptr, "assets/unresolved3747.png");
+        CHECK(sprite.get_texture_path() == "assets/unresolved3747.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch3747 valid manager recovers after null manager failure on same path") {
+        Salix::Sprite2D sprite;
+        const std::string path = "assets/recover3747.png";
+        sprite.load_texture(nullptr, path);
+        REQUIRE(sprite.get_texture() == nullptr);
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        sprite.load_texture(&assets, path);
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+        CHECK(renderer.load_texture_calls == 1);
+    }
+
+    TEST_CASE("batch3747 null manager load preserves all nontexture sprite properties") {
+        Salix::Sprite2D sprite;
+        sprite.set_color(Salix::Color(-1.0f, 2.0f, 3.0f, 0.25f));
+        sprite.set_offset(Salix::Vector2(-3.0f, 4.0f));
+        sprite.set_pivot(Salix::Vector2(0.25f, 0.75f));
+        sprite.set_local_rotation(-37.47f);
+        sprite.set_flip_h(true);
+        sprite.set_flip_v(true);
+        sprite.set_sorting_layer(-3747);
+        sprite.set_use_entity_rotation(true);
+        sprite.load_texture(nullptr, "assets/properties3747.png");
+        CHECK(sprite.get_color() == Salix::Color(-1.0f, 2.0f, 3.0f, 0.25f));
+        CHECK(sprite.get_offset() == Salix::Vector2(-3.0f, 4.0f));
+        CHECK(sprite.get_pivot() == Salix::Vector2(0.25f, 0.75f));
+        CHECK(sprite.get_local_rotation() == doctest::Approx(-37.47f));
+        CHECK(sprite.get_flip_h());
+        CHECK(sprite.get_flip_v());
+        CHECK(sprite.get_sorting_layer() == -3747);
+        CHECK(sprite.get_use_entity_rotation());
+    }
+
+    TEST_CASE("batch3747 owner and renderer cannot draw after null manager clears runtime resource") {
+        MockIRenderer asset_renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&asset_renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/drawable3747.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        sprite->load_texture(nullptr, "assets/not-drawable3747.png");
+        MockIRenderer draw_renderer;
+        sprite->render(&draw_renderer);
+        CHECK(draw_renderer.draw_sprite_call_count == 0);
+    }
+
+    TEST_CASE("batch3747 embedded null bytes in unresolved texture path are preserved exactly") {
+        Salix::Sprite2D sprite;
+        const std::string path("asset\0hidden3747.png", 20);
+        sprite.load_texture(nullptr, path);
+        CHECK(sprite.get_texture_path() == path);
+        CHECK(sprite.get_texture_path().size() == path.size());
+        CHECK(sprite.get_texture() == nullptr);
+    }
+
+    TEST_CASE("batch3747 whitespace-only unresolved texture path is preserved as nonempty metadata") {
+        Salix::Sprite2D sprite;
+        const std::string path = "   \t  ";
+        sprite.load_texture(nullptr, path);
+        CHECK(sprite.get_texture_path() == path);
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+    }
+
+    TEST_CASE("batch3747 empty path with null manager clears runtime resource but preserves prior portable path") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/keep-path3747.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        const std::string stored_path = sprite.get_texture_path();
+        sprite.load_texture(nullptr, "");
+        CHECK(sprite.get_texture_path() == stored_path);
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch3747 on load with null manager after successful load clears stale runtime texture") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/reload-null3747.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        Salix::InitContext empty_context{};
+        sprite.on_load(empty_context);
+        CHECK(sprite.get_texture_path() == "assets/reload-null3747.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+}
+
