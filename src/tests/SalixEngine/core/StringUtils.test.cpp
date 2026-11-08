@@ -855,3 +855,46 @@ TEST_SUITE("Salix::core::StringUtilsBatch3547") {
     }
 }
 
+TEST_SUITE("Salix::core::StringUtilsBatch3947") {
+    TEST_CASE("batch3947 uppercase empty input remains empty with desnake enabled") {
+        CHECK(Salix::StringUtils::to_upper("", true).empty());
+    }
+
+    TEST_CASE("batch3947 lowercase empty input remains empty with desnake enabled") {
+        CHECK(Salix::StringUtils::to_lower("", true).empty());
+    }
+
+    TEST_CASE("batch3947 title case treats vertical tab as a word boundary") {
+        CHECK(Salix::StringUtils::to_title_case("fIRST\vSECOND") == "First\vSecond");
+    }
+
+    TEST_CASE("batch3947 capitalize does not skip leading whitespace before choosing first character") {
+        CHECK(Salix::StringUtils::capitalize(" HELLO WORLD") == " hello world");
+    }
+
+    TEST_CASE("batch3947 minimal numeric snake token is accepted") {
+        CHECK(Salix::StringUtils::is_snake_case("0_0"));
+    }
+
+    TEST_CASE("batch3947 minimal three character snake segment is detected") {
+        CHECK(Salix::StringUtils::contains_snake_case("a_b"));
+    }
+
+    TEST_CASE("batch3947 incomplete snake separators are never detected as valid segments") {
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("a_"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("_b"));
+    }
+
+    TEST_CASE("batch3947 snake conversion replaces each independent valid separator in a chain") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("a_b_c_d") == "a b c d");
+    }
+
+    TEST_CASE("batch3947 Pascal validation accepts mixed case alphanumeric token beginning uppercase") {
+        CHECK(Salix::StringUtils::is_pascal_case("Abc123Def"));
+    }
+
+    TEST_CASE("batch3947 Pascal conversion distinguishes numeric suffix from following capitalized word") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("A2Alpha") == "A 2 Alpha");
+        CHECK(Salix::StringUtils::convert_from_pascal_case("A2D") == "A 2D");
+    }
+}
