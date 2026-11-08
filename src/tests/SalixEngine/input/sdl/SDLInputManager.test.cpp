@@ -7,6 +7,7 @@
 #include <Salix/input/sdl/SDLInputManager.h>
 #include <Salix/events/sdl/SDLEvent.h> // For our mock events
 #include <SDL.h> // For SDL_Event and keycodes
+#include <limits>
 
 TEST_SUITE("Salix::input::sdl::SDLInputManager") {
 
@@ -619,6 +620,109 @@ TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch2647") {
         Salix::SDLInputManager manager; SDL_Event raw{}; Salix::MouseScrolledEvent scroll(0.f,3.f,raw); manager.process_event(scroll);
         CHECK(manager.did_scroll(Salix::MouseScroll::Forward));
         CHECK_FALSE(manager.did_scroll(static_cast<Salix::MouseScroll>(999)));
+    }
+}
+TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch3747") {
+    TEST_CASE("batch3747 fresh up key never satisfies zero duration held query") {
+        Salix::SDLInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::A));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::A, 0.0f));
+    }
+
+    TEST_CASE("batch3747 fresh up mouse button never satisfies zero duration held query") {
+        Salix::SDLInputManager manager;
+        CHECK(manager.is_up(Salix::MouseButton::Left));
+        CHECK_FALSE(manager.is_held_down_for(Salix::MouseButton::Left, 0.0f));
+    }
+
+    TEST_CASE("batch3747 fresh up key also rejects negative duration threshold") {
+        Salix::SDLInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::B));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::B, -1.0f));
+    }
+
+    TEST_CASE("batch3747 newly pressed key satisfies zero duration while physically down") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_c, false, raw);
+        manager.process_event(press);
+        REQUIRE(manager.is_down(Salix::KeyCode::C));
+        CHECK(manager.is_held_down_for(Salix::KeyCode::C, 0.0f));
+    }
+
+    TEST_CASE("batch3747 newly pressed mouse button satisfies zero duration while physically down") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseButtonPressedEvent press(SDL_BUTTON_MIDDLE, raw);
+        manager.process_event(press);
+        REQUIRE(manager.is_down(Salix::MouseButton::Middle));
+        CHECK(manager.is_held_down_for(Salix::MouseButton::Middle, 0.0f));
+    }
+
+    TEST_CASE("batch3747 held key accumulates duration across successive updates") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_d, false, raw);
+        manager.process_event(press);
+        manager.update(0.10f);
+        REQUIRE(manager.is_held_down(Salix::KeyCode::D));
+        CHECK(manager.is_held_down_for(Salix::KeyCode::D, 0.09f));
+        manager.update(0.15f);
+        CHECK(manager.is_held_down_for(Salix::KeyCode::D, 0.24f));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::D, 0.26f));
+    }
+
+    TEST_CASE("batch3747 released key immediately stops satisfying even zero duration query") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_e, false, raw);
+        manager.process_event(press);
+        manager.update(0.5f);
+        REQUIRE(manager.is_held_down_for(Salix::KeyCode::E, 0.4f));
+        Salix::KeyReleasedEvent release(SDLK_e, raw);
+        manager.process_event(release);
+        REQUIRE(manager.was_released(Salix::KeyCode::E));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::E, 0.0f));
+    }
+
+    TEST_CASE("batch3747 released mouse button immediately stops satisfying duration query") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseButtonPressedEvent press(SDL_BUTTON_RIGHT, raw);
+        manager.process_event(press);
+        manager.update(0.5f);
+        REQUIRE(manager.is_held_down_for(Salix::MouseButton::Right, 0.4f));
+        Salix::MouseButtonReleasedEvent release(SDL_BUTTON_RIGHT, raw);
+        manager.process_event(release);
+        REQUIRE(manager.was_released(Salix::MouseButton::Right));
+        CHECK_FALSE(manager.is_held_down_for(Salix::MouseButton::Right, 0.0f));
+    }
+
+    TEST_CASE("batch3747 duplicate key combo transitions from down trigger to fully held") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_f, false, raw);
+        manager.process_event(press);
+        CHECK(manager.multiple_are_down({Salix::KeyCode::F, Salix::KeyCode::F}));
+        manager.update(0.1f);
+        CHECK_FALSE(manager.multiple_are_down({Salix::KeyCode::F, Salix::KeyCode::F}));
+        CHECK(manager.multiple_are_held_down({Salix::KeyCode::F, Salix::KeyCode::F}));
+        CHECK(manager.multiple_are_held_down_for({Salix::KeyCode::F, Salix::KeyCode::F}, 0.09f));
+    }
+
+    TEST_CASE("batch3747 infinite scroll values preserve sign classification until next update") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseScrolledEvent forward(0.0f, std::numeric_limits<float>::infinity(), raw);
+        manager.process_event(forward);
+        CHECK(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK(std::isinf(manager.get_mouse_scroll_delta()));
+        Salix::MouseScrolledEvent backward(0.0f, -std::numeric_limits<float>::infinity(), raw);
+        manager.process_event(backward);
+        CHECK(manager.did_scroll(Salix::MouseScroll::Backward));
+        CHECK(manager.get_mouse_scroll_delta() < 0.0f);
+        manager.update(0.0f);
+        CHECK(manager.get_mouse_scroll_delta() == 0.0f);
     }
 }
 
