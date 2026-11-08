@@ -395,7 +395,8 @@ TEST_SUITE("Salix::ecs::CameraBatch3247") {
 TEST_SUITE("Salix::ecs::CameraBatch3647") {
     TEST_CASE("batch3647 ownerless camera transform query is safely null") {
         Salix::Camera camera;
-        CHECK_NOTHROW(CHECK(camera.get_transform() == nullptr));
+        CHECK_NOTHROW((void)camera.get_transform());
+        CHECK(camera.get_transform() == nullptr);
     }
 
     TEST_CASE("batch3647 camera transform query follows owner attach and detach transitions") {
