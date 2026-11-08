@@ -3,6 +3,8 @@
 #include <Salix/gui/IFontData.h>
 #include <cfloat>
 #include <imgui/imgui.h>
+#include <limits>
+#include <cmath>
 
 TEST_SUITE("Salix::gui::ImGuiFontDataBatch1047") {
     TEST_CASE("default font data exposes stable identity and size defaults") {
@@ -439,3 +441,112 @@ TEST_SUITE("Salix::gui::ImGuiFontDataBatch3347") {
         CHECK(data.get_font_size()==doctest::Approx(12.f)); CHECK(cfg.SizePixels==doctest::Approx(42.f));
     }
 }
+TEST_SUITE("Salix::gui::ImGuiFontDataBatch3747") {
+    TEST_CASE("batch3747 default config conversion preserves advance rasterizer and ellipsis defaults") {
+        Salix::ImGuiFontData data;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.GlyphMinAdvanceX == doctest::Approx(0.0f));
+        CHECK(cfg.GlyphMaxAdvanceX == doctest::Approx(FLT_MAX));
+        CHECK(cfg.GlyphExtraAdvanceX == doctest::Approx(0.0f));
+        CHECK(cfg.FontLoaderFlags == 0u);
+        CHECK(cfg.RasterizerMultiply == doctest::Approx(1.0f));
+        CHECK(cfg.RasterizerDensity == doctest::Approx(1.0f));
+        CHECK(cfg.EllipsisChar == 0);
+    }
+
+    TEST_CASE("batch3747 mutating converted ImFontConfig never changes source config") {
+        Salix::ImGuiFontData data;
+        data.config.merge_mode = true;
+        data.config.size_pixels = 37.47f;
+        auto cfg = data.config.to_imgui_font_config();
+        cfg.MergeMode = false;
+        cfg.SizePixels = 99.0f;
+        CHECK(data.config.merge_mode);
+        CHECK(data.config.size_pixels == doctest::Approx(37.47f));
+    }
+
+    TEST_CASE("batch3747 repeated config conversions return independent value snapshots") {
+        Salix::ImGuiFontData data;
+        data.config.glyph_offset = ImVec2(3.0f, 7.0f);
+        auto first = data.config.to_imgui_font_config();
+        first.GlyphOffset = ImVec2(-1.0f, -2.0f);
+        const auto second = data.config.to_imgui_font_config();
+        CHECK(second.GlyphOffset.x == doctest::Approx(3.0f));
+        CHECK(second.GlyphOffset.y == doctest::Approx(7.0f));
+    }
+
+    TEST_CASE("batch3747 metadata font size accepts positive infinity without rewriting config size") {
+        Salix::ImGuiFontData data("Infinite3747", "infinite.ttf", 18.0f);
+        const float config_size = data.config.size_pixels;
+        data.set_font_size(std::numeric_limits<float>::infinity());
+        CHECK(std::isinf(data.get_font_size()));
+        CHECK(data.get_font_size() > 0.0f);
+        CHECK(data.config.size_pixels == doctest::Approx(config_size));
+    }
+
+    TEST_CASE("batch3747 metadata font size accepts NaN without rewriting config size") {
+        Salix::ImGuiFontData data("NaN3747", "nan.ttf", 19.0f);
+        const float config_size = data.config.size_pixels;
+        data.set_font_size(std::numeric_limits<float>::quiet_NaN());
+        CHECK(std::isnan(data.get_font_size()));
+        CHECK(data.config.size_pixels == doctest::Approx(config_size));
+    }
+
+    TEST_CASE("batch3747 public name and path preserve embedded null bytes through getters") {
+        Salix::ImGuiFontData data;
+        const std::string name("Font\0Name3747", 13);
+        const std::string path("path\0font.ttf", 13);
+        data.name = name;
+        data.file_path = path;
+        CHECK(data.get_name() == name);
+        CHECK(data.get_file_path() == path);
+        CHECK(data.get_name().size() == name.size());
+        CHECK(data.get_file_path().size() == path.size());
+    }
+
+    TEST_CASE("batch3747 public GUI type mutation is reflected by interface getter") {
+        Salix::ImGuiFontData data;
+        Salix::IFontData& base = data;
+        data.gui_type = "CustomGui3747";
+        CHECK(base.get_gui_type() == "CustomGui3747");
+        data.gui_type.clear();
+        CHECK(base.get_gui_type().empty());
+    }
+
+    TEST_CASE("batch3747 signed ImS8 config boundaries convert without normalization") {
+        Salix::ImGuiFontData data;
+        data.config.font_no = (std::numeric_limits<ImS8>::min)();
+        data.config.oversample_h = (std::numeric_limits<ImS8>::max)();
+        data.config.oversample_v = (std::numeric_limits<ImS8>::min)();
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.FontNo == (std::numeric_limits<ImS8>::min)());
+        CHECK(cfg.OversampleH == (std::numeric_limits<ImS8>::max)());
+        CHECK(cfg.OversampleV == (std::numeric_limits<ImS8>::min)());
+    }
+
+    TEST_CASE("batch3747 negative zero config pixel size preserves sign through conversion") {
+        Salix::ImGuiFontData data;
+        data.config.size_pixels = -0.0f;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.SizePixels == 0.0f);
+        CHECK(std::signbit(cfg.SizePixels));
+    }
+
+    TEST_CASE("batch3747 copy assignment replaces metadata and config while remaining independent") {
+        Salix::ImGuiFontData source("Source3747", "source3747.ttf", 27.0f);
+        source.config.merge_mode = true;
+        source.config.rasterizer_density = 2.5f;
+        Salix::ImGuiFontData destination("Destination", "dest.ttf", 11.0f);
+        destination = source;
+        CHECK(destination.get_name() == "Source3747");
+        CHECK(destination.get_file_path() == "source3747.ttf");
+        CHECK(destination.get_font_size() == doctest::Approx(27.0f));
+        CHECK(destination.config.merge_mode);
+        CHECK(destination.config.rasterizer_density == doctest::Approx(2.5f));
+        source.name = "MutatedSource";
+        source.config.rasterizer_density = 9.0f;
+        CHECK(destination.get_name() == "Source3747");
+        CHECK(destination.config.rasterizer_density == doctest::Approx(2.5f));
+    }
+}
+
