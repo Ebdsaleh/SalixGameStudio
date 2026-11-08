@@ -241,6 +241,7 @@ TEST_SUITE("Salix::ecs::Realm") {
 #include <Salix/ecs/Camera.h>
 #include <Salix/assets/AssetManager.h>
 #include <Salix/core/InitContext.h>
+#include <Salix/events/EventManager.h>
 
 namespace {
     class LifecycleProbe : public Salix::Element {
@@ -755,3 +756,128 @@ TEST_SUITE("Salix::ecs::RealmBatch3347") {
         Salix::Realm realm; Salix::Camera camera; realm.set_active_camera(&camera); REQUIRE(realm.get_active_camera()==&camera); realm.set_active_camera(nullptr); CHECK(realm.get_active_camera()==&camera);
     }
 }
+TEST_SUITE("Salix::ecs::RealmBatch3747") {
+    TEST_CASE("batch3747 event-only context is retained for purge dispatch without asset manager") {
+        Salix::EventManager events;
+        Salix::InitContext context{};
+        context.event_manager = &events;
+        Salix::Realm realm;
+        realm.set_context(context);
+        auto* entity = realm.create_entity("EventOnly3747");
+        REQUIRE(entity != nullptr);
+        entity->simple_purge();
+        REQUIRE(events.is_queue_empty());
+        realm.maintain();
+        CHECK_FALSE(events.is_queue_empty());
+        CHECK(realm.get_entities().empty());
+    }
+
+    TEST_CASE("batch3747 replacing event context with empty context disables later purge dispatch") {
+        Salix::EventManager events;
+        Salix::InitContext event_context{};
+        event_context.event_manager = &events;
+        Salix::Realm realm;
+        realm.set_context(event_context);
+        Salix::InitContext empty_context{};
+        realm.set_context(empty_context);
+        auto* entity = realm.create_entity("NoDispatch3747");
+        REQUIRE(entity != nullptr);
+        entity->simple_purge();
+        realm.maintain();
+        CHECK(events.is_queue_empty());
+        CHECK(realm.get_entities().empty());
+    }
+
+    TEST_CASE("batch3747 duplicate explicit identifiers remain distinct while id lookup returns first") {
+        Salix::Realm realm;
+        const auto id = Salix::SimpleGuid::from_value(3747001ULL);
+        auto* first = realm.create_entity(id, "First3747");
+        auto* second = realm.create_entity(id, "Second3747");
+        REQUIRE(first != nullptr);
+        REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(realm.get_entity_by_id(id) == first);
+        CHECK(realm.get_entities().size() == 2);
+    }
+
+    TEST_CASE("batch3747 mutating returned entity snapshot never changes realm ownership") {
+        Salix::Realm realm;
+        auto* first = realm.create_entity("SnapshotA3747");
+        auto* second = realm.create_entity("SnapshotB3747");
+        auto snapshot = realm.get_entities();
+        REQUIRE(snapshot.size() == 2);
+        snapshot.clear();
+        CHECK(snapshot.empty());
+        const auto current = realm.get_entities();
+        REQUIRE(current.size() == 2);
+        CHECK(current[0] == first);
+        CHECK(current[1] == second);
+    }
+
+    TEST_CASE("batch3747 realm name preserves embedded null bytes as owned string data") {
+        Salix::Realm realm;
+        const std::string name("Realm\0Hidden3747", 16);
+        realm.set_name(name);
+        CHECK(realm.get_name() == name);
+        CHECK(realm.get_name().size() == name.size());
+    }
+
+    TEST_CASE("batch3747 realm path preserves embedded null bytes as metadata") {
+        Salix::Realm realm;
+        const std::string path("Scenes\0Hidden.realm", 19);
+        realm.set_path(path);
+        CHECK(realm.get_path() == path);
+        CHECK(realm.get_path().size() == path.size());
+    }
+
+    TEST_CASE("batch3747 direct main camera metadata change never clears a direct camera pointer") {
+        Salix::Realm realm;
+        Salix::Camera camera;
+        realm.set_active_camera(&camera);
+        REQUIRE(realm.get_active_camera() == &camera);
+        realm.set_main_camera_entity(Salix::SimpleGuid::from_value(3747002ULL));
+        CHECK(realm.get_active_camera() == &camera);
+        CHECK(realm.get_main_camera_entity_id().get_value() == 3747002ULL);
+    }
+
+    TEST_CASE("batch3747 direct camera replacement stores latest pointer without implicit activation") {
+        Salix::Realm realm;
+        Salix::Camera first;
+        Salix::Camera second;
+        realm.set_active_camera(&first);
+        CHECK(realm.get_active_camera() == &first);
+        CHECK_FALSE(first.get_is_active());
+        realm.set_active_camera(&second);
+        CHECK(realm.get_active_camera() == &second);
+        CHECK_FALSE(first.get_is_active());
+        CHECK_FALSE(second.get_is_active());
+    }
+
+    TEST_CASE("batch3747 maintain with no purges preserves selected active camera and identifier") {
+        Salix::Realm realm;
+        auto* entity = realm.create_entity("StableCamera3747");
+        REQUIRE(entity != nullptr);
+        auto* camera = entity->add_element<Salix::Camera>();
+        REQUIRE(camera != nullptr);
+        const auto id = entity->get_id();
+        realm.set_active_camera_entity(id);
+        REQUIRE(camera->get_is_active());
+        realm.maintain();
+        CHECK(realm.get_active_camera() == camera);
+        CHECK(realm.get_main_camera_entity_id() == id);
+        CHECK(camera->get_is_active());
+        CHECK(realm.get_entity_by_id(id) == entity);
+    }
+
+    TEST_CASE("batch3747 load_assets with missing asset manager remains a no-op on owned entities") {
+        Salix::Realm realm;
+        auto* entity = realm.create_entity("LoadAssets3747");
+        REQUIRE(entity != nullptr);
+        const auto id = entity->get_id();
+        Salix::InitContext context{};
+        CHECK_NOTHROW(realm.load_assets(context));
+        CHECK(realm.get_entity_by_id(id) == entity);
+        CHECK(realm.get_entities().size() == 1);
+    }
+}
+
