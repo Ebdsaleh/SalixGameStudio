@@ -631,3 +631,143 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch3347") {
         e.matrix[0][0]=3.347f; CHECK(std::get<glm::mat4>(h.get_value())[0][0]==doctest::Approx(3.347f)); h.set_value(Salix::PropertyValue{glm::mat4(9.f)}); CHECK(e.matrix[0][0]==doctest::Approx(3.347f));
     }
 }
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch3747") {
+    TEST_CASE("batch3747 null integer getter result returns default variant without dereference") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "NullInt3747", Salix::PropertyType::Int,
+            [](void*) -> void* { return nullptr; },
+            {});
+        Salix::PropertyHandleLive handle(property, &element);
+        const auto value = handle.get_value();
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch3747 null Vector3 getter result returns default variant without dereference") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "NullVector3747", Salix::PropertyType::Vector3,
+            [](void*) -> void* { return nullptr; },
+            {});
+        Salix::PropertyHandleLive handle(property, &element);
+        const auto value = handle.get_value();
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch3747 successful EnumClass getter is invoked exactly once per read") {
+        Batch1147LiveElement element;
+        int calls = 0;
+        auto property = batch1147_property(
+            "EnumClass3747", Salix::PropertyType::EnumClass,
+            [&](void* instance) -> void* {
+                ++calls;
+                return &static_cast<Batch1147LiveElement*>(instance)->enum_class_value;
+            },
+            {});
+        Salix::PropertyHandleLive handle(property, &element);
+        CHECK(std::get<int>(handle.get_value()) == element.enum_class_value);
+        CHECK(calls == 1);
+        CHECK(std::get<int>(handle.get_value()) == element.enum_class_value);
+        CHECK(calls == 2);
+    }
+
+    TEST_CASE("batch3747 unsupported Class type returns default without invoking getter") {
+        Batch1147LiveElement element;
+        int calls = 0;
+        auto property = batch1147_property(
+            "Class3747", Salix::PropertyType::Class,
+            [&](void*) -> void* { ++calls; return &element.integer; },
+            {});
+        Salix::PropertyHandleLive handle(property, &element);
+        const auto value = handle.get_value();
+        CHECK(std::get<int>(value) == 0);
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE("batch3747 unsupported Struct type returns default without invoking getter") {
+        Batch1147LiveElement element;
+        int calls = 0;
+        auto property = batch1147_property(
+            "Struct3747", Salix::PropertyType::Struct,
+            [&](void*) -> void* { ++calls; return &element.integer; },
+            {});
+        Salix::PropertyHandleLive handle(property, &element);
+        CHECK(std::get<int>(handle.get_value()) == 0);
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE("batch3747 float handle preserves negative zero sign bit") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "Float3747", Salix::PropertyType::Float,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->scalar; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->scalar = *static_cast<float*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        handle.set_value(Salix::PropertyValue{-0.0f});
+        const float value = std::get<float>(handle.get_value());
+        CHECK(value == 0.0f);
+        CHECK(std::signbit(value));
+    }
+
+    TEST_CASE("batch3747 string handle preserves multiline text with embedded null bytes") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "String3747", Salix::PropertyType::String,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->text; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->text = *static_cast<std::string*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const std::string value("line1\0line2\n3747", 16);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<std::string>(handle.get_value()) == value);
+        CHECK(element.text.size() == value.size());
+    }
+
+    TEST_CASE("batch3747 Point handle preserves signed integer limits") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "Point3747", Salix::PropertyType::Point,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->point; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->point = *static_cast<Salix::Point*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const Salix::Point value{(std::numeric_limits<int>::min)(), (std::numeric_limits<int>::max)()};
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Point>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch3747 Rect handle preserves signed integer boundary channels") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "Rect3747", Salix::PropertyType::Rect,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->rect; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->rect = *static_cast<Salix::Rect*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const Salix::Rect value((std::numeric_limits<int>::min)(), -1, 0, (std::numeric_limits<int>::max)());
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Rect>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch3747 Color handle transports nonfinite diagnostic channels without normalization") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "Color3747", Salix::PropertyType::Color,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->color; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->color = *static_cast<Salix::Color*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const Salix::Color value(
+            std::numeric_limits<float>::infinity(),
+            -std::numeric_limits<float>::infinity(),
+            0.5f,
+            -0.0f);
+        handle.set_value(Salix::PropertyValue{value});
+        const auto roundtrip = std::get<Salix::Color>(handle.get_value());
+        CHECK(std::isinf(roundtrip.r));
+        CHECK(roundtrip.r > 0.0f);
+        CHECK(std::isinf(roundtrip.g));
+        CHECK(roundtrip.g < 0.0f);
+        CHECK(roundtrip.b == doctest::Approx(0.5f));
+        CHECK(std::signbit(roundtrip.a));
+    }
+}
+
