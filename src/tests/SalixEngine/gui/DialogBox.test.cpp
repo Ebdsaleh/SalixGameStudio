@@ -330,3 +330,109 @@ TEST_SUITE("Salix::gui::DialogBoxBatch3347") {
         CHECK(a.get_filters()==".png"); CHECK(b.get_filters()==".realm"); CHECK(a.get_config().path=="APath"); CHECK(b.get_config().path=="BPath"); CHECK((a.get_config().flags&ImGuiFileDialogFlags_ConfirmOverwrite)==0); CHECK((b.get_config().flags&ImGuiFileDialogFlags_ConfirmOverwrite)!=0);
     }
 }
+TEST_SUITE("Salix::gui::DialogBoxBatch3647") {
+    TEST_CASE("batch3647 mutable config reference remains stable through full fluent configuration") {
+        Salix::DialogBox dialog("Stable3647", "Stable", Salix::DialogType::File, false);
+        Salix::DialogConfig* config = &dialog.get_config();
+        dialog.set_filters(".realm").set_default_path("Scenes").set_default_file_name("Main.realm").set_overwrite(true);
+        CHECK(&dialog.get_config() == config);
+    }
+
+    TEST_CASE("batch3647 direct config path mutation remains separate from public default path state") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("Public3647");
+        dialog.get_config().path = "ConfigOnly3647";
+        CHECK(dialog.get_default_path() == "Public3647");
+        CHECK(dialog.get_config().path == "ConfigOnly3647");
+    }
+
+    TEST_CASE("batch3647 direct config filename mutation remains separate from public filename state") {
+        Salix::DialogBox dialog;
+        dialog.set_default_file_name("public3647.txt");
+        dialog.get_config().fileName = "config-only3647.txt";
+        CHECK(dialog.get_default_filename() == "public3647.txt");
+        CHECK(dialog.get_config().fileName == "config-only3647.txt");
+    }
+
+    TEST_CASE("batch3647 filter replacement preserves all backing config fields") {
+        Salix::DialogBox dialog("Filter3647", "Filter", Salix::DialogType::File, true);
+        dialog.set_default_path("Root3647").set_default_file_name("file3647.bin");
+        dialog.get_config().countSelectionMax = 9;
+        dialog.get_config().userDatas = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x3647));
+        const auto flags = dialog.get_config().flags;
+        dialog.set_filters(".png,.jpg").set_filters(".realm");
+        CHECK(dialog.get_filters() == ".realm");
+        CHECK(dialog.get_config().path == "Root3647");
+        CHECK(dialog.get_config().fileName == "file3647.bin");
+        CHECK(dialog.get_config().countSelectionMax == 9);
+        CHECK(dialog.get_config().userDatas == reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x3647)));
+        CHECK(dialog.get_config().flags == flags);
+    }
+
+    TEST_CASE("batch3647 clearing filters preserves dialog identity and file type") {
+        Salix::DialogBox dialog("ClearFilter3647", "Clear Filter", Salix::DialogType::File, false);
+        dialog.set_filters(".txt");
+        dialog.set_filters("");
+        CHECK(dialog.get_filters().empty());
+        CHECK(dialog.get_key() == "ClearFilter3647");
+        CHECK(dialog.get_title() == "Clear Filter");
+        CHECK(dialog.get_type() == Salix::DialogType::File);
+    }
+
+    TEST_CASE("batch3647 path setter preserves embedded null bytes in public and config strings") {
+        Salix::DialogBox dialog;
+        const std::string path("Root\0Hidden", 11);
+        dialog.set_default_path(path);
+        CHECK(dialog.get_default_path() == path);
+        CHECK(dialog.get_default_path().size() == path.size());
+        CHECK(dialog.get_config().path == path);
+    }
+
+    TEST_CASE("batch3647 filename setter preserves embedded null bytes in public and config strings") {
+        Salix::DialogBox dialog;
+        const std::string filename("file\0name.realm", 15);
+        dialog.set_default_file_name(filename);
+        CHECK(dialog.get_default_filename() == filename);
+        CHECK(dialog.get_default_filename().size() == filename.size());
+        CHECK(dialog.get_config().fileName == filename);
+    }
+
+    TEST_CASE("batch3647 overwrite changes preserve caller controlled selection and user data fields") {
+        Salix::DialogBox dialog("Overwrite3647", "Overwrite", Salix::DialogType::File, false);
+        dialog.get_config().countSelectionMax = 3647;
+        dialog.get_config().userDatas = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0xABCD));
+        dialog.set_overwrite(true);
+        dialog.set_overwrite(false);
+        CHECK(dialog.get_config().countSelectionMax == 3647);
+        CHECK(dialog.get_config().userDatas == reinterpret_cast<void*>(static_cast<std::uintptr_t>(0xABCD)));
+    }
+
+    TEST_CASE("batch3647 callbacks remain independent across separate dialog instances") {
+        Salix::DialogBox first, second;
+        int first_calls = 0, second_calls = 0;
+        first.set_callback([&](const Salix::FileDialogResult&) { ++first_calls; });
+        second.set_callback([&](const Salix::FileDialogResult&) { ++second_calls; });
+        REQUIRE(static_cast<bool>(first.get_callback()));
+        REQUIRE(static_cast<bool>(second.get_callback()));
+        Salix::FileDialogResult result{};
+        first.get_callback()(result);
+        CHECK(first_calls == 1);
+        CHECK(second_calls == 0);
+        second.get_callback()(result);
+        CHECK(first_calls == 1);
+        CHECK(second_calls == 1);
+    }
+
+    TEST_CASE("batch3647 callback replacement routes invocation only to latest callable") {
+        Salix::DialogBox dialog;
+        int old_calls = 0, new_calls = 0;
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++old_calls; });
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++new_calls; });
+        REQUIRE(static_cast<bool>(dialog.get_callback()));
+        Salix::FileDialogResult result{};
+        dialog.get_callback()(result);
+        CHECK(old_calls == 0);
+        CHECK(new_calls == 1);
+    }
+}
+
