@@ -18,6 +18,7 @@ namespace Salix {
         AssetManager* asset_manager = nullptr;
         std::map<std::string, IconInfo> icon_registry;
         IconInfo default_icon;
+        IconInfo dynamic_icon_info;
 
         void register_icon(const std::string& type_name, const std::string& path);
     };
@@ -81,11 +82,11 @@ namespace Salix {
             Sprite2D* sprite = entity->get_element<Sprite2D>();
             ITexture* texture = sprite->get_texture();
             if (texture) {
-                // This is a dynamic, user-specific icon. We create a temporary IconInfo for it.
-                // A more advanced system would cache this result.
-                static IconInfo dynamic_icon_info; // Static to avoid re-allocation
-                dynamic_icon_info.texture_id = texture->get_imgui_texture_id();
-                return dynamic_icon_info;
+                // This is a dynamic, user-specific icon. Keep the scratch value
+                // manager-local so separate icon managers never overwrite one another.
+                pimpl->dynamic_icon_info.texture_id = texture->get_imgui_texture_id();
+                pimpl->dynamic_icon_info.path = sprite->get_texture_path();
+                return pimpl->dynamic_icon_info;
             }
         }
 
