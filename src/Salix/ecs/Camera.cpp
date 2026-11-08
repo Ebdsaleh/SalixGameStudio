@@ -157,7 +157,7 @@ namespace Salix {
 
 
     Transform* Camera::get_transform() {
-        return owner->get_transform();
+        return owner ? owner->get_transform() : nullptr;
     }
     // --- Property Getters/Setters ---
     void Camera::set_field_of_view(float fov) { pimpl->field_of_view = fov; pimpl->projection_dirty = true; }
