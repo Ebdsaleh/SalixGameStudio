@@ -380,4 +380,126 @@ TEST_SUITE("Salix::gui::ImGuiFontBatch3447") {
         CHECK(font.get_imgui_font_ptr() == fake);
     }
 }
+TEST_SUITE("Salix::gui::ImGuiFontBatch3747") {
+    TEST_CASE("batch3747 separate default fonts own independent concrete data objects") {
+        Salix::ImGuiFont first, second;
+        REQUIRE(first.get_data() != nullptr);
+        REQUIRE(second.get_data() != nullptr);
+        CHECK(first.get_data() != second.get_data());
+        first.get_data()->set_font_size(37.47f);
+        CHECK(first.get_data()->get_font_size() == doctest::Approx(37.47f));
+        CHECK(second.get_data()->get_font_size() == doctest::Approx(20.0f));
+    }
+
+    TEST_CASE("batch3747 copied replacement remains valid after source object leaves scope") {
+        Salix::ImGuiFont font;
+        {
+            Salix::ImGuiFontData source("Scoped3747", "scoped3747.ttf", 23.0f);
+            source.config.merge_mode = true;
+            font.set_data(&source);
+        }
+        REQUIRE(font.get_data() != nullptr);
+        CHECK(font.get_name() == "Scoped3747");
+        CHECK(font.get_data()->get_file_path() == "scoped3747.ttf");
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.merge_mode);
+    }
+
+    TEST_CASE("batch3747 compatible replacement copies loader flags and rasterizer density") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData source("Config3747", "config3747.ttf", 18.0f);
+        source.config.font_loader_flags = 0x3747u;
+        source.config.rasterizer_density = 3.25f;
+        font.set_data(&source);
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.font_loader_flags == 0x3747u);
+        CHECK(stored->config.rasterizer_density == doctest::Approx(3.25f));
+    }
+
+    TEST_CASE("batch3747 source config mutation after replacement never changes owned snapshot") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData source("Snapshot3747", "snapshot3747.ttf", 19.0f);
+        source.config.glyph_offset = ImVec2(1.0f, 2.0f);
+        font.set_data(&source);
+        source.config.glyph_offset = ImVec2(9.0f, 10.0f);
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.glyph_offset.x == doctest::Approx(1.0f));
+        CHECK(stored->config.glyph_offset.y == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch3747 compatible replacement copies public GUI type value") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData source("GuiType3747", "gui3747.ttf", 17.0f);
+        source.gui_type = "ImGuiCustom3747";
+        font.set_data(&source);
+        REQUIRE(font.get_data() != nullptr);
+        CHECK(font.get_data()->get_gui_type() == "ImGuiCustom3747");
+    }
+
+    TEST_CASE("batch3747 compatible replacement accepts empty metadata values exactly") {
+        Salix::ImGuiFont font("old.ttf", "Old3747", 16.0f);
+        Salix::ImGuiFontData source("", "", 0.0f);
+        font.set_data(&source);
+        CHECK(font.get_name().empty());
+        REQUIRE(font.get_data() != nullptr);
+        CHECK(font.get_data()->get_file_path().empty());
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch3747 family storage preserves embedded null bytes") {
+        Salix::ImGuiFont font;
+        const std::string family("Family\0Hidden3747", 17);
+        font.set_family(family);
+        CHECK(font.get_family() == family);
+        CHECK(font.get_family().size() == family.size());
+    }
+
+    TEST_CASE("batch3747 null data replacement preserves family runtime pointer and owned data") {
+        Salix::ImGuiFont font("stable3747.ttf", "Stable3747", 21.0f);
+        font.set_family("Family3747");
+        ImFont* runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x3747));
+        font.set_imgui_font_ptr(runtime);
+        auto* data = font.get_data();
+        REQUIRE(data != nullptr);
+        font.set_data(nullptr);
+        CHECK(font.get_data() == data);
+        CHECK(font.get_family() == "Family3747");
+        CHECK(font.get_imgui_font_ptr() == runtime);
+        CHECK(font.get_name() == "Stable3747");
+    }
+
+    TEST_CASE("batch3747 foreign data rejection preserves current compatible snapshot and runtime state") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData source("Compatible3747", "compatible3747.ttf", 24.0f);
+        font.set_data(&source);
+        font.set_family("KeepFamily3747");
+        ImFont* runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x37470));
+        font.set_imgui_font_ptr(runtime);
+        Batch1047ForeignFontData foreign;
+        font.set_data(&foreign);
+        CHECK(font.get_name() == "Compatible3747");
+        CHECK(font.get_data()->get_file_path() == "compatible3747.ttf");
+        CHECK(font.get_family() == "KeepFamily3747");
+        CHECK(font.get_imgui_font_ptr() == runtime);
+    }
+
+    TEST_CASE("batch3747 multiple compatible replacements preserve family and runtime while latest values win") {
+        Salix::ImGuiFont font;
+        font.set_family("PersistentFamily3747");
+        ImFont* runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x37471));
+        font.set_imgui_font_ptr(runtime);
+        Salix::ImGuiFontData first("First3747", "first3747.ttf", 10.0f);
+        Salix::ImGuiFontData second("Second3747", "second3747.ttf", 30.0f);
+        font.set_data(&first);
+        font.set_data(&second);
+        CHECK(font.get_name() == "Second3747");
+        CHECK(font.get_data()->get_file_path() == "second3747.ttf");
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(30.0f));
+        CHECK(font.get_family() == "PersistentFamily3747");
+        CHECK(font.get_imgui_font_ptr() == runtime);
+    }
+}
 
