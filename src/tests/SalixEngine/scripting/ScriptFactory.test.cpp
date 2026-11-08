@@ -373,3 +373,124 @@ TEST_SUITE("Salix::scripting::ScriptFactoryBatch3047") {
         CHECK_FALSE(created->is_visible());
     }
 }
+TEST_SUITE("Salix::scripting::ScriptFactoryBatch3747") {
+    TEST_CASE("batch3747 registration key preserves newline and tab control characters exactly") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = "Batch3747::line\n\tkey";
+        factory.register_script(key, [] { return std::make_unique<Batch1047ScriptA>(); });
+        REQUIRE(factory.create_script(key) != nullptr);
+        CHECK(factory.create_script("Batch3747::line key") == nullptr);
+    }
+
+    TEST_CASE("batch3747 registration key preserves embedded null bytes independently from prefix") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key("Batch3747::nul\0suffix", 21);
+        factory.register_script(key, [] { return std::make_unique<Batch1047ScriptB>(); });
+        auto created = factory.create_script(key);
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(created.get()) != nullptr);
+        CHECK(factory.create_script("Batch3747::nul") == nullptr);
+    }
+
+    TEST_CASE("batch3747 replacing working creator with empty function affects future calls only") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = "Batch3747::working-to-empty";
+        factory.register_script(key, [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto existing = factory.create_script(key);
+        REQUIRE(existing != nullptr);
+        factory.register_script(key, Salix::ScriptFactory::Creator{});
+        CHECK_THROWS_AS(factory.create_script(key), std::bad_function_call);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(existing.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3747 empty creator mapping can be repaired by later working registration") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = "Batch3747::empty-to-working";
+        factory.register_script(key, Salix::ScriptFactory::Creator{});
+        CHECK_THROWS_AS(factory.create_script(key), std::bad_function_call);
+        factory.register_script(key, [] { return std::make_unique<Batch1047ScriptB>(); });
+        auto recovered = factory.create_script(key);
+        REQUIRE(recovered != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(recovered.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3747 two registration keys can share one captured invocation counter") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto calls = std::make_shared<int>(0);
+        auto creator = [calls] {
+            ++*calls;
+            return std::make_unique<Batch1047ScriptA>();
+        };
+        factory.register_script("Batch3747::shared-A", creator);
+        factory.register_script("Batch3747::shared-B", creator);
+        factory.create_script("Batch3747::shared-A");
+        factory.create_script("Batch3747::shared-B");
+        factory.create_script("Batch3747::shared-A");
+        CHECK(*calls == 3);
+    }
+
+    TEST_CASE("batch3747 missing lookup never invokes unrelated registered creator") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto calls = std::make_shared<int>(0);
+        factory.register_script("Batch3747::unrelated", [calls] {
+            ++*calls;
+            return std::make_unique<Batch1047ScriptA>();
+        });
+        CHECK(factory.create_script("Batch3747::missing") == nullptr);
+        CHECK(*calls == 0);
+        REQUIRE(factory.create_script("Batch3747::unrelated") != nullptr);
+        CHECK(*calls == 1);
+    }
+
+    TEST_CASE("batch3747 creator can recursively request another registered script") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch3747::inner", [] { return std::make_unique<Batch1047ScriptB>(); });
+        factory.register_script("Batch3747::outer", [&factory] {
+            return factory.create_script("Batch3747::inner");
+        });
+        auto created = factory.create_script("Batch3747::outer");
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(created.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3747 creator can register a new mapping during invocation") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch3747::registrar", [&factory] {
+            factory.register_script("Batch3747::registered-during-call", [] {
+                return std::make_unique<Batch1047ScriptB>();
+            });
+            return std::make_unique<Batch1047ScriptA>();
+        });
+        auto registrar = factory.create_script("Batch3747::registrar");
+        REQUIRE(registrar != nullptr);
+        auto late = factory.create_script("Batch3747::registered-during-call");
+        REQUIRE(late != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(late.get()) != nullptr);
+    }
+
+    TEST_CASE("batch3747 creator can preconfigure name visibility and identifier before transfer") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch3747::preconfigured", [] {
+            auto script = std::make_unique<Batch1047ScriptA>();
+            script->set_name("Configured3747");
+            script->set_visibility(false);
+            script->set_id(Salix::SimpleGuid::from_value(3747007ULL));
+            return script;
+        });
+        auto created = factory.create_script("Batch3747::preconfigured");
+        REQUIRE(created != nullptr);
+        CHECK(created->get_name() == "Configured3747");
+        CHECK_FALSE(created->is_visible());
+        CHECK(created->get_id().get_value() == 3747007ULL);
+    }
+
+    TEST_CASE("batch3747 repeated throwing creator remains registered after each exception") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch3747::repeat-throw", []() -> std::unique_ptr<Salix::ScriptElement> {
+            throw std::runtime_error("Batch3747 repeat");
+        });
+        CHECK_THROWS_AS(factory.create_script("Batch3747::repeat-throw"), std::runtime_error);
+        CHECK_THROWS_AS(factory.create_script("Batch3747::repeat-throw"), std::runtime_error);
+    }
+}
+
