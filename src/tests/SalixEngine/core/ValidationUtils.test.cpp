@@ -819,3 +819,59 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch3547") {
     }
 }
 
+TEST_SUITE("Salix::core::ValidationUtilsBatch3947") {
+    TEST_CASE("batch3947 least eight signed validator accepts max minus one and reserves maximum") {
+        const auto max = (std::numeric_limits<int_least8_t>::max)();
+        CHECK(Salix::ValidationUtils::is_valid_intleast8_t(static_cast<int_least8_t>(max - 1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast8_t(max));
+    }
+
+    TEST_CASE("batch3947 least sixteen signed validator rejects minimum and negative one") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast16_t((std::numeric_limits<int_least16_t>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast16_t(static_cast<int_least16_t>(-1)));
+    }
+
+    TEST_CASE("batch3947 least thirty two unsigned validator accepts max minus one and reserves maximum") {
+        const auto max = (std::numeric_limits<uint_least32_t>::max)();
+        CHECK(Salix::ValidationUtils::is_valid_uint_least32_t(max - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least32_t(max));
+    }
+
+    TEST_CASE("batch3947 least sixty four unsigned validator accepts zero and ordinary values") {
+        CHECK(Salix::ValidationUtils::is_valid_uint_least64_t(static_cast<uint_least64_t>(0)));
+        CHECK(Salix::ValidationUtils::is_valid_uint_least64_t(static_cast<uint_least64_t>(3947)));
+    }
+
+    TEST_CASE("batch3947 fast eight signed validator accepts largest nonsentinel nonnegative value") {
+        const auto max = (std::numeric_limits<int_fast8_t>::max)();
+        CHECK(Salix::ValidationUtils::is_valid_int_fast8_t(max - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int_fast8_t(max));
+    }
+
+    TEST_CASE("batch3947 fast sixteen signed validator rejects minimum sentinel") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int_fast16_t((std::numeric_limits<int_fast16_t>::min)()));
+    }
+
+    TEST_CASE("batch3947 fast thirty two unsigned validator reserves only maximum sentinel") {
+        const auto max = (std::numeric_limits<uint_fast32_t>::max)();
+        CHECK(Salix::ValidationUtils::is_valid_uint_fast32_t(max - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_fast32_t(max));
+    }
+
+    TEST_CASE("batch3947 fast sixty four unsigned validator accepts zero") {
+        CHECK(Salix::ValidationUtils::is_valid_uint_fast64_t(static_cast<uint_fast64_t>(0)));
+    }
+
+    TEST_CASE("batch3947 finite validators accept positive subnormal floating values") {
+        CHECK(Salix::ValidationUtils::is_valid_float((std::numeric_limits<float>::denorm_min)()));
+        CHECK(Salix::ValidationUtils::is_valid_double((std::numeric_limits<double>::denorm_min)()));
+    }
+
+    TEST_CASE("batch3947 complex long double accepts finite extremes and rejects nan component") {
+        using T = long double;
+        CHECK(Salix::ValidationUtils::is_valid_complex_long_double(
+            {static_cast<T>(1.0), (std::numeric_limits<T>::lowest)()}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_long_double(
+            {(std::numeric_limits<T>::quiet_NaN)(), static_cast<T>(0.0)}));
+    }
+}
