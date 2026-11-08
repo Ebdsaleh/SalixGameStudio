@@ -737,3 +737,69 @@ TEST_SUITE("Salix::math::RectBatch3547") {
     }
 }
 
+TEST_SUITE("Salix::math::RectBatch3947") {
+    TEST_CASE("batch3947 boolean arithmetic constructor maps directly into double components") {
+        const Salix::RectD r(true, false, true, false);
+        CHECK(r == Salix::RectD(1.0, 0.0, 1.0, 0.0));
+    }
+
+    TEST_CASE("batch3947 unsigned arithmetic constructor converts components independently into integer rectangle") {
+        const Salix::RectI r(1u, 2u, 3u, 4u);
+        CHECK(r == Salix::RectI(1, 2, 3, 4));
+    }
+
+    TEST_CASE("batch3947 double to float conversion preserves moderate binary fractions") {
+        const Salix::RectD source(-0.5, 0.25, -8.125, 16.75);
+        const Salix::RectF converted(source);
+        CHECK(converted == Salix::RectF(-0.5f, 0.25f, -8.125f, 16.75f));
+    }
+
+    TEST_CASE("batch3947 float to integer conversion truncates fractions near zero toward zero") {
+        const Salix::RectF source(-0.75f, 0.75f, -1.25f, 1.25f);
+        const Salix::RectI converted(source);
+        CHECK(converted == Salix::RectI(0, 0, -1, 1));
+    }
+
+    TEST_CASE("batch3947 inequality detects an x only difference") {
+        const Salix::RectD a(1.0, 2.0, 3.0, 4.0);
+        const Salix::RectD b(1.5, 2.0, 3.0, 4.0);
+        CHECK(a != b);
+        CHECK_FALSE(a == b);
+    }
+
+    TEST_CASE("batch3947 negative zero double rectangle equals positive zero rectangle") {
+        const Salix::RectD a(-0.0, 0.0, -0.0, 0.0);
+        const Salix::RectD b(0.0, 0.0, 0.0, 0.0);
+        CHECK(a == b);
+    }
+
+    TEST_CASE("batch3947 integer rectangle ostream preserves signed extents") {
+        const Salix::RectI r(-1, 2, -3, 4);
+        std::stringstream stream;
+        stream << r;
+        CHECK(stream.str() == "{ x: -1, y: 2, w: -3, h: 4 }");
+    }
+
+    TEST_CASE("batch3947 JSON roundtrip preserves representative double rectangle") {
+        const Salix::RectD original(-0.125, 2.5, -16.75, 32.0);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::RectD restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch3947 binary roundtrip preserves representative float rectangle") {
+        const Salix::RectF original(-1.25f, 2.5f, -3.75f, 4.125f);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(original); }
+        Salix::RectF restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch3947 cross scalar rectangle conversion remains explicit") {
+        CHECK((std::is_constructible_v<Salix::RectF, const Salix::RectD&>));
+        CHECK_FALSE((std::is_convertible_v<Salix::RectD, Salix::RectF>));
+    }
+}
