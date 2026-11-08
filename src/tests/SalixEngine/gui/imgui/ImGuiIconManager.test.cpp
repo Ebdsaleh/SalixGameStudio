@@ -451,4 +451,128 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch3447") {
         CHECK(second.icons.get_icon_by_name("Missing3447").path != "Assets/Icons/Batch3447/first-default.png");
     }
 }
+TEST_SUITE("Salix::gui::ImGuiIconManagerBatch3847") {
+    TEST_CASE("batch3847 generic entity resolves canonical Entity icon after default registration") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        const auto& icon = fixture.icons.get_icon_for_entity(&entity);
+        CHECK(icon.path == fixture.icons.get_icon_by_name("Entity").path);
+        CHECK(icon.texture_id == fixture.icons.get_icon_by_name("Entity").texture_id);
+    }
+
+    TEST_CASE("batch3847 camera entity resolves canonical Camera icon after default registration") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        REQUIRE(entity.add_element<Salix::Camera>() != nullptr);
+        const auto& icon = fixture.icons.get_icon_for_entity(&entity);
+        CHECK(icon.path == fixture.icons.get_icon_by_name("Camera").path);
+        CHECK(icon.texture_id == fixture.icons.get_icon_by_name("Camera").texture_id);
+    }
+
+    TEST_CASE("batch3847 textured sprite entity exposes its runtime texture identity and portable path") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&fixture.assets, "Assets/Icons/Batch3847/runtime-sprite.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        const auto& icon = fixture.icons.get_icon_for_entity(&entity);
+        CHECK(icon.texture_id == sprite->get_texture()->get_imgui_texture_id());
+        CHECK(icon.path == sprite->get_texture_path());
+    }
+
+    TEST_CASE("batch3847 textured sprite takes priority over Camera icon on same entity") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        REQUIRE(entity.add_element<Salix::Camera>() != nullptr);
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&fixture.assets, "Assets/Icons/Batch3847/priority.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        const auto& icon = fixture.icons.get_icon_for_entity(&entity);
+        CHECK(icon.texture_id == sprite->get_texture()->get_imgui_texture_id());
+        CHECK(icon.path == "Assets/Icons/Batch3847/priority.png");
+        CHECK(icon.path != fixture.icons.get_icon_by_name("Camera").path);
+    }
+
+    TEST_CASE("batch3847 separate managers retain independent dynamic sprite icon scratch values") {
+        Batch1947IconFixture first;
+        Batch1947IconFixture second;
+        Salix::Entity first_entity;
+        Salix::Entity second_entity;
+        auto* first_sprite = first_entity.add_element<Salix::Sprite2D>();
+        auto* second_sprite = second_entity.add_element<Salix::Sprite2D>();
+        REQUIRE(first_sprite != nullptr);
+        REQUIRE(second_sprite != nullptr);
+        first_sprite->load_texture(&first.assets, "Assets/Icons/Batch3847/first.png");
+        second_sprite->load_texture(&second.assets, "Assets/Icons/Batch3847/second.png");
+        const auto& first_icon = first.icons.get_icon_for_entity(&first_entity);
+        const std::string first_path = first_icon.path;
+        const auto first_texture = first_icon.texture_id;
+        const auto& second_icon = second.icons.get_icon_for_entity(&second_entity);
+        CHECK(first_icon.path == first_path);
+        CHECK(first_icon.texture_id == first_texture);
+        CHECK(second_icon.path == "Assets/Icons/Batch3847/second.png");
+        CHECK(first_icon.path != second_icon.path);
+    }
+
+    TEST_CASE("batch3847 dynamic sprite lookup never grows canonical icon registry") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto size_before = fixture.icons.get_icon_registry().size();
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&fixture.assets, "Assets/Icons/Batch3847/no-registry-growth.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        fixture.icons.get_icon_for_entity(&entity);
+        CHECK(fixture.icons.get_icon_registry().size() == size_before);
+    }
+
+    TEST_CASE("batch3847 updating existing icon with new path preserves registry cardinality") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto size_before = fixture.icons.get_icon_registry().size();
+        fixture.icons.update_icon("Entity", "Assets/Icons/Batch3847/entity-new.png");
+        CHECK(fixture.icons.get_icon_registry().size() == size_before);
+        CHECK(fixture.icons.get_icon_by_name("Entity").path == "Assets/Icons/Batch3847/entity-new.png");
+    }
+
+    TEST_CASE("batch3847 failed nondefault update preserves both target and fallback icons") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto entity_before = fixture.icons.get_icon_by_name("Entity");
+        const auto default_before = fixture.icons.get_icon_by_name("Default");
+        fixture.renderer.should_texture_load_fail = true;
+        fixture.icons.update_icon("Entity", "Assets/Icons/Batch3847/missing.png");
+        CHECK(fixture.icons.get_icon_by_name("Entity").path == entity_before.path);
+        CHECK(fixture.icons.get_icon_by_name("Entity").texture_id == entity_before.texture_id);
+        CHECK(fixture.icons.get_icon_by_name("Default").path == default_before.path);
+        CHECK(fixture.icons.get_icon_by_name("Default").texture_id == default_before.texture_id);
+    }
+
+    TEST_CASE("batch3847 repeated default registration keeps canonical registry size and fallback path") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        REQUIRE(fixture.icons.get_icon_registry().size() == 7);
+        fixture.icons.register_default_icons();
+        CHECK(fixture.icons.get_icon_registry().size() == 7);
+        CHECK(fixture.icons.get_icon_by_name("Missing3847").path ==
+            "Assets/Icons/Editor/Kenney/Generic/PNG/Colored/genericItem_color_153.png");
+    }
+
+    TEST_CASE("batch3847 fresh null initialized manager rejects unknown update without dereference") {
+        Salix::ImGuiIconManager icons;
+        icons.initialize(nullptr);
+        CHECK_NOTHROW(icons.update_icon("Unknown3847", "unused3847.png"));
+        CHECK(icons.get_icon_registry().empty());
+        const auto& fallback = icons.get_icon_by_name("Missing3847");
+        CHECK(fallback.texture_id == ImTextureID(0));
+        CHECK(fallback.path.empty());
+    }
+}
 
