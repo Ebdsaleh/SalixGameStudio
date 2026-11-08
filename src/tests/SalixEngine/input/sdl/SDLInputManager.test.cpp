@@ -8,6 +8,7 @@
 #include <Salix/events/sdl/SDLEvent.h> // For our mock events
 #include <SDL.h> // For SDL_Event and keycodes
 #include <limits>
+#include <cmath>
 
 TEST_SUITE("Salix::input::sdl::SDLInputManager") {
 
