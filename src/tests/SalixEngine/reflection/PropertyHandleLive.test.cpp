@@ -11,6 +11,7 @@
 #include <limits>
 #include <string>
 #include <utility>
+#include <cmath>
 
 namespace {
 class Batch1147LiveElement : public Salix::Element {
