@@ -840,4 +840,174 @@ TEST_SUITE("Salix::management::SettingsManagerBatch3447") {
         CHECK(std::filesystem::is_regular_file(expected_cache));
     }
 }
+TEST_SUITE("Salix::management::SettingsManagerBatch3847") {
+    TEST_CASE("batch3847 newer truncated cache falls back to YAML instead of accepting partial data") {
+        Batch3447SettingsFiles files("Batch3847_TruncatedCache");
+        files.write_yaml("Window:\n  title: YAML3847\n  width: 1384\nEngine:\n  target_fps: 147\n");
+        { std::ofstream out(files.cache, std::ios::binary); out << "bad"; }
+        const auto yaml_time = std::filesystem::last_write_time(files.yaml);
+        std::filesystem::last_write_time(files.cache, yaml_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Before3847";
+        config.window_config.width = 1;
+        config.target_fps = 2;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "YAML3847");
+        CHECK(config.window_config.width == 1384);
+        CHECK(config.target_fps == 147);
+    }
+
+    TEST_CASE("batch3847 cache truncated only in title bytes falls back to YAML safely") {
+        Batch3447SettingsFiles files("Batch3847_TitleTruncated");
+        files.write_yaml("Window:\n  title: Complete3847\n  width: 900\n");
+        Salix::SettingsManager manager;
+        Salix::ApplicationConfig first;
+        REQUIRE(manager.load_settings(files.yaml.string(), first));
+        REQUIRE(std::filesystem::file_size(files.cache) > 1);
+        std::filesystem::resize_file(files.cache, std::filesystem::file_size(files.cache) - 1);
+        const auto yaml_time = std::filesystem::last_write_time(files.yaml);
+        std::filesystem::last_write_time(files.cache, yaml_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig second;
+        second.window_config.title = "Wrong3847";
+        second.window_config.width = 3;
+        REQUIRE(manager.load_settings(files.yaml.string(), second));
+        CHECK(second.window_config.title == "Complete3847");
+        CHECK(second.window_config.width == 900);
+    }
+
+    TEST_CASE("batch3847 zero byte newer cache falls back to YAML without mutating from garbage") {
+        Batch3447SettingsFiles files("Batch3847_ZeroCache");
+        files.write_yaml("Engine:\n  target_fps: 3847\n");
+        { std::ofstream out(files.cache, std::ios::binary | std::ios::trunc); }
+        const auto yaml_time = std::filesystem::last_write_time(files.yaml);
+        std::filesystem::last_write_time(files.cache, yaml_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig config;
+        config.target_fps = -1;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.target_fps == 3847);
+    }
+
+    TEST_CASE("batch3847 valid newer cache restores full cached values over caller defaults") {
+        Batch3447SettingsFiles files("Batch3847_ValidCache");
+        files.write_yaml(
+            "Window:\n  title: Cached3847\n  width: 777\n  height: 555\n"
+            "Engine:\n  initial_state: Game\n  target_fps: 88\n"
+            "Renderer:\n  type: OpenGL\nTimer:\n  type: Chrono\n");
+        Salix::SettingsManager manager;
+        Salix::ApplicationConfig first;
+        REQUIRE(manager.load_settings(files.yaml.string(), first));
+        const auto yaml_time = std::filesystem::last_write_time(files.yaml);
+        std::filesystem::last_write_time(files.cache, yaml_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig second;
+        second.window_config.title = "Wrong";
+        second.window_config.width = 1;
+        second.target_fps = 1;
+        second.renderer_type = Salix::RendererType::SDL;
+        REQUIRE(manager.load_settings(files.yaml.string(), second));
+        CHECK(second.window_config.title == "Cached3847");
+        CHECK(second.window_config.width == 777);
+        CHECK(second.window_config.height == 555);
+        CHECK(second.target_fps == 88);
+        CHECK(second.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(second.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch3847 older cache is ignored when YAML has newer target FPS") {
+        Batch3447SettingsFiles files("Batch3847_OlderCache");
+        files.write_yaml("Engine:\n  target_fps: 60\n");
+        Salix::SettingsManager manager;
+        Salix::ApplicationConfig first;
+        REQUIRE(manager.load_settings(files.yaml.string(), first));
+        const auto old_cache_time = std::filesystem::last_write_time(files.cache);
+        files.write_yaml("Engine:\n  target_fps: 144\n");
+        std::filesystem::last_write_time(files.yaml, old_cache_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig second;
+        second.target_fps = 1;
+        REQUIRE(manager.load_settings(files.yaml.string(), second));
+        CHECK(second.target_fps == 144);
+    }
+
+    TEST_CASE("batch3847 corrupt cache fallback preserves caller values for YAML fields that are absent") {
+        Batch3447SettingsFiles files("Batch3847_PartialFallback");
+        files.write_yaml("Engine:\n  target_fps: 240\n");
+        { std::ofstream out(files.cache, std::ios::binary); out << "corrupt3847"; }
+        const auto yaml_time = std::filesystem::last_write_time(files.yaml);
+        std::filesystem::last_write_time(files.cache, yaml_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Preserve3847";
+        config.window_config.width = 123;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.target_fps == 240);
+        CHECK(config.window_config.title == "Preserve3847");
+        CHECK(config.window_config.width == 123);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+    }
+
+    TEST_CASE("batch3847 malformed YAML returns false and does not create a replacement cache") {
+        Batch3447SettingsFiles files("Batch3847_Malformed");
+        files.write_yaml("Window: [unterminated\n");
+        Salix::ApplicationConfig config;
+        config.window_config.title = "BeforeMalformed3847";
+        Salix::SettingsManager manager;
+        CHECK_FALSE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "BeforeMalformed3847");
+        CHECK_FALSE(std::filesystem::exists(files.cache));
+    }
+
+    TEST_CASE("batch3847 saving shorter content fully truncates an existing longer YAML file") {
+        Batch3447SettingsFiles files("Batch3847_TruncateSave");
+        Salix::SettingsManager manager;
+        Salix::ApplicationConfig long_config;
+        long_config.window_config.title = "This is a deliberately very long Batch3847 window title for truncation";
+        REQUIRE(manager.save_settings(files.yaml.string(), long_config));
+        const auto long_size = std::filesystem::file_size(files.yaml);
+        Salix::ApplicationConfig short_config;
+        short_config.window_config.title = "S";
+        REQUIRE(manager.save_settings(files.yaml.string(), short_config));
+        const auto short_size = std::filesystem::file_size(files.yaml);
+        CHECK(short_size < long_size);
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.title == "S");
+    }
+
+    TEST_CASE("batch3847 valid cache preserves empty window title exactly") {
+        Batch3447SettingsFiles files("Batch3847_EmptyTitle");
+        Salix::ApplicationConfig source;
+        source.window_config.title.clear();
+        source.target_fps = 75;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig first;
+        REQUIRE(manager.load_settings(files.yaml.string(), first));
+        REQUIRE(first.window_config.title.empty());
+        const auto yaml_time = std::filesystem::last_write_time(files.yaml);
+        std::filesystem::last_write_time(files.cache, yaml_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig second;
+        second.window_config.title = "Wrong3847";
+        REQUIRE(manager.load_settings(files.yaml.string(), second));
+        CHECK(second.window_config.title.empty());
+        CHECK(second.target_fps == 75);
+    }
+
+    TEST_CASE("batch3847 extensionless path recovers from corrupt sibling cache via source YAML") {
+        Batch3447SettingsFiles files("Batch3847_ExtensionlessCorrupt");
+        const auto yaml = files.root / "settings3847";
+        const auto cache = files.root / "settings3847.cache";
+        { std::ofstream out(yaml); out << "GUI:\n  font_scaling: 1.75\n"; }
+        { std::ofstream out(cache, std::ios::binary); out << "broken"; }
+        const auto yaml_time = std::filesystem::last_write_time(yaml);
+        std::filesystem::last_write_time(cache, yaml_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig config;
+        config.gui_settings.font_scaling = 0.5f;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(yaml.string(), config));
+        CHECK(config.gui_settings.font_scaling == doctest::Approx(1.75f));
+        CHECK(std::filesystem::is_regular_file(cache));
+    }
+}
 
