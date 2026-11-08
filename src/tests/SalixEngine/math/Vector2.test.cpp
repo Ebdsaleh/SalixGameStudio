@@ -857,3 +857,71 @@ TEST_SUITE("Salix::math::Vector2Batch3547") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector2Batch3947") {
+    TEST_CASE("batch3947 default vector converts to zero ImGui coordinates") {
+        Salix::Vector2 v;
+        const auto out = v.to_im_vec2();
+        CHECK(out.x == 0.0f);
+        CHECK(out.y == 0.0f);
+    }
+
+    TEST_CASE("batch3947 negative five twelve vector retains thirteen magnitude") {
+        CHECK(Salix::Vector2(-5.0f, -12.0f).length() == doctest::Approx(13.0f));
+    }
+
+    TEST_CASE("batch3947 normalization preserves quadrant for negative positive vector") {
+        Salix::Vector2 v(-3.0f, 4.0f);
+        v.normalize();
+        CHECK(v.x == doctest::Approx(-0.6f));
+        CHECK(v.y == doctest::Approx(0.8f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch3947 quarter interpolation follows both signed axes") {
+        const auto v = Salix::Vector2::lerp({-8.0f, 4.0f}, {8.0f, -12.0f}, 0.25f);
+        CHECK(v.x == doctest::Approx(-4.0f));
+        CHECK(v.y == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch3947 component multiplication keeps independent signs") {
+        const auto v = Salix::Vector2(-2.0f, 3.0f) * Salix::Vector2(4.0f, -5.0f);
+        CHECK(v == Salix::Vector2(-8.0f, -15.0f));
+    }
+
+    TEST_CASE("batch3947 compound add then subtract restores original vector and returns self") {
+        Salix::Vector2 v(1.0f, -2.0f);
+        const Salix::Vector2 original = v;
+        Salix::Vector2& add_ref = (v += Salix::Vector2(3.0f, 4.0f));
+        CHECK(&add_ref == &v);
+        Salix::Vector2& sub_ref = (v -= Salix::Vector2(3.0f, 4.0f));
+        CHECK(&sub_ref == &v);
+        CHECK(v == original);
+    }
+
+    TEST_CASE("batch3947 scalar addition overloads remain symmetric") {
+        const Salix::Vector2 v(-1.0f, 2.5f);
+        CHECK(v + 3.0f == 3.0f + v);
+        CHECK(v + 3.0f == Salix::Vector2(2.0f, 5.5f));
+    }
+
+    TEST_CASE("batch3947 scalar multiplication overloads remain symmetric") {
+        const Salix::Vector2 v(-2.0f, 5.0f);
+        CHECK(v * -3.0f == -3.0f * v);
+        CHECK(v * -3.0f == Salix::Vector2(6.0f, -15.0f));
+    }
+
+    TEST_CASE("batch3947 YAML x only decode clears omitted y coordinate") {
+        Salix::Vector2 v(9.0f, 8.0f);
+        const YAML::Node node = YAML::Load("{x: -4.25}");
+        node >> v;
+        CHECK(v.x == doctest::Approx(-4.25f));
+        CHECK(v.y == 0.0f);
+    }
+
+    TEST_CASE("batch3947 vector2 ostream preserves signed component order") {
+        const Salix::Vector2 v(-1.5f, 2.25f);
+        std::stringstream stream;
+        stream << v;
+        CHECK(stream.str() == "{ x: -1.5, y: 2.25 }");
+    }
+}
