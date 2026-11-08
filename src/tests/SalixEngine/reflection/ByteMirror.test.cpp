@@ -497,3 +497,120 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch3247") {
  TEST_CASE("batch3247 custom constructor may intentionally return null") { Salix::ByteMirror::register_constructor("Batch3247Null",[]()->Salix::Element*{return nullptr;}); CHECK(Salix::ByteMirror::create_element_by_name("Batch3247Null")==nullptr); }
  TEST_CASE("batch3247 YAML unknown element is skipped while known element property survives") { Salix::ByteMirror::register_all_types(); YAML::Node entity,known,unknown; known["Transform"]["position"]["x"]=1.f; known["Transform"]["position"]["y"]=2.f; known["Transform"]["position"]["z"]=3.f; unknown["Batch3247Unknown"]["name"]="Ignored"; entity["elements"].push_back(unknown); entity["elements"].push_back(known); const auto handles=Salix::ByteMirror::create_handles_for_yaml(&entity); REQUIRE(handles.size()==1); REQUIRE(handles[0]); CHECK(handles[0]->get_name()=="position"); }
 }
+#include <Salix/ecs/RenderableElement.h>
+#include <Salix/ecs/RenderableElement2D.h>
+#include <Salix/ecs/ScriptElement.h>
+
+TEST_SUITE("Salix::reflection::ByteMirrorBatch3647") {
+    TEST_CASE("batch3647 RenderableElement metadata links directly to Element with no local properties") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::RenderableElement));
+        REQUIRE(info != nullptr);
+        CHECK(info->name == "RenderableElement");
+        REQUIRE(info->ancestor != nullptr);
+        CHECK(info->ancestor->name == "Element");
+        CHECK(info->properties.empty());
+    }
+
+    TEST_CASE("batch3647 RenderableElement2D metadata links to RenderableElement") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::RenderableElement2D));
+        REQUIRE(info != nullptr);
+        CHECK(info->name == "RenderableElement2D");
+        REQUIRE(info->ancestor != nullptr);
+        CHECK(info->ancestor->name == "RenderableElement");
+        CHECK(info->properties.empty());
+    }
+
+    TEST_CASE("batch3647 ScriptElement metadata links directly to Element") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::ScriptElement));
+        REQUIRE(info != nullptr);
+        CHECK(info->name == "ScriptElement");
+        REQUIRE(info->ancestor != nullptr);
+        CHECK(info->ancestor->name == "Element");
+    }
+
+    TEST_CASE("batch3647 CppScript metadata links ScriptElement and exposes string script name") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::CppScript));
+        REQUIRE(info != nullptr);
+        REQUIRE(info->ancestor != nullptr);
+        CHECK(info->ancestor->name == "ScriptElement");
+        const auto it = std::find_if(info->properties.begin(), info->properties.end(),
+            [](const Salix::Property& property) { return property.name == "script_name"; });
+        REQUIRE(it != info->properties.end());
+        CHECK(it->type == Salix::PropertyType::String);
+    }
+
+    TEST_CASE("batch3647 Sprite2D metadata preserves complete renderable ancestor chain") {
+        Salix::ByteMirror::register_all_types();
+        const auto* sprite = Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D));
+        REQUIRE(sprite != nullptr);
+        REQUIRE(sprite->ancestor != nullptr);
+        CHECK(sprite->ancestor->name == "RenderableElement2D");
+        REQUIRE(sprite->ancestor->ancestor != nullptr);
+        CHECK(sprite->ancestor->ancestor->name == "RenderableElement");
+        REQUIRE(sprite->ancestor->ancestor->ancestor != nullptr);
+        CHECK(sprite->ancestor->ancestor->ancestor->name == "Element");
+    }
+
+    TEST_CASE("batch3647 Sprite2D derived property list is exactly width then height") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D));
+        REQUIRE(info != nullptr);
+        REQUIRE(info->derived_properties.size() == 2);
+        CHECK(info->derived_properties[0] == "width");
+        CHECK(info->derived_properties[1] == "height");
+    }
+
+    TEST_CASE("batch3647 Sprite2D texture path property carries image file UI hint") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D));
+        REQUIRE(info != nullptr);
+        const auto it = std::find_if(info->properties.begin(), info->properties.end(),
+            [](const Salix::Property& property) { return property.name == "texture_path"; });
+        REQUIRE(it != info->properties.end());
+        CHECK(it->type == Salix::PropertyType::String);
+        CHECK(it->hint == Salix::UIHint::ImageFile);
+    }
+
+    TEST_CASE("batch3647 Sprite2D width and height metadata are integer read only properties") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D));
+        REQUIRE(info != nullptr);
+        for (const std::string name : {"width", "height"}) {
+            const auto it = std::find_if(info->properties.begin(), info->properties.end(),
+                [&](const Salix::Property& property) { return property.name == name; });
+            REQUIRE(it != info->properties.end());
+            CHECK(it->type == Salix::PropertyType::Int);
+            CHECK(it->is_read_only);
+        }
+    }
+
+    TEST_CASE("batch3647 Camera projection mode metadata points to registered ProjectionMode type") {
+        Salix::ByteMirror::register_all_types();
+        const auto* camera = Salix::ByteMirror::get_type_info(typeid(Salix::Camera));
+        const auto* projection = Salix::ByteMirror::get_type_info(typeid(Salix::ProjectionMode));
+        REQUIRE(camera != nullptr); REQUIRE(projection != nullptr);
+        const auto it = std::find_if(camera->properties.begin(), camera->properties.end(),
+            [](const Salix::Property& property) { return property.name == "projection_mode"; });
+        REQUIRE(it != camera->properties.end());
+        CHECK(it->type == Salix::PropertyType::EnumClass);
+        CHECK(it->contained_type_info == projection);
+    }
+
+    TEST_CASE("batch3647 Camera view and projection matrices are advertised as read only GLM matrices") {
+        Salix::ByteMirror::register_all_types();
+        const auto* camera = Salix::ByteMirror::get_type_info(typeid(Salix::Camera));
+        REQUIRE(camera != nullptr);
+        for (const std::string name : {"view_matrix", "projection_matrix"}) {
+            const auto it = std::find_if(camera->properties.begin(), camera->properties.end(),
+                [&](const Salix::Property& property) { return property.name == name; });
+            REQUIRE(it != camera->properties.end());
+            CHECK(it->type == Salix::PropertyType::GlmMat4);
+            CHECK(it->is_read_only);
+        }
+    }
+}
+
