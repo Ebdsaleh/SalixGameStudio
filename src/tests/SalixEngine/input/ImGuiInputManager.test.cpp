@@ -27,6 +27,7 @@ TEST_SUITE("Salix::input::ImGuiInputManager") {
 #include <vector>
 #include <Tests/SalixEngine/mocking/events/MockEventSystem.h>
 #include <limits>
+#include <cmath>
 namespace {
 struct InputManagerContext {
     ImGuiContext* previous_test = ImGui::GetCurrentContext();
