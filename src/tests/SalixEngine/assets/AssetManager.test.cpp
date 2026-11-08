@@ -471,3 +471,113 @@ TEST_SUITE("Salix::assets::AssetManagerBatch3247") {
  TEST_CASE("batch3247 repeated shutdown after populated cache remains safe before fresh load") { CountingAssetRenderer r; Salix::AssetManager a; a.initialize(&r); REQUIRE(a.get_texture("assets/pre3247.png")); a.shutdown(); CHECK_NOTHROW(a.shutdown()); CHECK_NOTHROW(a.shutdown()); REQUIRE(a.get_texture("assets/pre3247.png")); CHECK(r.calls==2); }
  TEST_CASE("batch3247 normalized parent traversal reaches renderer without dot segments") { CountingAssetRenderer r; Salix::AssetManager a; a.initialize(&r); REQUIRE(a.get_texture("assets/a/b/../../final3247.png")); REQUIRE(r.paths.size()==1); const auto p=std::filesystem::path(r.paths[0]).lexically_normal(); CHECK(p==std::filesystem::path(r.paths[0])); CHECK(p.filename().string()=="final3247.png"); }
 }
+TEST_SUITE("Salix::assets::AssetManagerBatch3647") {
+    TEST_CASE("batch3647 texture request before initialization is a safe null result") {
+        Salix::AssetManager assets;
+        CHECK_NOTHROW(CHECK(assets.get_texture("assets/preinit3647.png") == nullptr));
+    }
+
+    TEST_CASE("batch3647 explicit null renderer initialization keeps uncached requests safe") {
+        Salix::AssetManager assets;
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("assets/null-renderer3647.png") == nullptr);
+    }
+
+    TEST_CASE("batch3647 valid renderer can recover after earlier preinitialization misses") {
+        Salix::AssetManager assets;
+        CHECK(assets.get_texture("assets/recover3647.png") == nullptr);
+        CountingAssetRenderer renderer;
+        assets.initialize(&renderer);
+        auto* texture = assets.get_texture("assets/recover3647.png");
+        REQUIRE(texture != nullptr);
+        CHECK(renderer.calls == 1);
+        CHECK(assets.get_texture("assets/recover3647.png") == texture);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch3647 cached texture remains readable after renderer pointer is cleared") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* texture = assets.get_texture("assets/cached3647.png");
+        REQUIRE(texture != nullptr);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("assets/cached3647.png") == texture);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch3647 uncached request while renderer is cleared does not call previous backend") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("assets/known3647.png") != nullptr);
+        CHECK(renderer.calls == 1);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("assets/new-while-null3647.png") == nullptr);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch3647 replacement renderer handles new request after temporary null renderer") {
+        CountingAssetRenderer first, second;
+        Salix::AssetManager assets;
+        assets.initialize(&first);
+        REQUIRE(assets.get_texture("assets/first3647.png") != nullptr);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("assets/second3647.png") == nullptr);
+        assets.initialize(&second);
+        REQUIRE(assets.get_texture("assets/second3647.png") != nullptr);
+        CHECK(first.calls == 1);
+        CHECK(second.calls == 1);
+    }
+
+    TEST_CASE("batch3647 shutdown clears cached texture but retains active renderer for reload") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("assets/reload3647.png");
+        REQUIRE(first != nullptr);
+        assets.shutdown();
+        auto* second = assets.get_texture("assets/reload3647.png");
+        REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch3647 failed load can recover through a replacement renderer") {
+        CountingAssetRenderer failing, replacement;
+        failing.should_texture_load_fail = true;
+        Salix::AssetManager assets;
+        assets.initialize(&failing);
+        CHECK(assets.get_texture("assets/replacement3647.png") == nullptr);
+        assets.initialize(&replacement);
+        auto* recovered = assets.get_texture("assets/replacement3647.png");
+        REQUIRE(recovered != nullptr);
+        CHECK(failing.calls == 1);
+        CHECK(replacement.calls == 1);
+        CHECK(assets.get_texture("assets/replacement3647.png") == recovered);
+    }
+
+    TEST_CASE("batch3647 cached lexical alias remains readable without renderer") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* texture = assets.get_texture("assets/ui/icon3647.png");
+        REQUIRE(texture != nullptr);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("assets/ui/./icon3647.png") == texture);
+        CHECK(assets.get_texture("assets/tmp/../ui/icon3647.png") == texture);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch3647 initialized and uninitialized managers remain completely independent") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager initialized, uninitialized;
+        initialized.initialize(&renderer);
+        auto* texture = initialized.get_texture("assets/shared3647.png");
+        REQUIRE(texture != nullptr);
+        CHECK(uninitialized.get_texture("assets/shared3647.png") == nullptr);
+        CHECK(initialized.get_texture("assets/shared3647.png") == texture);
+        CHECK(renderer.calls == 1);
+    }
+}
+
