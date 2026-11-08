@@ -1,6 +1,7 @@
 #include <doctest.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/gui/IDialog.h>
+#include <Salix/gui/IGui.h>
 #include <cstdint>
 #include <string>
 #include <functional>
