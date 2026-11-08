@@ -383,4 +383,114 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch3447") {
         CHECK(manager.get_font("Before3447") == nullptr);
     }
 }
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch3847") {
+    TEST_CASE("batch3847 registered font name vector is independent from registry state") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("One3847", "Family", 10.f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Two3847", "Family", 12.f)));
+        auto names = manager.get_registered_font_names();
+        REQUIRE(names.size() == 2);
+        names.clear();
+        CHECK(manager.get_registered_font_names().size() == 2);
+        CHECK(manager.get_font_registry().size() == 2);
+    }
+
+    TEST_CASE("batch3847 embedded null family remains exact during family size lookup") {
+        Salix::ImGuiFontManager manager;
+        const std::string family("Family\0Alt3847", 14);
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("NullFamily3847", family, 17.f)));
+        const auto exact = manager.get_font_sizes_for_font_family(family);
+        REQUIRE(exact.size() == 1);
+        CHECK(exact[0] == doctest::Approx(17.f));
+        CHECK(manager.get_font_sizes_for_font_family("Family").empty());
+    }
+
+    TEST_CASE("batch3847 family sizes sort negative zero and positive diagnostic values") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Neg3847", "Diag3847", -2.f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Zero3847", "Diag3847", 0.f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Pos3847", "Diag3847", 4.f)));
+        const auto sizes = manager.get_font_sizes_for_font_family("Diag3847");
+        REQUIRE(sizes.size() == 3);
+        CHECK(sizes[0] == doctest::Approx(-2.f));
+        CHECK(sizes[1] == doctest::Approx(0.f));
+        CHECK(sizes[2] == doctest::Approx(4.f));
+    }
+
+    TEST_CASE("batch3847 duplicate active registration preserves original active object") {
+        Salix::ImGuiFontManager manager;
+        auto original = std::make_unique<MockIFont>("Active3847", "FirstFamily3847", 12.f);
+        MockIFont* raw = original.get();
+        REQUIRE(manager.register_font(std::move(original)));
+        REQUIRE(manager.set_active_font("Active3847"));
+        CHECK_FALSE(manager.register_font(std::make_unique<MockIFont>("Active3847", "SecondFamily3847", 24.f)));
+        CHECK(manager.get_active_font() == raw);
+        CHECK(manager.get_font("Active3847")->get_family() == "FirstFamily3847");
+    }
+
+    TEST_CASE("batch3847 unregister then reregister same name selects replacement metadata") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Replace3847", "Before3847", 11.f)));
+        REQUIRE(manager.set_active_font("Replace3847"));
+        REQUIRE(manager.unregister_font("Replace3847"));
+        CHECK(manager.get_active_font() == nullptr);
+        auto replacement = std::make_unique<MockIFont>("Replace3847", "After3847", 29.f);
+        MockIFont* raw = replacement.get();
+        REQUIRE(manager.register_font(std::move(replacement)));
+        REQUIRE(manager.set_active_font("Replace3847"));
+        CHECK(manager.get_active_font() == raw);
+        CHECK(manager.get_font("Replace3847")->get_family() == "After3847");
+    }
+
+    TEST_CASE("batch3847 purge stub preserves registered active font for nonempty name") {
+        Salix::ImGuiFontManager manager;
+        auto font = std::make_unique<MockIFont>("Purge3847", "Family3847", 16.f);
+        MockIFont* raw = font.get();
+        REQUIRE(manager.register_font(std::move(font)));
+        REQUIRE(manager.set_active_font("Purge3847"));
+        CHECK_FALSE(manager.purge_font("Purge3847"));
+        CHECK(manager.get_active_font() == raw);
+        CHECK(manager.get_font("Purge3847") == raw);
+    }
+
+    TEST_CASE("batch3847 empty directory loader stub fails without registry mutation") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Keep3847", "Family", 14.f)));
+        CHECK_FALSE(manager.load_fonts_from_directory(""));
+        CHECK(manager.get_font_registry().size() == 1);
+        CHECK(manager.get_font("Keep3847") != nullptr);
+    }
+
+    TEST_CASE("batch3847 nonempty directory loader stub also leaves registry unchanged") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("KeepNonempty3847", "Family", 15.f)));
+        CHECK_FALSE(manager.load_fonts_from_directory("unused_batch3847_fonts"));
+        CHECK(manager.get_font_registry().size() == 1);
+        CHECK(manager.get_font("KeepNonempty3847") != nullptr);
+    }
+
+    TEST_CASE("batch3847 repeated active selection of same font is idempotent") {
+        Salix::ImGuiFontManager manager;
+        auto font = std::make_unique<MockIFont>("Same3847", "Family", 18.f);
+        MockIFont* raw = font.get();
+        REQUIRE(manager.register_font(std::move(font)));
+        REQUIRE(manager.set_active_font("Same3847"));
+        REQUIRE(manager.set_active_font("Same3847"));
+        CHECK(manager.get_active_font() == raw);
+    }
+
+    TEST_CASE("batch3847 missing font lookup does not mutate names families or active state") {
+        Salix::ImGuiFontManager manager;
+        auto font = std::make_unique<MockIFont>("Stable3847", "StableFamily3847", 20.f);
+        MockIFont* raw = font.get();
+        REQUIRE(manager.register_font(std::move(font)));
+        REQUIRE(manager.set_active_font("Stable3847"));
+        const auto names_before = manager.get_registered_font_names();
+        const auto families_before = manager.get_unique_font_families();
+        CHECK(manager.get_font("Missing3847") == nullptr);
+        CHECK(manager.get_registered_font_names().size() == names_before.size());
+        CHECK(manager.get_unique_font_families() == families_before);
+        CHECK(manager.get_active_font() == raw);
+    }
+}
 
