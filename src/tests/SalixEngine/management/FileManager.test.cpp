@@ -816,4 +816,100 @@ TEST_SUITE("Salix::management::FileManagerBatch3447") {
         CHECK(std::filesystem::is_directory(nested));
     }
 }
+TEST_SUITE("Salix::management::FileManagerBatch3847") {
+    TEST_CASE("batch3847 zero byte copy creates a regular zero byte destination") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("empty3847.bin", "");
+        REQUIRE(Salix::FileManager::copy_file(temp.file("empty3847.bin"), temp.file("empty-copy3847.bin")));
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("empty-copy3847.bin")));
+        CHECK(Salix::FileManager::get_file_size(temp.file("empty-copy3847.bin")) == 0);
+        CHECK(Salix::FileManager::read_file_content(temp.file("empty-copy3847.bin")).empty());
+    }
+
+    TEST_CASE("batch3847 empty file hex dump reports empty content and balanced delimiters") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("empty-dump3847.bin", "");
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("empty-dump3847.bin"));
+        CHECK(dump.find("---START HEX DUMP") != std::string::npos);
+        CHECK(dump.find("File is empty or could not be read.") != std::string::npos);
+        CHECK(dump.find("---END HEX DUMP---") != std::string::npos);
+    }
+
+    TEST_CASE("batch3847 seventeen byte hex dump contains complete first row and padded remainder") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload = "0123456789ABCDEFG";
+        REQUIRE(payload.size() == 17);
+        temp.write("seventeen3847.bin", payload);
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("seventeen3847.bin"));
+        CHECK(dump.find("Length: 17 bytes") != std::string::npos);
+        CHECK(dump.find("0123456789ABCDEF") != std::string::npos);
+        CHECK(dump.find("47 ") != std::string::npos);
+    }
+
+    TEST_CASE("batch3847 binary read preserves every byte across full unsigned char range samples") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("\x00\x01\x7f\x80\xfe\xff", 6);
+        temp.write("range3847.bin", payload);
+        const auto loaded = Salix::FileManager::read_file_content(temp.file("range3847.bin"));
+        CHECK(loaded.size() == payload.size());
+        CHECK(loaded == payload);
+    }
+
+    TEST_CASE("batch3847 create directories is idempotent for an already complete nested tree") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto nested = temp.root / "idempotent3847" / "a" / "b";
+        REQUIRE(Salix::FileManager::create_directories(nested.string()));
+        REQUIRE(std::filesystem::is_directory(nested));
+        CHECK(Salix::FileManager::create_directories(nested.string()));
+        CHECK(std::filesystem::is_directory(nested));
+    }
+
+    TEST_CASE("batch3847 create directory is idempotent for an existing empty directory") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto dir = temp.root / "single3847";
+        REQUIRE(Salix::FileManager::create_directory(dir.string()));
+        CHECK(Salix::FileManager::create_directory(dir.string()));
+        CHECK(std::filesystem::is_directory(dir));
+    }
+
+    TEST_CASE("batch3847 string relative conversion treats mixed separator exact root as dot") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:\\Workspace\\Project3847",
+            "C:/Workspace/Project3847") == ".");
+    }
+
+    TEST_CASE("batch3847 string relative conversion preserves child trailing slash content") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:/Workspace/Project3847",
+            "C:/Workspace/Project3847/Assets/Subdir/") == "Assets/Subdir/");
+    }
+
+    TEST_CASE("batch3847 filesystem relative conversion preserves spaces and punctuation") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto root = temp.root / "Project 3847";
+        const auto child = root / "Assets" / "My-Images" / "file one!.png";
+        std::filesystem::create_directories(child.parent_path());
+        temp.write("Project 3847/Assets/My-Images/file one!.png", "x");
+        const auto relative = std::filesystem::path(
+            Salix::FileManager::convert_to_relative_path(root.string(), child.string())
+        ).generic_string();
+        CHECK(relative == "Assets/My-Images/file one!.png");
+    }
+
+    TEST_CASE("batch3847 missing file size and regular file probes agree on failure") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto missing = temp.file("missing3847.bin");
+        CHECK_FALSE(Salix::FileManager::path_exists(missing));
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(missing));
+        CHECK(Salix::FileManager::get_file_size(missing) == 0);
+    }
+}
 
