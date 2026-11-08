@@ -30,10 +30,6 @@ namespace Salix {
     }
 
     ITexture* AssetManager::get_texture(const std::string& file_path) {
-        if (!pimpl->renderer) {
-            return nullptr;
-        }
-
         std::string relative_path = file_path;
         // 1. Combine the project root with the relative path to get the true absolute path.
         std::filesystem::path absolute_path = Salix::g_project_root_path / relative_path;
@@ -43,6 +39,10 @@ namespace Salix {
         auto cache_iterator = pimpl->texture_cache.find(absolute_path_str);
         if (cache_iterator != pimpl->texture_cache.end()) {
             return cache_iterator->second.get();
+        }
+
+        if (!pimpl->renderer) {
+            return nullptr;
         }
 
         // 3. Ask the renderer to load from the ABSOLUTE path.
