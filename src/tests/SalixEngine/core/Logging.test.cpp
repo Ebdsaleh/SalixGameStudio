@@ -439,3 +439,77 @@ TEST_SUITE("Salix::core::LoggingBatch3247") {
  TEST_CASE("batch3247 payload bracket text is never parsed as severity") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::WARNING,"[ERROR] payload3247","x",1); CHECK(o.str().find("[WARN] [ERROR] payload3247")!=std::string::npos); }
  TEST_CASE("batch3247 two direct records each terminate with one newline") { std::stringstream o; CerrRedirect r(o); Salix::LogMessage(Salix::LogLevel::INFO,"first3247","x",1); Salix::LogMessage(Salix::LogLevel::DEBUG,"second3247","y",2); const std::string text=o.str(); CHECK(std::count(text.begin(),text.end(),'\n')==2); }
 }
+TEST_SUITE("Salix::core::LoggingBatch3647") {
+    TEST_CASE("batch3647 info preserves UTF8 payload bytes without source location") {
+        std::stringstream output; CerrRedirect redirect(output);
+        const std::string payload = u8"café-控制-3647";
+        Salix::LogMessage(Salix::LogLevel::INFO, payload, "hidden.cpp", 3647);
+        CHECK(output.str().find(payload) != std::string::npos);
+        CHECK(output.str().find("hidden.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch3647 warning preserves carriage return and tab payload characters") {
+        std::stringstream output; CerrRedirect redirect(output);
+        const std::string payload = "first\rsecond\tthird";
+        Salix::LogMessage(Salix::LogLevel::WARNING, payload, "ignored.cpp", 1);
+        CHECK(output.str().find("[WARN] " + payload) != std::string::npos);
+    }
+
+    TEST_CASE("batch3647 error preserves path-like source name exactly") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "path-source", "src/core/Logging.cpp", 3647);
+        CHECK(output.str().find("[src/core/Logging.cpp:3647] path-source") != std::string::npos);
+    }
+
+    TEST_CASE("batch3647 debug multiline payload adds only payload and record newlines") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "one\ntwo\nthree", "Debug3647.cpp", 7);
+        const auto text = output.str();
+        CHECK(text.find("[DEBUG] [Debug3647.cpp:7] one\ntwo\nthree") != std::string::npos);
+        CHECK(std::count(text.begin(), text.end(), '\n') == 3);
+    }
+
+    TEST_CASE("batch3647 unknown negative severity keeps blank severity token") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(static_cast<Salix::LogLevel>(-1), "unknown-negative3647", "ignored.cpp", 5);
+        CHECK(output.str().find("[] unknown-negative3647") != std::string::npos);
+        CHECK(output.str().find("ignored.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch3647 info macro formats streamed expression content") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_INFO("value=" << 3647 << ", ok=" << true);
+        CHECK(output.str().find("[INFO] value=3647, ok=1") != std::string::npos);
+    }
+
+    TEST_CASE("batch3647 warning macro formats streamed floating value") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_WARNING("ratio=" << 3.5);
+        CHECK(output.str().find("[WARN] ratio=3.5") != std::string::npos);
+    }
+
+    TEST_CASE("batch3647 error macro includes source location and payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_ERROR("macro-error-3647");
+        const auto text = output.str();
+        CHECK(text.find("[ERROR] [") != std::string::npos);
+        CHECK(text.find("macro-error-3647") != std::string::npos);
+        CHECK(text.find(":") != std::string::npos);
+    }
+
+    TEST_CASE("batch3647 debug macro includes source location and payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_DEBUG("macro-debug-3647");
+        const auto text = output.str();
+        CHECK(text.find("[DEBUG] [") != std::string::npos);
+        CHECK(text.find("macro-debug-3647") != std::string::npos);
+    }
+
+    TEST_CASE("batch3647 successful log assertion emits no record") {
+        std::stringstream output; CerrRedirect redirect(output);
+        volatile int runtime_value = 3647;
+        LOG_ASSERT(runtime_value == 3647, "should not fire");
+        CHECK(output.str().empty());
+    }
+}
+
