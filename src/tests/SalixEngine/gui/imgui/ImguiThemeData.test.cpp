@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <string>
 #include <set>
+#include <type_traits>
 
 namespace {
 bool batch1147_has_color_binding(const Salix::ImGuiThemeData& data, const std::string& name, const Salix::Color* address) {
@@ -317,20 +318,11 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch3847") {
         CHECK(second.icon_paths.count("Camera") == 0);
     }
 
-    TEST_CASE("batch3847 public font metadata fields can vary independently") {
-        Salix::ImGuiThemeData data;
-        data.default_font_path = "Assets/Fonts/default3847.ttf";
-        data.default_font_name = "Default3847";
-        data.font_family = "Family3847";
-        data.default_font_size = 13.0f;
-        data.font_size = 27.0f;
-        data.font_scale_main = 1.75f;
-        CHECK(data.default_font_path == "Assets/Fonts/default3847.ttf");
-        CHECK(data.default_font_name == "Default3847");
-        CHECK(data.font_family == "Family3847");
-        CHECK(data.default_font_size == doctest::Approx(13.0f));
-        CHECK(data.font_size == doctest::Approx(27.0f));
-        CHECK(data.font_scale_main == doctest::Approx(1.75f));
+    TEST_CASE("batch3847 self-referential theme data is explicitly noncopyable") {
+        CHECK_FALSE((std::is_copy_constructible<Salix::ImGuiThemeData>::value));
+        CHECK_FALSE((std::is_copy_assignable<Salix::ImGuiThemeData>::value));
+        CHECK_FALSE((std::is_move_constructible<Salix::ImGuiThemeData>::value));
+        CHECK_FALSE((std::is_move_assignable<Salix::ImGuiThemeData>::value));
     }
 }
 
