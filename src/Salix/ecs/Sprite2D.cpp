@@ -69,11 +69,21 @@ namespace Salix {
         // 1. Store the portable, project-relative path.
         this->texture_path = relative_file_path;
 
-        // 2. Ask the AssetManager to load it using the relative path.
+        // 2. An unresolved runtime asset manager is a recoverable load failure.
+        if (!asset_manager) {
+            pimpl->texture = nullptr;
+            pimpl->width = 0;
+            pimpl->height = 0;
+            std::cerr << "Warning: Sprite2D::load_texture called without an AssetManager for path: "
+                      << this->texture_path << std::endl;
+            return;
+        }
+
+        // 3. Ask the AssetManager to load it using the relative path.
         //    The AssetManager is now responsible for converting it to an absolute path.
         pimpl->texture = asset_manager->get_texture(this->texture_path);
 
-        // 3. Update dimensions if the texture was loaded successfully.
+        // 4. Update dimensions if the texture was loaded successfully.
         if (pimpl->texture) {
             pimpl->width = pimpl->texture->get_width();
             pimpl->height = pimpl->texture->get_height();
