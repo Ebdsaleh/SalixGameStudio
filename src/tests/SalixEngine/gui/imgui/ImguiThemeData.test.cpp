@@ -4,6 +4,7 @@
 #include <imgui/imgui.h>
 #include <algorithm>
 #include <string>
+#include <set>
 
 namespace {
 bool batch1147_has_color_binding(const Salix::ImGuiThemeData& data, const std::string& name, const Salix::Color* address) {
@@ -219,3 +220,117 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch3347") {
         REQUIRE(it!=data.float_style_vars.end()); REQUIRE(it->second==&data.alpha); *it->second=0.3347f; CHECK(data.alpha==doctest::Approx(0.3347f));
     }
 }
+TEST_SUITE("Salix::gui::ImGuiThemeDataBatch3847") {
+    TEST_CASE("batch3847 color registry labels are unique and every pointer is nonnull") {
+        Salix::ImGuiThemeData data;
+        std::set<std::string> names;
+        for (const auto& entry : data.theme_colors) {
+            CHECK(entry.second != nullptr);
+            CHECK(names.insert(entry.first).second);
+        }
+        CHECK(names.size() == data.theme_colors.size());
+    }
+
+    TEST_CASE("batch3847 float registry labels are unique and every pointer is nonnull") {
+        Salix::ImGuiThemeData data;
+        std::set<std::string> names;
+        for (const auto& entry : data.float_style_vars) {
+            CHECK(entry.second != nullptr);
+            CHECK(names.insert(entry.first).second);
+        }
+        CHECK(names.size() == data.float_style_vars.size());
+    }
+
+    TEST_CASE("batch3847 vector registry labels are unique and every pointer is nonnull") {
+        Salix::ImGuiThemeData data;
+        std::set<std::string> names;
+        for (const auto& entry : data.vector2_style_vars) {
+            CHECK(entry.second != nullptr);
+            CHECK(names.insert(entry.first).second);
+        }
+        CHECK(names.size() == data.vector2_style_vars.size());
+    }
+
+    TEST_CASE("batch3847 Text color binding mutates the owned text color field") {
+        Salix::ImGuiThemeData data;
+        const auto it = std::find_if(data.theme_colors.begin(), data.theme_colors.end(),
+            [](const auto& entry) { return entry.first == "Text"; });
+        REQUIRE(it != data.theme_colors.end());
+        REQUIRE(it->second == &data.text_color);
+        *it->second = Salix::Color(0.11f, 0.22f, 0.33f, 0.44f);
+        CHECK(data.text_color == Salix::Color(0.11f, 0.22f, 0.33f, 0.44f));
+    }
+
+    TEST_CASE("batch3847 Alpha float binding mutates the owned alpha field") {
+        Salix::ImGuiThemeData data;
+        const auto it = std::find_if(data.float_style_vars.begin(), data.float_style_vars.end(),
+            [](const auto& entry) { return entry.first == "Alpha"; });
+        REQUIRE(it != data.float_style_vars.end());
+        REQUIRE(it->second == &data.alpha);
+        *it->second = 0.3847f;
+        CHECK(data.alpha == doctest::Approx(0.3847f));
+    }
+
+    TEST_CASE("batch3847 WindowPadding vector binding mutates only the owned vector") {
+        Salix::ImGuiThemeData data;
+        const auto it = std::find_if(data.vector2_style_vars.begin(), data.vector2_style_vars.end(),
+            [](const auto& entry) { return entry.first == "WindowPadding"; });
+        REQUIRE(it != data.vector2_style_vars.end());
+        REQUIRE(it->second == &data.window_padding);
+        const auto frame_before = data.frame_padding;
+        *it->second = Salix::Vector2(38.f, 47.f);
+        CHECK(data.window_padding == Salix::Vector2(38.f, 47.f));
+        CHECK(data.frame_padding == frame_before);
+    }
+
+    TEST_CASE("batch3847 separate instances bind corresponding color labels to separate storage") {
+        Salix::ImGuiThemeData first;
+        Salix::ImGuiThemeData second;
+        const auto first_it = std::find_if(first.theme_colors.begin(), first.theme_colors.end(),
+            [](const auto& entry) { return entry.first == "Button"; });
+        const auto second_it = std::find_if(second.theme_colors.begin(), second.theme_colors.end(),
+            [](const auto& entry) { return entry.first == "Button"; });
+        REQUIRE(first_it != first.theme_colors.end());
+        REQUIRE(second_it != second.theme_colors.end());
+        CHECK(first_it->second == &first.button_color);
+        CHECK(second_it->second == &second.button_color);
+        CHECK(first_it->second != second_it->second);
+    }
+
+    TEST_CASE("batch3847 named constructor preserves embedded null bytes in theme name") {
+        const std::string name("Theme\0Data3847", 14);
+        Salix::ImGuiThemeData data(name);
+        CHECK(data.get_name() == name);
+        CHECK(data.get_name().size() == name.size());
+        CHECK(data.get_gui_type() == "ImGui");
+    }
+
+    TEST_CASE("batch3847 icon maps remain independent between separate theme data instances") {
+        Salix::ImGuiThemeData first;
+        Salix::ImGuiThemeData second;
+        first.icon_paths["Entity"] = "first3847.png";
+        second.icon_paths["Entity"] = "second3847.png";
+        first.icon_paths["Camera"] = "camera3847.png";
+        CHECK(first.icon_paths.at("Entity") == "first3847.png");
+        CHECK(second.icon_paths.at("Entity") == "second3847.png");
+        CHECK(first.icon_paths.count("Camera") == 1);
+        CHECK(second.icon_paths.count("Camera") == 0);
+    }
+
+    TEST_CASE("batch3847 public font metadata fields can vary independently") {
+        Salix::ImGuiThemeData data;
+        data.default_font_path = "Assets/Fonts/default3847.ttf";
+        data.default_font_name = "Default3847";
+        data.font_family = "Family3847";
+        data.default_font_size = 13.0f;
+        data.font_size = 27.0f;
+        data.font_scale_main = 1.75f;
+        CHECK(data.default_font_path == "Assets/Fonts/default3847.ttf");
+        CHECK(data.default_font_name == "Default3847");
+        CHECK(data.font_family == "Family3847");
+        CHECK(data.default_font_size == doctest::Approx(13.0f));
+        CHECK(data.font_size == doctest::Approx(27.0f));
+        CHECK(data.font_scale_main == doctest::Approx(1.75f));
+    }
+}
+
