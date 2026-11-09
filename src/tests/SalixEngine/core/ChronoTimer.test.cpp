@@ -562,3 +562,100 @@ TEST_SUITE("Salix::core::ChronoTimerBatch3147") {
         CHECK(calls == 0);
     }
 }
+
+TEST_SUITE("Salix::core::ChronoTimerBatch4147") {
+    TEST_CASE("batch4147 positive target assignment leaves fresh delta untouched") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(60);
+        CHECK(timer.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE("batch4147 zero then negative target both expose zero sleep budget") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(0);
+        timer.tick_start();
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+        timer.set_target_fps(-60);
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4147 lower FPS produces larger immediate budget than higher FPS") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(120);
+        timer.tick_start();
+        const float high_fps_budget = timer.calculate_sleep_duration().count();
+        timer.set_target_fps(12);
+        timer.tick_start();
+        const float low_fps_budget = timer.calculate_sleep_duration().count();
+        CHECK(low_fps_budget > high_fps_budget);
+    }
+
+    TEST_CASE("batch4147 injected delay receives one bounded duration for four FPS cap") {
+        int calls = 0;
+        std::chrono::milliseconds captured{0};
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds d) { ++calls; captured = d; });
+        timer.set_target_fps(4);
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(calls == 1);
+        CHECK(captured.count() > 0);
+        CHECK(captured.count() <= 250);
+    }
+
+    TEST_CASE("batch4147 delayed tick measures positive finite delta") {
+        Salix::ChronoTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        CHECK(timer.get_delta_time() > 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+    }
+
+    TEST_CASE("batch4147 target transitions never rewrite measured delta") {
+        Salix::ChronoTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(30);
+        CHECK(timer.get_delta_time() == measured);
+        timer.set_target_fps(0);
+        CHECK(timer.get_delta_time() == measured);
+        timer.set_target_fps(-30);
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE("batch4147 separate timers retain independent measured state") {
+        Salix::ChronoTimer first;
+        Salix::ChronoTimer second;
+        first.tick_start();
+        SDL_Delay(2);
+        first.tick_start();
+        CHECK(first.get_delta_time() > 0.0f);
+        CHECK(second.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE("batch4147 zero unsigned delay preserves monotonic tick counter") {
+        const auto before = Salix::ChronoTimer::get_ticks_ms();
+        Salix::ChronoTimer::delay_for(0u);
+        const auto after = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(after >= before);
+    }
+
+    TEST_CASE("batch4147 zero and negative floating delays return safely") {
+        CHECK_NOTHROW(Salix::ChronoTimer::delay_for(std::chrono::duration<float, std::milli>(0.0f)));
+        CHECK_NOTHROW(Salix::ChronoTimer::delay_for(std::chrono::duration<float, std::milli>(-4.147f)));
+    }
+
+    TEST_CASE("batch4147 ITimer virtual dispatch supports uncapped frame lifecycle") {
+        Salix::ChronoTimer concrete;
+        Salix::ITimer& timer = concrete;
+        timer.set_target_fps(0);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        CHECK(std::isfinite(measured));
+        CHECK(measured >= 0.0f);
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == measured);
+    }
+}
