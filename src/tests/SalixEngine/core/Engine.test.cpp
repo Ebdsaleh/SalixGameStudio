@@ -265,3 +265,106 @@ TEST_SUITE("Salix::core::EngineBatch3247") {
  TEST_CASE("batch3247 EngineInterface can configure running mode and scale together") { std::unique_ptr<Salix::EngineInterface> e=std::make_unique<Salix::Engine>(); CHECK(e->is_running(true)); e->set_mode(Salix::EngineMode::Options); e->set_time_scale(-1.25f); CHECK(e->is_running()); CHECK(e->get_mode()==Salix::EngineMode::Options); CHECK(e->get_time_scale()==doctest::Approx(-1.25f)); }
  TEST_CASE("batch3247 mutating one engine never changes a fresh peer") { Salix::Engine a,b; a.is_running(true); a.set_mode(Salix::EngineMode::Debug); a.set_time_scale(99.f); CHECK_FALSE(b.is_running()); CHECK(b.get_mode()==Salix::EngineMode::None); CHECK(b.get_time_scale()==doctest::Approx(1.f)); }
 }
+
+TEST_SUITE("Salix::core::EngineBatch4047") {
+    TEST_CASE("batch4047 fresh engine combines null subsystems with scalar defaults") {
+        Salix::Engine engine;
+        CHECK(engine.get_renderer() == nullptr);
+        CHECK(engine.get_asset_manager() == nullptr);
+        CHECK(engine.get_input_manager() == nullptr);
+        CHECK(engine.get_event_manager() == nullptr);
+        CHECK_FALSE(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+        CHECK(engine.get_time_scale() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch4047 running setter return value always matches stored state") {
+        Salix::Engine engine;
+        CHECK(engine.is_running(true) == engine.is_running());
+        CHECK(engine.is_running(false) == engine.is_running());
+        CHECK(engine.is_running(true) == engine.is_running());
+    }
+
+    TEST_CASE("batch4047 repeated identical running assignments are idempotent") {
+        Salix::Engine engine;
+        CHECK(engine.is_running(true));
+        CHECK(engine.is_running(true));
+        CHECK(engine.is_running());
+        CHECK_FALSE(engine.is_running(false));
+        CHECK_FALSE(engine.is_running(false));
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch4047 mode overwrite retains only final requested mode") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Launch);
+        engine.set_mode(Salix::EngineMode::Editor);
+        engine.set_mode(Salix::EngineMode::Game);
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_mode(Salix::EngineMode::Debug);
+        CHECK(engine.get_mode() == Salix::EngineMode::Debug);
+    }
+
+    TEST_CASE("batch4047 time scale overwrite retains exact final finite value") {
+        Salix::Engine engine;
+        engine.set_time_scale(0.25f);
+        engine.set_time_scale(8.0f);
+        engine.set_time_scale(-4.5f);
+        CHECK(engine.get_time_scale() == doctest::Approx(-4.5f));
+    }
+
+    TEST_CASE("batch4047 changing running state never rewrites configured mode or scale") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_time_scale(3.75f);
+        engine.is_running(true);
+        engine.is_running(false);
+        CHECK(engine.get_mode() == Salix::EngineMode::Options);
+        CHECK(engine.get_time_scale() == doctest::Approx(3.75f));
+    }
+
+    TEST_CASE("batch4047 null state stack calls preserve complete configured scalar state") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_mode(Salix::EngineMode::Game);
+        engine.set_time_scale(0.125f);
+        engine.push_state(nullptr);
+        engine.change_state(nullptr);
+        engine.pop_state();
+        CHECK(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::Game);
+        CHECK(engine.get_time_scale() == doctest::Approx(0.125f));
+    }
+
+    TEST_CASE("batch4047 separate engines remain independent after alternating mutations") {
+        Salix::Engine first, second;
+        first.is_running(true);
+        second.set_mode(Salix::EngineMode::Debug);
+        first.set_time_scale(2.0f);
+        second.set_time_scale(-2.0f);
+        CHECK(first.is_running());
+        CHECK_FALSE(second.is_running());
+        CHECK(first.get_mode() == Salix::EngineMode::None);
+        CHECK(second.get_mode() == Salix::EngineMode::Debug);
+        CHECK(first.get_time_scale() == doctest::Approx(2.0f));
+        CHECK(second.get_time_scale() == doctest::Approx(-2.0f));
+    }
+
+    TEST_CASE("batch4047 EngineInterface virtual API preserves combined configuration") {
+        std::unique_ptr<Salix::EngineInterface> engine = std::make_unique<Salix::Engine>();
+        CHECK(engine->is_running(true));
+        engine->set_mode(Salix::EngineMode::Editor);
+        engine->set_time_scale(1.5f);
+        CHECK(engine->is_running());
+        CHECK(engine->get_mode() == Salix::EngineMode::Editor);
+        CHECK(engine->get_time_scale() == doctest::Approx(1.5f));
+    }
+
+    TEST_CASE("batch4047 explicit destruction through EngineInterface remains safe before initialization") {
+        std::unique_ptr<Salix::EngineInterface> engine = std::make_unique<Salix::Engine>();
+        engine->set_mode(Salix::EngineMode::Launch);
+        engine->set_time_scale(0.5f);
+        CHECK_NOTHROW(engine.reset());
+        CHECK(engine == nullptr);
+    }
+}
