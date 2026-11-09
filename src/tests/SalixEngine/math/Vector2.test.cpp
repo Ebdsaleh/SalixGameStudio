@@ -925,3 +925,66 @@ TEST_SUITE("Salix::math::Vector2Batch3947") {
         CHECK(stream.str() == "{ x: -1.5, y: 2.25 }");
     }
 }
+
+TEST_SUITE("Salix::math::Vector2Batch4247") {
+    TEST_CASE("batch4247 eight fifteen vector has magnitude seventeen") {
+        CHECK(Salix::Vector2(8.0f, 15.0f).length() == doctest::Approx(17.0f));
+    }
+
+    TEST_CASE("batch4247 normalization preserves negative quadrant direction") {
+        Salix::Vector2 v(-8.0f, -15.0f);
+        v.normalize();
+        CHECK(v.x == doctest::Approx(-8.0f / 17.0f));
+        CHECK(v.y == doctest::Approx(-15.0f / 17.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch4247 zero vector normalization remains zero") {
+        Salix::Vector2 v;
+        v.normalize();
+        CHECK(v == Salix::Vector2(0.0f, 0.0f));
+    }
+
+    TEST_CASE("batch4247 lerp clamps values below and above interval") {
+        const Salix::Vector2 a(-4.0f, 8.0f), b(12.0f, -16.0f);
+        CHECK(Salix::Vector2::lerp(a, b, -1.0f) == a);
+        CHECK(Salix::Vector2::lerp(a, b, 2.0f) == b);
+    }
+
+    TEST_CASE("batch4247 orthogonal basis vectors have zero dot product") {
+        CHECK(Salix::dot(Salix::Vector2(1.0f, 0.0f), Salix::Vector2(0.0f, 1.0f)) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4247 basis cross product preserves orientation sign") {
+        CHECK(Salix::cross(Salix::Vector2(1.0f, 0.0f), Salix::Vector2(0.0f, 1.0f)) == doctest::Approx(1.0f));
+        CHECK(Salix::cross(Salix::Vector2(0.0f, 1.0f), Salix::Vector2(1.0f, 0.0f)) == doctest::Approx(-1.0f));
+    }
+
+    TEST_CASE("batch4247 perpendicular helper returns orthogonal equal length vector") {
+        const Salix::Vector2 v(9.0f, -40.0f);
+        const auto p = Salix::perp(v);
+        CHECK(Salix::dot(v, p) == doctest::Approx(0.0f));
+        CHECK(p.length() == doctest::Approx(v.length()));
+    }
+
+    TEST_CASE("batch4247 component division computes signed axes independently") {
+        CHECK(Salix::Vector2(-12.0f, 21.0f) / Salix::Vector2(3.0f, -7.0f) ==
+              Salix::Vector2(-4.0f, -3.0f));
+    }
+
+    TEST_CASE("batch4247 YAML y only decode clears omitted x coordinate") {
+        Salix::Vector2 v(9.0f, 8.0f);
+        YAML::Load("{y: -4.247}") >> v;
+        CHECK(v.x == 0.0f);
+        CHECK(v.y == doctest::Approx(-4.247f));
+    }
+
+    TEST_CASE("batch4247 ImGui conversion observes latest mutable coordinates") {
+        Salix::Vector2 v(1.0f, 2.0f);
+        v.x = -42.0f;
+        v.y = 47.0f;
+        const auto out = v.to_im_vec2();
+        CHECK(out.x == -42.0f);
+        CHECK(out.y == 47.0f);
+    }
+}
