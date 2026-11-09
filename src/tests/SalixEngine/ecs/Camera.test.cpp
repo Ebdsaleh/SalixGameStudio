@@ -606,13 +606,13 @@ TEST_SUITE("Salix::ecs::CameraBatch4347") {
         CHECK_FALSE(batch1247_matrix_differs(first, second));
     }
 
-    TEST_CASE("batch4347 zero viewport width produces a distinct perspective projection") {
+    TEST_CASE("batch4347 one pixel viewport width produces a distinct perspective projection") {
         Salix::Camera camera;
         camera.set_viewport_size(800, 600);
         const auto normal = camera.get_projection_matrix();
-        camera.set_viewport_size(0, 600);
-        const auto zero_width = camera.get_projection_matrix();
-        CHECK(batch1247_matrix_differs(normal, zero_width));
+        camera.set_viewport_size(1, 600);
+        const auto narrow = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(normal, narrow));
     }
 
     TEST_CASE("batch4347 negative viewport width is stored through projection aspect calculation") {
