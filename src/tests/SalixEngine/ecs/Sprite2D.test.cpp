@@ -1154,3 +1154,144 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch4147") {
         CHECK(renderer.draw_sprite_call_count == 1);
     }
 }
+
+TEST_SUITE("Salix::ecs::Sprite2DBatch4547") {
+    TEST_CASE("batch4547 mutable reference getters update all primary render metadata in place") {
+        Salix::Sprite2D sprite;
+        sprite.get_use_entity_rotation() = true;
+        sprite.get_local_rotation() = -45.47f;
+        sprite.get_color() = Salix::Color(0.1f, 0.2f, 0.3f, 0.4f);
+        sprite.get_offset() = Salix::Vector2(-4.0f, 5.0f);
+        sprite.get_pivot() = Salix::Vector2(0.25f, 0.75f);
+        CHECK(sprite.get_use_entity_rotation());
+        CHECK(sprite.get_local_rotation() == doctest::Approx(-45.47f));
+        CHECK(sprite.get_color() == Salix::Color(0.1f, 0.2f, 0.3f, 0.4f));
+        CHECK(sprite.get_offset() == Salix::Vector2(-4.0f, 5.0f));
+        CHECK(sprite.get_pivot() == Salix::Vector2(0.25f, 0.75f));
+    }
+
+    TEST_CASE("batch4547 mutable flip and sorting references update stored values") {
+        Salix::Sprite2D sprite;
+        sprite.get_flip_h() = true;
+        sprite.get_flip_v() = true;
+        sprite.get_sorting_layer() = 4547;
+        CHECK(sprite.get_flip_h());
+        CHECK(sprite.get_flip_v());
+        CHECK(sprite.get_sorting_layer() == 4547);
+    }
+
+    TEST_CASE("batch4547 texture path setter copies caller storage without creating runtime texture") {
+        Salix::Sprite2D sprite;
+        std::string path = "assets/copy4547.png";
+        sprite.set_texture_path(path);
+        path = "mutated.png";
+        CHECK(sprite.get_texture_path() == "assets/copy4547.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch4547 metadata path replacement after successful load preserves existing runtime resource") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/runtime4547.png");
+        auto* texture = sprite.get_texture();
+        REQUIRE(texture != nullptr);
+        const int width = sprite.get_texture_width();
+        const int height = sprite.get_texture_height();
+        sprite.set_texture_path("assets/metadata-only4547.png");
+        CHECK(sprite.get_texture_path() == "assets/metadata-only4547.png");
+        CHECK(sprite.get_texture() == texture);
+        CHECK(sprite.get_texture_width() == width);
+        CHECK(sprite.get_texture_height() == height);
+    }
+
+    TEST_CASE("batch4547 repeated load of identical path reuses AssetManager cache") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/cache4547.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        auto* first = sprite.get_texture();
+        REQUIRE(renderer.load_texture_calls == 1);
+        sprite.load_texture(&assets, "assets/cache4547.png");
+        CHECK(sprite.get_texture() == first);
+        CHECK(renderer.load_texture_calls == 1);
+    }
+
+    TEST_CASE("batch4547 loading a second path updates portable path and requests another texture") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/first4547.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        sprite.load_texture(&assets, "assets/second4547.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture_path() == "assets/second4547.png");
+        CHECK(renderer.load_texture_calls == 2);
+    }
+
+    TEST_CASE("batch4547 renderer load failure records requested path and clears runtime dimensions") {
+        MockIRenderer renderer;
+        renderer.should_texture_load_fail = true;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/fail4547.png");
+        CHECK(sprite.get_texture_path() == "assets/fail4547.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch4547 failed texture request can recover on same path after renderer resumes") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        renderer.should_texture_load_fail = true;
+        sprite.load_texture(&assets, "assets/retry4547.png");
+        REQUIRE(sprite.get_texture() == nullptr);
+        renderer.should_texture_load_fail = false;
+        sprite.load_texture(&assets, "assets/retry4547.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+        CHECK(renderer.load_texture_calls == 2);
+    }
+
+    TEST_CASE("batch4547 loaded owned sprite does not draw when renderer argument is null") {
+        MockIRenderer asset_renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&asset_renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/null-renderer4547.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        CHECK_NOTHROW(sprite->render(nullptr));
+        CHECK(asset_renderer.draw_sprite_call_count == 0);
+    }
+
+    TEST_CASE("batch4547 render metadata mutations after load preserve runtime texture identity") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/stable4547.png");
+        auto* texture = sprite.get_texture();
+        REQUIRE(texture != nullptr);
+        sprite.set_color(Salix::Red);
+        sprite.set_flip_h(true);
+        sprite.set_flip_v(true);
+        sprite.set_sorting_layer(-4547);
+        sprite.set_local_rotation(90.0f);
+        CHECK(sprite.get_texture() == texture);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+    }
+}
