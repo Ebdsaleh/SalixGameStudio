@@ -881,3 +881,100 @@ TEST_SUITE("Salix::ecs::RealmBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::ecs::RealmBatch4147") {
+    TEST_CASE("batch4147 default realm combines neutral metadata and empty ownership") {
+        Salix::Realm realm;
+        CHECK(realm.get_name() == "New Realm");
+        CHECK(realm.get_path() == "Undefined");
+        CHECK(realm.get_entities().empty());
+        CHECK(realm.get_active_camera() == nullptr);
+        CHECK_FALSE(realm.get_main_camera_entity_id().is_valid());
+    }
+
+    TEST_CASE("batch4147 metadata replacements retain latest nonempty values") {
+        Salix::Realm realm("Initial4147", "Initial.realm");
+        realm.set_name("Updated4147");
+        realm.set_path("Scenes/Updated4147.realm");
+        CHECK(realm.get_name() == "Updated4147");
+        CHECK(realm.get_path() == "Scenes/Updated4147.realm");
+    }
+
+    TEST_CASE("batch4147 empty metadata writes preserve current realm metadata") {
+        Salix::Realm realm("Stable4147", "Scenes/Stable4147.realm");
+        realm.set_name("");
+        realm.set_path("");
+        CHECK(realm.get_name() == "Stable4147");
+        CHECK(realm.get_path() == "Scenes/Stable4147.realm");
+    }
+
+    TEST_CASE("batch4147 created entities preserve insertion order in snapshots") {
+        Salix::Realm realm;
+        auto* first = realm.create_entity("First4147");
+        auto* second = realm.create_entity("Second4147");
+        auto* third = realm.create_entity("Third4147");
+        const auto entities = realm.get_entities();
+        REQUIRE(entities.size() == 3);
+        CHECK(entities[0] == first);
+        CHECK(entities[1] == second);
+        CHECK(entities[2] == third);
+    }
+
+    TEST_CASE("batch4147 explicit identifiers remain available through id lookup") {
+        Salix::Realm realm;
+        const auto first_id = Salix::SimpleGuid::from_value(4147001ULL);
+        const auto second_id = Salix::SimpleGuid::from_value(4147002ULL);
+        auto* first = realm.create_entity(first_id, "FirstId4147");
+        auto* second = realm.create_entity(second_id, "SecondId4147");
+        CHECK(realm.get_entity_by_id(first_id) == first);
+        CHECK(realm.get_entity_by_id(second_id) == second);
+    }
+
+    TEST_CASE("batch4147 duplicate names remain owned while lookup returns first insertion") {
+        Salix::Realm realm;
+        auto* first = realm.create_entity("Duplicate4147");
+        auto* second = realm.create_entity("Duplicate4147");
+        REQUIRE(first != nullptr); REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(realm.get_entity_by_name("Duplicate4147") == first);
+        CHECK(realm.get_entities().size() == 2);
+    }
+
+    TEST_CASE("batch4147 mutating returned entity snapshot never changes realm ownership") {
+        Salix::Realm realm;
+        realm.create_entity("A4147");
+        realm.create_entity("B4147");
+        auto snapshot = realm.get_entities();
+        REQUIRE(snapshot.size() == 2);
+        snapshot.pop_back();
+        CHECK(snapshot.size() == 1);
+        CHECK(realm.get_entities().size() == 2);
+    }
+
+    TEST_CASE("batch4147 direct main camera metadata does not activate a camera") {
+        Salix::Realm realm;
+        const auto id = Salix::SimpleGuid::from_value(4147003ULL);
+        realm.set_main_camera_entity(id);
+        CHECK(realm.get_main_camera_entity_id() == id);
+        CHECK(realm.get_active_camera() == nullptr);
+    }
+
+    TEST_CASE("batch4147 null direct active camera assignment preserves existing pointer") {
+        Salix::Realm realm;
+        Salix::Camera camera;
+        realm.set_active_camera(&camera);
+        REQUIRE(realm.get_active_camera() == &camera);
+        realm.set_active_camera(nullptr);
+        CHECK(realm.get_active_camera() == &camera);
+    }
+
+    TEST_CASE("batch4147 maintain without purges preserves entity order and count") {
+        Salix::Realm realm;
+        auto* first = realm.create_entity("KeepA4147");
+        auto* second = realm.create_entity("KeepB4147");
+        realm.maintain();
+        const auto entities = realm.get_entities();
+        REQUIRE(entities.size() == 2);
+        CHECK(entities[0] == first);
+        CHECK(entities[1] == second);
+    }
+}
