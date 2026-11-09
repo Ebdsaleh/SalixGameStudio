@@ -443,3 +443,102 @@ TEST_SUITE("Salix::core::SDLTimerBatch3447") {
     }
 }
 
+TEST_SUITE("Salix::core::SDLTimerBatch4147") {
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 fresh timer remains zero after positive cap configuration") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(144);
+        CHECK(timer.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 immediate first tick remains finite and nonnegative") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        CHECK(timer.get_delta_time() >= 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 delayed consecutive tick measures positive elapsed time") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        CHECK(timer.get_delta_time() > 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 negative target behaves uncapped without rewriting delta") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(-4147);
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 repeated uncapped frame completion preserves delta") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(0);
+        timer.tick_end();
+        timer.tick_end();
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 positive cap assignment never synthesizes new delta") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(75);
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 positive to zero target transition preserves measured delta") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(120);
+        timer.set_target_fps(0);
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 measured timer does not alter fresh peer") {
+        Salix::SDLTimer measured;
+        Salix::SDLTimer fresh;
+        measured.tick_start();
+        SDL_Delay(2);
+        measured.tick_start();
+        CHECK(measured.get_delta_time() > 0.0f);
+        CHECK(fresh.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 ITimer virtual API preserves latest measurement") {
+        Salix::SDLTimer concrete;
+        Salix::ITimer& timer = concrete;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(0);
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch4147 extremely high cap executes safely without changing delta") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps((std::numeric_limits<int>::max)());
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(timer.get_delta_time() == measured);
+    }
+}
