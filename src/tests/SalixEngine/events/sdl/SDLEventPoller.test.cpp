@@ -334,3 +334,113 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch3447") {
     }
 }
 
+TEST_SUITE("Salix::events::SDLEventPollerBatch4147") {
+    TEST_CASE("batch4147 callback handles begin at one and remain monotonic") {
+        Salix::SDLEventPoller poller;
+        CHECK(poller.register_raw_event_callback([](void*) {}) == 1);
+        CHECK(poller.register_raw_event_callback([](void*) {}) == 2);
+        CHECK(poller.register_raw_event_callback([](void*) {}) == 3);
+    }
+
+    TEST_CASE("batch4147 unregistering unknown handle before registration is harmless") {
+        Salix::SDLEventPoller poller;
+        CHECK_NOTHROW(poller.unregister_raw_event_callback(9999));
+        CHECK(poller.register_raw_event_callback([](void*) {}) == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4147 user event reaches raw callback only") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, processed = 0;
+        poller.register_raw_event_callback([&](void* native) {
+            REQUIRE(native != nullptr);
+            CHECK(static_cast<SDL_Event*>(native)->type == SDL_USEREVENT);
+            ++raw;
+        });
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 1);
+        CHECK(processed == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4147 unregistering second callback leaves first active") {
+        Salix::SDLEventPoller poller;
+        int first_calls = 0, second_calls = 0;
+        poller.register_raw_event_callback([&](void*) { ++first_calls; });
+        const auto second = poller.register_raw_event_callback([&](void*) { ++second_calls; });
+        poller.unregister_raw_event_callback(second);
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        CHECK(first_calls == 1);
+        CHECK(second_calls == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4147 quit event reaches raw and processed layers once") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event event{}; event.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 1);
+        CHECK(processed == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4147 size changed window event dispatches one Salix event") {
+        Salix::SDLEventPoller poller;
+        int processed = 0;
+        SDL_Event event{};
+        event.type = SDL_WINDOWEVENT;
+        event.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+        event.window.data1 = 4147;
+        event.window.data2 = 714;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(processed == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4147 key up event dispatches one Salix event") {
+        Salix::SDLEventPoller poller;
+        int processed = 0;
+        SDL_Event event{};
+        event.type = SDL_KEYUP;
+        event.key.keysym.sym = SDLK_z;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(processed == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4147 mouse button down and up each dispatch") {
+        Salix::SDLEventPoller poller;
+        int processed = 0;
+        SDL_Event down{}; down.type = SDL_MOUSEBUTTONDOWN; down.button.button = SDL_BUTTON_LEFT;
+        SDL_Event up{}; up.type = SDL_MOUSEBUTTONUP; up.button.button = SDL_BUTTON_LEFT;
+        REQUIRE(SDL_PushEvent(&down) == 1);
+        REQUIRE(SDL_PushEvent(&up) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(processed == 2);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4147 text input remains raw while following wheel dispatches") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event text{}; text.type = SDL_TEXTINPUT; text.text.text[0] = 'Q'; text.text.text[1] = '\0';
+        SDL_Event wheel{}; wheel.type = SDL_MOUSEWHEEL; wheel.wheel.x = 1; wheel.wheel.y = -1;
+        REQUIRE(SDL_PushEvent(&text) == 1);
+        REQUIRE(SDL_PushEvent(&wheel) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 2);
+        CHECK(processed == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4147 empty raw callback registration remains safe for native event") {
+        Salix::SDLEventPoller poller;
+        Salix::RawEventCallback empty;
+        CHECK(poller.register_raw_event_callback(empty) == 1);
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        CHECK_NOTHROW(poller.poll_events([](Salix::IEvent&) {}));
+    }
+}
