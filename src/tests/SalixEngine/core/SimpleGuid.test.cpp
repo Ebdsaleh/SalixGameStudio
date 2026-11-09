@@ -870,3 +870,87 @@ TEST_SUITE("Salix::core::SimpleGuidBatch3947") {
         CHECK(Salix::SimpleGuid::generate().get_value() == 1);
     }
 }
+
+TEST_SUITE("Salix::core::SimpleGuidBatch4247") {
+    TEST_CASE("batch4247 reset generator emits first three identifiers consecutively") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 3);
+    }
+
+    TEST_CASE("batch4247 forward watermark resumes strictly above supplied value") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(42);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 43);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 44);
+    }
+
+    TEST_CASE("batch4247 stale watermark never rewinds an advanced sequence") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(100);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 101);
+        Salix::SimpleGuid::update_next_id(10);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 102);
+    }
+
+    TEST_CASE("batch4247 explicit zero factory equals invalid sentinel") {
+        const auto zero = Salix::SimpleGuid::from_value(0);
+        CHECK(zero == Salix::SimpleGuid::invalid());
+        CHECK_FALSE(zero.is_valid());
+    }
+
+    TEST_CASE("batch4247 equal explicit identifiers produce equal hashes") {
+        const auto a = Salix::SimpleGuid::from_value(4247001ULL);
+        const auto b = Salix::SimpleGuid::from_value(4247001ULL);
+        CHECK(a == b);
+        CHECK(std::hash<Salix::SimpleGuid>{}(a) == std::hash<Salix::SimpleGuid>{}(b));
+    }
+
+    TEST_CASE("batch4247 explicit identifiers preserve strict transitive ordering") {
+        const auto a = Salix::SimpleGuid::from_value(7);
+        const auto b = Salix::SimpleGuid::from_value(8);
+        const auto c = Salix::SimpleGuid::from_value(9);
+        CHECK(a < b);
+        CHECK(b < c);
+        CHECK(a < c);
+    }
+
+    TEST_CASE("batch4247 JSON archive preserves ordered identifier pair") {
+        const auto first = Salix::SimpleGuid::from_value(4247);
+        const auto second = Salix::SimpleGuid::from_value(7424);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(first, second); }
+        Salix::SimpleGuid restored_first, restored_second;
+        { cereal::JSONInputArchive in(stream); in(restored_first, restored_second); }
+        CHECK(restored_first == first);
+        CHECK(restored_second == second);
+    }
+
+    TEST_CASE("batch4247 binary archive preserves invalid and maximum identifiers together") {
+        const auto invalid = Salix::SimpleGuid::invalid();
+        const auto maximum = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)());
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(invalid, maximum); }
+        Salix::SimpleGuid restored_invalid = Salix::SimpleGuid::from_value(1);
+        Salix::SimpleGuid restored_maximum;
+        { cereal::BinaryInputArchive in(stream); in(restored_invalid, restored_maximum); }
+        CHECK(restored_invalid == invalid);
+        CHECK(restored_maximum == maximum);
+    }
+
+    TEST_CASE("batch4247 factories do not consume generator sequence") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        (void)Salix::SimpleGuid::invalid();
+        (void)Salix::SimpleGuid::from_value(999999);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch4247 reset restores deterministic sequence after high watermark") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(4247000);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 4247001);
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+}
