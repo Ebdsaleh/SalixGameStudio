@@ -3,6 +3,7 @@
 // Description: Contains unit tests for the AssetManager functions.
 // ================================================================================= 
 #include <doctest.h>
+#include <Salix/core/Core.h>
 #include <Salix/assets/AssetManager.h>
 #include <doctest.h>
 #include <Salix/rendering/IRenderer.h>
@@ -699,5 +700,152 @@ TEST_SUITE("Salix::assets::AssetManagerBatch4047") {
         REQUIRE(a != nullptr); REQUIRE(b != nullptr);
         CHECK(a != b);
         CHECK(renderer.calls == 2);
+    }
+}
+
+namespace {
+struct Batch4347ProjectRootGuard {
+    std::filesystem::path original = Salix::g_project_root_path;
+    ~Batch4347ProjectRootGuard() { Salix::g_project_root_path = original; }
+};
+}
+
+TEST_SUITE("Salix::assets::AssetManagerBatch4347") {
+    TEST_CASE("batch4347 project root prefixes relative texture requests before renderer load") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch4347Root";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/Textures/player.png") != nullptr);
+        REQUIRE(renderer.paths.size() == 1);
+        CHECK(std::filesystem::path(renderer.paths[0]) ==
+              (Salix::g_project_root_path / "Assets/Textures/player.png").lexically_normal());
+    }
+
+    TEST_CASE("batch4347 absolute texture request is not prefixed by project root") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/IgnoredRoot4347";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        const std::filesystem::path absolute = "D:/External4347/icon.png";
+        REQUIRE(assets.get_texture(absolute.string()) != nullptr);
+        REQUIRE(renderer.paths.size() == 1);
+        CHECK(std::filesystem::path(renderer.paths[0]) == absolute.lexically_normal());
+    }
+
+    TEST_CASE("batch4347 changing project root makes same relative path a distinct cache key") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/RootA4347";
+        auto* first = assets.get_texture("Assets/shared.png");
+        REQUIRE(first != nullptr);
+        Salix::g_project_root_path = "C:/RootB4347";
+        auto* second = assets.get_texture("Assets/shared.png");
+        REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch4347 returning to earlier project root reuses its cached texture") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/RootA4347";
+        auto* first = assets.get_texture("Assets/revisit.png");
+        REQUIRE(first != nullptr);
+        Salix::g_project_root_path = "C:/RootB4347";
+        REQUIRE(assets.get_texture("Assets/revisit.png") != nullptr);
+        Salix::g_project_root_path = "C:/RootA4347";
+        CHECK(assets.get_texture("Assets/revisit.png") == first);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch4347 project root containing spaces is preserved in renderer path") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Projects/Batch 4347 Root";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/My Texture.png") != nullptr);
+        REQUIRE(renderer.paths.size() == 1);
+        CHECK(std::filesystem::path(renderer.paths[0]) ==
+              (Salix::g_project_root_path / "Assets/My Texture.png").lexically_normal());
+    }
+
+    TEST_CASE("batch4347 failed load under one root does not poison same relative path under another root") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        renderer.should_texture_load_fail = true;
+        Salix::g_project_root_path = "C:/FailRoot4347";
+        CHECK(assets.get_texture("Assets/recover.png") == nullptr);
+        renderer.should_texture_load_fail = false;
+        Salix::g_project_root_path = "C:/GoodRoot4347";
+        REQUIRE(assets.get_texture("Assets/recover.png") != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch4347 lexical parent traversal cannot escape cache identity within same normalized root path") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Root4347";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("Assets/UI/icon.png");
+        REQUIRE(first != nullptr);
+        CHECK(assets.get_texture("Assets/Temp/../UI/icon.png") == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4347 shutdown clears cached entries created under multiple project roots") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/RootA4347";
+        REQUIRE(assets.get_texture("Assets/a.png") != nullptr);
+        Salix::g_project_root_path = "C:/RootB4347";
+        REQUIRE(assets.get_texture("Assets/b.png") != nullptr);
+        CHECK(renderer.calls == 2);
+        assets.shutdown();
+        Salix::g_project_root_path = "C:/RootA4347";
+        REQUIRE(assets.get_texture("Assets/a.png") != nullptr);
+        Salix::g_project_root_path = "C:/RootB4347";
+        REQUIRE(assets.get_texture("Assets/b.png") != nullptr);
+        CHECK(renderer.calls == 4);
+    }
+
+    TEST_CASE("batch4347 clearing renderer leaves root specific cached entry readable") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Root4347";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* texture = assets.get_texture("Assets/cached.png");
+        REQUIRE(texture != nullptr);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("Assets/./cached.png") == texture);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4347 renderer replacement receives only uncached root specific request") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Root4347";
+        CountingAssetRenderer first, second;
+        Salix::AssetManager assets;
+        assets.initialize(&first);
+        auto* cached = assets.get_texture("Assets/old.png");
+        REQUIRE(cached != nullptr);
+        assets.initialize(&second);
+        CHECK(assets.get_texture("Assets/old.png") == cached);
+        REQUIRE(assets.get_texture("Assets/new.png") != nullptr);
+        CHECK(first.calls == 1);
+        CHECK(second.calls == 1);
     }
 }
