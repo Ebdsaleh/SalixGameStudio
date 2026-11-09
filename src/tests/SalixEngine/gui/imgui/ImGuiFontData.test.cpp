@@ -550,3 +550,87 @@ TEST_SUITE("Salix::gui::ImGuiFontDataBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiFontDataBatch4447") {
+    TEST_CASE("batch4447 default constructor synchronizes initial metadata and config pixel sizes") {
+        Salix::ImGuiFontData data;
+        CHECK(data.get_font_size() == doctest::Approx(20.0f));
+        CHECK(data.config.size_pixels == doctest::Approx(20.0f));
+    }
+
+    TEST_CASE("batch4447 custom constructor synchronizes initial config size with requested metadata size") {
+        Salix::ImGuiFontData data("Font4447", "font4447.ttf", 44.47f);
+        CHECK(data.get_font_size() == doctest::Approx(44.47f));
+        CHECK(data.config.size_pixels == doctest::Approx(44.47f));
+    }
+
+    TEST_CASE("batch4447 zero size constructor preserves zero in both initial size channels") {
+        Salix::ImGuiFontData data("Zero4447", "zero4447.ttf", 0.0f);
+        CHECK(data.get_font_size() == doctest::Approx(0.0f));
+        CHECK(data.config.size_pixels == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4447 negative size constructor preserves diagnostic value in both initial channels") {
+        Salix::ImGuiFontData data("Negative4447", "negative4447.ttf", -4.447f);
+        CHECK(data.get_font_size() == doctest::Approx(-4.447f));
+        CHECK(data.config.size_pixels == doctest::Approx(-4.447f));
+    }
+
+    TEST_CASE("batch4447 metadata setter preserves name path and gui type") {
+        Salix::ImGuiFontData data("Stable4447", "stable4447.ttf", 12.0f);
+        data.gui_type = "Custom4447";
+        data.set_font_size(27.0f);
+        CHECK(data.get_name() == "Stable4447");
+        CHECK(data.get_file_path() == "stable4447.ttf");
+        CHECK(data.get_gui_type() == "Custom4447");
+        CHECK(data.get_font_size() == doctest::Approx(27.0f));
+    }
+
+    TEST_CASE("batch4447 default glyph range pointers remain null through config conversion") {
+        Salix::ImGuiFontData data;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.GlyphRanges == nullptr);
+        CHECK(cfg.GlyphExcludeRanges == nullptr);
+    }
+
+    TEST_CASE("batch4447 copied config remains independent after source mutation") {
+        Salix::ImGuiFontData::Config source;
+        source.merge_mode = true;
+        source.rasterizer_density = 2.0f;
+        auto copy = source;
+        source.merge_mode = false;
+        source.rasterizer_density = 9.0f;
+        CHECK(copy.merge_mode);
+        CHECK(copy.rasterizer_density == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch4447 config assignment preserves glyph range pointer identity") {
+        static const ImWchar ranges[] = {0x20, 0x7e, 0};
+        Salix::ImGuiFontData::Config source;
+        source.glyph_ranges = ranges;
+        Salix::ImGuiFontData::Config copy;
+        copy = source;
+        CHECK(copy.glyph_ranges == ranges);
+    }
+
+    TEST_CASE("batch4447 copy construction keeps metadata and config independent") {
+        Salix::ImGuiFontData source("Source4447", "source4447.ttf", 18.0f);
+        source.gui_type = "Gui4447";
+        source.config.merge_mode = true;
+        Salix::ImGuiFontData copy(source);
+        source.name = "Mutated4447";
+        source.config.merge_mode = false;
+        CHECK(copy.get_name() == "Source4447");
+        CHECK(copy.get_file_path() == "source4447.ttf");
+        CHECK(copy.get_gui_type() == "Gui4447");
+        CHECK(copy.config.merge_mode);
+    }
+
+    TEST_CASE("batch4447 ellipsis and loader flags convert together without normalization") {
+        Salix::ImGuiFontData data;
+        data.config.ellipsis_char = static_cast<ImWchar>(0x2026);
+        data.config.font_loader_flags = 0x4447u;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.EllipsisChar == static_cast<ImWchar>(0x2026));
+        CHECK(cfg.FontLoaderFlags == 0x4447u);
+    }
+}
