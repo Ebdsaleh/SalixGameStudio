@@ -696,3 +696,129 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch4047") {
         CHECK(std::get<Salix::Vector3>(value) == Salix::Vector3(4.0f, -0.5f, 40.47f));
     }
 }
+
+TEST_SUITE("Salix::reflection::ByteMirrorBatch4347") {
+    TEST_CASE("batch4347 repeated registration keeps canonical Transform metadata discoverable") {
+        Salix::ByteMirror::register_all_types();
+        const auto* first = Salix::ByteMirror::get_type_info_by_name("Transform");
+        REQUIRE(first != nullptr);
+        Salix::ByteMirror::register_all_types();
+        const auto* second = Salix::ByteMirror::get_type_info_by_name("Transform");
+        REQUIRE(second != nullptr);
+        CHECK(second->name == "Transform");
+        CHECK(second->type_index.has_value());
+        CHECK(*second->type_index == std::type_index(typeid(Salix::Transform)));
+    }
+
+    TEST_CASE("batch4347 type name lookup remains case sensitive") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::get_type_info_by_name("Camera") != nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name("camera") == nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name("CAMERA") == nullptr);
+    }
+
+    TEST_CASE("batch4347 registered constructors preserve requested concrete class identities") {
+        Salix::ByteMirror::register_all_types();
+        for (const std::string name : {"Transform", "Sprite2D", "Camera", "BoxCollider", "CppScript"}) {
+            std::unique_ptr<Salix::Element> element(Salix::ByteMirror::create_element_by_name(name));
+            REQUIRE(element != nullptr);
+            CHECK(std::string(element->get_class_name()) == name);
+        }
+    }
+
+    TEST_CASE("batch4347 custom constructor replacement uses latest registered function") {
+        Salix::ByteMirror::register_constructor("Batch4347Replace",
+            []() -> Salix::Element* { return new Salix::BoxCollider(); });
+        {
+            std::unique_ptr<Salix::Element> first(Salix::ByteMirror::create_element_by_name("Batch4347Replace"));
+            REQUIRE(first != nullptr);
+            CHECK(dynamic_cast<Salix::BoxCollider*>(first.get()) != nullptr);
+        }
+        Salix::ByteMirror::register_constructor("Batch4347Replace",
+            []() -> Salix::Element* { return new Salix::CppScript(); });
+        std::unique_ptr<Salix::Element> second(Salix::ByteMirror::create_element_by_name("Batch4347Replace"));
+        REQUIRE(second != nullptr);
+        CHECK(dynamic_cast<Salix::CppScript*>(second.get()) != nullptr);
+    }
+
+    TEST_CASE("batch4347 BoxCollider flattened property order begins local then inherited identity") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::BoxCollider));
+        REQUIRE(info != nullptr);
+        const auto properties = Salix::ByteMirror::get_all_properties_for_type(info);
+        REQUIRE(properties.size() >= 4);
+        CHECK(properties[0].name == "size");
+        CHECK(batch1147_has_property(properties, "id"));
+        CHECK(batch1147_has_property(properties, "name"));
+        CHECK(batch1147_has_property(properties, "visible"));
+    }
+
+    TEST_CASE("batch4347 Element metadata preserves editor display ordering contract") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Element));
+        REQUIRE(info != nullptr);
+        const auto properties = info->properties;
+        auto by_name = [&](const std::string& name) {
+            return std::find_if(properties.begin(), properties.end(),
+                [&](const Salix::Property& property) { return property.name == name; });
+        };
+        const auto id = by_name("id");
+        const auto name = by_name("name");
+        const auto visible = by_name("visible");
+        REQUIRE(id != properties.end()); REQUIRE(name != properties.end()); REQUIRE(visible != properties.end());
+        CHECK(id->display_order == 999);
+        CHECK(name->display_order == 0);
+        CHECK(visible->display_order == 1);
+    }
+
+    TEST_CASE("batch4347 live camera handles include read only matrices and editable clip values") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Camera camera;
+        const auto handles = Salix::ByteMirror::create_handles_for(&camera);
+        auto find_handle = [&](const std::string& name) -> Salix::PropertyHandle* {
+            const auto it = std::find_if(handles.begin(), handles.end(),
+                [&](const auto& handle) { return handle && handle->get_name() == name; });
+            return it == handles.end() ? nullptr : it->get();
+        };
+        auto* view = find_handle("view_matrix");
+        auto* projection = find_handle("projection_matrix");
+        auto* near_clip = find_handle("near_clip");
+        REQUIRE(view != nullptr); REQUIRE(projection != nullptr); REQUIRE(near_clip != nullptr);
+        CHECK(view->is_read_only());
+        CHECK(projection->is_read_only());
+        CHECK_FALSE(near_clip->is_read_only());
+    }
+
+    TEST_CASE("batch4347 null YAML entity creates no handles") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::create_handles_for_yaml(nullptr).empty());
+    }
+
+    TEST_CASE("batch4347 YAML entity without elements creates no handles") {
+        Salix::ByteMirror::register_all_types();
+        YAML::Node entity;
+        entity["name"] = "NoElements4347";
+        CHECK(Salix::ByteMirror::create_handles_for_yaml(&entity).empty());
+    }
+
+    TEST_CASE("batch4347 YAML collider node exposes only properties actually present in node") {
+        Salix::ByteMirror::register_all_types();
+        YAML::Node entity;
+        YAML::Node collider;
+        collider["BoxCollider"]["name"] = "Collider4347";
+        collider["BoxCollider"]["size"]["x"] = 1.0f;
+        collider["BoxCollider"]["size"]["y"] = 2.0f;
+        collider["BoxCollider"]["size"]["z"] = 3.0f;
+        entity["elements"].push_back(collider);
+        const auto handles = Salix::ByteMirror::create_handles_for_yaml(&entity);
+        std::vector<std::string> names;
+        for (const auto& handle : handles) {
+            REQUIRE(handle != nullptr);
+            names.push_back(handle->get_name());
+        }
+        CHECK(std::find(names.begin(), names.end(), "name") != names.end());
+        CHECK(std::find(names.begin(), names.end(), "size") != names.end());
+        CHECK(std::find(names.begin(), names.end(), "visible") == names.end());
+        CHECK(std::find(names.begin(), names.end(), "id") == names.end());
+    }
+}
