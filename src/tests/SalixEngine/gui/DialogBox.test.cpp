@@ -531,3 +531,96 @@ TEST_SUITE("Salix::gui::DialogBoxBatch4147") {
         CHECK(second.get_config().path == "Second");
     }
 }
+
+TEST_SUITE("Salix::gui::DialogBoxBatch4547") {
+    TEST_CASE("batch4547 default config reference remains stable through fluent mutations") {
+        Salix::DialogBox dialog;
+        auto* config = &dialog.get_config();
+        dialog.set_filters(".txt").set_default_path("Root4547").set_default_file_name("file4547.txt").set_overwrite(true);
+        CHECK(&dialog.get_config() == config);
+    }
+
+    TEST_CASE("batch4547 empty key and title remain valid explicit parameterized identity") {
+        Salix::DialogBox dialog("", "", Salix::DialogType::File, false);
+        CHECK(dialog.get_key().empty());
+        CHECK(dialog.get_title().empty());
+        CHECK(dialog.get_type() == Salix::DialogType::File);
+    }
+
+    TEST_CASE("batch4547 key and title preserve embedded null bytes") {
+        const std::string key("Key\0Hidden4547", 14);
+        const std::string title("Title\0Hidden4547", 16);
+        Salix::DialogBox dialog(key, title, Salix::DialogType::Folder, false);
+        CHECK(dialog.get_key() == key);
+        CHECK(dialog.get_title() == title);
+        CHECK(dialog.get_key().size() == key.size());
+        CHECK(dialog.get_title().size() == title.size());
+    }
+
+    TEST_CASE("batch4547 filters preserve embedded null bytes exactly") {
+        Salix::DialogBox dialog;
+        const std::string filters(".png\0,.realm", 12);
+        dialog.set_filters(filters);
+        CHECK(dialog.get_filters() == filters);
+        CHECK(dialog.get_filters().size() == filters.size());
+    }
+
+    TEST_CASE("batch4547 empty default path explicitly synchronizes public and config state") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("Before4547");
+        dialog.set_default_path("");
+        CHECK(dialog.get_default_path().empty());
+        CHECK(dialog.get_config().path.empty());
+    }
+
+    TEST_CASE("batch4547 clearing filename explicitly synchronizes public and config state") {
+        Salix::DialogBox dialog;
+        dialog.set_default_file_name("before4547.txt");
+        dialog.set_default_file_name("");
+        CHECK(dialog.get_default_filename().empty());
+        CHECK(dialog.get_config().fileName.empty());
+    }
+
+    TEST_CASE("batch4547 overwrite toggles preserve path filename and filters") {
+        Salix::DialogBox dialog("Save4547", "Save", Salix::DialogType::File, false);
+        dialog.set_filters(".realm").set_default_path("Scenes4547").set_default_file_name("Main4547.realm");
+        dialog.set_overwrite(true);
+        dialog.set_overwrite(false);
+        CHECK(dialog.get_filters() == ".realm");
+        CHECK(dialog.get_default_path() == "Scenes4547");
+        CHECK(dialog.get_default_filename() == "Main4547.realm");
+        CHECK(dialog.get_config().path == "Scenes4547");
+        CHECK(dialog.get_config().fileName == "Main4547.realm");
+    }
+
+    TEST_CASE("batch4547 fluent setters preserve caller controlled selection and user data config") {
+        Salix::DialogBox dialog;
+        dialog.get_config().countSelectionMax = 45;
+        dialog.get_config().userDatas = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x4547));
+        dialog.set_filters(".png").set_default_path("Root").set_default_file_name("image.png").set_overwrite(true);
+        CHECK(dialog.get_config().countSelectionMax == 45);
+        CHECK(dialog.get_config().userDatas == reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x4547)));
+    }
+
+    TEST_CASE("batch4547 replacing callback with null never invokes the prior callback") {
+        Salix::DialogBox dialog;
+        int calls = 0;
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++calls; });
+        REQUIRE(static_cast<bool>(dialog.get_callback()));
+        dialog.set_callback(nullptr);
+        CHECK_FALSE(static_cast<bool>(dialog.get_callback()));
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE("batch4547 separate dialogs own distinct config objects and overwrite state") {
+        Salix::DialogBox first("First4547", "First", Salix::DialogType::File, false);
+        Salix::DialogBox second("Second4547", "Second", Salix::DialogType::File, true);
+        CHECK(&first.get_config() != &second.get_config());
+        CHECK((first.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+        CHECK((second.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        first.set_default_path("FirstPath4547");
+        second.set_default_path("SecondPath4547");
+        CHECK(first.get_config().path == "FirstPath4547");
+        CHECK(second.get_config().path == "SecondPath4547");
+    }
+}
