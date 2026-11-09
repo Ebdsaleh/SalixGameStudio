@@ -616,3 +616,108 @@ TEST_SUITE("Salix::management::RealmManagerBatch3047") {
         CHECK(active->get_path() == "Stable.json");
     }
 }
+
+TEST_SUITE("Salix::management::RealmManagerBatch4347") {
+    TEST_CASE("batch4347 fresh project root is empty until first nonempty assignment") {
+        Salix::RealmManager manager;
+        CHECK(manager.get_project_root_path().empty());
+        manager.set_project_root_path("Root4347");
+        CHECK(manager.get_project_root_path() == "Root4347");
+    }
+
+    TEST_CASE("batch4347 project root storage reference remains stable across assignments") {
+        Salix::RealmManager manager;
+        const auto* storage = &manager.get_project_root_path();
+        manager.set_project_root_path("First4347");
+        manager.set_project_root_path("Second4347");
+        CHECK(&manager.get_project_root_path() == storage);
+        CHECK(*storage == "Second4347");
+    }
+
+    TEST_CASE("batch4347 realm creation preserves spaces and punctuation in metadata") {
+        Salix::RealmManager manager;
+        auto* realm = manager.create_realm("Realm 4347!", "Scenes/Realm 4347!.realm");
+        REQUIRE(realm != nullptr);
+        CHECK(realm->get_name() == "Realm 4347!");
+        CHECK(realm->get_path() == "Scenes/Realm 4347!.realm");
+        CHECK(manager.get_active_realm() == nullptr);
+    }
+
+    TEST_CASE("batch4347 replacing inactive realm never creates implicit selection") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Replace4347", "Old.realm") != nullptr);
+        auto* replacement = manager.create_realm("Replace4347", "New.realm");
+        REQUIRE(replacement != nullptr);
+        CHECK(manager.get_active_realm() == nullptr);
+        CHECK(replacement->get_path() == "New.realm");
+    }
+
+    TEST_CASE("batch4347 replacing active realm retargets selection to latest object") {
+        Salix::RealmManager manager;
+        auto* first = manager.create_realm("Active4347", "Old.realm");
+        REQUIRE(first != nullptr);
+        REQUIRE(manager.set_active_realm("Active4347"));
+        auto* replacement = manager.create_realm("Active4347", "New.realm");
+        REQUIRE(replacement != nullptr);
+        CHECK(manager.get_active_realm() == replacement);
+        CHECK(replacement->get_path() == "New.realm");
+    }
+
+    TEST_CASE("batch4347 selection remains case sensitive and preserves active pointer on miss") {
+        Salix::RealmManager manager;
+        auto* realm = manager.create_realm("Case4347", "Case.realm");
+        REQUIRE(realm != nullptr);
+        REQUIRE(manager.set_active_realm("Case4347"));
+        CHECK_FALSE(manager.set_active_realm("case4347"));
+        CHECK(manager.get_active_realm() == realm);
+    }
+
+    TEST_CASE("batch4347 shutdown permits fresh realm with same logical name afterward") {
+        Salix::RealmManager manager;
+        auto* first = manager.create_realm("Fresh4347", "Before.realm");
+        REQUIRE(first != nullptr);
+        REQUIRE(manager.set_active_realm("Fresh4347"));
+        manager.shutdown();
+        CHECK(manager.get_active_realm() == nullptr);
+        auto* second = manager.create_realm("Fresh4347", "After.realm");
+        REQUIRE(second != nullptr);
+        CHECK(second->get_path() == "After.realm");
+        CHECK(manager.get_active_realm() == nullptr);
+    }
+
+    TEST_CASE("batch4347 duplicate load by registered stem returns true without replacing metadata") {
+        Salix::RealmManager manager;
+        auto* realm = manager.create_realm("Stem4347", "Original4347.realm");
+        REQUIRE(realm != nullptr);
+        CHECK(manager.load_realm("nested/path/Stem4347.realm"));
+        CHECK(realm->get_name() == "Stem4347");
+        CHECK(realm->get_path() == "Original4347.realm");
+    }
+
+    TEST_CASE("batch4347 active empty realm update and render are safe without initialization context") {
+        Salix::RealmManager manager;
+        auto* realm = manager.create_realm("Runtime4347", "Runtime4347.realm");
+        REQUIRE(realm != nullptr);
+        REQUIRE(manager.set_active_realm("Runtime4347"));
+        CHECK_NOTHROW(manager.update(0.0f));
+        CHECK_NOTHROW(manager.update(-4347.0f));
+        CHECK_NOTHROW(manager.render(nullptr));
+        CHECK(manager.get_active_realm() == realm);
+    }
+
+    TEST_CASE("batch4347 reinitializing with asset manager makes existing active realm loadable") {
+        Salix::RealmManager manager;
+        Salix::InitContext empty{};
+        manager.initialize(empty);
+        auto* realm = manager.create_realm("Load4347", "Load4347.realm");
+        REQUIRE(realm != nullptr);
+        REQUIRE(manager.set_active_realm("Load4347"));
+        CHECK_FALSE(manager.load_active_realm());
+        Salix::AssetManager assets;
+        Salix::InitContext ready{};
+        ready.asset_manager = &assets;
+        manager.initialize(ready);
+        CHECK(manager.load_active_realm());
+        CHECK(manager.get_active_realm() == realm);
+    }
+}
