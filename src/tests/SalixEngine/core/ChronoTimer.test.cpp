@@ -659,3 +659,104 @@ TEST_SUITE("Salix::core::ChronoTimerBatch4147") {
         CHECK(timer.get_delta_time() == measured);
     }
 }
+
+TEST_SUITE("Salix::core::ChronoTimerBatch4547") {
+    TEST_CASE("batch4547 maximum FPS assignment keeps fresh delta finite and unchanged") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps((std::numeric_limits<int>::max)());
+        CHECK(timer.get_delta_time() == 0.0f);
+        timer.tick_start();
+        CHECK(std::isfinite(timer.get_delta_time()));
+        CHECK(timer.get_delta_time() >= 0.0f);
+    }
+
+    TEST_CASE("batch4547 one FPS exposes a much larger immediate budget than one hundred FPS") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(100);
+        timer.tick_start();
+        const float fast = timer.calculate_sleep_duration().count();
+        timer.set_target_fps(1);
+        timer.tick_start();
+        const float slow = timer.calculate_sleep_duration().count();
+        CHECK(slow > fast);
+        CHECK(slow > 900.0f);
+    }
+
+    TEST_CASE("batch4547 positive cap followed by zero immediately disables sleep calculation") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(30);
+        timer.tick_start();
+        REQUIRE(timer.calculate_sleep_duration().count() > 0.0f);
+        timer.set_target_fps(0);
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4547 positive cap followed by negative immediately disables sleep calculation") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(30);
+        timer.tick_start();
+        REQUIRE(timer.calculate_sleep_duration().count() > 0.0f);
+        timer.set_target_fps(-4547);
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4547 delayed tick measurement survives subsequent uncapped sleep query") {
+        Salix::ChronoTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        REQUIRE(measured > 0.0f);
+        timer.set_target_fps(0);
+        CHECK(timer.calculate_sleep_duration().count() == doctest::Approx(0.0f));
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE("batch4547 zero default delay preserves monotonic tick observation") {
+        const auto before = Salix::ChronoTimer::get_ticks_ms();
+        Salix::ChronoTimer::default_delay(std::chrono::milliseconds(0));
+        const auto after = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(after >= before);
+    }
+
+    TEST_CASE("batch4547 short fractional delay helper preserves monotonic tick observation") {
+        const auto before = Salix::ChronoTimer::get_ticks_ms();
+        Salix::ChronoTimer::delay_for(std::chrono::duration<float, std::milli>(0.25f));
+        const auto after = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(after >= before);
+    }
+
+    TEST_CASE("batch4547 ten FPS tick end invokes injected delay exactly once with bounded duration") {
+        int calls = 0;
+        std::chrono::milliseconds captured{0};
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds d) { ++calls; captured = d; });
+        timer.set_target_fps(10);
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(calls == 1);
+        CHECK(captured.count() > 0);
+        CHECK(captured.count() <= 100);
+    }
+
+    TEST_CASE("batch4547 frame longer than one millisecond cap never invokes injected delay") {
+        int calls = 0;
+        Salix::ChronoTimer timer([&](std::chrono::milliseconds) { ++calls; });
+        timer.set_target_fps(1000);
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_end();
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE("batch4547 ITimer virtual dispatch reports positive delayed delta without capping") {
+        Salix::ChronoTimer concrete;
+        Salix::ITimer& timer = concrete;
+        timer.set_target_fps(0);
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        CHECK(timer.get_delta_time() > 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+        CHECK_NOTHROW(timer.tick_end());
+    }
+}
