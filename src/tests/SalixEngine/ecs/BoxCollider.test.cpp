@@ -772,3 +772,100 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch4047") {
         CHECK(first.get_id() != second.get_id());
     }
 }
+
+TEST_SUITE("Salix::ecs::BoxColliderBatch4347") {
+    TEST_CASE("batch4347 zero geometry assignment remains exact and address stable") {
+        Salix::BoxCollider collider;
+        const auto* storage = &collider.get_size();
+        collider.set_size(Salix::Vector3::Zero);
+        CHECK(&collider.get_size() == storage);
+        CHECK(collider.get_size() == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch4347 negative geometry components are preserved verbatim") {
+        Salix::BoxCollider collider;
+        collider.set_size({-1.0f, -2.5f, -4347.0f});
+        CHECK(collider.get_size() == Salix::Vector3(-1.0f, -2.5f, -4347.0f));
+    }
+
+    TEST_CASE("batch4347 fractional geometry replacement overwrites all three axes") {
+        Salix::BoxCollider collider;
+        collider.set_size({1.0f, 2.0f, 3.0f});
+        collider.set_size({0.125f, -0.25f, 4.347f});
+        CHECK(collider.get_size() == Salix::Vector3(0.125f, -0.25f, 4.347f));
+    }
+
+    TEST_CASE("batch4347 display name and visibility stay independent from geometry") {
+        Salix::BoxCollider collider;
+        collider.set_name("Collider Label 4347");
+        collider.set_visibility(false);
+        collider.set_size({4.0f, 3.0f, 47.0f});
+        CHECK(collider.get_name() == "Collider Label 4347");
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(4.0f, 3.0f, 47.0f));
+    }
+
+    TEST_CASE("batch4347 owner replacement preserves geometry and identifier") {
+        Salix::Entity first, second;
+        Salix::BoxCollider collider;
+        collider.set_size({4.0f, 34.0f, 7.0f});
+        const auto id = collider.get_id();
+        collider.set_owner(&first);
+        collider.set_owner(&second);
+        CHECK(collider.get_owner() == &second);
+        CHECK(collider.get_id() == id);
+        CHECK(collider.get_size() == Salix::Vector3(4.0f, 34.0f, 7.0f));
+    }
+
+    TEST_CASE("batch4347 initialize and null renderer load preserve customized geometry") {
+        Salix::BoxCollider collider;
+        Salix::InitContext context{};
+        collider.set_size({8.0f, 6.0f, 4.0f});
+        collider.initialize();
+        collider.on_load(context);
+        CHECK(collider.get_size() == Salix::Vector3(8.0f, 6.0f, 4.0f));
+    }
+
+    TEST_CASE("batch4347 binary roundtrip preserves zero size and custom name") {
+        Salix::BoxCollider source;
+        source.set_name("Binary Zero 4347");
+        source.set_size(Salix::Vector3::Zero);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name() == "Binary Zero 4347");
+        CHECK(restored.get_size() == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch4347 JSON roundtrip preserves negative fractional geometry") {
+        Salix::BoxCollider source;
+        source.set_size({-0.125f, 4.347f, -64.5f});
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_size() == source.get_size());
+    }
+
+    TEST_CASE("batch4347 deserialization leaves destination owner pointer untouched") {
+        Salix::BoxCollider source;
+        source.set_size({1.0f, 4.0f, 7.0f});
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::Entity owner;
+        Salix::BoxCollider restored;
+        restored.set_owner(&owner);
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_owner() == &owner);
+        CHECK(restored.get_size() == source.get_size());
+    }
+
+    TEST_CASE("batch4347 separate collider size references never alias") {
+        Salix::BoxCollider first, second;
+        CHECK(&first.get_size() != &second.get_size());
+        first.set_size({1.0f, 2.0f, 3.0f});
+        second.set_size({3.0f, 2.0f, 1.0f});
+        CHECK(first.get_size() != second.get_size());
+    }
+}
