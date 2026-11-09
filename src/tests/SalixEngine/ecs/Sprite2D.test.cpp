@@ -1027,3 +1027,130 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::ecs::Sprite2DBatch4147") {
+    TEST_CASE("batch4147 fresh sprite combines canonical identity with empty runtime texture state") {
+        Salix::Sprite2D sprite;
+        CHECK(std::string(sprite.get_class_name()) == "Sprite2D");
+        CHECK(sprite.get_name() == "Sprite2D");
+        CHECK(sprite.get_texture_path().empty());
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch4147 public render metadata setters remain mutually independent") {
+        Salix::Sprite2D sprite;
+        sprite.set_color(Salix::Color(0.2f, 0.4f, 0.6f, 0.8f));
+        sprite.set_offset(Salix::Vector2(-4.0f, 7.0f));
+        sprite.set_pivot(Salix::Vector2(0.1f, 0.9f));
+        sprite.set_local_rotation(41.47f);
+        sprite.set_flip_h(true);
+        sprite.set_flip_v(false);
+        sprite.set_sorting_layer(-4147);
+        sprite.set_use_entity_rotation(true);
+        CHECK(sprite.get_color() == Salix::Color(0.2f, 0.4f, 0.6f, 0.8f));
+        CHECK(sprite.get_offset() == Salix::Vector2(-4.0f, 7.0f));
+        CHECK(sprite.get_pivot() == Salix::Vector2(0.1f, 0.9f));
+        CHECK(sprite.get_local_rotation() == doctest::Approx(41.47f));
+        CHECK(sprite.get_flip_h());
+        CHECK_FALSE(sprite.get_flip_v());
+        CHECK(sprite.get_sorting_layer() == -4147);
+        CHECK(sprite.get_use_entity_rotation());
+    }
+
+    TEST_CASE("batch4147 const getters observe latest mutable sprite metadata") {
+        Salix::Sprite2D sprite;
+        sprite.set_local_rotation(-12.5f);
+        sprite.set_flip_h(true);
+        sprite.set_sorting_layer(47);
+        const Salix::Sprite2D& view = sprite;
+        CHECK(view.get_local_rotation() == doctest::Approx(-12.5f));
+        CHECK(view.get_flip_h());
+        CHECK(view.get_sorting_layer() == 47);
+    }
+
+    TEST_CASE("batch4147 texture path metadata writes never synthesize runtime resource state") {
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("assets/first4147.png");
+        sprite.set_texture_path("assets/second4147.png");
+        CHECK(sprite.get_texture_path() == "assets/second4147.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch4147 nonempty load without asset manager records path and clears runtime state") {
+        Salix::Sprite2D sprite;
+        sprite.load_texture(nullptr, "assets/null4147.png");
+        CHECK(sprite.get_texture_path() == "assets/null4147.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch4147 null manager replacement clears a previously loaded runtime texture") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/good4147.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        sprite.load_texture(nullptr, "assets/missing4147.png");
+        CHECK(sprite.get_texture_path() == "assets/missing4147.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch4147 valid manager recovers after prior null manager failure") {
+        Salix::Sprite2D sprite;
+        const std::string path = "assets/recover4147.png";
+        sprite.load_texture(nullptr, path);
+        REQUIRE(sprite.get_texture() == nullptr);
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        sprite.load_texture(&assets, path);
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+    }
+
+    TEST_CASE("batch4147 empty direct load clears resource while preserving prior portable path") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/preserved4147.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        sprite.load_texture(&assets, "");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+        CHECK(sprite.get_texture_path() == "assets/preserved4147.png");
+    }
+
+    TEST_CASE("batch4147 loaded ownerless sprite never submits a draw") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/ownerless4147.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        sprite.render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 0);
+    }
+
+    TEST_CASE("batch4147 loaded owned sprite submits one draw through provided renderer") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/owned4147.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 1);
+    }
+}
