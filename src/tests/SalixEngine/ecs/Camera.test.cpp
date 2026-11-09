@@ -597,3 +597,98 @@ TEST_SUITE("Salix::ecs::CameraBatch4047") {
         CHECK(camera.get_projection_mode() == mode);
     }
 }
+
+TEST_SUITE("Salix::ecs::CameraBatch4347") {
+    TEST_CASE("batch4347 default projection is stable across repeated reads") {
+        Salix::Camera camera;
+        const auto first = camera.get_projection_matrix();
+        const auto second = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(first, second));
+    }
+
+    TEST_CASE("batch4347 zero viewport width produces a distinct perspective projection") {
+        Salix::Camera camera;
+        camera.set_viewport_size(800, 600);
+        const auto normal = camera.get_projection_matrix();
+        camera.set_viewport_size(0, 600);
+        const auto zero_width = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(normal, zero_width));
+    }
+
+    TEST_CASE("batch4347 negative viewport width is stored through projection aspect calculation") {
+        Salix::Camera camera;
+        camera.set_viewport_size(800, 600);
+        const auto positive = camera.get_projection_matrix();
+        camera.set_viewport_size(-800, 600);
+        const auto negative = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(positive, negative));
+    }
+
+    TEST_CASE("batch4347 perspective field of view replacement rebuilds projection twice") {
+        Salix::Camera camera;
+        const auto original = camera.get_projection_matrix();
+        camera.set_field_of_view(30.0f);
+        const auto narrow = camera.get_projection_matrix();
+        camera.set_field_of_view(90.0f);
+        const auto wide = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(original, narrow));
+        CHECK(batch1247_matrix_differs(narrow, wide));
+    }
+
+    TEST_CASE("batch4347 orthographic size replacement rebuilds projection twice") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(5.0f);
+        const auto small = camera.get_projection_matrix();
+        camera.set_orthographic_size(50.0f);
+        const auto large = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(small, large));
+    }
+
+    TEST_CASE("batch4347 projection mode changes never alter active state") {
+        Salix::Camera camera;
+        camera.activate();
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_is_active());
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4347 activation changes never alter clip planes") {
+        Salix::Camera camera;
+        camera.set_near_clip(0.25f);
+        camera.set_far_clip(4347.0f);
+        camera.activate();
+        camera.deactivate();
+        CHECK(camera.get_near_clip() == doctest::Approx(0.25f));
+        CHECK(camera.get_far_clip() == doctest::Approx(4347.0f));
+    }
+
+    TEST_CASE("batch4347 ownerless repeated view reads remain stable identity matrix") {
+        Salix::Camera camera;
+        const auto first = camera.get_view_matrix();
+        const auto second = camera.get_view_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(first, second));
+        CHECK(first == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch4347 owner attachment exposes entity transform without changing projection mode") {
+        Salix::Entity entity;
+        Salix::Camera camera;
+        const auto mode = camera.get_projection_mode();
+        camera.set_owner(&entity);
+        CHECK(camera.get_transform() == entity.get_transform());
+        CHECK(camera.get_projection_mode() == mode);
+    }
+
+    TEST_CASE("batch4347 initialize preserves custom viewport derived projection configuration") {
+        Salix::Camera camera;
+        camera.set_viewport_size(1024, 512);
+        camera.set_field_of_view(52.0f);
+        const auto before = camera.get_projection_matrix();
+        camera.initialize();
+        const auto after = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(before, after));
+        CHECK(camera.get_field_of_view() == doctest::Approx(52.0f));
+    }
+}
