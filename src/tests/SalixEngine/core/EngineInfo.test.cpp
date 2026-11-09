@@ -77,3 +77,68 @@ TEST_SUITE("Salix::core::EngineInfoBatch3247") {
  TEST_CASE("batch3247 mutable copy cannot alter static version reference") { std::string copy=Salix::EngineInfo::get_engine_version(); copy.replace(0,5,"9.9.9"); CHECK(copy=="9.9.9-Alpha"); CHECK(Salix::EngineInfo::get_engine_version()=="0.1.0-Alpha"); }
  TEST_CASE("batch3247 repeated access preserves exact reference address") { const std::string* p=&Salix::EngineInfo::get_engine_version(); for(int i=0;i<16;++i) CHECK(&Salix::EngineInfo::get_engine_version()==p); }
 }
+
+TEST_SUITE("Salix::core::EngineInfoBatch4047") {
+    TEST_CASE("batch4047 public version string has expected complete length") {
+        CHECK(Salix::EngineInfo::get_engine_version().size() == 11);
+    }
+
+    TEST_CASE("batch4047 public version begins at major digit and ends at prerelease suffix") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        REQUIRE_FALSE(version.empty());
+        CHECK(version.front() == '0');
+        CHECK(version.back() == 'a');
+    }
+
+    TEST_CASE("batch4047 public version contains exactly one prerelease separator") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(std::count(version.begin(), version.end(), '-') == 1);
+    }
+
+    TEST_CASE("batch4047 Alpha prerelease begins immediately after separator") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        const auto separator = version.find('-');
+        REQUIRE(separator != std::string::npos);
+        CHECK(version.substr(separator + 1) == "Alpha");
+    }
+
+    TEST_CASE("batch4047 semantic core is exactly zero one zero") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        const auto separator = version.find('-');
+        REQUIRE(separator != std::string::npos);
+        CHECK(version.substr(0, separator) == "0.1.0");
+    }
+
+    TEST_CASE("batch4047 version token contains no path separators") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(version.find('/') == std::string::npos);
+        CHECK(version.find('\\') == std::string::npos);
+    }
+
+    TEST_CASE("batch4047 repeated data pointers share the static version storage") {
+        const auto& first = Salix::EngineInfo::get_engine_version();
+        const auto& second = Salix::EngineInfo::get_engine_version();
+        CHECK(first.data() == second.data());
+    }
+
+    TEST_CASE("batch4047 appending to a copied version cannot change static metadata") {
+        std::string copy = Salix::EngineInfo::get_engine_version();
+        copy += "-local";
+        CHECK(copy == "0.1.0-Alpha-local");
+        CHECK(Salix::EngineInfo::get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch4047 version contains three numeric semantic components") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(version[0] == '0');
+        CHECK(version[2] == '1');
+        CHECK(version[4] == '0');
+    }
+
+    TEST_CASE("batch4047 repeated accessor remains byte identical across many reads") {
+        const std::string snapshot = Salix::EngineInfo::get_engine_version();
+        for (int i = 0; i < 32; ++i) {
+            CHECK(Salix::EngineInfo::get_engine_version() == snapshot);
+        }
+    }
+}
