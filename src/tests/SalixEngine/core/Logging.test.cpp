@@ -513,3 +513,74 @@ TEST_SUITE("Salix::core::LoggingBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::core::LoggingBatch4047") {
+    TEST_CASE("batch4047 empty info payload still emits severity and record terminator") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "", "ignored.cpp", 1);
+        CHECK(output.str().find("[INFO] ") != std::string::npos);
+        CHECK(output.str().find("ignored.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch4047 empty error source name remains representable") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "failure4047", "", 0);
+        CHECK(output.str().find("[ERROR] [:0] failure4047") != std::string::npos);
+    }
+
+    TEST_CASE("batch4047 debug preserves Windows style source path verbatim") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "debug4047", "C:\\src\\Salix\\Probe.cpp", 4047);
+        CHECK(output.str().find("[C:\\src\\Salix\\Probe.cpp:4047] debug4047") != std::string::npos);
+    }
+
+    TEST_CASE("batch4047 warning payload with bracket tokens remains literal") {
+        std::stringstream output; CerrRedirect redirect(output);
+        const std::string payload = "[ERROR] [literal] warning4047";
+        Salix::LogMessage(Salix::LogLevel::WARNING, payload, "ignored.cpp", 2);
+        CHECK(output.str().find("[WARN] " + payload) != std::string::npos);
+    }
+
+    TEST_CASE("batch4047 info preserves carriage return and tab characters") {
+        std::stringstream output; CerrRedirect redirect(output);
+        const std::string payload = "left\tright\rnext";
+        Salix::LogMessage(Salix::LogLevel::INFO, payload, "ignored.cpp", 3);
+        CHECK(output.str().find(payload) != std::string::npos);
+    }
+
+    TEST_CASE("batch4047 negative error line is emitted textually") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "negative-line", "Probe.cpp", -4047);
+        CHECK(output.str().find("[Probe.cpp:-4047] negative-line") != std::string::npos);
+    }
+
+    TEST_CASE("batch4047 unknown positive severity retains blank level token") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(static_cast<Salix::LogLevel>(4047), "unknown4047", "hidden.cpp", 4);
+        CHECK(output.str().find("[] unknown4047") != std::string::npos);
+        CHECK(output.str().find("hidden.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch4047 sequential info and warning records preserve call order") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "first4047", "a.cpp", 1);
+        Salix::LogMessage(Salix::LogLevel::WARNING, "second4047", "b.cpp", 2);
+        const auto text = output.str();
+        REQUIRE(text.find("first4047") != std::string::npos);
+        REQUIRE(text.find("second4047") != std::string::npos);
+        CHECK(text.find("first4047") < text.find("second4047"));
+    }
+
+    TEST_CASE("batch4047 info macro streams mixed text and integer payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_INFO("batch=" << 4047 << ", state=green");
+        CHECK(output.str().find("[INFO] batch=4047, state=green") != std::string::npos);
+    }
+
+    TEST_CASE("batch4047 warning macro omits source location while retaining payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_WARNING("warning-macro-4047");
+        const auto text = output.str();
+        CHECK(text.find("[WARN] warning-macro-4047") != std::string::npos);
+        CHECK(text.find(__FILE__) == std::string::npos);
+    }
+}
