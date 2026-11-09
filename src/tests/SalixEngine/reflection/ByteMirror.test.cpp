@@ -614,3 +614,85 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::reflection::ByteMirrorBatch4047") {
+    TEST_CASE("batch4047 null type metadata flattens to an empty property list") {
+        CHECK(Salix::ByteMirror::get_all_properties_for_type(nullptr).empty());
+    }
+
+    TEST_CASE("batch4047 null live element creates no property handles") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::create_handles_for(nullptr).empty());
+    }
+
+    TEST_CASE("batch4047 unregistered live element creates no property handles") {
+        Salix::ByteMirror::register_all_types();
+        Batch1147UnregisteredElement element;
+        CHECK(Salix::ByteMirror::create_handles_for(&element).empty());
+    }
+
+    TEST_CASE("batch4047 empty and unknown type names remain safe misses") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::get_type_info_by_name("") == nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name("Batch4047MissingType") == nullptr);
+    }
+
+    TEST_CASE("batch4047 unknown element constructor lookup remains null") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::create_element_by_name("Batch4047MissingConstructor") == nullptr);
+    }
+
+    TEST_CASE("batch4047 custom constructor can create a concrete collider") {
+        Salix::ByteMirror::register_constructor("Batch4047Collider",
+            []() -> Salix::Element* { return new Salix::BoxCollider(); });
+        std::unique_ptr<Salix::Element> created(
+            Salix::ByteMirror::create_element_by_name("Batch4047Collider"));
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Salix::BoxCollider*>(created.get()) != nullptr);
+    }
+
+    TEST_CASE("batch4047 Element metadata flattens to exactly its three local properties") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Element));
+        REQUIRE(info != nullptr);
+        const auto properties = Salix::ByteMirror::get_all_properties_for_type(info);
+        CHECK(properties.size() == 3);
+        CHECK(batch1147_has_property(properties, "id"));
+        CHECK(batch1147_has_property(properties, "name"));
+        CHECK(batch1147_has_property(properties, "visible"));
+    }
+
+    TEST_CASE("batch4047 BoxCollider flattened metadata contains size plus inherited identity") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::BoxCollider));
+        REQUIRE(info != nullptr);
+        const auto properties = Salix::ByteMirror::get_all_properties_for_type(info);
+        CHECK(batch1147_has_property(properties, "size"));
+        CHECK(batch1147_has_property(properties, "id"));
+        CHECK(batch1147_has_property(properties, "name"));
+        CHECK(batch1147_has_property(properties, "visible"));
+    }
+
+    TEST_CASE("batch4047 live collider handles expose local and inherited properties together") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        const auto handles = Salix::ByteMirror::create_handles_for(&collider);
+        std::vector<std::string> names;
+        for (const auto& handle : handles) {
+            REQUIRE(handle != nullptr);
+            names.push_back(handle->get_name());
+        }
+        CHECK(std::find(names.begin(), names.end(), "size") != names.end());
+        CHECK(std::find(names.begin(), names.end(), "id") != names.end());
+        CHECK(std::find(names.begin(), names.end(), "name") != names.end());
+        CHECK(std::find(names.begin(), names.end(), "visible") != names.end());
+    }
+
+    TEST_CASE("batch4047 reflected collider size follows latest live mutation") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        collider.set_size({4.0f, -0.5f, 40.47f});
+        const auto value = Salix::ByteMirror::get_property_value(&collider, "size");
+        REQUIRE(std::holds_alternative<Salix::Vector3>(value));
+        CHECK(std::get<Salix::Vector3>(value) == Salix::Vector3(4.0f, -0.5f, 40.47f));
+    }
+}
