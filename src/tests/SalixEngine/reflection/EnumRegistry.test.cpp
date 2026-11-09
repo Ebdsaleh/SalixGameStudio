@@ -666,3 +666,113 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch3847") {
     }
 }
 
+namespace {
+struct Batch4447EnumA {};
+struct Batch4447EnumB {};
+struct Batch4447EnumC {};
+struct Batch4447NeverRegistered {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch4447") {
+    TEST_CASE("batch4447 custom enum supports zero negative and positive integer mappings together") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[-4] = "Negative4447";
+        data.value_to_string[0] = "Zero4447";
+        data.value_to_string[47] = "Positive4447";
+        CHECK(data.get_name(-4) == "Negative4447");
+        CHECK(data.get_name(0) == "Zero4447");
+        CHECK(data.get_value("Positive4447") == 47);
+    }
+
+    TEST_CASE("batch4447 empty display name can be a deliberate mapped value") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[4447] = "";
+        data.ordered_names = {""};
+        Salix::EnumRegistry::register_enum(typeid(Batch4447EnumA), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch4447EnumA));
+        CHECK(stored.get_name(4447).empty());
+        CHECK(stored.get_value("") == 4447);
+        REQUIRE(stored.get_names().size() == 1);
+        CHECK(stored.get_names()[0].empty());
+    }
+
+    TEST_CASE("batch4447 reregistering custom type replaces both value map and ordered names") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[1] = "First4447";
+        first.ordered_names = {"First4447"};
+        Salix::EnumRegistry::register_enum(typeid(Batch4447EnumB), std::move(first));
+        Salix::EnumRegistry::EnumData second;
+        second.value_to_string[2] = "Second4447";
+        second.ordered_names = {"Second4447"};
+        Salix::EnumRegistry::register_enum(typeid(Batch4447EnumB), std::move(second));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch4447EnumB));
+        CHECK(stored.get_name(1) == "Unknown");
+        CHECK(stored.get_name(2) == "Second4447");
+        CHECK(stored.get_names() == std::vector<std::string>{"Second4447"});
+    }
+
+    TEST_CASE("batch4447 two custom type registrations retain independent data") {
+        Salix::EnumRegistry::EnumData a;
+        a.value_to_string[10] = "A4447";
+        Salix::EnumRegistry::EnumData b;
+        b.value_to_string[20] = "B4447";
+        Salix::EnumRegistry::register_enum(typeid(Batch4447EnumA), std::move(a));
+        Salix::EnumRegistry::register_enum(typeid(Batch4447EnumB), std::move(b));
+        CHECK(Salix::EnumRegistry::get_enum_data(typeid(Batch4447EnumA)).get_name(10) == "A4447");
+        CHECK(Salix::EnumRegistry::get_enum_data(typeid(Batch4447EnumB)).get_name(20) == "B4447");
+    }
+
+    TEST_CASE("batch4447 ordered names preserve duplicate display entries exactly") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[1] = "Repeated4447";
+        data.ordered_names = {"Repeated4447", "Repeated4447"};
+        Salix::EnumRegistry::register_enum(typeid(Batch4447EnumC), std::move(data));
+        const auto& names = Salix::EnumRegistry::get_enum_data(typeid(Batch4447EnumC)).get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(names[0] == "Repeated4447");
+        CHECK(names[1] == "Repeated4447");
+    }
+
+    TEST_CASE("batch4447 ordered name reference remains stable across value and name lookups") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[4] = "Four4447";
+        data.ordered_names = {"Four4447"};
+        Salix::EnumRegistry::register_enum(typeid(Batch4447EnumA), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch4447EnumA));
+        const auto* names = &stored.get_names();
+        CHECK(stored.get_name(4) == "Four4447");
+        CHECK(stored.get_value("Four4447") == 4);
+        CHECK(&stored.get_names() == names);
+    }
+
+    TEST_CASE("batch4447 canonical projection names retain public UI order") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& names = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(names[0] == "Perspective");
+        CHECK(names[1] == "Orthographic");
+    }
+
+    TEST_CASE("batch4447 canonical editor mode names retain public UI order") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& names = Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode)).get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(names[0] == "Live");
+        CHECK(names[1] == "Yaml");
+    }
+
+    TEST_CASE("batch4447 canonical refresh never removes unrelated custom enum registration") {
+        Salix::EnumRegistry::EnumData custom;
+        custom.value_to_string[4447] = "Custom4447";
+        Salix::EnumRegistry::register_enum(typeid(Batch4447EnumC), std::move(custom));
+        Salix::EnumRegistry::register_all_enums();
+        const auto* stored = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch4447EnumC));
+        REQUIRE(stored != nullptr);
+        CHECK(stored->get_name(4447) == "Custom4447");
+    }
+
+    TEST_CASE("batch4447 never registered type remains a null pointer after canonical refresh") {
+        Salix::EnumRegistry::register_all_enums();
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch4447NeverRegistered)) == nullptr);
+    }
+}
