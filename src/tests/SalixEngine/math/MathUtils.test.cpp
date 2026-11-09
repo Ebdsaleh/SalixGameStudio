@@ -671,3 +671,58 @@ TEST_SUITE("Salix::math::MathUtilsBatch3947") {
         CHECK(Salix::inv_sqrt(4.0f) == doctest::Approx(0.5f).epsilon(0.01));
     }
 }
+
+TEST_SUITE("Salix::math::MathUtilsBatch4247") {
+    TEST_CASE("batch4247 exported angle constants retain fundamental relationships") {
+        CHECK(Salix::TAU == doctest::Approx(Salix::PI * 2.0f));
+        CHECK(Salix::PI_2 == doctest::Approx(Salix::PI * 0.5f));
+        CHECK(Salix::PI_4 == doctest::Approx(Salix::PI * 0.25f));
+    }
+
+    TEST_CASE("batch4247 degree and radian conversion factors are reciprocal") {
+        CHECK(Salix::DEG2RAD * Salix::RAD2DEG == doctest::Approx(1.0f));
+        CHECK(180.0f * Salix::DEG2RAD == doctest::Approx(Salix::PI));
+    }
+
+    TEST_CASE("batch4247 float lerp clamps below and above interval") {
+        CHECK(Salix::lerp<float>(2.0f, 10.0f, -1.0f) == doctest::Approx(2.0f));
+        CHECK(Salix::lerp<float>(2.0f, 10.0f, 2.0f) == doctest::Approx(10.0f));
+    }
+
+    TEST_CASE("batch4247 inverse lerp returns midpoint fraction for signed range") {
+        CHECK(Salix::inverse_lerp(-10.0f, 10.0f, 0.0f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch4247 remap converts midpoint between unrelated ranges") {
+        CHECK(Salix::remap(5.0f, 0.0f, 10.0f, -20.0f, 20.0f) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4247 smooth step clamps both outside edges") {
+        CHECK(Salix::smooth_step(0.0f, 1.0f, -1.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::smooth_step(0.0f, 1.0f, 2.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch4247 smoother step midpoint remains one half") {
+        CHECK(Salix::smoother_step(0.0f, 1.0f, 0.5f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch4247 ping pong repeats zero length endpoints across positive cycles") {
+        CHECK(Salix::ping_pong(0.0f, 4.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::ping_pong(4.0f, 4.0f) == doctest::Approx(4.0f));
+        CHECK(Salix::ping_pong(8.0f, 4.0f) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4247 Catmull Rom interpolation reaches inner endpoints") {
+        CHECK(Salix::cubic_interpolate(0.0f, 2.0f, 4.0f, 6.0f, 0.0f) == doctest::Approx(2.0f));
+        CHECK(Salix::cubic_interpolate(0.0f, 2.0f, 4.0f, 6.0f, 1.0f) == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch4247 wrapping saturation and approximate inverse square root remain bounded") {
+        CHECK(Salix::wrap(12.0f, 0.0f, 10.0f) == doctest::Approx(2.0f));
+        CHECK(Salix::saturate(-1.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::saturate(2.0f) == doctest::Approx(1.0f));
+        const float inv = Salix::inv_sqrt(4.0f);
+        CHECK(inv == doctest::Approx(0.5f).epsilon(0.01));
+        CHECK(Salix::nearly_equal(1.0f, 1.0f + Salix::EPSILON, Salix::EPSILON * 2.0f));
+    }
+}
