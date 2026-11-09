@@ -437,3 +437,97 @@ TEST_SUITE("Salix::gui::DialogBoxBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::gui::DialogBoxBatch4147") {
+    TEST_CASE("batch4147 parameterized identity survives full fluent configuration") {
+        Salix::DialogBox dialog("Dialog4147", "Title 4147", Salix::DialogType::File, false);
+        dialog.set_filters(".realm").set_default_path("Scenes").set_default_file_name("Main.realm").set_overwrite(true);
+        CHECK(dialog.get_key() == "Dialog4147");
+        CHECK(dialog.get_title() == "Title 4147");
+        CHECK(dialog.get_type() == Salix::DialogType::File);
+    }
+
+    TEST_CASE("batch4147 repeated overwrite true remains idempotently enabled") {
+        Salix::DialogBox dialog("Save4147", "Save", Salix::DialogType::File, false);
+        dialog.set_overwrite(true);
+        dialog.set_overwrite(true);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+    }
+
+    TEST_CASE("batch4147 repeated overwrite false remains idempotently disabled") {
+        Salix::DialogBox dialog("Open4147", "Open", Salix::DialogType::File, true);
+        dialog.set_overwrite(false);
+        dialog.set_overwrite(false);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+    }
+
+    TEST_CASE("batch4147 callback remains dormant until caller invokes stored callable") {
+        Salix::DialogBox dialog;
+        int calls = 0;
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++calls; });
+        CHECK(calls == 0);
+        Salix::FileDialogResult result{};
+        dialog.get_callback()(result);
+        CHECK(calls == 1);
+    }
+
+    TEST_CASE("batch4147 clearing callback after invocation removes callable state") {
+        Salix::DialogBox dialog;
+        int calls = 0;
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++calls; });
+        Salix::FileDialogResult result{};
+        dialog.get_callback()(result);
+        REQUIRE(calls == 1);
+        dialog.set_callback(nullptr);
+        CHECK_FALSE(static_cast<bool>(dialog.get_callback()));
+    }
+
+    TEST_CASE("batch4147 mutable config address survives repeated path and filename writes") {
+        Salix::DialogBox dialog;
+        auto* config = &dialog.get_config();
+        dialog.set_default_path("A").set_default_file_name("one.txt");
+        dialog.set_default_path("B").set_default_file_name("two.txt");
+        CHECK(&dialog.get_config() == config);
+        CHECK(config->path == "B");
+        CHECK(config->fileName == "two.txt");
+    }
+
+    TEST_CASE("batch4147 whitespace path is preserved exactly in public and config storage") {
+        Salix::DialogBox dialog;
+        const std::string path = "  Folder 4147  ";
+        dialog.set_default_path(path);
+        CHECK(dialog.get_default_path() == path);
+        CHECK(dialog.get_config().path == path);
+    }
+
+    TEST_CASE("batch4147 multiline filename metadata is stored without normalization") {
+        Salix::DialogBox dialog;
+        const std::string filename = "first\nsecond4147.txt";
+        dialog.set_default_file_name(filename);
+        CHECK(dialog.get_default_filename() == filename);
+        CHECK(dialog.get_config().fileName == filename);
+    }
+
+    TEST_CASE("batch4147 folder filter changes never alter folder identity") {
+        Salix::DialogBox dialog("Folder4147", "Folder", Salix::DialogType::Folder, false);
+        dialog.set_filters(".png").set_filters(".realm");
+        CHECK(dialog.get_type() == Salix::DialogType::Folder);
+        CHECK(dialog.get_filters() == ".realm");
+        CHECK(dialog.get_key() == "Folder4147");
+    }
+
+    TEST_CASE("batch4147 separate dialogs keep callback and config state isolated") {
+        Salix::DialogBox first("A4147", "A", Salix::DialogType::File, false);
+        Salix::DialogBox second("B4147", "B", Salix::DialogType::File, false);
+        int first_calls = 0, second_calls = 0;
+        first.set_default_path("First").set_callback([&](const Salix::FileDialogResult&) { ++first_calls; });
+        second.set_default_path("Second").set_callback([&](const Salix::FileDialogResult&) { ++second_calls; });
+        Salix::FileDialogResult result{};
+        first.get_callback()(result);
+        CHECK(first_calls == 1);
+        CHECK(second_calls == 0);
+        CHECK(first.get_config().path == "First");
+        CHECK(second.get_config().path == "Second");
+    }
+}
