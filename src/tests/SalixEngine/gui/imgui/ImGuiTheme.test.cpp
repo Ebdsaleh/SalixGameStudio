@@ -605,3 +605,117 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch3847") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeBatch4447") {
+    TEST_CASE("batch4447 default theme public identity follows YAML supplied name") {
+        Batch1947ThemeFile file;
+        file.write("name: Loaded4447\ngui_type: ImGui\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_name() == "Loaded4447");
+        CHECK(theme.get_data()->name == "Loaded4447");
+    }
+
+    TEST_CASE("batch4447 explicitly named theme keeps registry identity while data takes YAML name") {
+        Batch1947ThemeFile file;
+        file.write("name: YAML4447\ngui_type: ImGui\n");
+        Salix::ImGuiTheme theme("Explicit4447");
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_name() == "Explicit4447");
+        CHECK(theme.get_data()->name == "YAML4447");
+    }
+
+    TEST_CASE("batch4447 explicit name and path constructor keeps name but updates loaded source path") {
+        Batch1947ThemeFile file;
+        file.write("name: Source4447\ngui_type: ImGui\n");
+        Salix::ImGuiTheme theme("Registry4447", "before4447.theme");
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_name() == "Registry4447");
+        CHECK(theme.get_file_path() == file.path.string());
+        CHECK(theme.get_data()->name == "Source4447");
+    }
+
+    TEST_CASE("batch4447 second Icons section replaces rather than merges prior icon map") {
+        Batch1947ThemeFile first;
+        Batch1947ThemeFile second;
+        first.write("name: First4447\nIcons:\n  Entity: entity4447.png\n  Camera: camera4447.png\n");
+        second.write("name: Second4447\nIcons:\n  Transform: transform4447.png\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(first.path.string()));
+        REQUIRE(theme.get_data()->icon_paths.size() == 2);
+        REQUIRE(theme.load_from_yaml(second.path.string()));
+        REQUIRE(theme.get_data()->icon_paths.size() == 1);
+        CHECK(theme.get_data()->icon_paths.at("Transform") == "transform4447.png");
+        CHECK(theme.get_data()->icon_paths.count("Entity") == 0);
+    }
+
+    TEST_CASE("batch4447 omitted Icons section preserves previously loaded icon map") {
+        Batch1947ThemeFile first;
+        Batch1947ThemeFile second;
+        first.write("name: Icons4447\nIcons:\n  Entity: entity4447.png\n");
+        second.write("name: NoIcons4447\nStyleFloats:\n  alpha: 0.4447\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(first.path.string()));
+        REQUIRE(theme.load_from_yaml(second.path.string()));
+        CHECK(theme.get_data()->icon_paths.at("Entity") == "entity4447.png");
+        CHECK(theme.get_data()->alpha == doctest::Approx(0.4447f));
+    }
+
+    TEST_CASE("batch4447 empty Icons map explicitly clears previously loaded icons") {
+        Batch1947ThemeFile first;
+        Batch1947ThemeFile second;
+        first.write("name: Icons4447\nIcons:\n  Entity: entity4447.png\n");
+        second.write("name: ClearIcons4447\nIcons: {}\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(first.path.string()));
+        REQUIRE_FALSE(theme.get_data()->icon_paths.empty());
+        REQUIRE(theme.load_from_yaml(second.path.string()));
+        CHECK(theme.get_data()->icon_paths.empty());
+    }
+
+    TEST_CASE("batch4447 gui type metadata accepts an arbitrary future string verbatim") {
+        Batch1947ThemeFile file;
+        file.write("name: FutureGui4447\ngui_type: FutureGUI-4447\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->gui_type == "FutureGUI-4447");
+    }
+
+    TEST_CASE("batch4447 large but safe font sizes are accepted independently") {
+        Batch1947ThemeFile file;
+        file.write(
+            "name: LargeFonts4447\nFont:\n"
+            "  default_font_size: 512\n"
+            "  font_size: 1024\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->default_font_size == doctest::Approx(512.0f));
+        CHECK(theme.get_data()->font_size == doctest::Approx(1024.0f));
+    }
+
+    TEST_CASE("batch4447 save and reload preserves multiple icon entries") {
+        Batch1947ThemeFile file;
+        Salix::ImGuiTheme source("Source4447");
+        source.get_data()->name = "Saved4447";
+        source.get_data()->icon_paths["Entity"] = "entity4447.png";
+        source.get_data()->icon_paths["Camera"] = "camera4447.png";
+        REQUIRE(source.save_to_yaml(file.path.string()));
+        Salix::ImGuiTheme restored;
+        REQUIRE(restored.load_from_yaml(file.path.string()));
+        REQUIRE(restored.get_data()->icon_paths.size() == 2);
+        CHECK(restored.get_data()->icon_paths.at("Entity") == "entity4447.png");
+        CHECK(restored.get_data()->icon_paths.at("Camera") == "camera4447.png");
+    }
+
+    TEST_CASE("batch4447 save and reload preserves independent style vectors") {
+        Batch1947ThemeFile file;
+        Salix::ImGuiTheme source("Vectors4447");
+        source.get_data()->name = "Vectors4447";
+        source.get_data()->window_padding = Salix::Vector2(4.0f, 47.0f);
+        source.get_data()->item_spacing = Salix::Vector2(-4.0f, 7.0f);
+        REQUIRE(source.save_to_yaml(file.path.string()));
+        Salix::ImGuiTheme restored;
+        REQUIRE(restored.load_from_yaml(file.path.string()));
+        CHECK(restored.get_data()->window_padding == Salix::Vector2(4.0f, 47.0f));
+        CHECK(restored.get_data()->item_spacing == Salix::Vector2(-4.0f, 7.0f));
+    }
+}
