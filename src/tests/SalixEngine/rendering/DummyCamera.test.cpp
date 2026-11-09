@@ -515,3 +515,96 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch4147") {
         CHECK(survivor.get_orthographic_size() == doctest::Approx(7.5f));
     }
 }
+
+TEST_SUITE("Salix::rendering::DummyCameraBatch4547") {
+    TEST_CASE("batch4547 projection mode reference remains stable across repeated calls") {
+        Salix::DummyCamera camera;
+        const auto* first = &camera.get_projection_mode();
+        const auto* second = &camera.get_projection_mode();
+        CHECK(first == second);
+        CHECK(*first == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch4547 negative zero orthographic size preserves sign bit") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-0.0f);
+        const float value = camera.get_orthographic_size();
+        CHECK(value == 0.0f);
+        CHECK(std::signbit(value));
+    }
+
+    TEST_CASE("batch4547 positive infinity orthographic size is stored verbatim") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(std::numeric_limits<float>::infinity());
+        CHECK(std::isinf(camera.get_orthographic_size()));
+        CHECK(camera.get_orthographic_size() > 0.0f);
+    }
+
+    TEST_CASE("batch4547 negative infinity orthographic size is stored verbatim") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-std::numeric_limits<float>::infinity());
+        CHECK(std::isinf(camera.get_orthographic_size()));
+        CHECK(camera.get_orthographic_size() < 0.0f);
+    }
+
+    TEST_CASE("batch4547 NaN orthographic size survives activation transitions") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(std::numeric_limits<float>::quiet_NaN());
+        camera.activate();
+        REQUIRE(camera.get_is_active());
+        CHECK(std::isnan(camera.get_orthographic_size()));
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(std::isnan(camera.get_orthographic_size()));
+    }
+
+    TEST_CASE("batch4547 repeated deactivate calls remain idempotently inactive") {
+        Salix::DummyCamera camera;
+        camera.deactivate();
+        camera.deactivate();
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4547 direct active setter and convenience methods operate on same state") {
+        Salix::DummyCamera camera;
+        camera.set_is_active(true);
+        REQUIRE(camera.get_is_active());
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+        camera.activate();
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4547 matrix references remain stable through nonfinite size assignment") {
+        Salix::DummyCamera camera;
+        const auto* view = &camera.get_view_matrix();
+        const auto* projection = &camera.get_projection_matrix();
+        camera.set_orthographic_size(std::numeric_limits<float>::quiet_NaN());
+        CHECK(&camera.get_view_matrix() == view);
+        CHECK(&camera.get_projection_matrix() == projection);
+        CHECK(*view == glm::mat4(1.0f));
+        CHECK(*projection == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch4547 separate cameras retain opposite activity and infinity size state") {
+        Salix::DummyCamera first, second;
+        first.set_orthographic_size(std::numeric_limits<float>::infinity());
+        second.set_orthographic_size(-std::numeric_limits<float>::infinity());
+        first.activate();
+        second.deactivate();
+        CHECK(first.get_is_active());
+        CHECK_FALSE(second.get_is_active());
+        CHECK(first.get_orthographic_size() > 0.0f);
+        CHECK(second.get_orthographic_size() < 0.0f);
+    }
+
+    TEST_CASE("batch4547 ICamera invalid projection request remains a no op") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_projection_mode(static_cast<Salix::ProjectionMode>(4547));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+}
