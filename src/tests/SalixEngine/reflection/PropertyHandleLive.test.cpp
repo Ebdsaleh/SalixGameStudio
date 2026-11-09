@@ -772,3 +772,131 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch4147") {
+    TEST_CASE("batch4147 contained type metadata pointer is preserved exactly") {
+        Batch1147LiveElement element;
+        Salix::TypeInfo contained;
+        contained.name = "Contained4147";
+        auto property = batch1147_property(
+            "integer4147", Salix::PropertyType::Int,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->integer; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->integer = *static_cast<int*>(value); });
+        property.contained_type_info = &contained;
+        Salix::PropertyHandleLive handle(property, &element);
+        CHECK(handle.get_contained_type_info() == &contained);
+    }
+
+    TEST_CASE("batch4147 existing handle observes external integer storage mutation") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "integer4147external", Salix::PropertyType::Int,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->integer; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->integer = *static_cast<int*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        element.integer = -4147;
+        CHECK(std::get<int>(handle.get_value()) == -4147);
+    }
+
+    TEST_CASE("batch4147 boolean handle supports repeated false true false transitions") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "flag4147", Salix::PropertyType::Bool,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->flag; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->flag = *static_cast<bool*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        handle.set_value(Salix::PropertyValue{false});
+        handle.set_value(Salix::PropertyValue{true});
+        handle.set_value(Salix::PropertyValue{false});
+        CHECK_FALSE(std::get<bool>(handle.get_value()));
+    }
+
+    TEST_CASE("batch4147 EnumClass handle roundtrips signed integer storage") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "enumclass4147", Salix::PropertyType::EnumClass,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->enum_class_value; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->enum_class_value = *static_cast<int*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        handle.set_value(Salix::PropertyValue{-4147});
+        CHECK(element.enum_class_value == -4147);
+        CHECK(std::get<int>(handle.get_value()) == -4147);
+    }
+
+    TEST_CASE("batch4147 Vector2 handle rejects mismatched string write") {
+        Batch1147LiveElement element;
+        const auto before = element.vector2;
+        auto property = batch1147_property(
+            "vector24147", Salix::PropertyType::Vector2,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->vector2; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->vector2 = *static_cast<Salix::Vector2*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        handle.set_value(Salix::PropertyValue{std::string("wrong")});
+        CHECK(element.vector2 == before);
+    }
+
+    TEST_CASE("batch4147 string handle observes external multiline replacement") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "text4147", Salix::PropertyType::String,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->text; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->text = *static_cast<std::string*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        element.text = "line one\nline two 4147";
+        CHECK(std::get<std::string>(handle.get_value()) == element.text);
+    }
+
+    TEST_CASE("batch4147 missing setter leaves live integer untouched") {
+        Batch1147LiveElement element;
+        Salix::Property property;
+        property.name = "readonly4147";
+        property.type = Salix::PropertyType::Int;
+        property.get_data = [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->integer; };
+        Salix::PropertyHandleLive handle(property, &element);
+        const int before = element.integer;
+        handle.set_value(Salix::PropertyValue{4147});
+        CHECK(element.integer == before);
+    }
+
+    TEST_CASE("batch4147 null Color getter safely returns default variant") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "nullcolor4147", Salix::PropertyType::Color,
+            [](void*) -> void* { return nullptr; },
+            {});
+        Salix::PropertyHandleLive handle(property, &element);
+        const auto value = handle.get_value();
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch4147 matrix reads external mutation while matrix setter remains intentionally ignored") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "matrix4147", Salix::PropertyType::GlmMat4,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->matrix; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->matrix = *static_cast<glm::mat4*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        element.matrix[2][1] = 41.47f;
+        CHECK(std::get<glm::mat4>(handle.get_value())[2][1] == doctest::Approx(41.47f));
+        handle.set_value(Salix::PropertyValue{glm::mat4(9.0f)});
+        CHECK(element.matrix[2][1] == doctest::Approx(41.47f));
+    }
+
+    TEST_CASE("batch4147 two handles over same instance update independent properties") {
+        Batch1147LiveElement element;
+        auto int_property = batch1147_property(
+            "i4147", Salix::PropertyType::Int,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->integer; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->integer = *static_cast<int*>(value); });
+        auto float_property = batch1147_property(
+            "f4147", Salix::PropertyType::Float,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->scalar; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->scalar = *static_cast<float*>(value); });
+        Salix::PropertyHandleLive integer(int_property, &element);
+        Salix::PropertyHandleLive scalar(float_property, &element);
+        integer.set_value(Salix::PropertyValue{4147});
+        scalar.set_value(Salix::PropertyValue{-4.147f});
+        CHECK(std::get<int>(integer.get_value()) == 4147);
+        CHECK(std::get<float>(scalar.get_value()) == doctest::Approx(-4.147f));
+    }
+}
