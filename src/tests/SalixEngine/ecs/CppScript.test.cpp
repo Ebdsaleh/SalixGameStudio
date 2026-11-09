@@ -269,3 +269,99 @@ TEST_SUITE("Salix::ecs::CppScriptBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CppScriptBatch4047") {
+    TEST_CASE("batch4047 fresh script starts visible ownerless with valid identifier") {
+        Salix::CppScript script;
+        CHECK(script.get_owner() == nullptr);
+        CHECK(script.is_visible());
+        CHECK(script.get_id().is_valid());
+        CHECK(script.get_script_name().empty());
+    }
+
+    TEST_CASE("batch4047 runtime name storage address stays stable across clear and rewrite") {
+        Salix::CppScript script;
+        const auto* storage = &script.get_script_name();
+        script.set_script_name("First4047");
+        CHECK(&script.get_script_name() == storage);
+        script.set_script_name("");
+        CHECK(&script.get_script_name() == storage);
+        script.set_script_name("Second4047");
+        CHECK(&script.get_script_name() == storage);
+        CHECK(*storage == "Second4047");
+    }
+
+    TEST_CASE("batch4047 embedded null runtime name remains complete owned string") {
+        Salix::CppScript script;
+        const std::string value("Batch\0Script4047", 16);
+        script.set_script_name(value);
+        CHECK(script.get_script_name() == value);
+        CHECK(script.get_script_name().size() == value.size());
+    }
+
+    TEST_CASE("batch4047 path like runtime name remains unnormalized") {
+        Salix::CppScript script;
+        script.set_script_name("Scripts/Gameplay\\Player4047.cpp");
+        CHECK(script.get_script_name() == "Scripts/Gameplay\\Player4047.cpp");
+    }
+
+    TEST_CASE("batch4047 element identifier replacement never changes runtime script name") {
+        Salix::CppScript script;
+        script.set_script_name("Runtime4047");
+        script.set_id(Salix::SimpleGuid::from_value(4047003ULL));
+        CHECK(script.get_id().get_value() == 4047003ULL);
+        CHECK(script.get_script_name() == "Runtime4047");
+    }
+
+    TEST_CASE("batch4047 customized display name remains independent from runtime name") {
+        Salix::CppScript script;
+        script.set_name("Editor Label 4047");
+        script.set_script_name("RuntimeName4047");
+        CHECK(script.get_name() == "Editor Label 4047");
+        CHECK(script.get_script_name() == "RuntimeName4047");
+        CHECK(std::string(script.get_class_name()) == "CppScript");
+    }
+
+    TEST_CASE("batch4047 repeated visibility changes never alter runtime name") {
+        Salix::CppScript script;
+        script.set_script_name("Visible4047");
+        script.set_visibility(false);
+        script.set_visibility(true);
+        script.set_visibility(false);
+        CHECK_FALSE(script.is_visible());
+        CHECK(script.get_script_name() == "Visible4047");
+    }
+
+    TEST_CASE("batch4047 owner attach detach cycle never alters runtime metadata") {
+        Salix::Entity owner;
+        Salix::CppScript script;
+        script.set_script_name("Owner4047");
+        script.set_owner(&owner);
+        REQUIRE(script.get_owner() == &owner);
+        script.set_owner(nullptr);
+        CHECK(script.get_owner() == nullptr);
+        CHECK(script.get_script_name() == "Owner4047");
+    }
+
+    TEST_CASE("batch4047 lifecycle sequence preserves display and runtime identities") {
+        Salix::CppScript script;
+        script.set_name("Display4047");
+        script.set_script_name("Lifecycle4047");
+        const auto id = script.get_id();
+        script.initialize();
+        script.update(0.0f);
+        script.update(-4047.0f);
+        script.shutdown();
+        CHECK(script.get_name() == "Display4047");
+        CHECK(script.get_script_name() == "Lifecycle4047");
+        CHECK(script.get_id() == id);
+    }
+
+    TEST_CASE("batch4047 two scripts keep completely independent runtime names") {
+        Salix::CppScript first, second;
+        first.set_script_name("First4047");
+        second.set_script_name("Second4047");
+        first.set_script_name("FirstUpdated4047");
+        CHECK(first.get_script_name() == "FirstUpdated4047");
+        CHECK(second.get_script_name() == "Second4047");
+    }
+}
