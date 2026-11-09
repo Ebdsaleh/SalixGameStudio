@@ -582,3 +582,122 @@ TEST_SUITE("Salix::assets::AssetManagerBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::assets::AssetManagerBatch4047") {
+    TEST_CASE("batch4047 repeated initialize with same renderer preserves existing cache") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* texture = assets.get_texture("assets/batch4047/repeat.png");
+        REQUIRE(texture != nullptr);
+        assets.initialize(&renderer);
+        CHECK(assets.get_texture("assets/batch4047/repeat.png") == texture);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4047 complex lexical aliases collapse to one cached entry") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* texture = assets.get_texture("assets/batch4047/ui/icon.png");
+        REQUIRE(texture != nullptr);
+        CHECK(assets.get_texture("assets/batch4047/ui/./icon.png") == texture);
+        CHECK(assets.get_texture("assets/batch4047/temp/../ui/icon.png") == texture);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4047 two cached entries both survive renderer replacement") {
+        CountingAssetRenderer first, second;
+        Salix::AssetManager assets;
+        assets.initialize(&first);
+        auto* a = assets.get_texture("assets/batch4047/a.png");
+        auto* b = assets.get_texture("assets/batch4047/b.png");
+        REQUIRE(a != nullptr); REQUIRE(b != nullptr);
+        assets.initialize(&second);
+        CHECK(assets.get_texture("assets/batch4047/a.png") == a);
+        CHECK(assets.get_texture("assets/batch4047/b.png") == b);
+        CHECK(first.calls == 2);
+        CHECK(second.calls == 0);
+    }
+
+    TEST_CASE("batch4047 renderer replacement handles only newly requested key") {
+        CountingAssetRenderer first, second;
+        Salix::AssetManager assets;
+        assets.initialize(&first);
+        REQUIRE(assets.get_texture("assets/batch4047/old.png") != nullptr);
+        assets.initialize(&second);
+        REQUIRE(assets.get_texture("assets/batch4047/new.png") != nullptr);
+        CHECK(first.calls == 1);
+        CHECK(second.calls == 1);
+    }
+
+    TEST_CASE("batch4047 clearing renderer leaves multiple cached entries readable") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* a = assets.get_texture("assets/batch4047/cached-a.png");
+        auto* b = assets.get_texture("assets/batch4047/cached-b.png");
+        REQUIRE(a != nullptr); REQUIRE(b != nullptr);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("assets/batch4047/cached-a.png") == a);
+        CHECK(assets.get_texture("assets/batch4047/cached-b.png") == b);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch4047 uncached request during null renderer does not poison later recovery") {
+        Salix::AssetManager assets;
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("assets/batch4047/recover.png") == nullptr);
+        CountingAssetRenderer renderer;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("assets/batch4047/recover.png") != nullptr);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4047 failed key does not disturb a separately cached successful key") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* cached = assets.get_texture("assets/batch4047/good.png");
+        REQUIRE(cached != nullptr);
+        renderer.should_texture_load_fail = true;
+        CHECK(assets.get_texture("assets/batch4047/bad.png") == nullptr);
+        CHECK(assets.get_texture("assets/batch4047/good.png") == cached);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch4047 shutdown forces every previous cache key through renderer again") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("assets/batch4047/one.png") != nullptr);
+        REQUIRE(assets.get_texture("assets/batch4047/two.png") != nullptr);
+        CHECK(renderer.calls == 2);
+        assets.shutdown();
+        REQUIRE(assets.get_texture("assets/batch4047/one.png") != nullptr);
+        REQUIRE(assets.get_texture("assets/batch4047/two.png") != nullptr);
+        CHECK(renderer.calls == 4);
+    }
+
+    TEST_CASE("batch4047 shutdown while renderer is null leaves subsequent request safely null") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("assets/batch4047/null-after-shutdown.png") != nullptr);
+        assets.initialize(nullptr);
+        assets.shutdown();
+        CHECK(assets.get_texture("assets/batch4047/null-after-shutdown.png") == nullptr);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4047 separate managers never share aliases of the same logical asset") {
+        CountingAssetRenderer renderer;
+        Salix::AssetManager first, second;
+        first.initialize(&renderer);
+        second.initialize(&renderer);
+        auto* a = first.get_texture("assets/batch4047/shared.png");
+        auto* b = second.get_texture("assets/batch4047/./shared.png");
+        REQUIRE(a != nullptr); REQUIRE(b != nullptr);
+        CHECK(a != b);
+        CHECK(renderer.calls == 2);
+    }
+}
