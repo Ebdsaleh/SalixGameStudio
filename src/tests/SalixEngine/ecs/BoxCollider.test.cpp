@@ -660,3 +660,115 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::ecs::BoxColliderBatch4047") {
+    TEST_CASE("batch4047 fresh collider starts visible ownerless and unit sized") {
+        Salix::BoxCollider collider;
+        CHECK(collider.get_owner() == nullptr);
+        CHECK(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3::One);
+    }
+
+    TEST_CASE("batch4047 assigning canonical zero size preserves class and display identity") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3::Zero);
+        CHECK(collider.get_size() == Salix::Vector3::Zero);
+        CHECK(std::string(collider.get_class_name()) == "BoxCollider");
+        CHECK(collider.get_name() == "BoxCollider");
+    }
+
+    TEST_CASE("batch4047 identifier replacement leaves customized name and size untouched") {
+        Salix::BoxCollider collider;
+        collider.set_name("Collider4047");
+        collider.set_size({4.0f, 0.0f, -7.0f});
+        collider.set_id(Salix::SimpleGuid::from_value(4047001ULL));
+        CHECK(collider.get_id().get_value() == 4047001ULL);
+        CHECK(collider.get_name() == "Collider4047");
+        CHECK(collider.get_size() == Salix::Vector3(4.0f, 0.0f, -7.0f));
+    }
+
+    TEST_CASE("batch4047 owner attach detach cycle preserves geometry and visibility") {
+        Salix::Entity owner;
+        Salix::BoxCollider collider;
+        collider.set_size({2.0f, 3.0f, 5.0f});
+        collider.set_visibility(false);
+        collider.set_owner(&owner);
+        collider.set_owner(nullptr);
+        CHECK(collider.get_owner() == nullptr);
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(2.0f, 3.0f, 5.0f));
+    }
+
+    TEST_CASE("batch4047 repeated lifecycle calls preserve stable size storage") {
+        Salix::BoxCollider collider;
+        Salix::InitContext context{};
+        const auto* storage = &collider.get_size();
+        collider.set_size({1.25f, -2.5f, 10.0f});
+        collider.initialize();
+        collider.on_load(context);
+        collider.update(0.0f);
+        collider.update(-1.0f);
+        CHECK(&collider.get_size() == storage);
+        CHECK(*storage == Salix::Vector3(1.25f, -2.5f, 10.0f));
+    }
+
+    TEST_CASE("batch4047 repeated visibility toggles never change collider geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({9.0f, 8.0f, 7.0f});
+        collider.set_visibility(false);
+        collider.set_visibility(true);
+        collider.set_visibility(false);
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(9.0f, 8.0f, 7.0f));
+    }
+
+    TEST_CASE("batch4047 JSON roundtrip preserves invalid identifier and zero geometry") {
+        Salix::BoxCollider source;
+        source.set_id(Salix::SimpleGuid::invalid());
+        source.set_name("Json4047");
+        source.set_size(Salix::Vector3::Zero);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK_FALSE(restored.get_id().is_valid());
+        CHECK(restored.get_name() == "Json4047");
+        CHECK(restored.get_size() == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch4047 JSON roundtrip replaces destination metadata and geometry") {
+        Salix::BoxCollider source;
+        source.set_id(Salix::SimpleGuid::from_value(4047002ULL));
+        source.set_name("Source4047");
+        source.set_size({-0.5f, 4.0f, 32.0f});
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        restored.set_id(Salix::SimpleGuid::from_value(1));
+        restored.set_name("Destination");
+        restored.set_size({99.0f, 99.0f, 99.0f});
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_id() == source.get_id());
+        CHECK(restored.get_name() == source.get_name());
+        CHECK(restored.get_size() == source.get_size());
+    }
+
+    TEST_CASE("batch4047 two colliders maintain independent display names and geometry") {
+        Salix::BoxCollider first, second;
+        first.set_name("First4047");
+        second.set_name("Second4047");
+        first.set_size({1.0f, 2.0f, 3.0f});
+        second.set_size({4.0f, 5.0f, 6.0f});
+        CHECK(first.get_name() == "First4047");
+        CHECK(second.get_name() == "Second4047");
+        CHECK(first.get_size() != second.get_size());
+    }
+
+    TEST_CASE("batch4047 fresh colliders receive independent valid element identifiers") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::BoxCollider first;
+        Salix::BoxCollider second;
+        CHECK(first.get_id().is_valid());
+        CHECK(second.get_id().is_valid());
+        CHECK(first.get_id() != second.get_id());
+    }
+}
