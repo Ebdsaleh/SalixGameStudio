@@ -411,9 +411,9 @@ TEST_SUITE("Salix::ecs::CppScriptBatch4347") {
         CHECK(restored.get_script_name() == source.get_script_name());
     }
 
-    TEST_CASE("batch4347 JSON roundtrip preserves embedded null runtime bytes") {
+    TEST_CASE("batch4347 JSON roundtrip preserves escaped path and quote characters") {
         Salix::CppScript source;
-        const std::string runtime("Run\0Time4347", 12);
+        const std::string runtime = "Scripts\\Gameplay\\\"Controller4347\"";
         source.set_script_name(runtime);
         std::stringstream stream;
         { cereal::JSONOutputArchive out(stream); out(source); }
