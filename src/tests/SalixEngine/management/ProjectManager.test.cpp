@@ -562,3 +562,112 @@ TEST_SUITE("Salix::management::ProjectManagerBatch3847") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectManagerBatch4447") {
+    TEST_CASE("batch4447 project to load setter copies caller storage") {
+        Salix::ProjectManager manager;
+        std::string value = "Root/Project4447.salixproj";
+        manager.set_project_to_load(value);
+        value = "MutatedCaller";
+        CHECK(manager.get_project_to_load() == "Root/Project4447.salixproj");
+    }
+
+    TEST_CASE("batch4447 loaded project directory setter copies caller storage") {
+        Salix::ProjectManager manager;
+        std::string value = "Root/Directory4447";
+        manager.set_loaded_project_directory(value);
+        value.clear();
+        CHECK(manager.get_loaded_project_directory() == "Root/Directory4447");
+    }
+
+    TEST_CASE("batch4447 selection metadata preserves whitespace and control characters") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("\t Project 4447.salixproj \n");
+        manager.set_loaded_project_directory(" Root 4447 ");
+        CHECK(manager.get_project_to_load() == "\t Project 4447.salixproj \n");
+        CHECK(manager.get_loaded_project_directory() == " Root 4447 ");
+    }
+
+    TEST_CASE("batch4447 placeholder active pointer remains stable through update and render") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Placeholder4447");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        manager.update(0.0f);
+        manager.update(-4447.0f);
+        manager.render(nullptr);
+        CHECK(manager.get_active_project() == active);
+    }
+
+    TEST_CASE("batch4447 repeated initialize preserves selection metadata and placeholder ownership") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Selected4447.salixproj");
+        manager.set_loaded_project_directory("SelectedRoot4447");
+        manager.set_active_project("Active4447");
+        auto* active = manager.get_active_project();
+        Salix::InitContext context{};
+        manager.initialize(context);
+        manager.initialize(context);
+        CHECK(manager.get_project_to_load() == "Selected4447.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "SelectedRoot4447");
+        CHECK(manager.get_active_project() == active);
+    }
+
+    TEST_CASE("batch4447 shutdown after active placeholder preserves selection metadata") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending4447.salixproj");
+        manager.set_loaded_project_directory("PendingRoot4447");
+        manager.set_active_project("Active4447");
+        REQUIRE(manager.get_active_project() != nullptr);
+        manager.shutdown();
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(manager.get_project_to_load() == "Pending4447.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "PendingRoot4447");
+    }
+
+    TEST_CASE("batch4447 replacing placeholder resets prior persistent project mutations") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("First4447");
+        REQUIRE(manager.get_active_project() != nullptr);
+        manager.get_active_project()->set_starting_realm("Mutated4447");
+        manager.get_active_project()->add_realm_path("Mutated4447", "Mutated4447.realm");
+        manager.set_active_project("Second4447");
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_active_project()->get_starting_realm().empty());
+        CHECK(manager.get_active_project()->get_realm_paths().empty());
+    }
+
+    TEST_CASE("batch4447 separate managers own independent placeholder projects") {
+        Salix::ProjectManager first;
+        Salix::ProjectManager second;
+        first.set_active_project("First4447");
+        second.set_active_project("Second4447");
+        REQUIRE(first.get_active_project() != nullptr);
+        REQUIRE(second.get_active_project() != nullptr);
+        CHECK(first.get_active_project() != second.get_active_project());
+        first.get_active_project()->set_starting_realm("OnlyFirst4447");
+        CHECK(second.get_active_project()->get_starting_realm().empty());
+    }
+
+    TEST_CASE("batch4447 project creation accepts dot hyphen and underscore name") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        const std::string name = "Game-4447_v2.1";
+        REQUIRE(manager.create_new_project(root.path.string(), name));
+        const auto project = root.path / name;
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Realms"));
+        CHECK(std::filesystem::is_regular_file(project / (name + ".salixproj")));
+    }
+
+    TEST_CASE("batch4447 recreating project preserves unrelated user file under project tree") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(root.path.string(), "Preserve4447"));
+        const auto custom = root.path / "Preserve4447" / "Assets" / "custom-user-file.txt";
+        { std::ofstream out(custom); out << "user-content-4447"; }
+        REQUIRE(manager.create_new_project(root.path.string(), "Preserve4447"));
+        REQUIRE(std::filesystem::is_regular_file(custom));
+        std::ifstream in(custom);
+        std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CHECK(text == "user-content-4447");
+    }
+}
