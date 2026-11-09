@@ -584,3 +584,85 @@ TEST_SUITE("Salix::core::LoggingBatch4047") {
         CHECK(text.find(__FILE__) == std::string::npos);
     }
 }
+
+TEST_SUITE("Salix::core::LoggingBatch4347") {
+    TEST_CASE("batch4347 info record preserves UTF8 payload bytes") {
+        std::stringstream output; CerrRedirect redirect(output);
+        const std::string payload = u8"héllo_控制_4347";
+        Salix::LogMessage(Salix::LogLevel::INFO, payload, "ignored.cpp", 1);
+        CHECK(output.str().find(payload) != std::string::npos);
+    }
+
+    TEST_CASE("batch4347 warning record preserves trailing spaces before newline") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::WARNING, "payload4347   ", "ignored.cpp", 2);
+        CHECK(output.str().find("[WARN] payload4347   \n") != std::string::npos);
+    }
+
+    TEST_CASE("batch4347 error source filename containing spaces is emitted verbatim") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "error4347", "Folder Name/File 4347.cpp", 4347);
+        CHECK(output.str().find("[Folder Name/File 4347.cpp:4347] error4347") != std::string::npos);
+    }
+
+    TEST_CASE("batch4347 debug source accepts negative diagnostic line number") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "debug4347", "Diag.cpp", -47);
+        CHECK(output.str().find("[Diag.cpp:-47] debug4347") != std::string::npos);
+    }
+
+    TEST_CASE("batch4347 unknown negative severity emits blank severity label without source") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(static_cast<Salix::LogLevel>(-1), "unknown4347", "Hidden.cpp", 99);
+        CHECK(output.str().find("[] unknown4347") != std::string::npos);
+        CHECK(output.str().find("Hidden.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch4347 embedded null bytes in payload are preserved by stream insertion") {
+        std::stringstream output; CerrRedirect redirect(output);
+        const std::string payload("A\0B4347", 7);
+        Salix::LogMessage(Salix::LogLevel::INFO, payload, "ignored.cpp", 1);
+        const auto text = output.str();
+        CHECK(text.find(payload) != std::string::npos);
+    }
+
+    TEST_CASE("batch4347 carriage return in payload is preserved verbatim") {
+        std::stringstream output; CerrRedirect redirect(output);
+        const std::string payload = "left\rright4347";
+        Salix::LogMessage(Salix::LogLevel::INFO, payload, "ignored.cpp", 1);
+        CHECK(output.str().find(payload) != std::string::npos);
+    }
+
+    TEST_CASE("batch4347 sequential records preserve call order across severities") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "first4347", "A.cpp", 1);
+        Salix::LogMessage(Salix::LogLevel::INFO, "second4347", "B.cpp", 2);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "third4347", "C.cpp", 3);
+        const auto text = output.str();
+        const auto a = text.find("first4347");
+        const auto b = text.find("second4347");
+        const auto c = text.find("third4347");
+        REQUIRE(a != std::string::npos); REQUIRE(b != std::string::npos); REQUIRE(c != std::string::npos);
+        CHECK(a < b); CHECK(b < c);
+    }
+
+    TEST_CASE("batch4347 info and warning never expose supplied line numbers") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "info4347", "Info4347.cpp", 111111);
+        Salix::LogMessage(Salix::LogLevel::WARNING, "warn4347", "Warn4347.cpp", 222222);
+        const auto text = output.str();
+        CHECK(text.find("Info4347.cpp") == std::string::npos);
+        CHECK(text.find("Warn4347.cpp") == std::string::npos);
+        CHECK(text.find("111111") == std::string::npos);
+        CHECK(text.find("222222") == std::string::npos);
+    }
+
+    TEST_CASE("batch4347 empty debug payload still includes source and completes one record") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "", "Empty4347.cpp", 7);
+        const auto text = output.str();
+        CHECK(text.find("[DEBUG] [Empty4347.cpp:7] ") != std::string::npos);
+        CHECK(!text.empty());
+        CHECK(text.back() == '\n');
+    }
+}
