@@ -708,3 +708,90 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch4147") {
         CHECK(node["Keep4147"].as<std::string>() == "stable");
     }
 }
+
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch4547") {
+    TEST_CASE("batch4547 integer handle preserves signed minimum value") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Int4547", Salix::PropertyType::Int), &node);
+        handle.set_value(Salix::PropertyValue{(std::numeric_limits<int>::min)()});
+        CHECK(node["Int4547"].as<int>() == (std::numeric_limits<int>::min)());
+        CHECK(std::get<int>(handle.get_value()) == (std::numeric_limits<int>::min)());
+    }
+
+    TEST_CASE("batch4547 float handle preserves ordinary negative fractional value") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Float4547", Salix::PropertyType::Float), &node);
+        handle.set_value(Salix::PropertyValue{-45.47f});
+        CHECK(node["Float4547"].as<float>() == doctest::Approx(-45.47f));
+        CHECK(std::get<float>(handle.get_value()) == doctest::Approx(-45.47f));
+    }
+
+    TEST_CASE("batch4547 Vector2 handle preserves signed component values") {
+        YAML::Node node;
+        const Salix::Vector2 value(-4547.0f, 0.4547f);
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Vector24547", Salix::PropertyType::Vector2), &node);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Vector2>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch4547 Color handle roundtrips all four finite channels") {
+        YAML::Node node;
+        const Salix::Color value(0.45f, 0.47f, -0.25f, 1.25f);
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Color4547", Salix::PropertyType::Color), &node);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Color>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch4547 Rect handle ignores mismatched string write") {
+        YAML::Node node;
+        const Salix::Rect original(-4, 5, 47, 54);
+        node["Rect4547"] = original;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Rect4547", Salix::PropertyType::Rect), &node);
+        handle.set_value(Salix::PropertyValue{std::string("wrong4547")});
+        CHECK(std::get<Salix::Rect>(handle.get_value()) == original);
+    }
+
+    TEST_CASE("batch4547 Enum handle stores signed integer directly") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Enum4547", Salix::PropertyType::Enum), &node);
+        handle.set_value(Salix::PropertyValue{-4547});
+        CHECK(node["Enum4547"].as<int>() == -4547);
+        CHECK(std::get<int>(handle.get_value()) == -4547);
+    }
+
+    TEST_CASE("batch4547 existing boolean handle observes external YAML mutation") {
+        YAML::Node node;
+        node["Flag4547"] = false;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Flag4547", Salix::PropertyType::Bool), &node);
+        REQUIRE_FALSE(std::get<bool>(handle.get_value()));
+        node["Flag4547"] = true;
+        CHECK(std::get<bool>(handle.get_value()));
+    }
+
+    TEST_CASE("batch4547 matrix handle ignores mismatched integer write and preserves matrix") {
+        YAML::Node node;
+        glm::mat4 original(1.0f);
+        original[1][3] = 45.47f;
+        node["Matrix4547"] = original;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Matrix4547", Salix::PropertyType::GlmMat4), &node);
+        handle.set_value(Salix::PropertyValue{4547});
+        const auto restored = std::get<glm::mat4>(handle.get_value());
+        CHECK(restored[1][3] == doctest::Approx(45.47f));
+    }
+
+    TEST_CASE("batch4547 ordinary property exposes null contained type metadata") {
+        YAML::Node node;
+        auto property = batch1047_yaml_property("Plain4547", Salix::PropertyType::String);
+        Salix::PropertyHandleYaml handle(property, &node);
+        CHECK(handle.get_contained_type_info() == nullptr);
+    }
+
+    TEST_CASE("batch4547 null YAML node safely ignores a string write and returns default variant") {
+        auto property = batch1047_yaml_property("Null4547", Salix::PropertyType::String);
+        Salix::PropertyHandleYaml handle(property, nullptr);
+        CHECK_NOTHROW(handle.set_value(Salix::PropertyValue{std::string("value4547")}));
+        const auto value = handle.get_value();
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+}
