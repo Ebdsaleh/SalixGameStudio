@@ -1188,3 +1188,120 @@ TEST_SUITE("Salix::ecs::EntityBatch4047") {
         CHECK(entity.get_all_elements().size() == owned_count);
     }
 }
+
+TEST_SUITE("Salix::ecs::EntityBatch4347") {
+    TEST_CASE("batch4347 fresh mutable and const element snapshots preserve mandatory insertion order") {
+        Salix::Entity entity;
+        const auto mutable_elements = entity.get_all_elements();
+        const Salix::Entity& view = entity;
+        const auto const_elements = view.get_all_elements();
+        REQUIRE(mutable_elements.size() == 2);
+        REQUIRE(const_elements.size() == 2);
+        CHECK(std::string(mutable_elements[0]->get_class_name()) == "Transform");
+        CHECK(std::string(mutable_elements[1]->get_class_name()) == "BoxCollider");
+        CHECK(mutable_elements[0] == const_elements[0]);
+        CHECK(mutable_elements[1] == const_elements[1]);
+    }
+
+    TEST_CASE("batch4347 renaming transform changes display lookup but not type lookup") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        REQUIRE(transform != nullptr);
+        transform->set_name("PrimaryTransform4347");
+        CHECK(entity.get_element_by_name("PrimaryTransform4347") == transform);
+        CHECK(entity.get_element_by_name("Transform") == nullptr);
+        CHECK(entity.get_element_by_type_name("Transform") == transform);
+    }
+
+    TEST_CASE("batch4347 two sprites remain discoverable by exact runtime type after independent renames") {
+        Salix::Entity entity;
+        auto* first = entity.add_element<Salix::Sprite2D>();
+        auto* second = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(first != nullptr); REQUIRE(second != nullptr);
+        first->set_name("FirstSprite4347");
+        second->set_name("SecondSprite4347");
+        const auto sprites = entity.get_elements_by_type_name("Sprite2D");
+        REQUIRE(sprites.size() == 2);
+        CHECK(sprites[0] == first);
+        CHECK(sprites[1] == second);
+    }
+
+    TEST_CASE("batch4347 element identifier lookup survives entity name and visibility changes") {
+        Salix::Entity entity;
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        REQUIRE(collider != nullptr);
+        const auto collider_id = collider->get_id();
+        entity.set_name("Entity4347");
+        entity.set_visible(false);
+        CHECK(entity.get_element_by_id(collider_id) == collider);
+    }
+
+    TEST_CASE("batch4347 entity identifier replacement preserves mandatory element count and pointers") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        const auto count = entity.get_all_elements().size();
+        entity.set_id(Salix::SimpleGuid::from_value(43474347ULL));
+        CHECK(entity.get_id().get_value() == 43474347ULL);
+        CHECK(entity.get_all_elements().size() == count);
+        CHECK(entity.get_transform() == transform);
+        CHECK(entity.get_element<Salix::BoxCollider>() == collider);
+    }
+
+    TEST_CASE("batch4347 unique sprite adoption transfers ownership exactly once") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements().size();
+        auto sprite = std::make_unique<Salix::Sprite2D>();
+        auto* raw = sprite.get();
+        entity.add_element(std::move(sprite));
+        CHECK(raw->get_owner() == &entity);
+        CHECK(entity.get_all_elements().size() == before + 1);
+        CHECK(entity.get_element<Salix::Sprite2D>() == raw);
+    }
+
+    TEST_CASE("batch4347 simple purge keeps owned snapshot intact while blocking typed access") {
+        Salix::Entity entity;
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        REQUIRE(collider != nullptr);
+        const auto count = entity.get_all_elements().size();
+        entity.simple_purge();
+        CHECK(entity.is_purged());
+        CHECK(entity.get_element<Salix::BoxCollider>() == collider);
+        CHECK(entity.get_element_by_type_name("BoxCollider") == nullptr);
+        CHECK(entity.get_all_elements().size() == count);
+    }
+
+    TEST_CASE("batch4347 simple purge prevents renderable dispatch without deleting renderable element") {
+        Salix::Entity entity;
+        auto* probe = entity.add_element<MockRenderableElement>();
+        REQUIRE(probe != nullptr);
+        entity.simple_purge();
+        entity.render(nullptr);
+        CHECK(probe->render_call_count == 0);
+        CHECK(entity.get_all_elements().size() == 3);
+    }
+
+    TEST_CASE("batch4347 visibility toggles preserve entity identifier and owned components") {
+        Salix::Entity entity;
+        const auto id = entity.get_id();
+        auto* transform = entity.get_transform();
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        entity.set_visible(false);
+        entity.set_visible(true);
+        entity.set_visible(false);
+        CHECK_FALSE(entity.is_visible());
+        CHECK(entity.get_id() == id);
+        CHECK(entity.get_transform() == transform);
+        CHECK(entity.get_element<Salix::BoxCollider>() == collider);
+    }
+
+    TEST_CASE("batch4347 missing element id lookup does not mutate owned snapshot") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements();
+        CHECK(entity.get_element_by_id(Salix::SimpleGuid::from_value(9999994347ULL)) == nullptr);
+        const auto after = entity.get_all_elements();
+        REQUIRE(after.size() == before.size());
+        CHECK(after[0] == before[0]);
+        CHECK(after[1] == before[1]);
+    }
+}
