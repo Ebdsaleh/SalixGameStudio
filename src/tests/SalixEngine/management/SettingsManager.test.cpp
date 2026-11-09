@@ -1011,3 +1011,119 @@ TEST_SUITE("Salix::management::SettingsManagerBatch3847") {
     }
 }
 
+TEST_SUITE("Salix::management::SettingsManagerBatch4447") {
+    TEST_CASE("batch4447 partial Window height updates only height") {
+        Batch3447SettingsFiles files("Batch4447_WindowHeight");
+        files.write_yaml("Window:\n  height: 1447\n");
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Keep4447";
+        config.window_config.width = 944;
+        config.window_config.height = 1;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "Keep4447");
+        CHECK(config.window_config.width == 944);
+        CHECK(config.window_config.height == 1447);
+    }
+
+    TEST_CASE("batch4447 unknown application state leaves caller value unchanged") {
+        Batch3447SettingsFiles files("Batch4447_UnknownState");
+        files.write_yaml("Engine:\n  initial_state: FutureState4447\n");
+        Salix::ApplicationConfig config;
+        config.initial_state = Salix::AppStateType::Game;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.initial_state == Salix::AppStateType::Game);
+    }
+
+    TEST_CASE("batch4447 unknown renderer type leaves caller value unchanged") {
+        Batch3447SettingsFiles files("Batch4447_UnknownRenderer");
+        files.write_yaml("Renderer:\n  type: FutureRenderer4447\n");
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+    }
+
+    TEST_CASE("batch4447 unknown timer type leaves caller value unchanged") {
+        Batch3447SettingsFiles files("Batch4447_UnknownTimer");
+        files.write_yaml("Timer:\n  type: FutureTimer4447\n");
+        Salix::ApplicationConfig config;
+        config.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch4447 unknown GUI type leaves caller value unchanged") {
+        Batch3447SettingsFiles files("Batch4447_UnknownGui");
+        files.write_yaml("GUI:\n  type: FutureGui4447\n");
+        Salix::ApplicationConfig config;
+        config.gui_type = Salix::GuiType::ImGui;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.gui_type == Salix::GuiType::ImGui);
+    }
+
+    TEST_CASE("batch4447 save and load preserves quoted slash rich window title") {
+        Batch3447SettingsFiles files("Batch4447_TitleEscapes");
+        Salix::ApplicationConfig source;
+        source.window_config.title = "Salix \"4447\" \\\\ Test";
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.title == source.window_config.title);
+    }
+
+    TEST_CASE("batch4447 save and load preserves negative target FPS") {
+        Batch3447SettingsFiles files("Batch4447_NegativeFps");
+        Salix::ApplicationConfig source;
+        source.target_fps = -4447;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.target_fps == -4447);
+    }
+
+    TEST_CASE("batch4447 save and load preserves zero window dimensions") {
+        Batch3447SettingsFiles files("Batch4447_ZeroWindow");
+        Salix::ApplicationConfig source;
+        source.window_config.width = 0;
+        source.window_config.height = 0;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.width == 0);
+        CHECK(loaded.window_config.height == 0);
+    }
+
+    TEST_CASE("batch4447 deleting generated cache forces source YAML to recreate it") {
+        Batch3447SettingsFiles files("Batch4447_RecreateCache");
+        files.write_yaml("Engine:\n  target_fps: 447\n");
+        Salix::SettingsManager manager;
+        Salix::ApplicationConfig first;
+        REQUIRE(manager.load_settings(files.yaml.string(), first));
+        REQUIRE(std::filesystem::is_regular_file(files.cache));
+        std::filesystem::remove(files.cache);
+        Salix::ApplicationConfig second;
+        second.target_fps = 1;
+        REQUIRE(manager.load_settings(files.yaml.string(), second));
+        CHECK(second.target_fps == 447);
+        CHECK(std::filesystem::is_regular_file(files.cache));
+    }
+
+    TEST_CASE("batch4447 save into missing parent directory fails without creating parent") {
+        Batch3447SettingsFiles files("Batch4447_MissingParent");
+        const auto parent = files.root / "missing" / "nested";
+        const auto target = parent / "settings.yaml";
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        CHECK_FALSE(manager.save_settings(target.string(), config));
+        CHECK_FALSE(std::filesystem::exists(parent));
+        CHECK_FALSE(std::filesystem::exists(target));
+    }
+}
