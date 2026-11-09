@@ -365,3 +365,109 @@ TEST_SUITE("Salix::ecs::CppScriptBatch4047") {
         CHECK(second.get_script_name() == "Second4047");
     }
 }
+
+TEST_SUITE("Salix::ecs::CppScriptBatch4347") {
+    TEST_CASE("batch4347 runtime name setter copies caller storage") {
+        Salix::CppScript script;
+        std::string source = "Controller4347";
+        script.set_script_name(source);
+        source = "MutatedCaller";
+        CHECK(script.get_script_name() == "Controller4347");
+    }
+
+    TEST_CASE("batch4347 runtime name preserves tabs newlines and spaces exactly") {
+        Salix::CppScript script;
+        const std::string value = "\tRuntime 4347\nController ";
+        script.set_script_name(value);
+        CHECK(script.get_script_name() == value);
+    }
+
+    TEST_CASE("batch4347 runtime name and display name can both be empty independently") {
+        Salix::CppScript script;
+        script.set_name("");
+        script.set_script_name("");
+        CHECK(script.get_name().empty());
+        CHECK(script.get_script_name().empty());
+        CHECK(std::string(script.get_class_name()) == "CppScript");
+    }
+
+    TEST_CASE("batch4347 invalid identifier assignment preserves runtime name") {
+        Salix::CppScript script;
+        script.set_script_name("Runtime4347");
+        script.set_id(Salix::SimpleGuid::invalid());
+        CHECK_FALSE(script.get_id().is_valid());
+        CHECK(script.get_script_name() == "Runtime4347");
+    }
+
+    TEST_CASE("batch4347 binary roundtrip preserves custom display and runtime names") {
+        Salix::CppScript source;
+        source.set_name("Display Binary 4347");
+        source.set_script_name("Runtime.Binary.4347");
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name() == source.get_name());
+        CHECK(restored.get_script_name() == source.get_script_name());
+    }
+
+    TEST_CASE("batch4347 JSON roundtrip preserves embedded null runtime bytes") {
+        Salix::CppScript source;
+        const std::string runtime("Run\0Time4347", 12);
+        source.set_script_name(runtime);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_script_name() == runtime);
+        CHECK(restored.get_script_name().size() == runtime.size());
+    }
+
+    TEST_CASE("batch4347 binary deserialization leaves destination owner pointer local") {
+        Salix::CppScript source;
+        source.set_script_name("OwnerLocal4347");
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::Entity owner;
+        Salix::CppScript restored;
+        restored.set_owner(&owner);
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_owner() == &owner);
+        CHECK(restored.get_script_name() == "OwnerLocal4347");
+    }
+
+    TEST_CASE("batch4347 binary deserialization leaves destination visibility local") {
+        Salix::CppScript source;
+        source.set_visibility(true);
+        source.set_script_name("VisibilityLocal4347");
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        restored.set_visibility(false);
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK_FALSE(restored.is_visible());
+        CHECK(restored.get_script_name() == "VisibilityLocal4347");
+    }
+
+    TEST_CASE("batch4347 lifecycle calls preserve explicit invalid identifier") {
+        Salix::CppScript script;
+        script.set_id(Salix::SimpleGuid::invalid());
+        script.set_script_name("Lifecycle4347");
+        script.initialize();
+        script.update(4347.0f);
+        script.shutdown();
+        CHECK_FALSE(script.get_id().is_valid());
+        CHECK(script.get_script_name() == "Lifecycle4347");
+    }
+
+    TEST_CASE("batch4347 separate scripts retain independent backing strings after alternating writes") {
+        Salix::CppScript first, second;
+        first.set_script_name("First4347");
+        second.set_script_name("Second4347");
+        first.set_script_name("FirstUpdated4347");
+        second.set_script_name("SecondUpdated4347");
+        CHECK(first.get_script_name() == "FirstUpdated4347");
+        CHECK(second.get_script_name() == "SecondUpdated4347");
+        CHECK(&first.get_script_name() != &second.get_script_name());
+    }
+}
