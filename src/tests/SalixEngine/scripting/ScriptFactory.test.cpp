@@ -495,3 +495,86 @@ TEST_SUITE("Salix::scripting::ScriptFactoryBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::scripting::ScriptFactoryBatch4147") {
+    TEST_CASE("batch4147 singleton accessor returns the same process wide factory") {
+        CHECK(&Salix::ScriptFactory::get() == &Salix::ScriptFactory::get());
+    }
+
+    TEST_CASE("batch4147 missing unique registration key returns null") {
+        CHECK(Salix::ScriptFactory::get().create_script("Batch4147::missing-never-registered") == nullptr);
+    }
+
+    TEST_CASE("batch4147 registered creator constructs requested concrete script") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4147::A", [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto created = factory.create_script("Batch4147::A");
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(created.get()) != nullptr);
+    }
+
+    TEST_CASE("batch4147 repeated creation returns independent ownership") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4147::independent", [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto first = factory.create_script("Batch4147::independent");
+        auto second = factory.create_script("Batch4147::independent");
+        REQUIRE(first != nullptr); REQUIRE(second != nullptr);
+        CHECK(first.get() != second.get());
+    }
+
+    TEST_CASE("batch4147 replacing mapping changes only future creations") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4147::replace", [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto existing = factory.create_script("Batch4147::replace");
+        REQUIRE(existing != nullptr);
+        factory.register_script("Batch4147::replace", [] { return std::make_unique<Batch1047ScriptB>(); });
+        auto replaced = factory.create_script("Batch4147::replace");
+        REQUIRE(replaced != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(existing.get()) != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(replaced.get()) != nullptr);
+    }
+
+    TEST_CASE("batch4147 creator invocation remains deferred until create request") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto calls = std::make_shared<int>(0);
+        factory.register_script("Batch4147::deferred", [calls] {
+            ++*calls;
+            return std::make_unique<Batch1047ScriptA>();
+        });
+        CHECK(*calls == 0);
+        factory.create_script("Batch4147::deferred");
+        factory.create_script("Batch4147::deferred");
+        CHECK(*calls == 2);
+    }
+
+    TEST_CASE("batch4147 deliberate null creator result propagates as null") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4147::null",
+            []() -> std::unique_ptr<Salix::ScriptElement> { return nullptr; });
+        CHECK(factory.create_script("Batch4147::null") == nullptr);
+    }
+
+    TEST_CASE("batch4147 empty creator preserves standard bad function call contract") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4147::empty", Salix::ScriptFactory::Creator{});
+        CHECK_THROWS_AS(factory.create_script("Batch4147::empty"), std::bad_function_call);
+    }
+
+    TEST_CASE("batch4147 registration keys preserve whitespace and punctuation exactly") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = " Batch4147::player/controller-v3 ";
+        factory.register_script(key, [] { return std::make_unique<Batch1047ScriptB>(); });
+        REQUIRE(factory.create_script(key) != nullptr);
+        CHECK(factory.create_script("Batch4147::player/controller-v3") == nullptr);
+    }
+
+    TEST_CASE("batch4147 creator can delegate to another registered mapping") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4147::inner", [] { return std::make_unique<Batch1047ScriptB>(); });
+        factory.register_script("Batch4147::outer", [&factory] {
+            return factory.create_script("Batch4147::inner");
+        });
+        auto created = factory.create_script("Batch4147::outer");
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(created.get()) != nullptr);
+    }
+}
