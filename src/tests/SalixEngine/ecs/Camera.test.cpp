@@ -498,3 +498,102 @@ TEST_SUITE("Salix::ecs::CameraBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CameraBatch4047") {
+    TEST_CASE("batch4047 direct active setter is idempotent for true") {
+        Salix::Camera camera;
+        camera.set_is_active(true);
+        camera.set_is_active(true);
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4047 direct active setter is idempotent for false") {
+        Salix::Camera camera;
+        camera.set_is_active(false);
+        camera.set_is_active(false);
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4047 activate after direct activation preserves projection configuration") {
+        Salix::Camera camera;
+        camera.set_field_of_view(63.0f);
+        camera.set_is_active(true);
+        camera.activate();
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_field_of_view() == doctest::Approx(63.0f));
+    }
+
+    TEST_CASE("batch4047 deactivate after direct deactivation preserves projection configuration") {
+        Salix::Camera camera;
+        camera.set_orthographic_size(17.0f);
+        camera.set_is_active(false);
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(camera.get_orthographic_size() == doctest::Approx(17.0f));
+    }
+
+    TEST_CASE("batch4047 perspective square and wide viewports produce different projections") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
+        camera.set_viewport_size(800, 800);
+        const auto square = camera.get_projection_matrix();
+        camera.set_viewport_size(1600, 800);
+        const auto wide = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(square, wide));
+    }
+
+    TEST_CASE("batch4047 orthographic square and tall viewports produce different projections") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_viewport_size(800, 800);
+        const auto square = camera.get_projection_matrix();
+        camera.set_viewport_size(800, 1600);
+        const auto tall = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(square, tall));
+    }
+
+    TEST_CASE("batch4047 near clip mutation rebuilds orthographic projection") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        const auto before = camera.get_projection_matrix();
+        camera.set_near_clip(0.75f);
+        const auto after = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(before, after));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.75f));
+    }
+
+    TEST_CASE("batch4047 far clip mutation rebuilds orthographic projection") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        const auto before = camera.get_projection_matrix();
+        camera.set_far_clip(250.0f);
+        const auto after = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(before, after));
+        CHECK(camera.get_far_clip() == doctest::Approx(250.0f));
+    }
+
+    TEST_CASE("batch4047 two dimensional mode toggles preserve public camera configuration") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(24.0f);
+        camera.set_near_clip(0.2f);
+        camera.set_far_clip(300.0f);
+        camera.set_2D_mode(true);
+        camera.set_2D_mode(false);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(24.0f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.2f));
+        CHECK(camera.get_far_clip() == doctest::Approx(300.0f));
+    }
+
+    TEST_CASE("batch4047 owner attach detach cycle changes only transform availability") {
+        Salix::Entity entity;
+        Salix::Camera camera;
+        const auto mode = camera.get_projection_mode();
+        CHECK(camera.get_transform() == nullptr);
+        camera.set_owner(&entity);
+        CHECK(camera.get_transform() == entity.get_transform());
+        camera.set_owner(nullptr);
+        CHECK(camera.get_transform() == nullptr);
+        CHECK(camera.get_projection_mode() == mode);
+    }
+}
