@@ -615,3 +615,100 @@ TEST_SUITE("Salix::management::ProjectBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectBatch4347") {
+    TEST_CASE("batch4347 starting realm can be explicitly cleared after assignment") {
+        Salix::Project project;
+        project.set_starting_realm("World4347");
+        project.set_starting_realm("");
+        CHECK(project.get_starting_realm().empty());
+    }
+
+    TEST_CASE("batch4347 punctuation rich project name derives filenames verbatim") {
+        Salix::Project project("Game_4347.v2!", "Root/4347");
+        CHECK(project.get_name() == "Game_4347.v2!");
+        CHECK(project.get_project_file_name() == "Game_4347.v2!.salixproj");
+        CHECK(project.get_game_dll_name() == "Game_4347.v2!.dll");
+    }
+
+    TEST_CASE("batch4347 realm map preserves ordered independent key value pairs") {
+        Salix::Project project;
+        project.add_realm_path("Zeta4347", "Z.realm");
+        project.add_realm_path("Alpha4347", "A.realm");
+        const auto& paths = project.get_realm_paths();
+        REQUIRE(paths.size() == 2);
+        CHECK(paths.begin()->first == "Alpha4347");
+        CHECK(paths.at("Zeta4347") == "Z.realm");
+    }
+
+    TEST_CASE("batch4347 replacing one realm path leaves unrelated mappings unchanged") {
+        Salix::Project project;
+        project.add_realm_path("Menu4347", "MenuOld.realm");
+        project.add_realm_path("World4347", "World.realm");
+        project.add_realm_path("Menu4347", "MenuNew.realm");
+        REQUIRE(project.get_realm_paths().size() == 2);
+        CHECK(project.get_realm_paths().at("Menu4347") == "MenuNew.realm");
+        CHECK(project.get_realm_paths().at("World4347") == "World.realm");
+    }
+
+    TEST_CASE("batch4347 removing one mapped path preserves remaining realm metadata") {
+        Salix::Project project;
+        project.add_realm_path("Menu4347", "Menu4347.realm");
+        project.add_realm_path("World4347", "World4347.realm");
+        REQUIRE(project.remove_realm_path("Menu4347.realm"));
+        REQUIRE(project.get_realm_paths().size() == 1);
+        CHECK(project.get_realm_paths().count("Menu4347") == 0);
+        CHECK(project.get_realm_paths().at("World4347") == "World4347.realm");
+    }
+
+    TEST_CASE("batch4347 metadata mutations never materialize runtime realm manager") {
+        Salix::Project project("Metadata4347", "Root4347");
+        project.set_starting_realm("Main4347");
+        project.add_realm_path("Main4347", "Main4347.realm");
+        CHECK(project.get_realm_manager() == nullptr);
+    }
+
+    TEST_CASE("batch4347 shutdown before initialization remains a safe runtime no op") {
+        Salix::Project project("Shutdown4347", "Root4347");
+        project.add_realm_path("Main4347", "Main4347.realm");
+        CHECK_NOTHROW(project.shutdown());
+        CHECK(project.get_realm_manager() == nullptr);
+        CHECK(project.get_realm_paths().count("Main4347") == 1);
+    }
+
+    TEST_CASE("batch4347 JSON roundtrip preserves empty realm key and path") {
+        Salix::Project source("Json4347", "Root4347");
+        source.add_realm_path("", "");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::Project restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        REQUIRE(restored.get_realm_paths().size() == 1);
+        CHECK(restored.get_realm_paths().begin()->first.empty());
+        CHECK(restored.get_realm_paths().begin()->second.empty());
+    }
+
+    TEST_CASE("batch4347 binary roundtrip preserves multiple realm mappings and starting realm") {
+        Salix::Project source("Binary4347", "Root/Binary4347");
+        source.add_realm_path("Menu", "Scenes/Menu4347.realm");
+        source.add_realm_path("Game", "Scenes/Game4347.realm");
+        source.set_starting_realm("Game");
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::Project restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_realm_paths() == source.get_realm_paths());
+        CHECK(restored.get_starting_realm() == "Game");
+        CHECK(restored.get_name() == "Binary4347");
+    }
+
+    TEST_CASE("batch4347 JSON load replaces derived filenames with serialized source metadata") {
+        Salix::Project source("Source4347", "SourceRoot4347");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::Project restored("Destination4347", "DestinationRoot4347");
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_project_file_name() == "Source4347.salixproj");
+        CHECK(restored.get_game_dll_name() == "Source4347.dll");
+        CHECK(restored.get_engine_version() == "0.1.0-Alpha");
+    }
+}
