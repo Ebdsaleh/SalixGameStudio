@@ -829,3 +829,62 @@ TEST_SUITE("Salix::math::ColorBatch3947") {
         CHECK(stream.str() == "{ r: 1, g: -2, b: 3.5, a: 0.25 }");
     }
 }
+
+TEST_SUITE("Salix::math::ColorBatch4247") {
+    TEST_CASE("batch4247 HSV primary hues produce canonical RGB primaries") {
+        CHECK(Salix::Color::from_hsv(0.0f, 1.0f, 1.0f) == Salix::Red);
+        CHECK(Salix::Color::from_hsv(120.0f, 1.0f, 1.0f) == Salix::Green);
+        CHECK(Salix::Color::from_hsv(240.0f, 1.0f, 1.0f) == Salix::Blue);
+    }
+
+    TEST_CASE("batch4247 HSV sixty degrees produces opaque yellow") {
+        CHECK(Salix::Color::from_hsv(60.0f, 1.0f, 1.0f) == Salix::Yellow);
+    }
+
+    TEST_CASE("batch4247 HSV one eighty degrees produces opaque cyan") {
+        CHECK(Salix::Color::from_hsv(180.0f, 1.0f, 1.0f) == Salix::Cyan);
+    }
+
+    TEST_CASE("batch4247 HSV three hundred degrees produces opaque magenta") {
+        CHECK(Salix::Color::from_hsv(300.0f, 1.0f, 1.0f) == Salix::Magenta);
+    }
+
+    TEST_CASE("batch4247 negative hue wraps to equivalent positive hue") {
+        const auto negative = Salix::Color::from_hsv(-120.0f, 0.75f, 0.5f, 0.25f);
+        const auto positive = Salix::Color::from_hsv(240.0f, 0.75f, 0.5f, 0.25f);
+        CHECK(negative == positive);
+    }
+
+    TEST_CASE("batch4247 negative saturation follows grayscale branch and preserves alpha") {
+        const auto c = Salix::Color::from_hsv(42.0f, -1.0f, 0.375f, 0.625f);
+        CHECK(c == Salix::Color(0.375f, 0.375f, 0.375f, 0.625f));
+    }
+
+    TEST_CASE("batch4247 ImGui conversion preserves all four channel values") {
+        const Salix::Color c(-1.0f, 2.0f, 0.5f, -0.25f);
+        const auto v = c.to_imvec4();
+        CHECK(v.x == c.r);
+        CHECK(v.y == c.g);
+        CHECK(v.z == c.b);
+        CHECK(v.w == c.a);
+    }
+
+    TEST_CASE("batch4247 empty YAML map clears all existing channels") {
+        Salix::Color c(1.0f, 2.0f, 3.0f, 4.0f);
+        YAML::Load("{}") >> c;
+        CHECK(c == Salix::Color(0.0f, 0.0f, 0.0f, 0.0f));
+    }
+
+    TEST_CASE("batch4247 color arithmetic addition and subtraction restore original value") {
+        const Salix::Color original(-1.0f, 2.0f, 3.0f, 0.5f);
+        const Salix::Color delta(0.25f, -0.5f, 1.0f, 0.25f);
+        CHECK((original + delta) - delta == original);
+    }
+
+    TEST_CASE("batch4247 interpolation clamps both outside endpoints") {
+        const Salix::Color a(-1.0f, 2.0f, 3.0f, 0.25f);
+        const Salix::Color b(4.0f, 5.0f, 6.0f, 0.75f);
+        CHECK(Salix::Color::lerp(a, b, -0.5f) == a);
+        CHECK(Salix::Color::lerp(a, b, 1.5f) == b);
+    }
+}
