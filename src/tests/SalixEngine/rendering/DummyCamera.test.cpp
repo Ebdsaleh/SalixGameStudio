@@ -415,3 +415,103 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::rendering::DummyCameraBatch4147") {
+    TEST_CASE("batch4147 fresh dummy camera combines identity matrices default size and inactive state") {
+        Salix::DummyCamera camera;
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(10.0f));
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4147 direct active setter toggles without changing orthographic size") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(14.147f);
+        camera.set_is_active(true);
+        CHECK(camera.get_is_active());
+        camera.set_is_active(false);
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(camera.get_orthographic_size() == doctest::Approx(14.147f));
+    }
+
+    TEST_CASE("batch4147 projection mode requests remain intentional no ops") {
+        Salix::DummyCamera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch4147 matrix reference addresses remain stable across scalar mutations") {
+        Salix::DummyCamera camera;
+        const auto* view = &camera.get_view_matrix();
+        const auto* projection = &camera.get_projection_matrix();
+        camera.set_orthographic_size(-4.147f);
+        camera.activate();
+        camera.deactivate();
+        CHECK(&camera.get_view_matrix() == view);
+        CHECK(&camera.get_projection_matrix() == projection);
+    }
+
+    TEST_CASE("batch4147 separate cameras keep activation and size state independent") {
+        Salix::DummyCamera first, second;
+        first.set_orthographic_size(1.0f);
+        second.set_orthographic_size(2.0f);
+        first.activate();
+        CHECK(first.get_is_active());
+        CHECK_FALSE(second.get_is_active());
+        CHECK(first.get_orthographic_size() == doctest::Approx(1.0f));
+        CHECK(second.get_orthographic_size() == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch4147 zero orthographic size leaves matrices identity") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(0.0f);
+        CHECK(camera.get_orthographic_size() == 0.0f);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch4147 negative orthographic size is stored verbatim") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-4147.25f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(-4147.25f));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch4147 repeated activate calls remain active until explicit deactivate") {
+        Salix::DummyCamera camera;
+        camera.activate();
+        camera.activate();
+        camera.activate();
+        CHECK(camera.get_is_active());
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4147 ICamera virtual dispatch preserves dummy guarantees") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(41.47f);
+        camera.activate();
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_is_active());
+        CHECK(concrete.get_orthographic_size() == doctest::Approx(41.47f));
+    }
+
+    TEST_CASE("batch4147 temporary camera destruction cannot change survivor state") {
+        Salix::DummyCamera survivor;
+        survivor.set_orthographic_size(7.5f);
+        survivor.activate();
+        {
+            Salix::DummyCamera temporary;
+            temporary.set_orthographic_size(-99.0f);
+            temporary.deactivate();
+        }
+        CHECK(survivor.get_is_active());
+        CHECK(survivor.get_orthographic_size() == doctest::Approx(7.5f));
+    }
+}
