@@ -803,3 +803,73 @@ TEST_SUITE("Salix::math::RectBatch3947") {
         CHECK_FALSE((std::is_convertible_v<Salix::RectD, Salix::RectF>));
     }
 }
+
+TEST_SUITE("Salix::math::RectBatch4247") {
+    TEST_CASE("batch4247 default rectangle aliases start at four zero components") {
+        const Salix::RectI i;
+        const Salix::RectF f;
+        const Salix::RectD d;
+        CHECK(i == Salix::RectI(0, 0, 0, 0));
+        CHECK(f == Salix::RectF(0.0f, 0.0f, 0.0f, 0.0f));
+        CHECK(d == Salix::RectD(0.0, 0.0, 0.0, 0.0));
+    }
+
+    TEST_CASE("batch4247 mixed arithmetic constructor converts each integer component independently") {
+        const Salix::RectI r(-1.9, 2.9f, -3LL, 4u);
+        CHECK(r == Salix::RectI(-1, 2, -3, 4));
+    }
+
+    TEST_CASE("batch4247 integer to float conversion preserves signed extents") {
+        const Salix::RectI source(-42, 47, -84, 94);
+        const Salix::RectF converted(source);
+        CHECK(converted == Salix::RectF(-42.0f, 47.0f, -84.0f, 94.0f));
+    }
+
+    TEST_CASE("batch4247 float to double conversion preserves binary fractions") {
+        const Salix::RectF source(-0.5f, 0.25f, -8.125f, 16.75f);
+        const Salix::RectD converted(source);
+        CHECK(converted == Salix::RectD(-0.5, 0.25, -8.125, 16.75));
+    }
+
+    TEST_CASE("batch4247 double to integer conversion truncates signed fractions toward zero") {
+        const Salix::RectD source(-4.9, 4.9, -0.5, 0.5);
+        const Salix::RectI converted(source);
+        CHECK(converted == Salix::RectI(-4, 4, 0, 0));
+    }
+
+    TEST_CASE("batch4247 inequality detects width only difference") {
+        const Salix::RectI a(1, 2, 3, 4);
+        const Salix::RectI b(1, 2, 30, 4);
+        CHECK(a != b);
+        CHECK_FALSE(a == b);
+    }
+
+    TEST_CASE("batch4247 copy construction remains independent after source mutation") {
+        Salix::RectF source(1.0f, 2.0f, 3.0f, 4.0f);
+        const Salix::RectF copy(source);
+        source.x = 99.0f;
+        source.h = 88.0f;
+        CHECK(copy == Salix::RectF(1.0f, 2.0f, 3.0f, 4.0f));
+    }
+
+    TEST_CASE("batch4247 integer rectangle ostream preserves component ordering") {
+        const Salix::RectI r(-42, 47, -84, 94);
+        std::stringstream stream;
+        stream << r;
+        CHECK(stream.str() == "{ x: -42, y: 47, w: -84, h: 94 }");
+    }
+
+    TEST_CASE("batch4247 JSON roundtrip preserves double rectangle values") {
+        const Salix::RectD original(-4.247, 7.424, -42.47, 74.24);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::RectD restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch4247 cross scalar rectangle construction remains explicit") {
+        CHECK((std::is_constructible_v<Salix::RectI, const Salix::RectD&>));
+        CHECK_FALSE((std::is_convertible_v<Salix::RectD, Salix::RectI>));
+    }
+}
