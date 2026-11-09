@@ -1120,3 +1120,67 @@ TEST_SUITE("Salix::math::Vector3Batch3947") {
         CHECK(stream.str() == "{ x: -1.5, y: 2.25, z: -3.75 }");
     }
 }
+
+TEST_SUITE("Salix::math::Vector3Batch4247") {
+    TEST_CASE("batch4247 two three six vector has magnitude seven") {
+        CHECK(Salix::Vector3(2.0f, 3.0f, 6.0f).length() == doctest::Approx(7.0f));
+    }
+
+    TEST_CASE("batch4247 normalization preserves negative Z axis direction") {
+        Salix::Vector3 v(0.0f, 0.0f, -5.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector3(0.0f, 0.0f, -1.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch4247 zero vector normalization remains canonical zero") {
+        Salix::Vector3 v;
+        v.normalize();
+        CHECK(v == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch4247 midpoint interpolation advances all three axes independently") {
+        const auto v = Salix::Vector3::lerp({-4.0f, 8.0f, 12.0f}, {4.0f, -8.0f, -4.0f}, 0.5f);
+        CHECK(v == Salix::Vector3(0.0f, 0.0f, 4.0f));
+    }
+
+    TEST_CASE("batch4247 orthogonal basis vectors have zero dot product") {
+        CHECK(Salix::dot(Salix::Vector3(1.0f, 0.0f, 0.0f),
+                         Salix::Vector3(0.0f, 1.0f, 0.0f)) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4247 canonical basis cross product produces positive Z") {
+        CHECK(Salix::cross(Salix::Vector3(1.0f, 0.0f, 0.0f),
+                           Salix::Vector3(0.0f, 1.0f, 0.0f)) ==
+              Salix::Vector3(0.0f, 0.0f, 1.0f));
+    }
+
+    TEST_CASE("batch4247 GLM roundtrip preserves mixed signed coordinates") {
+        const Salix::Vector3 original(-42.0f, 4.247f, 17.0f);
+        CHECK(Salix::Vector3::from_glm(original.to_glm()) == original);
+    }
+
+    TEST_CASE("batch4247 component division zeroes only zero divisor components") {
+        const auto v = Salix::Vector3(12.0f, -21.0f, 8.0f) /
+                       Salix::Vector3(3.0f, 0.0f, -2.0f);
+        CHECK(v.x == doctest::Approx(4.0f));
+        CHECK(v.y == 0.0f);
+        CHECK(v.z == doctest::Approx(-4.0f));
+    }
+
+    TEST_CASE("batch4247 YAML y only decode clears omitted x and z") {
+        Salix::Vector3 v(1.0f, 2.0f, 3.0f);
+        YAML::Load("{y: -4.247}") >> v;
+        CHECK(v.x == 0.0f);
+        CHECK(v.y == doctest::Approx(-4.247f));
+        CHECK(v.z == 0.0f);
+    }
+
+    TEST_CASE("batch4247 compound add and subtract restore original vector") {
+        Salix::Vector3 v(-1.0f, 2.0f, -3.0f);
+        const Salix::Vector3 original = v;
+        v += Salix::Vector3(4.0f, 5.0f, 6.0f);
+        v -= Salix::Vector3(4.0f, 5.0f, 6.0f);
+        CHECK(v == original);
+    }
+}
