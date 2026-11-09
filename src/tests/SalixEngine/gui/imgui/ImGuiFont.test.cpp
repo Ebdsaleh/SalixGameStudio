@@ -503,3 +503,98 @@ TEST_SUITE("Salix::gui::ImGuiFontBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiFontBatch4447") {
+    TEST_CASE("batch4447 default owned data is concrete ImGuiFontData with synchronized default size") {
+        Salix::ImGuiFont font;
+        auto* data = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(data != nullptr);
+        CHECK(data->get_font_size() == doctest::Approx(20.0f));
+        CHECK(data->config.size_pixels == doctest::Approx(20.0f));
+    }
+
+    TEST_CASE("batch4447 custom constructor synchronizes owned config size with requested size") {
+        Salix::ImGuiFont font("font4447.ttf", "Font4447", 31.0f);
+        auto* data = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(data != nullptr);
+        CHECK(data->config.size_pixels == doctest::Approx(31.0f));
+        CHECK(font.get_name() == "Font4447");
+    }
+
+    TEST_CASE("batch4447 family setter copies caller string storage") {
+        Salix::ImGuiFont font;
+        std::string family = "Family4447";
+        font.set_family(family);
+        family = "MutatedCaller";
+        CHECK(font.get_family() == "Family4447");
+    }
+
+    TEST_CASE("batch4447 direct mutation through owned concrete data updates delegated name getter") {
+        Salix::ImGuiFont font;
+        auto* data = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(data != nullptr);
+        data->name = "Direct4447";
+        CHECK(font.get_name() == "Direct4447");
+    }
+
+    TEST_CASE("batch4447 self data replacement preserves complete compatible snapshot") {
+        Salix::ImGuiFont font("self4447.ttf", "Self4447", 22.0f);
+        auto* original = font.get_data();
+        REQUIRE(original != nullptr);
+        font.set_data(original);
+        CHECK(font.get_name() == "Self4447");
+        CHECK(font.get_data()->get_file_path() == "self4447.ttf");
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(22.0f));
+    }
+
+    TEST_CASE("batch4447 compatible replacement copies custom GUI type") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData replacement("Gui4447", "gui4447.ttf", 13.0f);
+        replacement.gui_type = "CustomGui4447";
+        font.set_data(&replacement);
+        REQUIRE(font.get_data() != nullptr);
+        CHECK(font.get_data()->get_gui_type() == "CustomGui4447");
+    }
+
+    TEST_CASE("batch4447 compatible replacement copies ellipsis configuration") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData replacement("Ellipsis4447", "ellipsis4447.ttf", 14.0f);
+        replacement.config.ellipsis_char = static_cast<ImWchar>(0x2026);
+        font.set_data(&replacement);
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.ellipsis_char == static_cast<ImWchar>(0x2026));
+    }
+
+    TEST_CASE("batch4447 compatible data replacement preserves runtime ImFont pointer") {
+        Salix::ImGuiFont font;
+        ImFont* runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x4447));
+        font.set_imgui_font_ptr(runtime);
+        Salix::ImGuiFontData replacement("Runtime4447", "runtime4447.ttf", 15.0f);
+        font.set_data(&replacement);
+        CHECK(font.get_imgui_font_ptr() == runtime);
+    }
+
+    TEST_CASE("batch4447 compatible data replacement preserves family metadata") {
+        Salix::ImGuiFont font;
+        font.set_family("PersistentFamily4447");
+        Salix::ImGuiFontData replacement("Data4447", "data4447.ttf", 16.0f);
+        font.set_data(&replacement);
+        CHECK(font.get_family() == "PersistentFamily4447");
+    }
+
+    TEST_CASE("batch4447 separate fonts retain independent data family and runtime pointer state") {
+        Salix::ImGuiFont first("first4447.ttf", "First4447", 10.0f);
+        Salix::ImGuiFont second("second4447.ttf", "Second4447", 20.0f);
+        first.set_family("FamilyA4447");
+        second.set_family("FamilyB4447");
+        ImFont* first_runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x44471));
+        ImFont* second_runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x44472));
+        first.set_imgui_font_ptr(first_runtime);
+        second.set_imgui_font_ptr(second_runtime);
+        CHECK(first.get_data() != second.get_data());
+        CHECK(first.get_family() == "FamilyA4447");
+        CHECK(second.get_family() == "FamilyB4447");
+        CHECK(first.get_imgui_font_ptr() == first_runtime);
+        CHECK(second.get_imgui_font_ptr() == second_runtime);
+    }
+}
