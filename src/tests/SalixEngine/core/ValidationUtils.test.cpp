@@ -875,3 +875,64 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch3947") {
             {(std::numeric_limits<T>::quiet_NaN)(), static_cast<T>(0.0)}));
     }
 }
+
+TEST_SUITE("Salix::core::ValidationUtilsBatch4247") {
+    TEST_CASE("batch4247 empty string validity follows allow empty flag exactly") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string("", false, false));
+        CHECK(Salix::ValidationUtils::is_valid_string("", true, false));
+        CHECK(Salix::ValidationUtils::is_valid_string("", true, true));
+    }
+
+    TEST_CASE("batch4247 all supported whitespace characters are rejected when whitespace only is disallowed") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string(" \t\n\v\f\r", false, false));
+        CHECK(Salix::ValidationUtils::is_valid_string(" \t\n\v\f\r", false, true));
+    }
+
+    TEST_CASE("batch4247 empty c string pointer is valid while null pointer is not") {
+        const char* empty = "";
+        CHECK(Salix::ValidationUtils::is_valid_c_str(empty));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_c_str(nullptr));
+    }
+
+    TEST_CASE("batch4247 signed int validator accepts zero and rejects both sentinels") {
+        CHECK(Salix::ValidationUtils::is_valid_int(0));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::max)()));
+    }
+
+    TEST_CASE("batch4247 signed sixty four validator rejects negative ordinary values") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int64_t(static_cast<int64_t>(-4247)));
+        CHECK(Salix::ValidationUtils::is_valid_int64_t(static_cast<int64_t>(4247)));
+    }
+
+    TEST_CASE("batch4247 unsigned thirty two validator reserves maximum sentinel") {
+        const auto max = (std::numeric_limits<uint32_t>::max)();
+        CHECK(Salix::ValidationUtils::is_valid_uint32_t(max - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint32_t(max));
+    }
+
+    TEST_CASE("batch4247 least signed validator accepts zero and rejects minimum") {
+        CHECK(Salix::ValidationUtils::is_valid_intleast32_t(static_cast<int_least32_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast32_t((std::numeric_limits<int_least32_t>::min)()));
+    }
+
+    TEST_CASE("batch4247 fast unsigned validator accepts zero and rejects maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_uint_fast16_t(static_cast<uint_fast16_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_fast16_t((std::numeric_limits<uint_fast16_t>::max)()));
+    }
+
+    TEST_CASE("batch4247 floating validators accept negative zero and reject infinities") {
+        CHECK(Salix::ValidationUtils::is_valid_float(-0.0f));
+        CHECK(Salix::ValidationUtils::is_valid_double(-0.0));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_float((std::numeric_limits<float>::infinity)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_double(-(std::numeric_limits<double>::infinity)()));
+    }
+
+    TEST_CASE("batch4247 complex double requires both components finite") {
+        CHECK(Salix::ValidationUtils::is_valid_complex_double({4.247, -7.424}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double(
+            {(std::numeric_limits<double>::infinity)(), 0.0}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double(
+            {0.0, (std::numeric_limits<double>::quiet_NaN)()}));
+    }
+}
