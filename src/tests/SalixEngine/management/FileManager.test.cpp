@@ -913,3 +913,92 @@ TEST_SUITE("Salix::management::FileManagerBatch3847") {
     }
 }
 
+TEST_SUITE("Salix::management::FileManagerBatch4447") {
+    TEST_CASE("batch4447 path exists distinguishes owned file and directory from missing child") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("present4447.txt", "present");
+        CHECK(Salix::FileManager::path_exists(temp.root.string()));
+        CHECK(Salix::FileManager::path_exists(temp.file("present4447.txt")));
+        CHECK_FALSE(Salix::FileManager::path_exists(temp.file("missing4447.txt")));
+    }
+
+    TEST_CASE("batch4447 copy overwrites an existing destination with complete source bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("source4447.txt", "new-content-4447");
+        temp.write("destination4447.txt", "old");
+        REQUIRE(Salix::FileManager::copy_file(
+            temp.file("source4447.txt"), temp.file("destination4447.txt")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("destination4447.txt")) == "new-content-4447");
+    }
+
+    TEST_CASE("batch4447 binary read preserves carriage return newline and null bytes exactly") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("A\r\nB\0C", 6);
+        temp.write("mixed4447.bin", payload);
+        const auto loaded = Salix::FileManager::read_file_content(temp.file("mixed4447.bin"));
+        CHECK(loaded.size() == payload.size());
+        CHECK(loaded == payload);
+    }
+
+    TEST_CASE("batch4447 file size reports a multi kilobyte payload exactly") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload(4096, 'Q');
+        temp.write("size4447.bin", payload);
+        CHECK(Salix::FileManager::get_file_size(temp.file("size4447.bin")) == payload.size());
+    }
+
+    TEST_CASE("batch4447 sixteen byte hex dump emits one complete printable row") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload = "ABCDEFGHIJKLMNOP";
+        REQUIRE(payload.size() == 16);
+        temp.write("row4447.bin", payload);
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("row4447.bin"));
+        CHECK(dump.find("Length: 16 bytes") != std::string::npos);
+        CHECK(dump.find("41 42 43 44") != std::string::npos);
+        CHECK(dump.find("ABCDEFGHIJKLMNOP") != std::string::npos);
+    }
+
+    TEST_CASE("batch4447 fifteen byte hex dump emits padded remainder text") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload = "ABCDEFGHIJKLMNO";
+        REQUIRE(payload.size() == 15);
+        temp.write("remainder4447.bin", payload);
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("remainder4447.bin"));
+        CHECK(dump.find("Length: 15 bytes") != std::string::npos);
+        CHECK(dump.find("ABCDEFGHIJKLMNO") != std::string::npos);
+        CHECK(dump.find("---END HEX DUMP---") != std::string::npos);
+    }
+
+    TEST_CASE("batch4447 directory exists but is never reported as a regular file") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto directory = temp.root / "directory4447";
+        REQUIRE(std::filesystem::create_directory(directory));
+        CHECK(Salix::FileManager::path_exists(directory.string()));
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(directory.string()));
+    }
+
+    TEST_CASE("batch4447 string relative conversion with empty project root leaves path unchanged") {
+        const std::string absolute = "C:/Workspace/Project4447/Assets/file.txt";
+        CHECK(Salix::FileManager::convert_to_relative("", absolute) == absolute);
+    }
+
+    TEST_CASE("batch4447 string relative conversion remains case sensitive by textual contract") {
+        const std::string path = "C:/Project4447/Assets/file.txt";
+        CHECK(Salix::FileManager::convert_to_relative("C:/project4447", path) == path);
+    }
+
+    TEST_CASE("batch4447 filesystem relative conversion of identical owned paths returns dot") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto same = temp.root / "same4447";
+        REQUIRE(std::filesystem::create_directory(same));
+        CHECK(Salix::FileManager::convert_to_relative_path(same.string(), same.string()) == ".");
+    }
+}
