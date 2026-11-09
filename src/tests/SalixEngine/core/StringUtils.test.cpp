@@ -898,3 +898,47 @@ TEST_SUITE("Salix::core::StringUtilsBatch3947") {
         CHECK(Salix::StringUtils::convert_from_pascal_case("A2D") == "A 2D");
     }
 }
+
+TEST_SUITE("Salix::core::StringUtilsBatch4247") {
+    TEST_CASE("batch4247 uppercase conversion can desnake before case conversion") {
+        CHECK(Salix::StringUtils::to_upper("hello_world_4247", true) == "HELLO WORLD 4247");
+    }
+
+    TEST_CASE("batch4247 lowercase conversion can desnake before case conversion") {
+        CHECK(Salix::StringUtils::to_lower("HELLO_WORLD_4247", true) == "hello world 4247");
+    }
+
+    TEST_CASE("batch4247 title case normalizes mixed case after valid snake conversion") {
+        CHECK(Salix::StringUtils::to_title_case("hELLO_wORLD_4247", true) == "Hello World 4247");
+    }
+
+    TEST_CASE("batch4247 capitalize lowers remainder after snake conversion") {
+        CHECK(Salix::StringUtils::capitalize("hELLO_wORLD_4247", true) == "Hello world 4247");
+    }
+
+    TEST_CASE("batch4247 snake validation accepts alphanumeric segments") {
+        CHECK(Salix::StringUtils::is_snake_case("player2_camera4247"));
+        CHECK(Salix::StringUtils::contains_snake_case("player2_camera4247"));
+    }
+
+    TEST_CASE("batch4247 snake validation rejects doubled underscore") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("player__camera"));
+    }
+
+    TEST_CASE("batch4247 contains snake case can detect valid segment inside otherwise punctuated text") {
+        CHECK(Salix::StringUtils::contains_snake_case("prefix-player_camera-suffix"));
+    }
+
+    TEST_CASE("batch4247 snake conversion replaces only underscores with alphanumeric neighbors") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("_a_b_") == "_a b_");
+    }
+
+    TEST_CASE("batch4247 Pascal validation accepts uppercase acronym with digits") {
+        CHECK(Salix::StringUtils::is_pascal_case("HTTP2D"));
+        CHECK_FALSE(Salix::StringUtils::contains_pascal_case("HTTP2D"));
+    }
+
+    TEST_CASE("batch4247 Pascal conversion separates digit to title word transition") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("Version2Alpha") == "Version 2 Alpha");
+    }
+}
