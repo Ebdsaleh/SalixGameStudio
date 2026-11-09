@@ -575,3 +575,118 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch3847") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiIconManagerBatch4447") {
+    TEST_CASE("batch4447 registry reference remains stable across default registration and update") {
+        Batch1947IconFixture fixture;
+        const auto* registry = &fixture.icons.get_icon_registry();
+        fixture.icons.register_default_icons();
+        CHECK(&fixture.icons.get_icon_registry() == registry);
+        fixture.icons.update_icon("Entity", "Assets/Icons/Batch4447/entity.png");
+        CHECK(&fixture.icons.get_icon_registry() == registry);
+    }
+
+    TEST_CASE("batch4447 panel lock icons remain distinct canonical registrations") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto& locked = fixture.icons.get_icon_by_name("Panel Locked");
+        const auto& unlocked = fixture.icons.get_icon_by_name("Panel Unlocked");
+        CHECK_FALSE(locked.path.empty());
+        CHECK_FALSE(unlocked.path.empty());
+        CHECK(locked.path != unlocked.path);
+    }
+
+    TEST_CASE("batch4447 transform element resolves exact registered Transform icon") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        REQUIRE(transform != nullptr);
+        const auto& icon = fixture.icons.get_icon_for_element(transform);
+        const auto& expected = fixture.icons.get_icon_by_name("Transform");
+        CHECK(icon.path == expected.path);
+        CHECK(icon.texture_id == expected.texture_id);
+    }
+
+    TEST_CASE("batch4447 sprite element resolves registered Sprite2D icon without runtime texture") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Sprite2D sprite;
+        const auto& icon = fixture.icons.get_icon_for_element(&sprite);
+        const auto& expected = fixture.icons.get_icon_by_name("Sprite2D");
+        CHECK(icon.path == expected.path);
+        CHECK(icon.texture_id == expected.texture_id);
+    }
+
+    TEST_CASE("batch4447 camera element resolves exact registered Camera icon") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Camera camera;
+        const auto& icon = fixture.icons.get_icon_for_element(&camera);
+        const auto& expected = fixture.icons.get_icon_by_name("Camera");
+        CHECK(icon.path == expected.path);
+        CHECK(icon.texture_id == expected.texture_id);
+    }
+
+    TEST_CASE("batch4447 unregistered CppScript element resolves current Default fallback") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch4447/fallback.png");
+        Salix::CppScript script;
+        const auto& icon = fixture.icons.get_icon_for_element(&script);
+        CHECK(icon.path == "Assets/Icons/Batch4447/fallback.png");
+    }
+
+    TEST_CASE("batch4447 failed Default update preserves existing fallback identity") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto before = fixture.icons.get_icon_by_name("Default");
+        fixture.renderer.should_texture_load_fail = true;
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch4447/fail-default.png");
+        const auto& after = fixture.icons.get_icon_by_name("Missing4447");
+        CHECK(after.path == before.path);
+        CHECK(after.texture_id == before.texture_id);
+    }
+
+    TEST_CASE("batch4447 unknown update leaves every canonical registry entry intact") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto before = fixture.icons.get_icon_registry();
+        fixture.icons.update_icon("Unknown4447", "Assets/Icons/Batch4447/unused.png");
+        const auto& after = fixture.icons.get_icon_registry();
+        REQUIRE(after.size() == before.size());
+        for (const auto& [name, info] : before) {
+            REQUIRE(after.count(name) == 1);
+            CHECK(after.at(name).path == info.path);
+            CHECK(after.at(name).texture_id == info.texture_id);
+        }
+    }
+
+    TEST_CASE("batch4447 dynamic sprite lookups reuse manager local scratch object") {
+        Batch1947IconFixture fixture;
+        Salix::Entity first_entity, second_entity;
+        auto* first = first_entity.add_element<Salix::Sprite2D>();
+        auto* second = second_entity.add_element<Salix::Sprite2D>();
+        REQUIRE(first != nullptr); REQUIRE(second != nullptr);
+        first->load_texture(&fixture.assets, "Assets/Icons/Batch4447/first.png");
+        second->load_texture(&fixture.assets, "Assets/Icons/Batch4447/second.png");
+        REQUIRE(first->get_texture() != nullptr); REQUIRE(second->get_texture() != nullptr);
+        const auto* first_ref = &fixture.icons.get_icon_for_entity(&first_entity);
+        const auto* second_ref = &fixture.icons.get_icon_for_entity(&second_entity);
+        CHECK(first_ref == second_ref);
+        CHECK(second_ref->texture_id == second->get_texture()->get_imgui_texture_id());
+    }
+
+    TEST_CASE("batch4447 repeated dynamic sprite lookup keeps scratch path empty") {
+        Batch1947IconFixture fixture;
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&fixture.assets, "Assets/Icons/Batch4447/runtime.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        const auto& first = fixture.icons.get_icon_for_entity(&entity);
+        CHECK(first.path.empty());
+        const auto& second = fixture.icons.get_icon_for_entity(&entity);
+        CHECK(second.path.empty());
+        CHECK(second.texture_id == sprite->get_texture()->get_imgui_texture_id());
+    }
+}
