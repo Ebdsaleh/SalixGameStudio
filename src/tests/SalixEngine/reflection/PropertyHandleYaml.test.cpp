@@ -603,3 +603,108 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch3747") {
     }
 }
 
+namespace { struct Batch4147YamlEnumTag {}; }
+
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch4147") {
+    TEST_CASE("batch4147 contained type metadata pointer is preserved exactly") {
+        YAML::Node node;
+        Salix::TypeInfo contained;
+        contained.name = "Contained4147";
+        contained.type_index = typeid(Batch4147YamlEnumTag);
+        auto property = batch1047_yaml_property("Mode4147", Salix::PropertyType::EnumClass);
+        property.contained_type_info = &contained;
+        Salix::PropertyHandleYaml handle(property, &node);
+        CHECK(handle.get_contained_type_info() == &contained);
+    }
+
+    TEST_CASE("batch4147 existing integer handle observes external YAML replacement") {
+        YAML::Node node;
+        node["Count4147"] = 1;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Count4147", Salix::PropertyType::Int), &node);
+        node["Count4147"] = -4147;
+        CHECK(std::get<int>(handle.get_value()) == -4147);
+    }
+
+    TEST_CASE("batch4147 false boolean write creates explicit YAML scalar") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Flag4147", Salix::PropertyType::Bool), &node);
+        REQUIRE_FALSE(node["Flag4147"]);
+        handle.set_value(Salix::PropertyValue{false});
+        REQUIRE(node["Flag4147"]);
+        CHECK_FALSE(node["Flag4147"].as<bool>());
+    }
+
+    TEST_CASE("batch4147 uint64 handle preserves maximum unsigned value") {
+        YAML::Node node;
+        const std::uint64_t value = (std::numeric_limits<std::uint64_t>::max)();
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Id4147", Salix::PropertyType::UInt64), &node);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<std::uint64_t>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch4147 string handle preserves multiline and surrounding whitespace") {
+        YAML::Node node;
+        const std::string value = "  first\nsecond\t4147  ";
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Text4147", Salix::PropertyType::String), &node);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(node["Text4147"].as<std::string>() == value);
+        CHECK(std::get<std::string>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch4147 Vector3 handle ignores mismatched Vector2 write") {
+        YAML::Node node;
+        const Salix::Vector3 original(1.0f, 2.0f, 3.0f);
+        node["Vector4147"] = original;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Vector4147", Salix::PropertyType::Vector3), &node);
+        handle.set_value(Salix::PropertyValue{Salix::Vector2(9.0f, 9.0f)});
+        CHECK(std::get<Salix::Vector3>(handle.get_value()) == original);
+    }
+
+    TEST_CASE("batch4147 Point handle preserves signed integer limits") {
+        YAML::Node node;
+        const Salix::Point value{(std::numeric_limits<int>::min)(), (std::numeric_limits<int>::max)()};
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Point4147", Salix::PropertyType::Point), &node);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Point>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch4147 matrix handle observes external YAML matrix replacement") {
+        YAML::Node node;
+        glm::mat4 first(1.0f);
+        node["Matrix4147"] = first;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Matrix4147", Salix::PropertyType::GlmMat4), &node);
+        glm::mat4 second(1.0f);
+        second[0][3] = -41.47f;
+        second[3][0] = 4147.0f;
+        node["Matrix4147"] = second;
+        const auto restored = std::get<glm::mat4>(handle.get_value());
+        CHECK(restored[0][3] == doctest::Approx(-41.47f));
+        CHECK(restored[3][0] == doctest::Approx(4147.0f));
+    }
+
+    TEST_CASE("batch4147 unregistered EnumClass metadata returns default without changing YAML") {
+        YAML::Node node;
+        node["Mode4147Missing"] = "Unregistered";
+        Salix::TypeInfo contained;
+        contained.name = "Batch4147YamlEnumTag";
+        contained.type_index = typeid(Batch4147YamlEnumTag);
+        auto property = batch1047_yaml_property("Mode4147Missing", Salix::PropertyType::EnumClass);
+        property.contained_type_info = &contained;
+        Salix::PropertyHandleYaml handle(property, &node);
+        const auto value = handle.get_value();
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+        CHECK(node["Mode4147Missing"].as<std::string>() == "Unregistered");
+    }
+
+    TEST_CASE("batch4147 unsupported Struct read and write preserve unrelated YAML") {
+        YAML::Node node;
+        node["Keep4147"] = "stable";
+        auto property = batch1047_yaml_property("Struct4147", Salix::PropertyType::Struct);
+        Salix::PropertyHandleYaml handle(property, &node);
+        CHECK(std::get<int>(handle.get_value()) == 0);
+        handle.set_value(Salix::PropertyValue{4147});
+        CHECK_FALSE(node["Struct4147"]);
+        CHECK(node["Keep4147"].as<std::string>() == "stable");
+    }
+}
