@@ -1089,3 +1089,102 @@ TEST_SUITE("Salix::ecs::EntityBatch3647") {
     }
 }
 
+TEST_SUITE("Salix::ecs::EntityBatch4047") {
+    TEST_CASE("batch4047 mandatory components both point back to fresh owner entity") {
+        Salix::Entity entity;
+        auto* transform = entity.get_element<Salix::Transform>();
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        REQUIRE(transform != nullptr);
+        REQUIRE(collider != nullptr);
+        CHECK(transform->get_owner() == &entity);
+        CHECK(collider->get_owner() == &entity);
+    }
+
+    TEST_CASE("batch4047 empty element name and type queries are safe misses") {
+        Salix::Entity entity;
+        CHECK(entity.get_element_by_name("") == nullptr);
+        CHECK(entity.get_element_by_type_name("") == nullptr);
+        CHECK(entity.get_elements_by_type_name("").empty());
+    }
+
+    TEST_CASE("batch4047 mandatory transform can be found by display and class names") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        REQUIRE(transform != nullptr);
+        CHECK(entity.get_element_by_name("Transform") == transform);
+        CHECK(entity.get_element_by_type_name("Transform") == transform);
+    }
+
+    TEST_CASE("batch4047 mandatory collider lookup by identifier returns exact component") {
+        Salix::Entity entity;
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        REQUIRE(collider != nullptr);
+        CHECK(entity.get_element_by_id(collider->get_id()) == collider);
+    }
+
+    TEST_CASE("batch4047 invalid element identifier lookup is always a miss") {
+        Salix::Entity entity;
+        CHECK(entity.get_element_by_id(Salix::SimpleGuid::invalid()) == nullptr);
+    }
+
+    TEST_CASE("batch4047 adding two sprites exposes both through type name collection") {
+        Salix::Entity entity;
+        auto* first = entity.add_element<Salix::Sprite2D>();
+        auto* second = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(first != nullptr); REQUIRE(second != nullptr);
+        const auto sprites = entity.get_elements_by_type_name("Sprite2D");
+        REQUIRE(sprites.size() == 2);
+        CHECK(sprites[0] == first);
+        CHECK(sprites[1] == second);
+    }
+
+    TEST_CASE("batch4047 visibility and name mutations preserve mandatory component identities") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        entity.set_name("Entity4047");
+        entity.set_visible(false);
+        CHECK(entity.get_name() == "Entity4047");
+        CHECK_FALSE(entity.is_visible());
+        CHECK(entity.get_transform() == transform);
+        CHECK(entity.get_element<Salix::BoxCollider>() == collider);
+    }
+
+    TEST_CASE("batch4047 raw sprite adoption transfers ownership and grows element list once") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements().size();
+        auto* sprite = new Salix::Sprite2D();
+        entity.add_element(sprite);
+        CHECK(sprite->get_owner() == &entity);
+        CHECK(entity.get_all_elements().size() == before + 1);
+        CHECK(entity.get_element<Salix::Sprite2D>() == sprite);
+    }
+
+    TEST_CASE("batch4047 on load restores mandatory component owner links") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        REQUIRE(transform != nullptr); REQUIRE(collider != nullptr);
+        transform->set_owner(nullptr);
+        collider->set_owner(nullptr);
+        Salix::InitContext context{};
+        entity.on_load(context);
+        CHECK(transform->get_owner() == &entity);
+        CHECK(collider->get_owner() == &entity);
+        CHECK(entity.get_transform() == transform);
+    }
+
+    TEST_CASE("batch4047 simple purge blocks named id and type lookups without deleting owned elements") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        REQUIRE(transform != nullptr);
+        const auto owned_count = entity.get_all_elements().size();
+        entity.simple_purge();
+        CHECK(entity.is_purged());
+        CHECK(entity.get_element_by_name("Transform") == nullptr);
+        CHECK(entity.get_element_by_type_name("Transform") == nullptr);
+        CHECK(entity.get_element_by_id(transform->get_id()) == nullptr);
+        CHECK(entity.get_elements_by_type_name("Transform").empty());
+        CHECK(entity.get_all_elements().size() == owned_count);
+    }
+}
