@@ -444,3 +444,131 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch4147") {
         CHECK_NOTHROW(poller.poll_events([](Salix::IEvent&) {}));
     }
 }
+
+TEST_SUITE("Salix::events::SDLEventPollerBatch4547") {
+    TEST_CASE("batch4547 unregistered callback handles are never reused") {
+        Salix::SDLEventPoller poller;
+        const auto first = poller.register_raw_event_callback([](void*) {});
+        const auto second = poller.register_raw_event_callback([](void*) {});
+        poller.unregister_raw_event_callback(first);
+        const auto third = poller.register_raw_event_callback([](void*) {});
+        CHECK(first == 1);
+        CHECK(second == 2);
+        CHECK(third == 3);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 polling an empty SDL queue invokes neither callback layer") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 0);
+        CHECK(processed == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 two user events reach raw layer twice and processed layer never") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event first{}; first.type = SDL_USEREVENT;
+        SDL_Event second{}; second.type = SDL_USEREVENT + 1;
+        REQUIRE(SDL_PushEvent(&first) == 1);
+        REQUIRE(SDL_PushEvent(&second) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 2);
+        CHECK(processed == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 unhandled window event remains raw only") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event event{};
+        event.type = SDL_WINDOWEVENT;
+        event.window.event = SDL_WINDOWEVENT_FOCUS_GAINED;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 1);
+        CHECK(processed == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 repeated key down event still dispatches exactly one Salix event") {
+        Salix::SDLEventPoller poller;
+        int processed = 0;
+        SDL_Event event{};
+        event.type = SDL_KEYDOWN;
+        event.key.keysym.sym = SDLK_x;
+        event.key.repeat = 1;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(processed == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 three raw callbacks run once for one quit event") {
+        Salix::SDLEventPoller poller;
+        int a = 0, b = 0, c = 0;
+        poller.register_raw_event_callback([&](void*) { ++a; });
+        poller.register_raw_event_callback([&](void*) { ++b; });
+        poller.register_raw_event_callback([&](void*) { ++c; });
+        SDL_Event event{}; event.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        CHECK(a == 1); CHECK(b == 1); CHECK(c == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 unregistering every raw callback leaves native event unobserved") {
+        Salix::SDLEventPoller poller;
+        int calls = 0;
+        const auto a = poller.register_raw_event_callback([&](void*) { ++calls; });
+        const auto b = poller.register_raw_event_callback([&](void*) { ++calls; });
+        poller.unregister_raw_event_callback(a);
+        poller.unregister_raw_event_callback(b);
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 motion button and wheel events each dispatch once") {
+        Salix::SDLEventPoller poller;
+        int processed = 0;
+        SDL_Event motion{}; motion.type = SDL_MOUSEMOTION; motion.motion.x = -45; motion.motion.y = 47;
+        SDL_Event button{}; button.type = SDL_MOUSEBUTTONDOWN; button.button.button = SDL_BUTTON_RIGHT;
+        SDL_Event wheel{}; wheel.type = SDL_MOUSEWHEEL; wheel.wheel.x = 0; wheel.wheel.y = -4;
+        REQUIRE(SDL_PushEvent(&motion) == 1);
+        REQUIRE(SDL_PushEvent(&button) == 1);
+        REQUIRE(SDL_PushEvent(&wheel) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(processed == 3);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 text input then quit reaches raw layer twice but processed layer once") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event text{}; text.type = SDL_TEXTINPUT; text.text.text[0] = 'Z'; text.text.text[1] = '\0';
+        SDL_Event quit{}; quit.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&text) == 1);
+        REQUIRE(SDL_PushEvent(&quit) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 2);
+        CHECK(processed == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4547 raw callback observes queued native event types in order") {
+        Salix::SDLEventPoller poller;
+        std::vector<Uint32> types;
+        poller.register_raw_event_callback([&](void* native) {
+            REQUIRE(native != nullptr);
+            types.push_back(static_cast<SDL_Event*>(native)->type);
+        });
+        SDL_Event key{}; key.type = SDL_KEYUP; key.key.keysym.sym = SDLK_q;
+        SDL_Event user{}; user.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&key) == 1);
+        REQUIRE(SDL_PushEvent(&user) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        REQUIRE(types.size() == 2);
+        CHECK(types[0] == SDL_KEYUP);
+        CHECK(types[1] == SDL_USEREVENT);
+    }
+}
