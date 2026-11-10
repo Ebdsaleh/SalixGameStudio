@@ -1103,3 +1103,134 @@ TEST_SUITE("Salix::ecs::RealmBatch4547") {
         CHECK(realm.get_path() == "Scenes/Keep4547.realm");
     }
 }
+
+TEST_SUITE("Salix::ecs::RealmBatch4747") {
+    TEST_CASE("batch4747 metadata getter references remain stable across nonempty replacements") {
+        Salix::Realm realm("Initial4747", "Initial4747.realm");
+        const auto* name_ref = &realm.get_name();
+        const auto* path_ref = &realm.get_path();
+        realm.set_name("Updated4747");
+        realm.set_path("Scenes/Updated4747.realm");
+        CHECK(&realm.get_name() == name_ref);
+        CHECK(&realm.get_path() == path_ref);
+        CHECK(*name_ref == "Updated4747");
+        CHECK(*path_ref == "Scenes/Updated4747.realm");
+    }
+
+    TEST_CASE("batch4747 whitespace only metadata is preserved exactly") {
+        Salix::Realm realm;
+        const std::string name = "   ";
+        const std::string path = "\t  ";
+        realm.set_name(name);
+        realm.set_path(path);
+        CHECK(realm.get_name() == name);
+        CHECK(realm.get_path() == path);
+    }
+
+    TEST_CASE("batch4747 earlier entity snapshot does not grow when realm later gains another entity") {
+        Salix::Realm realm;
+        auto* first = realm.create_entity("First4747");
+        auto snapshot = realm.get_entities();
+        REQUIRE(snapshot.size() == 1);
+        auto* second = realm.create_entity("Second4747");
+        CHECK(snapshot.size() == 1);
+        CHECK(snapshot[0] == first);
+        const auto current = realm.get_entities();
+        REQUIRE(current.size() == 2);
+        CHECK(current[1] == second);
+    }
+
+    TEST_CASE("batch4747 entity pointer from snapshot remains live and updates name lookup") {
+        Salix::Realm realm;
+        realm.create_entity("Before4747");
+        auto snapshot = realm.get_entities();
+        REQUIRE(snapshot.size() == 1);
+        REQUIRE(snapshot[0] != nullptr);
+        snapshot[0]->set_name("After4747");
+        CHECK(realm.get_entity_by_name("Before4747") == nullptr);
+        CHECK(realm.get_entity_by_name("After4747") == snapshot[0]);
+    }
+
+    TEST_CASE("batch4747 direct main camera metadata reset never clears independently assigned active pointer") {
+        Salix::Realm realm;
+        Salix::Camera camera;
+        camera.activate();
+        realm.set_active_camera(&camera);
+        realm.set_main_camera_entity(Salix::SimpleGuid::from_value(4747001ULL));
+        realm.set_main_camera_entity(Salix::SimpleGuid::invalid());
+        CHECK(realm.get_active_camera() == &camera);
+        CHECK(camera.get_is_active());
+        CHECK_FALSE(realm.get_main_camera_entity_id().is_valid());
+    }
+
+    TEST_CASE("batch4747 selecting missing camera after valid camera deactivates old selection") {
+        Salix::Realm realm;
+        auto* entity = realm.create_entity("Camera4747");
+        REQUIRE(entity != nullptr);
+        auto* camera = entity->add_element<Salix::Camera>();
+        REQUIRE(camera != nullptr);
+        realm.set_active_camera_entity(entity->get_id());
+        REQUIRE(camera->get_is_active());
+        const auto missing = Salix::SimpleGuid::from_value(4747999ULL);
+        realm.set_active_camera_entity(missing);
+        CHECK_FALSE(camera->get_is_active());
+        CHECK(realm.get_active_camera() == nullptr);
+        CHECK(realm.get_main_camera_entity_id() == missing);
+    }
+
+    TEST_CASE("batch4747 selecting noncamera entity after valid camera deactivates old selection") {
+        Salix::Realm realm;
+        auto* camera_entity = realm.create_entity("Camera4747");
+        auto* plain_entity = realm.create_entity("Plain4747");
+        REQUIRE(camera_entity != nullptr);
+        REQUIRE(plain_entity != nullptr);
+        auto* camera = camera_entity->add_element<Salix::Camera>();
+        REQUIRE(camera != nullptr);
+        realm.set_active_camera_entity(camera_entity->get_id());
+        REQUIRE(camera->get_is_active());
+        realm.set_active_camera_entity(plain_entity->get_id());
+        CHECK_FALSE(camera->get_is_active());
+        CHECK(realm.get_active_camera() == nullptr);
+        CHECK(realm.get_main_camera_entity_id() == plain_entity->get_id());
+    }
+
+    TEST_CASE("batch4747 purging unrelated entity preserves selected camera state") {
+        Salix::Realm realm;
+        auto* camera_entity = realm.create_entity("CameraKeep4747");
+        auto* doomed = realm.create_entity("Doomed4747");
+        REQUIRE(camera_entity != nullptr);
+        REQUIRE(doomed != nullptr);
+        auto* camera = camera_entity->add_element<Salix::Camera>();
+        REQUIRE(camera != nullptr);
+        const auto camera_id = camera_entity->get_id();
+        const auto doomed_id = doomed->get_id();
+        realm.set_active_camera_entity(camera_id);
+        doomed->purge();
+        realm.maintain();
+        CHECK(realm.get_entity_by_id(doomed_id) == nullptr);
+        CHECK(realm.get_entity_by_id(camera_id) == camera_entity);
+        CHECK(realm.get_active_camera() == camera);
+        CHECK(camera->get_is_active());
+        CHECK(realm.get_main_camera_entity_id() == camera_id);
+    }
+
+    TEST_CASE("batch4747 empty realm update and render are harmless with null renderer") {
+        Salix::Realm realm("Empty4747", "Empty4747.realm");
+        CHECK_NOTHROW(realm.update(-4.747f));
+        CHECK_NOTHROW(realm.render(nullptr));
+        CHECK(realm.get_entities().empty());
+        CHECK(realm.get_name() == "Empty4747");
+        CHECK(realm.get_path() == "Empty4747.realm");
+    }
+
+    TEST_CASE("batch4747 load assets on empty realm with nonnull manager preserves metadata and ownership") {
+        Salix::Realm realm("Assets4747", "Assets4747.realm");
+        Salix::AssetManager assets;
+        Salix::InitContext context{};
+        context.asset_manager = &assets;
+        CHECK_NOTHROW(realm.load_assets(context));
+        CHECK(realm.get_entities().empty());
+        CHECK(realm.get_name() == "Assets4747");
+        CHECK(realm.get_path() == "Assets4747.realm");
+    }
+}
