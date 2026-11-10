@@ -368,3 +368,116 @@ TEST_SUITE("Salix::core::EngineBatch4047") {
         CHECK(engine == nullptr);
     }
 }
+
+TEST_SUITE("Salix::core::EngineBatch4847") {
+    TEST_CASE("batch4847 invalid engine mode value roundtrips without altering scalar defaults") {
+        Salix::Engine engine;
+        const auto invalid = static_cast<Salix::EngineMode>(4847);
+        engine.set_mode(invalid);
+        CHECK(engine.get_mode() == invalid);
+        CHECK_FALSE(engine.is_running());
+        CHECK(engine.get_time_scale() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch4847 smallest positive finite time scale is preserved verbatim") {
+        Salix::Engine engine;
+        const float value = (std::numeric_limits<float>::denorm_min)();
+        engine.set_time_scale(value);
+        CHECK(engine.get_time_scale() == value);
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch4847 smallest negative finite time scale is preserved verbatim") {
+        Salix::Engine engine;
+        const float value = -(std::numeric_limits<float>::denorm_min)();
+        engine.set_time_scale(value);
+        CHECK(engine.get_time_scale() == value);
+        CHECK(std::signbit(engine.get_time_scale()));
+    }
+
+    TEST_CASE("batch4847 running toggles leave all preinitialization subsystem getters null") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.is_running(false);
+        engine.is_running(true);
+        CHECK(engine.get_renderer() == nullptr);
+        CHECK(engine.get_asset_manager() == nullptr);
+        CHECK(engine.get_input_manager() == nullptr);
+        CHECK(engine.get_event_manager() == nullptr);
+    }
+
+    TEST_CASE("batch4847 null state stack operations preserve invalid mode and diagnostic scale") {
+        Salix::Engine engine;
+        const auto invalid = static_cast<Salix::EngineMode>(-4847);
+        engine.set_mode(invalid);
+        engine.set_time_scale(-48.47f);
+        engine.push_state(nullptr);
+        engine.change_state(nullptr);
+        engine.pop_state();
+        CHECK(engine.get_mode() == invalid);
+        CHECK(engine.get_time_scale() == doctest::Approx(-48.47f));
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch4847 alternating mode and time scale writes retain latest value in each channel") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Launch);
+        engine.set_time_scale(4.0f);
+        engine.set_mode(Salix::EngineMode::Debug);
+        engine.set_time_scale(-8.0f);
+        engine.set_mode(Salix::EngineMode::Game);
+        engine.set_time_scale(0.4847f);
+        CHECK(engine.get_mode() == Salix::EngineMode::Game);
+        CHECK(engine.get_time_scale() == doctest::Approx(0.4847f));
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch4847 three engines retain independent running mode and scale combinations") {
+        Salix::Engine a, b, c;
+        a.is_running(true);
+        a.set_mode(Salix::EngineMode::Launch);
+        a.set_time_scale(1.25f);
+        b.set_mode(Salix::EngineMode::Editor);
+        b.set_time_scale(-2.5f);
+        c.is_running(true);
+        c.set_mode(Salix::EngineMode::Debug);
+        c.set_time_scale(5.0f);
+        CHECK(a.is_running()); CHECK(a.get_mode() == Salix::EngineMode::Launch); CHECK(a.get_time_scale() == doctest::Approx(1.25f));
+        CHECK_FALSE(b.is_running()); CHECK(b.get_mode() == Salix::EngineMode::Editor); CHECK(b.get_time_scale() == doctest::Approx(-2.5f));
+        CHECK(c.is_running()); CHECK(c.get_mode() == Salix::EngineMode::Debug); CHECK(c.get_time_scale() == doctest::Approx(5.0f));
+    }
+
+    TEST_CASE("batch4847 EngineInterface repeated running writes return the newly stored value") {
+        std::unique_ptr<Salix::EngineInterface> engine = std::make_unique<Salix::Engine>();
+        CHECK_FALSE(engine->is_running(false));
+        CHECK(engine->is_running(true));
+        CHECK(engine->is_running(true));
+        CHECK_FALSE(engine->is_running(false));
+        CHECK_FALSE(engine->is_running());
+    }
+
+    TEST_CASE("batch4847 EngineInterface arbitrary mode write does not affect configured time scale") {
+        std::unique_ptr<Salix::EngineInterface> engine = std::make_unique<Salix::Engine>();
+        engine->set_time_scale(48.47f);
+        const auto invalid = static_cast<Salix::EngineMode>(484700);
+        engine->set_mode(invalid);
+        CHECK(engine->get_mode() == invalid);
+        CHECK(engine->get_time_scale() == doctest::Approx(48.47f));
+    }
+
+    TEST_CASE("batch4847 scalar configuration remains valid after no op stack calls in every order") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_time_scale(-0.25f);
+        engine.pop_state();
+        engine.push_state(nullptr);
+        engine.pop_state();
+        engine.change_state(nullptr);
+        engine.push_state(nullptr);
+        CHECK(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::Options);
+        CHECK(engine.get_time_scale() == doctest::Approx(-0.25f));
+    }
+}
