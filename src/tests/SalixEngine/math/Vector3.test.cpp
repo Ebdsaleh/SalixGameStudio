@@ -1184,3 +1184,79 @@ TEST_SUITE("Salix::math::Vector3Batch4247") {
         CHECK(v == original);
     }
 }
+
+TEST_SUITE("Salix::math::Vector3Batch4647") {
+    TEST_CASE("batch4647 floating scalar constructor broadcasts identical value to every axis") {
+        const Salix::Vector3 v(-4.647f);
+        CHECK(v == Salix::Vector3(-4.647f, -4.647f, -4.647f));
+    }
+
+    TEST_CASE("batch4647 normalization preserves signed direction across three nonzero axes") {
+        Salix::Vector3 v(-2.0f, 3.0f, -6.0f);
+        REQUIRE(v.length() == doctest::Approx(7.0f));
+        v.normalize();
+        CHECK(v.x == doctest::Approx(-2.0f / 7.0f));
+        CHECK(v.y == doctest::Approx(3.0f / 7.0f));
+        CHECK(v.z == doctest::Approx(-6.0f / 7.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch4647 scalar addition overloads are symmetric across all axes") {
+        const Salix::Vector3 v(-1.0f, 2.0f, -3.0f);
+        CHECK(v + 4.0f == 4.0f + v);
+        CHECK(v + 4.0f == Salix::Vector3(3.0f, 6.0f, 1.0f));
+    }
+
+    TEST_CASE("batch4647 scalar subtraction overloads preserve operand order") {
+        const Salix::Vector3 v(1.0f, 2.0f, 3.0f);
+        CHECK(v - 1.0f == Salix::Vector3(0.0f, 1.0f, 2.0f));
+        CHECK(10.0f - v == Salix::Vector3(9.0f, 8.0f, 7.0f));
+    }
+
+    TEST_CASE("batch4647 component multiplication preserves independent signed products") {
+        const auto product = Salix::Vector3(-2.0f, 3.0f, -4.0f) *
+                             Salix::Vector3(5.0f, -6.0f, -7.0f);
+        CHECK(product == Salix::Vector3(-10.0f, -18.0f, 28.0f));
+    }
+
+    TEST_CASE("batch4647 component division zeroes only zero divisor axes") {
+        std::stringstream ignored;
+        CerrRedirect redirect(ignored);
+        const auto result = Salix::Vector3(12.0f, 15.0f, -20.0f) /
+                            Salix::Vector3(0.0f, 3.0f, 0.0f);
+        CHECK(result == Salix::Vector3(0.0f, 5.0f, 0.0f));
+    }
+
+    TEST_CASE("batch4647 reciprocal scalar division preserves nonzero axes and zeroes missing axis") {
+        std::stringstream ignored;
+        CerrRedirect redirect(ignored);
+        const auto result = 24.0f / Salix::Vector3(-6.0f, 0.0f, 8.0f);
+        CHECK(result == Salix::Vector3(-4.0f, 0.0f, 3.0f));
+    }
+
+    TEST_CASE("batch4647 compound multiply then divide returns self and restores original value") {
+        Salix::Vector3 v(1.25f, -2.5f, 5.0f);
+        const Salix::Vector3 original = v;
+        Salix::Vector3& mul_ref = (v *= 8.0f);
+        CHECK(&mul_ref == &v);
+        Salix::Vector3& div_ref = (v /= 8.0f);
+        CHECK(&div_ref == &v);
+        CHECK(v == original);
+    }
+
+    TEST_CASE("batch4647 dot self equals squared length and cross self remains zero") {
+        const Salix::Vector3 v(2.0f, -3.0f, 6.0f);
+        CHECK(Salix::dot(v, v) == doctest::Approx(v.length() * v.length()));
+        CHECK(Salix::dot(v, v) == doctest::Approx(49.0f));
+        CHECK(Salix::cross(v, v) == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch4647 binary archive roundtrip preserves signed finite coordinates") {
+        const Salix::Vector3 original(-4.647f, 7.464f, -0.125f);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(original); }
+        Salix::Vector3 restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+}
