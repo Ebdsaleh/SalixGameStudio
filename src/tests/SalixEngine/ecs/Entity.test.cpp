@@ -1305,3 +1305,103 @@ TEST_SUITE("Salix::ecs::EntityBatch4347") {
         CHECK(after[1] == before[1]);
     }
 }
+
+TEST_SUITE("Salix::ecs::EntityBatch4847") {
+    TEST_CASE("batch4847 mutating returned element snapshot never changes entity ownership list") {
+        Salix::Entity entity;
+        auto snapshot = entity.get_all_elements();
+        REQUIRE(snapshot.size() == 2);
+        snapshot.clear();
+        CHECK(snapshot.empty());
+        CHECK(entity.get_all_elements().size() == 2);
+        CHECK(entity.get_transform() != nullptr);
+        CHECK(entity.get_element<Salix::BoxCollider>() != nullptr);
+    }
+
+    TEST_CASE("batch4847 const element snapshot is independently mutable as a container copy") {
+        Salix::Entity entity;
+        const Salix::Entity& view = entity;
+        auto snapshot = view.get_all_elements();
+        REQUIRE(snapshot.size() == 2);
+        snapshot.pop_back();
+        CHECK(snapshot.size() == 1);
+        CHECK(view.get_all_elements().size() == 2);
+    }
+
+    TEST_CASE("batch4847 missing display name lookup leaves owned element order unchanged") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements();
+        CHECK(entity.get_element_by_name("Missing4847") == nullptr);
+        const auto after = entity.get_all_elements();
+        REQUIRE(after.size() == before.size());
+        CHECK(after[0] == before[0]);
+        CHECK(after[1] == before[1]);
+    }
+
+    TEST_CASE("batch4847 missing type name lookup returns empty without changing owned element count") {
+        Salix::Entity entity;
+        const auto count = entity.get_all_elements().size();
+        CHECK(entity.get_element_by_type_name("MissingType4847") == nullptr);
+        CHECK(entity.get_elements_by_type_name("MissingType4847").empty());
+        CHECK(entity.get_all_elements().size() == count);
+    }
+
+    TEST_CASE("batch4847 invalid element identifier lookup leaves mandatory components discoverable") {
+        Salix::Entity entity;
+        CHECK(entity.get_element_by_id(Salix::SimpleGuid::invalid()) == nullptr);
+        CHECK(entity.get_transform() != nullptr);
+        CHECK(entity.get_element<Salix::BoxCollider>() != nullptr);
+    }
+
+    TEST_CASE("batch4847 entity name preserves embedded null bytes without changing components") {
+        Salix::Entity entity;
+        const std::string value("Entity\0Batch4847", 16);
+        auto* transform = entity.get_transform();
+        entity.set_name(value);
+        CHECK(entity.get_name() == value);
+        CHECK(entity.get_name().size() == value.size());
+        CHECK(entity.get_transform() == transform);
+    }
+
+    TEST_CASE("batch4847 invalid entity identifier assignment preserves mandatory component identities") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        entity.set_id(Salix::SimpleGuid::invalid());
+        CHECK_FALSE(entity.get_id().is_valid());
+        CHECK(entity.get_transform() == transform);
+        CHECK(entity.get_element<Salix::BoxCollider>() == collider);
+    }
+
+    TEST_CASE("batch4847 renamed sprite remains discoverable by type and new display name") {
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->set_name("RenamedSprite4847");
+        CHECK(entity.get_element_by_name("RenamedSprite4847") == sprite);
+        CHECK(entity.get_element_by_type_name("Sprite2D") == sprite);
+        CHECK(entity.get_element<Salix::Sprite2D>() == sprite);
+    }
+
+    TEST_CASE("batch4847 test-only internal type lookup returns null for unrelated RTTI without mutation") {
+        Salix::Entity entity;
+        const auto count = entity.get_all_elements().size();
+        CHECK(entity.get_element_internal(typeid(std::string)) == nullptr);
+        const Salix::Entity& view = entity;
+        CHECK(view.get_element_internal(typeid(std::string)) == nullptr);
+        CHECK(entity.get_all_elements().size() == count);
+    }
+
+    TEST_CASE("batch4847 simple purge preserves snapshot pointer identities while public named lookups stay blocked") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements();
+        REQUIRE(before.size() == 2);
+        entity.simple_purge();
+        const auto after = entity.get_all_elements();
+        REQUIRE(after.size() == before.size());
+        CHECK(after[0] == before[0]);
+        CHECK(after[1] == before[1]);
+        CHECK(entity.get_element_by_name(before[0]->get_name()) == nullptr);
+        CHECK(entity.get_element_by_name(before[1]->get_name()) == nullptr);
+    }
+}
