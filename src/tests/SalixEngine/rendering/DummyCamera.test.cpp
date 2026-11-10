@@ -608,3 +608,88 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch4547") {
         CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
     }
 }
+
+TEST_SUITE("Salix::rendering::DummyCameraBatch4747") {
+    TEST_CASE("batch4747 maximum finite orthographic size is stored verbatim") {
+        Salix::DummyCamera camera;
+        const float value = (std::numeric_limits<float>::max)();
+        camera.set_orthographic_size(value);
+        CHECK(camera.get_orthographic_size() == value);
+    }
+
+    TEST_CASE("batch4747 lowest finite orthographic size is stored verbatim") {
+        Salix::DummyCamera camera;
+        const float value = (std::numeric_limits<float>::lowest)();
+        camera.set_orthographic_size(value);
+        CHECK(camera.get_orthographic_size() == value);
+    }
+
+    TEST_CASE("batch4747 repeated size assignments retain only final requested scalar") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(1.0f);
+        camera.set_orthographic_size(-2.0f);
+        camera.set_orthographic_size(47.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(47.47f));
+    }
+
+    TEST_CASE("batch4747 changing size never changes active state") {
+        Salix::DummyCamera camera;
+        camera.activate();
+        REQUIRE(camera.get_is_active());
+        camera.set_orthographic_size(-4747.0f);
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4747 changing active state never changes configured size") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(74.47f);
+        camera.set_is_active(true);
+        camera.set_is_active(false);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(74.47f));
+    }
+
+    TEST_CASE("batch4747 separate cameras own distinct view matrix storage") {
+        Salix::DummyCamera first, second;
+        CHECK(&first.get_view_matrix() != &second.get_view_matrix());
+        CHECK(first.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(second.get_view_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch4747 separate cameras own distinct projection matrix storage") {
+        Salix::DummyCamera first, second;
+        CHECK(&first.get_projection_matrix() != &second.get_projection_matrix());
+        CHECK(first.get_projection_matrix() == glm::mat4(1.0f));
+        CHECK(second.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch4747 projection mode reference is shared immutable dummy perspective value") {
+        Salix::DummyCamera first, second;
+        const auto* first_mode = &first.get_projection_mode();
+        const auto* second_mode = &second.get_projection_mode();
+        CHECK(first_mode == second_mode);
+        CHECK(*first_mode == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch4747 invalid projection mode request leaves size activity and matrices untouched") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(4.747f);
+        camera.activate();
+        camera.set_projection_mode(static_cast<Salix::ProjectionMode>(-4747));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(4.747f));
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch4747 ICamera active setter and convenience methods share one underlying flag") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_is_active(true);
+        REQUIRE(camera.get_is_active());
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+        camera.activate();
+        CHECK(camera.get_is_active());
+    }
+}
