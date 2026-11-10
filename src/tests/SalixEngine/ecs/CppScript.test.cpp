@@ -471,3 +471,110 @@ TEST_SUITE("Salix::ecs::CppScriptBatch4347") {
         CHECK(&first.get_script_name() != &second.get_script_name());
     }
 }
+
+TEST_SUITE("Salix::ecs::CppScriptBatch4847") {
+    TEST_CASE("batch4847 runtime name preserves UTF8 bytes exactly") {
+        Salix::CppScript script;
+        const std::string value = u8"脚本_Controller_4847";
+        script.set_script_name(value);
+        CHECK(script.get_script_name() == value);
+        CHECK(script.get_script_name().size() == value.size());
+    }
+
+    TEST_CASE("batch4847 runtime name preserves leading and trailing whitespace exactly") {
+        Salix::CppScript script;
+        const std::string value = "  \tRuntime4847\n ";
+        script.set_script_name(value);
+        CHECK(script.get_script_name() == value);
+    }
+
+    TEST_CASE("batch4847 runtime name reference retains stable address across setter calls") {
+        Salix::CppScript script;
+        const auto* storage = &script.get_script_name();
+        script.set_script_name("First4847");
+        CHECK(&script.get_script_name() == storage);
+        script.set_script_name("Second4847LongerName");
+        CHECK(&script.get_script_name() == storage);
+        CHECK(*storage == "Second4847LongerName");
+    }
+
+    TEST_CASE("batch4847 binary roundtrip preserves embedded null bytes in runtime name") {
+        Salix::CppScript source;
+        const std::string value("Run\0Time\0Batch4847", 18);
+        source.set_script_name(value);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_script_name() == value);
+        CHECK(restored.get_script_name().size() == value.size());
+    }
+
+    TEST_CASE("batch4847 JSON roundtrip preserves explicitly empty runtime name") {
+        Salix::CppScript source;
+        source.set_script_name("");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        restored.set_script_name("Before4847");
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_script_name().empty());
+    }
+
+    TEST_CASE("batch4847 JSON roundtrip preserves newline tab and backslash escaping") {
+        Salix::CppScript source;
+        const std::string value = "Scripts\\Batch4847\nController\tA";
+        source.set_script_name(value);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_script_name() == value);
+    }
+
+    TEST_CASE("batch4847 runtime name mutation never changes display name identifier or visibility") {
+        Salix::CppScript script;
+        script.set_name("Display4847");
+        script.set_id(Salix::SimpleGuid::from_value(4847001ULL));
+        script.set_visibility(false);
+        script.set_script_name("Runtime4847");
+        script.set_script_name("RuntimeUpdated4847");
+        CHECK(script.get_name() == "Display4847");
+        CHECK(script.get_id().get_value() == 4847001ULL);
+        CHECK_FALSE(script.is_visible());
+        CHECK(script.get_script_name() == "RuntimeUpdated4847");
+    }
+
+    TEST_CASE("batch4847 binary roundtrip replaces destination runtime name but leaves destination owner local") {
+        Salix::CppScript source;
+        source.set_script_name("Serialized4847");
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::Entity owner;
+        Salix::CppScript restored;
+        restored.set_owner(&owner);
+        restored.set_script_name("DestinationBefore4847");
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_owner() == &owner);
+        CHECK(restored.get_script_name() == "Serialized4847");
+    }
+
+    TEST_CASE("batch4847 repeated lifecycle calls preserve whitespace rich runtime name") {
+        Salix::CppScript script;
+        const std::string value = " \tLifecycle 4847\n";
+        script.set_script_name(value);
+        script.initialize();
+        script.update(-1.0f);
+        script.update(0.0f);
+        script.shutdown();
+        CHECK(script.get_script_name() == value);
+    }
+
+    TEST_CASE("batch4847 two scripts with equal runtime text still own distinct string objects") {
+        Salix::CppScript first, second;
+        first.set_script_name("SharedText4847");
+        second.set_script_name("SharedText4847");
+        CHECK(first.get_script_name() == second.get_script_name());
+        CHECK(&first.get_script_name() != &second.get_script_name());
+    }
+}
