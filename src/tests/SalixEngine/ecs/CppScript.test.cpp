@@ -475,7 +475,7 @@ TEST_SUITE("Salix::ecs::CppScriptBatch4347") {
 TEST_SUITE("Salix::ecs::CppScriptBatch4847") {
     TEST_CASE("batch4847 runtime name preserves UTF8 bytes exactly") {
         Salix::CppScript script;
-        const std::string value = u8"脚本_Controller_4847";
+        const std::string value = std::string("\xE8\x84\x9A\xE6\x9C\xAC") + "_Controller_4847";
         script.set_script_name(value);
         CHECK(script.get_script_name() == value);
         CHECK(script.get_script_name().size() == value.size());
