@@ -457,3 +457,112 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch4747") {
+    TEST_CASE("batch4747 unmapped Separator key follows full safe inactive semantics") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK_FALSE(manager.is_down(Salix::KeyCode::Separator));
+        CHECK_FALSE(manager.is_held_down(Salix::KeyCode::Separator));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::Separator, -1.0f));
+        CHECK_FALSE(manager.was_released(Salix::KeyCode::Separator));
+        CHECK(manager.is_up(Salix::KeyCode::Separator));
+    }
+
+    TEST_CASE("batch4747 invalid scroll enum never matches nonzero wheel movement") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = 4.747f;
+        CHECK_FALSE(manager.did_scroll(static_cast<Salix::MouseScroll>(9999)));
+        CHECK(manager.did_scroll(Salix::MouseScroll::Forward));
+    }
+
+    TEST_CASE("batch4747 mouse position query independently supports null x and null y") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MousePos = ImVec2(-47.75f, 74.5f);
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, nullptr);
+        manager.get_mouse_position(nullptr, &y);
+        CHECK(x == -47);
+        CHECK(y == 74);
+        CHECK_NOTHROW(manager.get_mouse_position(nullptr, nullptr));
+    }
+
+    TEST_CASE("batch4747 infinite update delta does not consume GUI wheel or position state") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = -4.747f;
+        ImGui::GetIO().MousePos = ImVec2(47.25f, -74.75f);
+        manager.update(std::numeric_limits<float>::infinity());
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(manager.get_mouse_scroll_delta() == doctest::Approx(-4.747f));
+        CHECK(x == 47);
+        CHECK(y == -74);
+    }
+
+    TEST_CASE("batch4747 processing prehandled engine event preserves handled flag and GUI state") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = 2.5f;
+        Salix::MockEvent event;
+        event.handled = true;
+        manager.process_event(event);
+        CHECK(event.handled);
+        CHECK(manager.get_mouse_scroll_delta() == doctest::Approx(2.5f));
+        CHECK_FALSE(manager.wants_to_quit());
+    }
+
+    TEST_CASE("batch4747 processing ordinary engine event never marks event handled") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        Salix::MockEvent event;
+        REQUIRE_FALSE(event.handled);
+        manager.process_event(event);
+        CHECK_FALSE(event.handled);
+    }
+
+    TEST_CASE("batch4747 empty keyboard chord uses vacuous all semantics but no release trigger") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::KeyCode> keys;
+        CHECK(manager.multiple_are_down(keys));
+        CHECK(manager.multiple_are_held_down(keys));
+        CHECK(manager.multiple_are_held_down_for(keys, 4747.0f));
+        CHECK(manager.multiple_were_released(keys));
+        CHECK(manager.multiple_are_up(keys));
+        CHECK_FALSE(manager.any_of_combo_was_released(keys));
+    }
+
+    TEST_CASE("batch4747 empty mouse chord uses vacuous all semantics but no release trigger") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::MouseButton> buttons;
+        CHECK(manager.multiple_are_down(buttons));
+        CHECK(manager.multiple_are_held_down(buttons));
+        CHECK(manager.multiple_are_held_down_for(buttons, 4747.0f));
+        CHECK(manager.multiple_were_released(buttons));
+        CHECK(manager.multiple_are_up(buttons));
+        CHECK_FALSE(manager.any_of_combo_was_released(buttons));
+    }
+
+    TEST_CASE("batch4747 mixed mapped and unmapped inactive keyboard chord is fully up only") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::KeyCode> keys{Salix::KeyCode::A, Salix::KeyCode::None};
+        CHECK_FALSE(manager.multiple_are_down(keys));
+        CHECK_FALSE(manager.multiple_are_held_down(keys));
+        CHECK_FALSE(manager.multiple_were_released(keys));
+        CHECK(manager.multiple_are_up(keys));
+    }
+
+    TEST_CASE("batch4747 mixed mapped and unmapped inactive mouse chord is fully up only") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::MouseButton> buttons{Salix::MouseButton::Left, Salix::MouseButton::None};
+        CHECK_FALSE(manager.multiple_are_down(buttons));
+        CHECK_FALSE(manager.multiple_are_held_down(buttons));
+        CHECK_FALSE(manager.multiple_were_released(buttons));
+        CHECK(manager.multiple_are_up(buttons));
+    }
+}
