@@ -789,14 +789,14 @@ TEST_SUITE("Salix::ecs::CameraBatch4847") {
         CHECK(second.get_field_of_view() == doctest::Approx(90.0f));
     }
 
-    TEST_CASE("batch4847 ICamera virtual configuration preserves orthographic size and active flag together") {
+    TEST_CASE("batch4847 ICamera virtual configuration reaches concrete projection size and active state") {
         Salix::Camera concrete;
         Salix::ICamera& camera = concrete;
         camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
         camera.set_orthographic_size(48.47f);
         camera.set_is_active(true);
         CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
-        CHECK(camera.get_orthographic_size() == doctest::Approx(48.47f));
+        CHECK(concrete.get_orthographic_size() == doctest::Approx(48.47f));
         CHECK(camera.get_is_active());
     }
 }
