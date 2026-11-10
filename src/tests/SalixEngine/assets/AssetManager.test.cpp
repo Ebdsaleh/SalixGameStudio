@@ -849,3 +849,140 @@ TEST_SUITE("Salix::assets::AssetManagerBatch4347") {
         CHECK(second.calls == 1);
     }
 }
+
+TEST_SUITE("Salix::assets::AssetManagerBatch4847") {
+    TEST_CASE("batch4847 dot project root and empty project root normalize same relative asset key") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = ".";
+        auto* first = assets.get_texture("Assets/batch4847/dot.png");
+        REQUIRE(first != nullptr);
+        Salix::g_project_root_path.clear();
+        auto* second = assets.get_texture("Assets/batch4847/dot.png");
+        CHECK(second == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4847 lexically equivalent project roots reuse one cached texture") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/Batch4847Root/Temp/..";
+        auto* first = assets.get_texture("Assets/shared.png");
+        REQUIRE(first != nullptr);
+        Salix::g_project_root_path = "C:/Batch4847Root";
+        CHECK(assets.get_texture("Assets/shared.png") == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4847 absolute dot segment alias shares existing cache entry") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Ignored4847";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("D:/Batch4847/UI/icon.png");
+        REQUIRE(first != nullptr);
+        auto* second = assets.get_texture("D:/Batch4847/UI/./icon.png");
+        CHECK(second == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4847 relative leading dot alias shares existing cache entry") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch4847";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("Assets/UI/icon.png");
+        REQUIRE(first != nullptr);
+        CHECK(assets.get_texture("./Assets/UI/icon.png") == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4847 shutdown followed by null renderer makes former cached request safely unavailable") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch4847";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/cleared.png") != nullptr);
+        REQUIRE(renderer.calls == 1);
+        assets.shutdown();
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("Assets/cleared.png") == nullptr);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4847 same renderer after shutdown reloads previously cached logical key") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch4847";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("Assets/reload.png");
+        REQUIRE(first != nullptr);
+        assets.shutdown();
+        assets.initialize(&renderer);
+        auto* second = assets.get_texture("Assets/reload.png");
+        REQUIRE(second != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch4847 renderer failure under aliased path is retried by canonical path") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch4847";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        renderer.should_texture_load_fail = true;
+        CHECK(assets.get_texture("Assets/Temp/../retry.png") == nullptr);
+        renderer.should_texture_load_fail = false;
+        REQUIRE(assets.get_texture("Assets/retry.png") != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch4847 cached texture remains available across multiple renderer pointer replacements") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch4847";
+        CountingAssetRenderer first, second, third;
+        Salix::AssetManager assets;
+        assets.initialize(&first);
+        auto* cached = assets.get_texture("Assets/stable.png");
+        REQUIRE(cached != nullptr);
+        assets.initialize(&second);
+        assets.initialize(&third);
+        CHECK(assets.get_texture("Assets/stable.png") == cached);
+        CHECK(first.calls == 1);
+        CHECK(second.calls == 0);
+        CHECK(third.calls == 0);
+    }
+
+    TEST_CASE("batch4847 two absolute paths differing only by parent alias normalize to one cache key") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("D:/Batch4847/Images/icon.png");
+        REQUIRE(first != nullptr);
+        auto* second = assets.get_texture("D:/Batch4847/Temp/../Images/icon.png");
+        CHECK(second == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch4847 shutdown clears alias cache so next equivalent alias reaches renderer again") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch4847";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/A/../icon.png") != nullptr);
+        CHECK(renderer.calls == 1);
+        assets.shutdown();
+        REQUIRE(assets.get_texture("Assets/icon.png") != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+}
