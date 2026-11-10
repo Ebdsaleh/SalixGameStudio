@@ -690,3 +690,131 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch4447") {
         CHECK(second.texture_id == sprite->get_texture()->get_imgui_texture_id());
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiIconManagerBatch4947") {
+    TEST_CASE("batch4947 null entity after default registration returns exact Default icon object") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto& fallback = fixture.icons.get_icon_by_name("Default");
+        const auto& icon = fixture.icons.get_icon_for_entity(nullptr);
+        CHECK(&icon == &fallback);
+    }
+
+    TEST_CASE("batch4947 null element follows updated Default fallback mapping") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch4947/default-null.png");
+        const auto& icon = fixture.icons.get_icon_for_element(nullptr);
+        CHECK(icon.path == "Assets/Icons/Batch4947/default-null.png");
+        CHECK(icon.texture_id == fixture.icons.get_icon_by_name("Default").texture_id);
+    }
+
+    TEST_CASE("batch4947 generic entity without special components resolves registered Entity icon") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        const auto& icon = fixture.icons.get_icon_for_entity(&entity);
+        const auto& expected = fixture.icons.get_icon_by_name("Entity");
+        CHECK(&icon == &expected);
+    }
+
+    TEST_CASE("batch4947 camera entity resolves Camera icon instead of generic Entity icon") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        REQUIRE(entity.add_element<Salix::Camera>() != nullptr);
+        const auto& icon = fixture.icons.get_icon_for_entity(&entity);
+        const auto& camera = fixture.icons.get_icon_by_name("Camera");
+        const auto& generic = fixture.icons.get_icon_by_name("Entity");
+        CHECK(&icon == &camera);
+        CHECK(&icon != &generic);
+    }
+
+    TEST_CASE("batch4947 textureless sprite without camera falls through to Entity icon") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        REQUIRE(sprite->get_texture() == nullptr);
+        const auto& icon = fixture.icons.get_icon_for_entity(&entity);
+        CHECK(&icon == &fixture.icons.get_icon_by_name("Entity"));
+    }
+
+    TEST_CASE("batch4947 dynamic sprite lookup leaves current Default fallback unchanged") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch4947/default-stable.png");
+        const auto default_before = fixture.icons.get_icon_by_name("Default");
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&fixture.assets, "Assets/Icons/Batch4947/runtime.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        const auto& dynamic = fixture.icons.get_icon_for_entity(&entity);
+        CHECK(dynamic.path.empty());
+        const auto& default_after = fixture.icons.get_icon_by_name("Default");
+        CHECK(default_after.path == default_before.path);
+        CHECK(default_after.texture_id == default_before.texture_id);
+    }
+
+    TEST_CASE("batch4947 updated Default icon becomes fallback for repeated unknown name lookups") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        fixture.icons.update_icon("Default", "Assets/Icons/Batch4947/repeated-default.png");
+        const auto* first = &fixture.icons.get_icon_by_name("UnknownA4947");
+        const auto* second = &fixture.icons.get_icon_by_name("UnknownB4947");
+        const auto* fallback = &fixture.icons.get_icon_by_name("Default");
+        CHECK(first == fallback);
+        CHECK(second == fallback);
+        CHECK(first->path == "Assets/Icons/Batch4947/repeated-default.png");
+    }
+
+    TEST_CASE("batch4947 reinitializing manager redirects later icon update to replacement AssetManager") {
+        MockIRenderer first_renderer;
+        MockIRenderer second_renderer;
+        Salix::AssetManager first_assets;
+        Salix::AssetManager second_assets;
+        Salix::ImGuiIconManager icons;
+        first_assets.initialize(&first_renderer);
+        second_assets.initialize(&second_renderer);
+        icons.initialize(&first_assets);
+        icons.register_default_icons();
+        REQUIRE(first_renderer.load_texture_calls == 7);
+        REQUIRE(second_renderer.load_texture_calls == 0);
+        icons.initialize(&second_assets);
+        icons.update_icon("Entity", "Assets/Icons/Batch4947/reinitialized.png");
+        CHECK(first_renderer.load_texture_calls == 7);
+        CHECK(second_renderer.load_texture_calls == 1);
+        CHECK(icons.get_icon_by_name("Entity").path == "Assets/Icons/Batch4947/reinitialized.png");
+    }
+
+    TEST_CASE("batch4947 failed update through replacement AssetManager preserves old icon mapping") {
+        MockIRenderer first_renderer;
+        MockIRenderer second_renderer;
+        Salix::AssetManager first_assets;
+        Salix::AssetManager second_assets;
+        Salix::ImGuiIconManager icons;
+        first_assets.initialize(&first_renderer);
+        second_assets.initialize(&second_renderer);
+        icons.initialize(&first_assets);
+        icons.register_default_icons();
+        const auto before = icons.get_icon_by_name("Camera");
+        second_renderer.should_texture_load_fail = true;
+        icons.initialize(&second_assets);
+        icons.update_icon("Camera", "Assets/Icons/Batch4947/fail.png");
+        CHECK(second_renderer.load_texture_calls == 1);
+        CHECK(icons.get_icon_by_name("Camera").path == before.path);
+        CHECK(icons.get_icon_by_name("Camera").texture_id == before.texture_id);
+    }
+
+    TEST_CASE("batch4947 unknown lookups never insert entries into canonical registry") {
+        Batch1947IconFixture fixture;
+        fixture.icons.register_default_icons();
+        const auto size_before = fixture.icons.get_icon_registry().size();
+        fixture.icons.get_icon_by_name("UnknownOne4947");
+        fixture.icons.get_icon_by_name("UnknownTwo4947");
+        fixture.icons.get_icon_by_name("");
+        CHECK(fixture.icons.get_icon_registry().size() == size_before);
+    }
+}
