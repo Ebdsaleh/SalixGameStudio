@@ -1002,3 +1002,80 @@ TEST_SUITE("Salix::management::FileManagerBatch4447") {
         CHECK(Salix::FileManager::convert_to_relative_path(same.string(), same.string()) == ".");
     }
 }
+
+TEST_SUITE("Salix::management::FileManagerBatch4947") {
+    TEST_CASE("batch4947 empty string root leaves absolute path unchanged") {
+        const std::string path = "C:/Batch4947/Assets/file.bin";
+        CHECK(Salix::FileManager::convert_to_relative("", path) == path);
+    }
+
+    TEST_CASE("batch4947 root already ending in separator converts child without leading slash") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:/Batch4947/Project/",
+            "C:/Batch4947/Project/Assets/file.bin") == "Assets/file.bin");
+    }
+
+    TEST_CASE("batch4947 mixed Windows and generic separators normalize child conversion") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:\\Batch4947\\Project",
+            "C:/Batch4947/Project/Assets\\file.bin") == "Assets/file.bin");
+    }
+
+    TEST_CASE("batch4947 prefix lookalike sibling is never mistaken for project child") {
+        const std::string sibling = "C:/Batch4947/ProjectSibling/file.bin";
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:/Batch4947/Project", sibling) == sibling);
+    }
+
+    TEST_CASE("batch4947 exact root with trailing separator still converts to dot") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:/Batch4947/Project/",
+            "C:/Batch4947/Project/") == ".");
+    }
+
+    TEST_CASE("batch4947 filesystem relative conversion of root to itself yields dot") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto relative = Salix::FileManager::convert_to_relative_path(
+            temp.root.string(), temp.root.string());
+        CHECK(std::filesystem::path(relative).generic_string() == ".");
+    }
+
+    TEST_CASE("batch4947 copying empty source truncates preexisting destination") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("empty4947.bin", "");
+        temp.write("destination4947.bin", "old-content");
+        REQUIRE(Salix::FileManager::copy_file(
+            temp.file("empty4947.bin"), temp.file("destination4947.bin")));
+        CHECK(Salix::FileManager::get_file_size(temp.file("destination4947.bin")) == 0);
+        CHECK(Salix::FileManager::read_file_content(temp.file("destination4947.bin")).empty());
+    }
+
+    TEST_CASE("batch4947 regular file probe returns false for owned directory") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        CHECK(Salix::FileManager::path_exists(temp.root.string()));
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(temp.root.string()));
+    }
+
+    TEST_CASE("batch4947 single high byte hex dump emits unsigned hex and nonprintable dot") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("high4947.bin", std::string("\xff", 1));
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("high4947.bin"));
+        CHECK(dump.find("Length: 1 bytes") != std::string::npos);
+        CHECK(dump.find("ff ") != std::string::npos);
+        CHECK(dump.find("   .\n") != std::string::npos);
+    }
+
+    TEST_CASE("batch4947 binary read preserves CRLF and trailing null exactly") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("A\r\nB\0", 5);
+        temp.write("crlf4947.bin", payload);
+        const auto loaded = Salix::FileManager::read_file_content(temp.file("crlf4947.bin"));
+        CHECK(loaded.size() == payload.size());
+        CHECK(loaded == payload);
+    }
+}
