@@ -688,3 +688,125 @@ TEST_SUITE("Salix::scripting::ScriptFactoryBatch4547") {
         CHECK(dynamic_cast<Batch1047ScriptB*>(recovered.get()) != nullptr);
     }
 }
+
+TEST_SUITE("Salix::scripting::ScriptFactoryBatch4747") {
+    TEST_CASE("batch4747 whitespace only registration key remains exact and creatable") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = "   ";
+        factory.register_script(key, [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto created = factory.create_script(key);
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(created.get()) != nullptr);
+        CHECK(factory.create_script("") == nullptr);
+    }
+
+    TEST_CASE("batch4747 newline registration key remains distinct from visible prefix") {
+        auto& factory = Salix::ScriptFactory::get();
+        const std::string key = "Batch4747::line\nbreak";
+        factory.register_script(key, [] { return std::make_unique<Batch1047ScriptB>(); });
+        REQUIRE(factory.create_script(key) != nullptr);
+        CHECK(factory.create_script("Batch4747::line") == nullptr);
+    }
+
+    TEST_CASE("batch4747 captured counter can configure independently named objects per creation") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto counter = std::make_shared<int>(0);
+        factory.register_script("Batch4747::named-sequence", [counter] {
+            auto script = std::make_unique<Batch1047ScriptA>();
+            script->set_name("Generated4747-" + std::to_string(++*counter));
+            return script;
+        });
+        auto first = factory.create_script("Batch4747::named-sequence");
+        auto second = factory.create_script("Batch4747::named-sequence");
+        REQUIRE(first != nullptr); REQUIRE(second != nullptr);
+        CHECK(first->get_name() == "Generated4747-1");
+        CHECK(second->get_name() == "Generated4747-2");
+        CHECK(*counter == 2);
+    }
+
+    TEST_CASE("batch4747 null returning creator is invoked independently for every request") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto calls = std::make_shared<int>(0);
+        factory.register_script("Batch4747::counted-null", [calls]() -> std::unique_ptr<Salix::ScriptElement> {
+            ++*calls;
+            return nullptr;
+        });
+        CHECK(factory.create_script("Batch4747::counted-null") == nullptr);
+        CHECK(factory.create_script("Batch4747::counted-null") == nullptr);
+        CHECK(*calls == 2);
+    }
+
+    TEST_CASE("batch4747 throwing creator preserves invocation side effects across failures") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto calls = std::make_shared<int>(0);
+        factory.register_script("Batch4747::counted-throw", [calls]() -> std::unique_ptr<Salix::ScriptElement> {
+            ++*calls;
+            throw std::runtime_error("Batch4747 counted throw");
+        });
+        CHECK_THROWS_AS(factory.create_script("Batch4747::counted-throw"), std::runtime_error);
+        CHECK_THROWS_AS(factory.create_script("Batch4747::counted-throw"), std::runtime_error);
+        CHECK(*calls == 2);
+    }
+
+    TEST_CASE("batch4747 replacing working creator with empty creator affects only future requests") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4747::working-to-empty", [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto existing = factory.create_script("Batch4747::working-to-empty");
+        REQUIRE(existing != nullptr);
+        factory.register_script("Batch4747::working-to-empty", Salix::ScriptFactory::Creator{});
+        CHECK_THROWS_AS(factory.create_script("Batch4747::working-to-empty"), std::bad_function_call);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(existing.get()) != nullptr);
+    }
+
+    TEST_CASE("batch4747 three creator replacements retain only final mapping for future request") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4747::triple-replace", [] { return std::make_unique<Batch1047ScriptA>(); });
+        factory.register_script("Batch4747::triple-replace", [] { return std::make_unique<Batch1047ScriptB>(); });
+        factory.register_script("Batch4747::triple-replace", [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto created = factory.create_script("Batch4747::triple-replace");
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(created.get()) != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(created.get()) == nullptr);
+    }
+
+    TEST_CASE("batch4747 two level creator delegation resolves final registered concrete type") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4747::inner", [] { return std::make_unique<Batch1047ScriptB>(); });
+        factory.register_script("Batch4747::middle", [&factory] {
+            return factory.create_script("Batch4747::inner");
+        });
+        factory.register_script("Batch4747::outer", [&factory] {
+            return factory.create_script("Batch4747::middle");
+        });
+        auto created = factory.create_script("Batch4747::outer");
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(created.get()) != nullptr);
+    }
+
+    TEST_CASE("batch4747 creator can preconfigure identifier name and visibility together") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4747::full-metadata", [] {
+            auto script = std::make_unique<Batch1047ScriptA>();
+            script->set_id(Salix::SimpleGuid::from_value(4747007ULL));
+            script->set_name("FullMetadata4747");
+            script->set_visibility(false);
+            return script;
+        });
+        auto created = factory.create_script("Batch4747::full-metadata");
+        REQUIRE(created != nullptr);
+        CHECK(created->get_id().get_value() == 4747007ULL);
+        CHECK(created->get_name() == "FullMetadata4747");
+        CHECK_FALSE(created->is_visible());
+    }
+
+    TEST_CASE("batch4747 trailing space creates registration key distinct from unspaced sibling") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch4747::space", [] { return std::make_unique<Batch1047ScriptA>(); });
+        factory.register_script("Batch4747::space ", [] { return std::make_unique<Batch1047ScriptB>(); });
+        auto plain = factory.create_script("Batch4747::space");
+        auto spaced = factory.create_script("Batch4747::space ");
+        REQUIRE(plain != nullptr); REQUIRE(spaced != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(plain.get()) != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(spaced.get()) != nullptr);
+    }
+}
