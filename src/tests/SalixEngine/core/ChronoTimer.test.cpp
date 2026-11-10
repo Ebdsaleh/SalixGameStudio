@@ -712,11 +712,13 @@ TEST_SUITE("Salix::core::ChronoTimerBatch4547") {
         CHECK(timer.get_delta_time() == measured);
     }
 
-    TEST_CASE("batch4547 zero default delay preserves monotonic tick observation") {
-        const auto before = Salix::ChronoTimer::get_ticks_ms();
-        Salix::ChronoTimer::default_delay(std::chrono::milliseconds(0));
-        const auto after = Salix::ChronoTimer::get_ticks_ms();
-        CHECK(after >= before);
+    TEST_CASE("batch4547 default constructed capped timer reaches internal default delay safely") {
+        Salix::ChronoTimer timer;
+        timer.set_target_fps(1000);
+        timer.tick_start();
+        CHECK_NOTHROW(timer.tick_end());
+        CHECK(std::isfinite(timer.get_delta_time()));
+        CHECK(timer.get_delta_time() >= 0.0f);
     }
 
     TEST_CASE("batch4547 short fractional delay helper preserves monotonic tick observation") {
