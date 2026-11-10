@@ -666,3 +666,82 @@ TEST_SUITE("Salix::core::LoggingBatch4347") {
         CHECK(text.back() == '\n');
     }
 }
+
+TEST_SUITE("Salix::core::LoggingBatch4847") {
+    TEST_CASE("batch4847 error with empty source name preserves explicit colon and zero line") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "empty-source-4847", "", 0);
+        CHECK(output.str().find("[ERROR] [:0] empty-source-4847") != std::string::npos);
+    }
+
+    TEST_CASE("batch4847 debug source path containing colon is preserved verbatim") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "drive4847", "C:\\Batch4847\\Probe.cpp", 48);
+        CHECK(output.str().find("[DEBUG] [C:\\Batch4847\\Probe.cpp:48] drive4847") != std::string::npos);
+    }
+
+    TEST_CASE("batch4847 message containing only bracket tokens is preserved verbatim") {
+        std::stringstream output; CerrRedirect redirect(output);
+        const std::string payload = "[][][4847]";
+        Salix::LogMessage(Salix::LogLevel::INFO, payload, "ignored.cpp", 1);
+        CHECK(output.str().find("[INFO] " + payload) != std::string::npos);
+    }
+
+    TEST_CASE("batch4847 unknown severity still emits payload and exactly one completed line") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(static_cast<Salix::LogLevel>(4847), "unknown4847", "hidden.cpp", 4847);
+        const auto text = output.str();
+        CHECK(text.find("[] unknown4847") != std::string::npos);
+        CHECK_FALSE(text.empty());
+        CHECK(text.back() == '\n');
+        CHECK(text.find("hidden.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch4847 two direct records each terminate independently") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "first4847", "", 0);
+        Salix::LogMessage(Salix::LogLevel::INFO, "second4847", "", 0);
+        const auto text = output.str();
+        const auto first_end = text.find('\n');
+        REQUIRE(first_end != std::string::npos);
+        CHECK(text.find('\n', first_end + 1) != std::string::npos);
+        CHECK(text.find("first4847") < text.find("second4847"));
+    }
+
+    TEST_CASE("batch4847 info macro streams boolean and integer values using default stream formatting") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_INFO("flag=" << true << ", count=" << 4847);
+        CHECK(output.str().find("[INFO] flag=1, count=4847") != std::string::npos);
+    }
+
+    TEST_CASE("batch4847 warning macro streams temporary string expression exactly once") {
+        std::stringstream output; CerrRedirect redirect(output);
+        int evaluations = 0;
+        auto make_payload = [&]() { ++evaluations; return std::string("temporary4847"); };
+        LOG_WARNING(make_payload());
+        CHECK(evaluations == 1);
+        CHECK(output.str().find("[WARN] temporary4847") != std::string::npos);
+    }
+
+    TEST_CASE("batch4847 error macro retains hexadecimal stream formatting in payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_ERROR("hex=" << std::hex << 0x4847);
+        CHECK(output.str().find("hex=4847") != std::string::npos);
+        CHECK(output.str().find(__FILE__) != std::string::npos);
+    }
+
+    TEST_CASE("batch4847 debug macro preserves embedded tab in streamed payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_DEBUG("left\t" << "right4847");
+        CHECK(output.str().find("left\tright4847") != std::string::npos);
+        CHECK(output.str().find("[DEBUG]") != std::string::npos);
+    }
+
+    TEST_CASE("batch4847 satisfied assert leaves redirected output untouched and message unevaluated") {
+        std::stringstream output; CerrRedirect redirect(output);
+        int evaluations = 0;
+        LOG_ASSERT(true, (++evaluations, "should-not-run-4847"));
+        CHECK(evaluations == 0);
+        CHECK(output.str().empty());
+    }
+}
