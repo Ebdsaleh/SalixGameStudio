@@ -690,14 +690,18 @@ TEST_SUITE("Salix::scripting::ScriptFactoryBatch4547") {
 }
 
 TEST_SUITE("Salix::scripting::ScriptFactoryBatch4747") {
-    TEST_CASE("batch4747 whitespace only registration key remains exact and creatable") {
+    TEST_CASE("batch4747 whitespace only registration keys remain length sensitive and exact") {
         auto& factory = Salix::ScriptFactory::get();
-        const std::string key = "   ";
-        factory.register_script(key, [] { return std::make_unique<Batch1047ScriptA>(); });
-        auto created = factory.create_script(key);
-        REQUIRE(created != nullptr);
-        CHECK(dynamic_cast<Batch1047ScriptA*>(created.get()) != nullptr);
-        CHECK(factory.create_script("") == nullptr);
+        const std::string three_spaces = "   ";
+        const std::string two_spaces = "  ";
+        factory.register_script(three_spaces, [] { return std::make_unique<Batch1047ScriptA>(); });
+        factory.register_script(two_spaces, [] { return std::make_unique<Batch1047ScriptB>(); });
+        auto three = factory.create_script(three_spaces);
+        auto two = factory.create_script(two_spaces);
+        REQUIRE(three != nullptr);
+        REQUIRE(two != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(three.get()) != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(two.get()) != nullptr);
     }
 
     TEST_CASE("batch4747 newline registration key remains distinct from visible prefix") {
