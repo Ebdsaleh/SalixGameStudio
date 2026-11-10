@@ -634,3 +634,94 @@ TEST_SUITE("Salix::gui::ImGuiFontDataBatch4447") {
         CHECK(cfg.FontLoaderFlags == 0x4447u);
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontDataBatch4947") {
+    TEST_CASE("batch4947 interface string getters alias public metadata storage objects") {
+        Salix::ImGuiFontData data("Name4947", "path4947.ttf", 17.0f);
+        CHECK(&data.get_name() == &data.name);
+        CHECK(&data.get_file_path() == &data.file_path);
+        CHECK(&data.get_gui_type() == &data.gui_type);
+    }
+
+    TEST_CASE("batch4947 metadata font size setter preserves negative zero sign without syncing config size") {
+        Salix::ImGuiFontData data("Zero4947", "zero4947.ttf", 12.0f);
+        REQUIRE(data.config.size_pixels == doctest::Approx(12.0f));
+        data.set_font_size(-0.0f);
+        CHECK(data.get_font_size() == 0.0f);
+        CHECK(std::signbit(data.get_font_size()));
+        CHECK(data.config.size_pixels == doctest::Approx(12.0f));
+    }
+
+    TEST_CASE("batch4947 positive infinity constructor synchronizes metadata and config size") {
+        const float inf = std::numeric_limits<float>::infinity();
+        Salix::ImGuiFontData data("Inf4947", "inf4947.ttf", inf);
+        CHECK(std::isinf(data.get_font_size()));
+        CHECK(std::isinf(data.config.size_pixels));
+        CHECK(data.get_font_size() > 0.0f);
+        CHECK(data.config.size_pixels > 0.0f);
+    }
+
+    TEST_CASE("batch4947 NaN constructor synchronizes NaN into both initial size channels") {
+        const float nan = std::numeric_limits<float>::quiet_NaN();
+        Salix::ImGuiFontData data("NaN4947", "nan4947.ttf", nan);
+        CHECK(std::isnan(data.get_font_size()));
+        CHECK(std::isnan(data.config.size_pixels));
+    }
+
+    TEST_CASE("batch4947 maximum loader flags convert without normalization") {
+        Salix::ImGuiFontData data;
+        data.config.font_loader_flags = (std::numeric_limits<unsigned int>::max)();
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.FontLoaderFlags == (std::numeric_limits<unsigned int>::max)());
+    }
+
+    TEST_CASE("batch4947 inverted glyph advance bounds convert exactly as configured") {
+        Salix::ImGuiFontData data;
+        data.config.glyph_min_advance_x = 50.0f;
+        data.config.glyph_max_advance_x = -10.0f;
+        data.config.glyph_extra_advance_x = -4.947f;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.GlyphMinAdvanceX == doctest::Approx(50.0f));
+        CHECK(cfg.GlyphMaxAdvanceX == doctest::Approx(-10.0f));
+        CHECK(cfg.GlyphExtraAdvanceX == doctest::Approx(-4.947f));
+    }
+
+    TEST_CASE("batch4947 negative rasterizer controls convert without clamping") {
+        Salix::ImGuiFontData data;
+        data.config.rasterizer_multiply = -2.0f;
+        data.config.rasterizer_density = -4.947f;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.RasterizerMultiply == doctest::Approx(-2.0f));
+        CHECK(cfg.RasterizerDensity == doctest::Approx(-4.947f));
+    }
+
+    TEST_CASE("batch4947 config conversion does not inject metadata name into ImFontConfig Name buffer") {
+        Salix::ImGuiFontData data("MetadataName4947", "font4947.ttf", 18.0f);
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.Name[0] == '\0');
+    }
+
+    TEST_CASE("batch4947 GUI type preserves embedded null bytes through interface getter") {
+        Salix::ImGuiFontData data;
+        const std::string gui("ImGui\0Custom4947", 16);
+        data.gui_type = gui;
+        CHECK(data.get_gui_type() == gui);
+        CHECK(data.get_gui_type().size() == gui.size());
+    }
+
+    TEST_CASE("batch4947 Config assignment copies pointer and scalar channels independently") {
+        static const ImWchar ranges[] = {0x20, 0x7e, 0};
+        Salix::ImGuiFontData::Config source;
+        source.glyph_ranges = ranges;
+        source.glyph_offset = ImVec2(-4.0f, 9.0f);
+        source.rasterizer_density = 4.947f;
+        Salix::ImGuiFontData::Config copy;
+        copy = source;
+        source.glyph_offset = ImVec2(0.0f, 0.0f);
+        source.rasterizer_density = 1.0f;
+        CHECK(copy.glyph_ranges == ranges);
+        CHECK(copy.glyph_offset.x == doctest::Approx(-4.0f));
+        CHECK(copy.glyph_offset.y == doctest::Approx(9.0f));
+        CHECK(copy.rasterizer_density == doctest::Approx(4.947f));
+    }
+}
