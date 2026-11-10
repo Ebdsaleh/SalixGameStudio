@@ -942,3 +942,45 @@ TEST_SUITE("Salix::core::StringUtilsBatch4247") {
         CHECK(Salix::StringUtils::convert_from_pascal_case("Version2Alpha") == "Version 2 Alpha");
     }
 }
+
+TEST_SUITE("Salix::core::StringUtilsBatch4647") {
+    TEST_CASE("batch4647 uppercase conversion preserves digits punctuation and spacing") {
+        CHECK(Salix::StringUtils::to_upper("a1-b2 c3!", false) == "A1-B2 C3!");
+    }
+
+    TEST_CASE("batch4647 lowercase conversion preserves digits punctuation and spacing") {
+        CHECK(Salix::StringUtils::to_lower("A1-B2 C3!", false) == "a1-b2 c3!");
+    }
+
+    TEST_CASE("batch4647 title case preserves repeated spaces while normalizing each word") {
+        CHECK(Salix::StringUtils::to_title_case("hELLO   wORLD") == "Hello   World");
+    }
+
+    TEST_CASE("batch4647 title case without desnake treats underscore as an ordinary nonspace character") {
+        CHECK(Salix::StringUtils::to_title_case("hELLO_WORLD", false) == "Hello_world");
+    }
+
+    TEST_CASE("batch4647 capitalize with desnake preserves edge underscores while lowering remainder") {
+        CHECK(Salix::StringUtils::capitalize("_HELLO_WORLD_", true) == "_hello world_");
+    }
+
+    TEST_CASE("batch4647 snake validation accepts several mixed alphanumeric segments") {
+        CHECK(Salix::StringUtils::is_snake_case("A1_b2_C3_4647"));
+    }
+
+    TEST_CASE("batch4647 snake validation rejects period even when valid underscore segment exists") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha_beta.txt"));
+    }
+
+    TEST_CASE("batch4647 snake substring detection finds valid segment surrounded by parentheses") {
+        CHECK(Salix::StringUtils::contains_snake_case("(alpha_beta)"));
+    }
+
+    TEST_CASE("batch4647 snake conversion leaves underscores whose neighbors are punctuation untouched") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("a_!_b") == "a_!_b");
+    }
+
+    TEST_CASE("batch4647 Pascal conversion keeps multi digit token together before title word") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("Version42Alpha") == "Version 42 Alpha");
+    }
+}
