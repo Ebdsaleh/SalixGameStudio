@@ -988,3 +988,73 @@ TEST_SUITE("Salix::math::Vector2Batch4247") {
         CHECK(out.y == 47.0f);
     }
 }
+
+TEST_SUITE("Salix::math::Vector2Batch4647") {
+    TEST_CASE("batch4647 normalization of negative axis vector preserves direction") {
+        Salix::Vector2 v(-5.0f, 0.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector2(-1.0f, 0.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch4647 interpolation of identical endpoints remains identical at interior fraction") {
+        const Salix::Vector2 v(-4.647f, 7.464f);
+        CHECK(Salix::Vector2::lerp(v, v, 0.37f) == v);
+    }
+
+    TEST_CASE("batch4647 dot product with self equals squared Pythagorean length") {
+        const Salix::Vector2 v(9.0f, -12.0f);
+        CHECK(Salix::dot(v, v) == doctest::Approx(v.length() * v.length()));
+        CHECK(Salix::dot(v, v) == doctest::Approx(225.0f));
+    }
+
+    TEST_CASE("batch4647 cross product of signed parallel multiples is zero") {
+        const Salix::Vector2 a(3.0f, -7.0f);
+        const Salix::Vector2 b(-6.0f, 14.0f);
+        CHECK(Salix::cross(a, b) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4647 applying perpendicular helper twice produces negated source vector") {
+        const Salix::Vector2 v(4.0f, -7.0f);
+        CHECK(Salix::perp(Salix::perp(v)) == Salix::Vector2(-4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch4647 component division zeroes only axis with zero divisor") {
+        std::stringstream ignored;
+        CerrRedirect redirect(ignored);
+        const auto result = Salix::Vector2(12.0f, -21.0f) / Salix::Vector2(0.0f, 7.0f);
+        CHECK(result.x == 0.0f);
+        CHECK(result.y == doctest::Approx(-3.0f));
+    }
+
+    TEST_CASE("batch4647 reciprocal scalar division zeroes only zero source axis") {
+        std::stringstream ignored;
+        CerrRedirect redirect(ignored);
+        const auto result = 12.0f / Salix::Vector2(-3.0f, 0.0f);
+        CHECK(result.x == doctest::Approx(-4.0f));
+        CHECK(result.y == 0.0f);
+    }
+
+    TEST_CASE("batch4647 scalar division by zero returns canonical zero vector") {
+        std::stringstream ignored;
+        CerrRedirect redirect(ignored);
+        CHECK(Salix::Vector2(4.0f, -7.0f) / 0.0f == Salix::Vector2(0.0f, 0.0f));
+    }
+
+    TEST_CASE("batch4647 compound division by zero resets both axes and returns self") {
+        Salix::Vector2 v(4.0f, -7.0f);
+        Salix::Vector2& returned = (v /= 0.0f);
+        CHECK(&returned == &v);
+        CHECK(v == Salix::Vector2(0.0f, 0.0f));
+    }
+
+    TEST_CASE("batch4647 YAML emitter roundtrip preserves signed finite coordinates") {
+        const Salix::Vector2 original(-4.647f, 7.464f);
+        YAML::Emitter out;
+        out << original;
+        Salix::Vector2 restored;
+        YAML::Load(out.c_str()) >> restored;
+        CHECK(restored.x == doctest::Approx(original.x));
+        CHECK(restored.y == doctest::Approx(original.y));
+    }
+}
