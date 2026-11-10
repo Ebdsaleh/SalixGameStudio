@@ -671,3 +671,126 @@ TEST_SUITE("Salix::management::ProjectManagerBatch4447") {
         CHECK(text == "user-content-4447");
     }
 }
+
+TEST_SUITE("Salix::management::ProjectManagerBatch4947") {
+    TEST_CASE("batch4947 selection metadata preserves embedded null bytes in independent strings") {
+        Salix::ProjectManager manager;
+        const std::string project("Project\0File4947", 16);
+        const std::string directory("Root\0Dir4947", 12);
+        manager.set_project_to_load(project);
+        manager.set_loaded_project_directory(directory);
+        CHECK(manager.get_project_to_load() == project);
+        CHECK(manager.get_loaded_project_directory() == directory);
+        CHECK(manager.get_project_to_load().size() == project.size());
+        CHECK(manager.get_loaded_project_directory().size() == directory.size());
+    }
+
+    TEST_CASE("batch4947 placeholder update accepts infinite delta without changing ownership") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Ignored4947");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        CHECK_NOTHROW(manager.update(std::numeric_limits<float>::infinity()));
+        CHECK(manager.get_active_project() == active);
+    }
+
+    TEST_CASE("batch4947 successful project creation preserves manager selection metadata and active placeholder") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Keep4947.salixproj");
+        manager.set_loaded_project_directory("KeepRoot4947");
+        manager.set_active_project("KeepActive4947");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        REQUIRE(manager.create_new_project(root.path.string(), "Created4947"));
+        CHECK(manager.get_project_to_load() == "Keep4947.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "KeepRoot4947");
+        CHECK(manager.get_active_project() == active);
+    }
+
+    TEST_CASE("batch4947 project name containing spaces creates matching directory and project filename") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        const std::string name = "Project Name 4947";
+        REQUIRE(manager.create_new_project(root.path.string(), name));
+        CHECK(std::filesystem::is_directory(root.path / name / "Assets" / "Realms"));
+        CHECK(std::filesystem::is_regular_file(root.path / name / (name + ".salixproj")));
+    }
+
+    TEST_CASE("batch4947 generated starter project file has exact canonical three line content") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(root.path.string(), "Exact4947"));
+        std::ifstream in(root.path / "Exact4947" / "Exact4947.salixproj");
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CHECK(text ==
+            "// Salix Game Studio Project File\n"
+            "ProjectName: Exact4947\n"
+            "StartingRealm: MainLevel\n");
+    }
+
+    TEST_CASE("batch4947 recreating project restores deleted asset subdirectory without rewriting project file") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_project(root.path.string(), "Restore4947"));
+        const auto project = root.path / "Restore4947";
+        const auto file = project / "Restore4947.salixproj";
+        { std::ofstream out(file, std::ios::trunc); out << "custom4947"; }
+        std::filesystem::remove_all(project / "Assets" / "Audio");
+        REQUIRE_FALSE(std::filesystem::exists(project / "Assets" / "Audio"));
+        REQUIRE(manager.create_new_project(root.path.string(), "Restore4947"));
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Audio"));
+        std::ifstream in(file);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CHECK(text == "custom4947");
+    }
+
+    TEST_CASE("batch4947 file obstruction at first Realms directory stops project creation before later asset directories") {
+        Batch1947ProjectRoot root;
+        const auto project = root.path / "Blocked4947";
+        std::filesystem::create_directories(project / "Assets");
+        { std::ofstream out(project / "Assets" / "Realms"); out << "block"; }
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_project(root.path.string(), "Blocked4947"));
+        CHECK(std::filesystem::is_regular_file(project / "Assets" / "Realms"));
+        CHECK_FALSE(std::filesystem::exists(project / "Assets" / "Scripts"));
+        CHECK_FALSE(std::filesystem::exists(project / "Blocked4947.salixproj"));
+    }
+
+    TEST_CASE("batch4947 repeated placeholder replacement leaves selection metadata untouched") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Selected4947.salixproj");
+        manager.set_loaded_project_directory("SelectedRoot4947");
+        manager.set_active_project("First4947");
+        manager.set_active_project("Second4947");
+        manager.set_active_project("Third4947");
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_project_to_load() == "Selected4947.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "SelectedRoot4947");
+        CHECK(manager.get_active_project()->get_name() == "TestProject");
+    }
+
+    TEST_CASE("batch4947 shutdown after repeated placeholder replacement remains idempotent and preserves metadata") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending4947.salixproj");
+        manager.set_loaded_project_directory("PendingRoot4947");
+        manager.set_active_project("One4947");
+        manager.set_active_project("Two4947");
+        manager.shutdown();
+        manager.shutdown();
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(manager.get_project_to_load() == "Pending4947.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "PendingRoot4947");
+    }
+
+    TEST_CASE("batch4947 initialization after placeholder creation preserves exact active project pointer") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("BeforeInit4947");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        Salix::InitContext context{};
+        manager.initialize(context);
+        CHECK(manager.get_active_project() == active);
+        CHECK(manager.get_active_project()->get_name() == "TestProject");
+    }
+}
