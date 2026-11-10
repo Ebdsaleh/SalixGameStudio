@@ -598,3 +598,109 @@ TEST_SUITE("Salix::gui::ImGuiFontBatch4447") {
         CHECK(second.get_imgui_font_ptr() == second_runtime);
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontBatch4947") {
+    TEST_CASE("batch4947 default font combines undefined family null runtime and concrete owned data") {
+        Salix::ImGuiFont font;
+        CHECK(font.get_family() == "undefined");
+        CHECK(font.get_imgui_font_ptr() == nullptr);
+        CHECK(dynamic_cast<Salix::ImGuiFontData*>(font.get_data()) != nullptr);
+    }
+
+    TEST_CASE("batch4947 custom constructor leaves family undefined and runtime pointer null") {
+        Salix::ImGuiFont font("custom4947.ttf", "Custom4947", 49.47f);
+        CHECK(font.get_name() == "Custom4947");
+        CHECK(font.get_data()->get_file_path() == "custom4947.ttf");
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(49.47f));
+        CHECK(font.get_family() == "undefined");
+        CHECK(font.get_imgui_font_ptr() == nullptr);
+    }
+
+    TEST_CASE("batch4947 family reference object address remains stable across replacements") {
+        Salix::ImGuiFont font;
+        const auto* family = &font.get_family();
+        font.set_family("First4947");
+        CHECK(&font.get_family() == family);
+        font.set_family("Second4947LongerFamily");
+        CHECK(&font.get_family() == family);
+        CHECK(*family == "Second4947LongerFamily");
+    }
+
+    TEST_CASE("batch4947 runtime pointer can be assigned cleared and reassigned independently") {
+        Salix::ImGuiFont font;
+        ImFont* first = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x49471));
+        ImFont* second = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x49472));
+        font.set_imgui_font_ptr(first);
+        CHECK(font.get_imgui_font_ptr() == first);
+        font.set_imgui_font_ptr(nullptr);
+        CHECK(font.get_imgui_font_ptr() == nullptr);
+        font.set_imgui_font_ptr(second);
+        CHECK(font.get_imgui_font_ptr() == second);
+    }
+
+    TEST_CASE("batch4947 runtime pointer mutation never changes data or family metadata") {
+        Salix::ImGuiFont font("stable4947.ttf", "Stable4947", 19.0f);
+        font.set_family("Family4947");
+        auto* data = font.get_data();
+        ImFont* runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x49473));
+        font.set_imgui_font_ptr(runtime);
+        CHECK(font.get_data() == data);
+        CHECK(font.get_name() == "Stable4947");
+        CHECK(font.get_family() == "Family4947");
+    }
+
+    TEST_CASE("batch4947 direct owned data size mutation preserves family and runtime pointer") {
+        Salix::ImGuiFont font;
+        font.set_family("Family4947");
+        ImFont* runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x49474));
+        font.set_imgui_font_ptr(runtime);
+        font.get_data()->set_font_size(33.0f);
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(33.0f));
+        CHECK(font.get_family() == "Family4947");
+        CHECK(font.get_imgui_font_ptr() == runtime);
+    }
+
+    TEST_CASE("batch4947 compatible data replacement preserves glyph range pointer identity in copied snapshot") {
+        static const ImWchar ranges[] = {0x20, 0x7e, 0};
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData source("Ranges4947", "ranges4947.ttf", 14.0f);
+        source.config.glyph_ranges = ranges;
+        font.set_data(&source);
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.glyph_ranges == ranges);
+    }
+
+    TEST_CASE("batch4947 compatible data replacement copies config independently from later source mutation") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData source("Config4947", "config4947.ttf", 16.0f);
+        source.config.rasterizer_multiply = 2.0f;
+        source.config.glyph_offset = ImVec2(4.0f, 9.0f);
+        font.set_data(&source);
+        source.config.rasterizer_multiply = 9.0f;
+        source.config.glyph_offset = ImVec2(0.0f, 0.0f);
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.rasterizer_multiply == doctest::Approx(2.0f));
+        CHECK(stored->config.glyph_offset.x == doctest::Approx(4.0f));
+        CHECK(stored->config.glyph_offset.y == doctest::Approx(9.0f));
+    }
+
+    TEST_CASE("batch4947 compatible data replacement preserves embedded null metadata bytes") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData source;
+        source.name = std::string("Font\0Name4947", 13);
+        source.file_path = std::string("Path\0Font4947", 13);
+        font.set_data(&source);
+        CHECK(font.get_name() == source.name);
+        CHECK(font.get_data()->get_file_path() == source.file_path);
+        CHECK(font.get_name().size() == source.name.size());
+    }
+
+    TEST_CASE("batch4947 family setter preserves whitespace and control characters exactly") {
+        Salix::ImGuiFont font;
+        const std::string family = " \tFamily 4947\n ";
+        font.set_family(family);
+        CHECK(font.get_family() == family);
+    }
+}
