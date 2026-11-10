@@ -608,3 +608,99 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch4447") {
         CHECK(manager.get_font("Purge4447") == raw);
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch4947") {
+    TEST_CASE("batch4947 registry reference remains stable across registration and unregister") {
+        Salix::ImGuiFontManager manager;
+        const auto* registry = &manager.get_font_registry();
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("StableRegistry4947", "Family", 12.0f)));
+        CHECK(&manager.get_font_registry() == registry);
+        REQUIRE(manager.unregister_font("StableRegistry4947"));
+        CHECK(&manager.get_font_registry() == registry);
+    }
+
+    TEST_CASE("batch4947 empty font name is a valid exact registry key but cannot become active") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("", "EmptyNameFamily4947", 12.0f)));
+        CHECK(manager.get_font("") != nullptr);
+        CHECK_FALSE(manager.set_active_font(""));
+        CHECK(manager.get_active_font() == nullptr);
+    }
+
+    TEST_CASE("batch4947 empty family is retained in unique family collection") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("EmptyFamily4947", "", 12.0f)));
+        const auto families = manager.get_unique_font_families();
+        REQUIRE(families.size() == 1);
+        CHECK(families[0].empty());
+    }
+
+    TEST_CASE("batch4947 equal numeric sizes from distinct fonts remain duplicated in family size result") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("SameSizeA4947", "SameSizeFamily4947", 14.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("SameSizeB4947", "SameSizeFamily4947", 14.0f)));
+        const auto sizes = manager.get_font_sizes_for_font_family("SameSizeFamily4947");
+        REQUIRE(sizes.size() == 2);
+        CHECK(sizes[0] == doctest::Approx(14.0f));
+        CHECK(sizes[1] == doctest::Approx(14.0f));
+    }
+
+    TEST_CASE("batch4947 embedded null font name remains retrievable only by exact full string") {
+        Salix::ImGuiFontManager manager;
+        const std::string name("Font\0Name4947", 13);
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>(name, "Family4947", 15.0f)));
+        CHECK(manager.get_font(name) != nullptr);
+        CHECK(manager.get_font("Font") == nullptr);
+    }
+
+    TEST_CASE("batch4947 failed missing active selection preserves established active font") {
+        Salix::ImGuiFontManager manager;
+        auto font = std::make_unique<MockIFont>("Active4947", "Family", 16.0f);
+        MockIFont* raw = font.get();
+        REQUIRE(manager.register_font(std::move(font)));
+        REQUIRE(manager.set_active_font("Active4947"));
+        CHECK_FALSE(manager.set_active_font("Missing4947"));
+        CHECK(manager.get_active_font() == raw);
+    }
+
+    TEST_CASE("batch4947 unregistering active font clears selection while retaining inactive peer") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Active4947B", "A", 10.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Peer4947", "B", 20.0f)));
+        REQUIRE(manager.set_active_font("Active4947B"));
+        REQUIRE(manager.unregister_font("Active4947B"));
+        CHECK(manager.get_active_font() == nullptr);
+        CHECK(manager.get_font("Peer4947") != nullptr);
+        CHECK(manager.get_font_registry().size() == 1);
+    }
+
+    TEST_CASE("batch4947 failed apply of registered font with null runtime pointer preserves active peer") {
+        Salix::ImGuiFontManager manager;
+        auto active = std::make_unique<MockIFont>("KeepActive4947", "A", 10.0f);
+        MockIFont* active_raw = active.get();
+        REQUIRE(manager.register_font(std::move(active)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("NullRuntime4947", "B", 12.0f)));
+        REQUIRE(manager.set_active_font("KeepActive4947"));
+        CHECK_FALSE(manager.apply_font("NullRuntime4947"));
+        CHECK(manager.get_active_font() == active_raw);
+    }
+
+    TEST_CASE("batch4947 rebuild before GUI initialization fails without mutating registry") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Keep4947", "Family", 12.0f)));
+        CHECK_FALSE(manager.rebuild_font_atlas_texture());
+        CHECK(manager.get_font("Keep4947") != nullptr);
+        CHECK(manager.get_font_registry().size() == 1);
+    }
+
+    TEST_CASE("batch4947 returned name vector is a value snapshot independent from registry") {
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("SnapshotA4947", "A", 10.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("SnapshotB4947", "B", 20.0f)));
+        auto names = manager.get_registered_font_names();
+        REQUIRE(names.size() == 2);
+        names.clear();
+        CHECK(manager.get_registered_font_names().size() == 2);
+        CHECK(manager.get_font_registry().size() == 2);
+    }
+}
