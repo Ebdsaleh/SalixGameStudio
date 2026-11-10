@@ -572,3 +572,160 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch4547") {
         CHECK(types[1] == SDL_USEREVENT);
     }
 }
+
+#include <Salix/events/sdl/SDLEvent.h>
+
+TEST_SUITE("Salix::events::SDLEventPollerBatch4747") {
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 quit converts to WindowClose event with application category") {
+        Salix::SDLEventPoller poller;
+        SDL_Event native{}; native.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        int calls = 0;
+        poller.poll_events([&](Salix::IEvent& event) {
+            ++calls;
+            CHECK(event.get_event_type() == Salix::EventType::WindowClose);
+            CHECK(event.is_in_category(Salix::EventCategory::Application));
+            CHECK(dynamic_cast<Salix::WindowCloseEvent*>(&event) != nullptr);
+        });
+        CHECK(calls == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 resized window converts exact dimensions") {
+        Salix::SDLEventPoller poller;
+        SDL_Event native{};
+        native.type = SDL_WINDOWEVENT;
+        native.window.event = SDL_WINDOWEVENT_RESIZED;
+        native.window.data1 = 4747;
+        native.window.data2 = 7474;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        poller.poll_events([&](Salix::IEvent& event) {
+            auto* resize = dynamic_cast<Salix::WindowResizeEvent*>(&event);
+            REQUIRE(resize != nullptr);
+            CHECK(resize->get_width() == 4747u);
+            CHECK(resize->get_height() == 7474u);
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 size changed window converts signed native values through unsigned payload contract") {
+        Salix::SDLEventPoller poller;
+        SDL_Event native{};
+        native.type = SDL_WINDOWEVENT;
+        native.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+        native.window.data1 = 640;
+        native.window.data2 = 480;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        poller.poll_events([&](Salix::IEvent& event) {
+            auto* resize = dynamic_cast<Salix::WindowResizeEvent*>(&event);
+            REQUIRE(resize != nullptr);
+            CHECK(resize->get_width() == 640u);
+            CHECK(resize->get_height() == 480u);
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 nonrepeat keydown preserves key code and repeat flag") {
+        Salix::SDLEventPoller poller;
+        SDL_Event native{};
+        native.type = SDL_KEYDOWN;
+        native.key.keysym.sym = SDLK_f;
+        native.key.repeat = 0;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        poller.poll_events([&](Salix::IEvent& event) {
+            auto* key = dynamic_cast<Salix::KeyPressedEvent*>(&event);
+            REQUIRE(key != nullptr);
+            CHECK(key->get_key_code() == SDLK_f);
+            CHECK_FALSE(key->was_repeated());
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 repeated keydown preserves repeat flag") {
+        Salix::SDLEventPoller poller;
+        SDL_Event native{};
+        native.type = SDL_KEYDOWN;
+        native.key.keysym.sym = SDLK_F12;
+        native.key.repeat = 1;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        poller.poll_events([&](Salix::IEvent& event) {
+            auto* key = dynamic_cast<Salix::KeyPressedEvent*>(&event);
+            REQUIRE(key != nullptr);
+            CHECK(key->get_key_code() == SDLK_F12);
+            CHECK(key->was_repeated());
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 keyup preserves exact key code") {
+        Salix::SDLEventPoller poller;
+        SDL_Event native{};
+        native.type = SDL_KEYUP;
+        native.key.keysym.sym = SDLK_SEMICOLON;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        poller.poll_events([&](Salix::IEvent& event) {
+            auto* key = dynamic_cast<Salix::KeyReleasedEvent*>(&event);
+            REQUIRE(key != nullptr);
+            CHECK(key->get_key_code() == SDLK_SEMICOLON);
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 mouse motion preserves signed coordinates") {
+        Salix::SDLEventPoller poller;
+        SDL_Event native{};
+        native.type = SDL_MOUSEMOTION;
+        native.motion.x = -47;
+        native.motion.y = 74;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        poller.poll_events([&](Salix::IEvent& event) {
+            auto* moved = dynamic_cast<Salix::MouseMovedEvent*>(&event);
+            REQUIRE(moved != nullptr);
+            CHECK(moved->get_x() == doctest::Approx(-47.0f));
+            CHECK(moved->get_y() == doctest::Approx(74.0f));
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 mouse button down and up preserve button identity") {
+        Salix::SDLEventPoller poller;
+        SDL_Event down{}; down.type = SDL_MOUSEBUTTONDOWN; down.button.button = SDL_BUTTON_MIDDLE;
+        SDL_Event up{}; up.type = SDL_MOUSEBUTTONUP; up.button.button = SDL_BUTTON_RIGHT;
+        REQUIRE(SDL_PushEvent(&down) == 1);
+        REQUIRE(SDL_PushEvent(&up) == 1);
+        int calls = 0;
+        poller.poll_events([&](Salix::IEvent& event) {
+            ++calls;
+            if (calls == 1) {
+                auto* pressed = dynamic_cast<Salix::MouseButtonPressedEvent*>(&event);
+                REQUIRE(pressed != nullptr);
+                CHECK(pressed->get_mouse_button() == SDL_BUTTON_MIDDLE);
+            } else {
+                auto* released = dynamic_cast<Salix::MouseButtonReleasedEvent*>(&event);
+                REQUIRE(released != nullptr);
+                CHECK(released->get_mouse_button() == SDL_BUTTON_RIGHT);
+            }
+        });
+        CHECK(calls == 2);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 mouse wheel preserves both axis offsets") {
+        Salix::SDLEventPoller poller;
+        SDL_Event native{};
+        native.type = SDL_MOUSEWHEEL;
+        native.wheel.x = -4;
+        native.wheel.y = 7;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        poller.poll_events([&](Salix::IEvent& event) {
+            auto* wheel = dynamic_cast<Salix::MouseScrolledEvent*>(&event);
+            REQUIRE(wheel != nullptr);
+            CHECK(wheel->get_x_offset() == doctest::Approx(-4.0f));
+            CHECK(wheel->get_y_offset() == doctest::Approx(7.0f));
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch4747 raw callback layer executes before Salix event dispatcher") {
+        Salix::SDLEventPoller poller;
+        std::vector<int> order;
+        poller.register_raw_event_callback([&](void*) { order.push_back(1); });
+        SDL_Event native{}; native.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&native) == 1);
+        poller.poll_events([&](Salix::IEvent&) { order.push_back(2); });
+        REQUIRE(order.size() == 2);
+        CHECK(order[0] == 1);
+        CHECK(order[1] == 2);
+    }
+}
