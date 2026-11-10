@@ -1295,3 +1295,164 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch4547") {
         CHECK(sprite.get_texture_height() == 16);
     }
 }
+
+TEST_SUITE("Salix::ecs::Sprite2DBatch4747") {
+    TEST_CASE("batch4747 value setters copy caller color offset and pivot storage") {
+        Salix::Sprite2D sprite;
+        Salix::Color color(0.1f, 0.2f, 0.3f, 0.4f);
+        Salix::Vector2 offset(-4.0f, 7.0f);
+        Salix::Vector2 pivot(1.5f, -0.5f);
+        sprite.set_color(color);
+        sprite.set_offset(offset);
+        sprite.set_pivot(pivot);
+        color = Salix::White;
+        offset = Salix::Vector2(0.0f, 0.0f);
+        pivot = Salix::Vector2(0.5f, 0.5f);
+        CHECK(sprite.get_color() == Salix::Color(0.1f, 0.2f, 0.3f, 0.4f));
+        CHECK(sprite.get_offset() == Salix::Vector2(-4.0f, 7.0f));
+        CHECK(sprite.get_pivot() == Salix::Vector2(1.5f, -0.5f));
+    }
+
+    TEST_CASE("batch4747 render metadata setters preserve diagnostic out of range finite values") {
+        Salix::Sprite2D sprite;
+        sprite.set_local_rotation(4747.25f);
+        sprite.set_sorting_layer(-4747);
+        sprite.set_pivot(Salix::Vector2(-2.0f, 3.0f));
+        sprite.set_offset(Salix::Vector2(1000.0f, -1000.0f));
+        CHECK(sprite.get_local_rotation() == doctest::Approx(4747.25f));
+        CHECK(sprite.get_sorting_layer() == -4747);
+        CHECK(sprite.get_pivot() == Salix::Vector2(-2.0f, 3.0f));
+        CHECK(sprite.get_offset() == Salix::Vector2(1000.0f, -1000.0f));
+    }
+
+    TEST_CASE("batch4747 const color offset and pivot references retain stable addresses across setters") {
+        Salix::Sprite2D sprite;
+        const Salix::Sprite2D& view = sprite;
+        const auto* color = &view.get_color();
+        const auto* offset = &view.get_offset();
+        const auto* pivot = &view.get_pivot();
+        sprite.set_color(Salix::Red);
+        sprite.set_offset(Salix::Vector2(4.0f, 7.0f));
+        sprite.set_pivot(Salix::Vector2(0.25f, 0.75f));
+        CHECK(&view.get_color() == color);
+        CHECK(&view.get_offset() == offset);
+        CHECK(&view.get_pivot() == pivot);
+        CHECK(*color == Salix::Red);
+        CHECK(*offset == Salix::Vector2(4.0f, 7.0f));
+        CHECK(*pivot == Salix::Vector2(0.25f, 0.75f));
+    }
+
+    TEST_CASE("batch4747 on load with empty texture path never asks asset manager for texture") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        Salix::InitContext context{};
+        context.asset_manager = &assets;
+        sprite.on_load(context);
+        CHECK(renderer.load_texture_calls == 0);
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_path().empty());
+    }
+
+    TEST_CASE("batch4747 on load resolves preconfigured texture path through asset manager") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("assets/onload4747.png");
+        Salix::InitContext context{};
+        context.asset_manager = &assets;
+        sprite.on_load(context);
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+        CHECK(renderer.load_texture_calls == 1);
+        CHECK(sprite.get_texture_path() == "assets/onload4747.png");
+    }
+
+    TEST_CASE("batch4747 on load with missing manager clears prior runtime texture but preserves path") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/clear4747.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        Salix::InitContext context{};
+        sprite.on_load(context);
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+        CHECK(sprite.get_texture_path() == "assets/clear4747.png");
+    }
+
+    TEST_CASE("batch4747 owned loaded sprite render forwards latest color and owner transform") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/render4747.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        sprite->set_color(Salix::Color(0.2f, 0.4f, 0.6f, 0.8f));
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 1);
+        CHECK(renderer.last_texture == sprite->get_texture());
+        CHECK(renderer.last_transform == owner.get_transform());
+        CHECK(renderer.last_color == Salix::Color(0.2f, 0.4f, 0.6f, 0.8f));
+    }
+
+    TEST_CASE("batch4747 changing color after first draw affects second draw without reloading texture") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/color4747.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        REQUIRE(renderer.load_texture_calls == 1);
+        sprite->set_color(Salix::Red);
+        sprite->render(&renderer);
+        REQUIRE(renderer.last_color == Salix::Red);
+        sprite->set_color(Salix::Blue);
+        sprite->render(&renderer);
+        CHECK(renderer.last_color == Salix::Blue);
+        CHECK(renderer.draw_sprite_call_count == 2);
+        CHECK(renderer.load_texture_calls == 1);
+    }
+
+    TEST_CASE("batch4747 two sprites loading same path share asset cache but retain independent metadata") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D first, second;
+        first.set_color(Salix::Red);
+        second.set_color(Salix::Blue);
+        first.load_texture(&assets, "assets/shared4747.png");
+        second.load_texture(&assets, "assets/shared4747.png");
+        REQUIRE(first.get_texture() != nullptr);
+        CHECK(second.get_texture() == first.get_texture());
+        CHECK(renderer.load_texture_calls == 1);
+        CHECK(first.get_color() == Salix::Red);
+        CHECK(second.get_color() == Salix::Blue);
+    }
+
+    TEST_CASE("batch4747 failed second path clears runtime resource without changing unrelated metadata") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.set_color(Salix::Magenta);
+        sprite.set_sorting_layer(47);
+        sprite.load_texture(&assets, "assets/good4747.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        renderer.should_texture_load_fail = true;
+        sprite.load_texture(&assets, "assets/fail4747.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_path() == "assets/fail4747.png");
+        CHECK(sprite.get_color() == Salix::Magenta);
+        CHECK(sprite.get_sorting_layer() == 47);
+    }
+}
