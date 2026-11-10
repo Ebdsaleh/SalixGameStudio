@@ -692,3 +692,111 @@ TEST_SUITE("Salix::ecs::CameraBatch4347") {
         CHECK(camera.get_field_of_view() == doctest::Approx(52.0f));
     }
 }
+
+TEST_SUITE("Salix::ecs::CameraBatch4847") {
+    TEST_CASE("batch4847 projection mode reference keeps stable storage across mode changes") {
+        Salix::Camera camera;
+        const auto* mode = &camera.get_projection_mode();
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(&camera.get_projection_mode() == mode);
+        CHECK(*mode == Salix::ProjectionMode::Orthographic);
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
+        CHECK(*mode == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch4847 field of view reference observes subsequent setter replacements") {
+        Salix::Camera camera;
+        float* value = &camera.get_field_of_view();
+        camera.set_field_of_view(48.47f);
+        CHECK(&camera.get_field_of_view() == value);
+        CHECK(*value == doctest::Approx(48.47f));
+        camera.set_field_of_view(84.74f);
+        CHECK(*value == doctest::Approx(84.74f));
+    }
+
+    TEST_CASE("batch4847 orthographic size reference observes subsequent setter replacements") {
+        Salix::Camera camera;
+        float* value = &camera.get_orthographic_size();
+        camera.set_orthographic_size(-48.47f);
+        CHECK(&camera.get_orthographic_size() == value);
+        CHECK(*value == doctest::Approx(-48.47f));
+    }
+
+    TEST_CASE("batch4847 clip plane references remain distinct and stable across replacements") {
+        Salix::Camera camera;
+        float* near_clip = &camera.get_near_clip();
+        float* far_clip = &camera.get_far_clip();
+        REQUIRE(near_clip != far_clip);
+        camera.set_near_clip(0.4847f);
+        camera.set_far_clip(4847.0f);
+        CHECK(&camera.get_near_clip() == near_clip);
+        CHECK(&camera.get_far_clip() == far_clip);
+        CHECK(*near_clip == doctest::Approx(0.4847f));
+        CHECK(*far_clip == doctest::Approx(4847.0f));
+    }
+
+    TEST_CASE("batch4847 zero viewport height leaves previously calculated projection unchanged") {
+        Salix::Camera camera;
+        camera.set_viewport_size(640, 480);
+        const auto before = camera.get_projection_matrix();
+        camera.set_viewport_size(9999, 0);
+        const auto after = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch4847 repeated initialize preserves active state and public projection properties") {
+        Salix::Camera camera;
+        camera.activate();
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(24.0f);
+        camera.set_near_clip(0.2f);
+        camera.set_far_clip(2484.7f);
+        camera.initialize();
+        camera.initialize();
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(24.0f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.2f));
+        CHECK(camera.get_far_clip() == doctest::Approx(2484.7f));
+    }
+
+    TEST_CASE("batch4847 ownerless inactive update leaves identity view matrix unchanged") {
+        Salix::Camera camera;
+        const auto before = camera.get_view_matrix();
+        camera.update(-48.47f);
+        const auto after = camera.get_view_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(before, after));
+        CHECK(after == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch4847 ownerless active update still leaves identity view matrix on read") {
+        Salix::Camera camera;
+        camera.activate();
+        camera.update(48.47f);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch4847 separate cameras expose independent scalar property storage") {
+        Salix::Camera first, second;
+        CHECK(&first.get_field_of_view() != &second.get_field_of_view());
+        CHECK(&first.get_orthographic_size() != &second.get_orthographic_size());
+        CHECK(&first.get_near_clip() != &second.get_near_clip());
+        CHECK(&first.get_far_clip() != &second.get_far_clip());
+        first.set_field_of_view(30.0f);
+        second.set_field_of_view(90.0f);
+        CHECK(first.get_field_of_view() == doctest::Approx(30.0f));
+        CHECK(second.get_field_of_view() == doctest::Approx(90.0f));
+    }
+
+    TEST_CASE("batch4847 ICamera virtual configuration preserves orthographic size and active flag together") {
+        Salix::Camera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(48.47f);
+        camera.set_is_active(true);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(48.47f));
+        CHECK(camera.get_is_active());
+    }
+}
