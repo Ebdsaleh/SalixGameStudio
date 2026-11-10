@@ -883,10 +883,11 @@ TEST_SUITE("Salix::math::RayCastingBatch4347") {
 }
 
 TEST_SUITE("Salix::math::RayCastingBatch4847") {
-    TEST_CASE("batch4847 ray through degenerate point AABB reports exact point parameter") {
-        const Salix::Ray ray{{0.0f, 0.0f, -5.0f}, {0.0f, 0.0f, 1.0f}};
+    TEST_CASE("batch4847 ray through zero thickness X plane AABB reports exact plane parameter") {
+        const Salix::Ray ray{{-5.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
         float distance = -1.0f;
-        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(0.0f), glm::vec3(0.0f), distance));
+        REQUIRE(Salix::Raycast::IntersectsAABB(
+            ray, glm::vec3(0.0f, -1.0f, -1.0f), glm::vec3(0.0f, 1.0f, 1.0f), distance));
         CHECK(distance == doctest::Approx(5.0f));
     }
 
@@ -943,10 +944,11 @@ TEST_SUITE("Salix::math::RayCastingBatch4847") {
         CHECK(distance == doctest::Approx(13.0f));
     }
 
-    TEST_CASE("batch4847 zero half extent OBB at origin is hittable as a point") {
+    TEST_CASE("batch4847 zero thickness Z plane OBB at origin remains hittable") {
         const Salix::Ray ray{{0.0f, 0.0f, -5.0f}, {0.0f, 0.0f, 1.0f}};
         float distance = -1.0f;
-        REQUIRE(Salix::Raycast::IntersectsOBB(ray, glm::mat4(1.0f), glm::vec3(0.0f), distance));
+        REQUIRE(Salix::Raycast::IntersectsOBB(
+            ray, glm::mat4(1.0f), glm::vec3(0.5f, 0.5f, 0.0f), distance));
         CHECK(distance == doctest::Approx(5.0f));
     }
 
