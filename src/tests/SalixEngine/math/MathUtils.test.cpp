@@ -726,3 +726,69 @@ TEST_SUITE("Salix::math::MathUtilsBatch4247") {
         CHECK(Salix::nearly_equal(1.0f, 1.0f + Salix::EPSILON, Salix::EPSILON * 2.0f));
     }
 }
+
+TEST_SUITE("Salix::math::MathUtilsBatch4647") {
+    TEST_CASE("batch4647 epsilon constants remain positive and ordered by intended scale") {
+        CHECK(Salix::EPSILON > 0.0f);
+        CHECK(Salix::EPSILON_SQRT > 0.0f);
+        CHECK(Salix::EPSILON_LERP > 0.0f);
+        CHECK(Salix::EPSILON_SQRT < Salix::EPSILON);
+        CHECK(Salix::EPSILON < Salix::EPSILON_LERP);
+    }
+
+    TEST_CASE("batch4647 float lerp of identical endpoints remains exact across clamped fractions") {
+        CHECK(Salix::lerp<float>(-4.647f, -4.647f, -1.0f) == doctest::Approx(-4.647f));
+        CHECK(Salix::lerp<float>(-4.647f, -4.647f, 0.5f) == doctest::Approx(-4.647f));
+        CHECK(Salix::lerp<float>(-4.647f, -4.647f, 2.0f) == doctest::Approx(-4.647f));
+    }
+
+    TEST_CASE("batch4647 inverse lerp intentionally extrapolates beyond source interval") {
+        CHECK(Salix::inverse_lerp(0.0f, 10.0f, 15.0f) == doctest::Approx(1.5f));
+        CHECK(Salix::inverse_lerp(0.0f, 10.0f, -5.0f) == doctest::Approx(-0.5f));
+    }
+
+    TEST_CASE("batch4647 remap intentionally extrapolates beyond input interval") {
+        CHECK(Salix::remap(15.0f, 0.0f, 10.0f, 0.0f, 100.0f) == doctest::Approx(150.0f));
+        CHECK(Salix::remap(-5.0f, 0.0f, 10.0f, 0.0f, 100.0f) == doctest::Approx(-50.0f));
+    }
+
+    TEST_CASE("batch4647 smooth step quarter and three quarter positions are complementary") {
+        const float a = Salix::smooth_step(0.0f, 1.0f, 0.25f);
+        const float b = Salix::smooth_step(0.0f, 1.0f, 0.75f);
+        CHECK(a + b == doctest::Approx(1.0f));
+        CHECK(a < 0.5f);
+        CHECK(b > 0.5f);
+    }
+
+    TEST_CASE("batch4647 smoother step quarter and three quarter positions are complementary") {
+        const float a = Salix::smoother_step(0.0f, 1.0f, 0.25f);
+        const float b = Salix::smoother_step(0.0f, 1.0f, 0.75f);
+        CHECK(a + b == doctest::Approx(1.0f));
+        CHECK(a < 0.5f);
+        CHECK(b > 0.5f);
+    }
+
+    TEST_CASE("batch4647 ping pong repeats after complete double length periods") {
+        const float base = Salix::ping_pong(1.25f, 4.0f);
+        CHECK(Salix::ping_pong(9.25f, 4.0f) == doctest::Approx(base));
+        CHECK(Salix::ping_pong(17.25f, 4.0f) == doctest::Approx(base));
+    }
+
+    TEST_CASE("batch4647 cubic interpolation of evenly spaced samples stays linear at three quarters") {
+        CHECK(Salix::cubic_interpolate(0.0f, 10.0f, 20.0f, 30.0f, 0.75f) ==
+              doctest::Approx(17.5f));
+    }
+
+    TEST_CASE("batch4647 wrap is invariant under complete positive and negative periods") {
+        const float base = Salix::wrap(12.25f, 10.0f, 14.0f);
+        CHECK(Salix::wrap(12.25f + 40.0f, 10.0f, 14.0f) == doctest::Approx(base));
+        CHECK(Salix::wrap(12.25f - 40.0f, 10.0f, 14.0f) == doctest::Approx(base));
+    }
+
+    TEST_CASE("batch4647 saturation equality and inverse square root preserve interior numeric contracts") {
+        CHECK(Salix::saturate(0.4647f) == doctest::Approx(0.4647f));
+        CHECK(Salix::nearly_equal(1.0f, 1.0f + Salix::EPSILON, Salix::EPSILON));
+        CHECK_FALSE(Salix::nearly_equal(1.0f, 1.0f + 4.0f * Salix::EPSILON, Salix::EPSILON));
+        CHECK(Salix::inv_sqrt(16.0f) == doctest::Approx(0.25f).epsilon(0.01));
+    }
+}
