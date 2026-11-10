@@ -886,7 +886,9 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch4847") {
         unknown["Unknown4847"]["name"] = "skip";
         YAML::Node collider;
         collider["BoxCollider"]["name"] = "Known4847";
-        collider["BoxCollider"]["size"] = Salix::Vector3(4.0f, 8.0f, 47.0f);
+        collider["BoxCollider"]["size"]["x"] = 4.0f;
+        collider["BoxCollider"]["size"]["y"] = 8.0f;
+        collider["BoxCollider"]["size"]["z"] = 47.0f;
         entity["elements"].push_back(unknown);
         entity["elements"].push_back(collider);
         const auto handles = Salix::ByteMirror::create_handles_for_yaml(&entity);
