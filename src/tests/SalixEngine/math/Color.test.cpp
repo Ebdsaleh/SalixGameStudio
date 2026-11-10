@@ -888,3 +888,79 @@ TEST_SUITE("Salix::math::ColorBatch4247") {
         CHECK(Salix::Color::lerp(a, b, 1.5f) == b);
     }
 }
+
+TEST_SUITE("Salix::math::ColorBatch4647") {
+    TEST_CASE("batch4647 HSV two full turns wraps to zero degree hue") {
+        const auto wrapped = Salix::Color::from_hsv(720.0f, 0.75f, 0.5f, 0.25f);
+        const auto base = Salix::Color::from_hsv(0.0f, 0.75f, 0.5f, 0.25f);
+        CHECK(wrapped == base);
+    }
+
+    TEST_CASE("batch4647 HSV negative two full turns wraps to zero degree hue") {
+        const auto wrapped = Salix::Color::from_hsv(-720.0f, 0.6f, 0.8f, 0.4f);
+        const auto base = Salix::Color::from_hsv(0.0f, 0.6f, 0.8f, 0.4f);
+        CHECK(wrapped == base);
+    }
+
+    TEST_CASE("batch4647 HSV four hundred twenty degrees matches sixty degree hue") {
+        const auto wrapped = Salix::Color::from_hsv(420.0f, 0.5f, 0.75f, 0.9f);
+        const auto base = Salix::Color::from_hsv(60.0f, 0.5f, 0.75f, 0.9f);
+        CHECK(wrapped == base);
+    }
+
+    TEST_CASE("batch4647 zero saturation preserves negative diagnostic value as grayscale and exact alpha") {
+        const auto c = Salix::Color::from_hsv(123.0f, 0.0f, -0.5f, -0.25f);
+        CHECK(c == Salix::Color(-0.5f, -0.5f, -0.5f, -0.25f));
+    }
+
+    TEST_CASE("batch4647 integer factory converts each signed diagnostic channel independently") {
+        const auto c = Salix::Color::from_rgba_int(510, -255, 128, 64);
+        CHECK(c.r == doctest::Approx(2.0f));
+        CHECK(c.g == doctest::Approx(-1.0f));
+        CHECK(c.b == doctest::Approx(128.0f / 255.0f));
+        CHECK(c.a == doctest::Approx(64.0f / 255.0f));
+    }
+
+    TEST_CASE("batch4647 quarter interpolation handles out of range signed channels componentwise") {
+        const Salix::Color a(-4.0f, 0.0f, 8.0f, -1.0f);
+        const Salix::Color b(4.0f, 8.0f, 0.0f, 3.0f);
+        const auto c = Salix::Color::lerp(a, b, 0.25f);
+        CHECK(c.r == doctest::Approx(-2.0f));
+        CHECK(c.g == doctest::Approx(2.0f));
+        CHECK(c.b == doctest::Approx(6.0f));
+        CHECK(c.a == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4647 negative scalar multiplication flips signs across all four channels") {
+        const Salix::Color c(1.0f, -2.0f, 3.0f, -4.0f);
+        CHECK(c * -2.0f == Salix::Color(-2.0f, 4.0f, -6.0f, 8.0f));
+        CHECK(-2.0f * c == c * -2.0f);
+    }
+
+    TEST_CASE("batch4647 partial YAML decode zeros omitted green and alpha channels") {
+        Salix::Color c(9.0f, 8.0f, 7.0f, 6.0f);
+        YAML::Load("{r: -4.647, b: 7.464}") >> c;
+        CHECK(c.r == doctest::Approx(-4.647f));
+        CHECK(c.g == 0.0f);
+        CHECK(c.b == doctest::Approx(7.464f));
+        CHECK(c.a == 0.0f);
+    }
+
+    TEST_CASE("batch4647 JSON archive roundtrip preserves representative finite channels") {
+        const Salix::Color original(-4.647f, 7.464f, 0.125f, 1.5f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::Color restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch4647 binary archive roundtrip preserves representative finite channels") {
+        const Salix::Color original(-0.5f, 2.0f, -3.25f, 4.75f);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(original); }
+        Salix::Color restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+}
