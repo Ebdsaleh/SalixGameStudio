@@ -719,3 +719,139 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch4447") {
         CHECK(restored.get_data()->item_spacing == Salix::Vector2(-4.0f, 7.0f));
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeBatch4947") {
+    TEST_CASE("batch4947 default theme name and file path reference objects stay stable across load") {
+        Batch1947ThemeFile file;
+        file.write("name: Loaded4947\ngui_type: ImGui\n");
+        Salix::ImGuiTheme theme;
+        const auto* name = &theme.get_name();
+        const auto* path = &theme.get_file_path();
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(&theme.get_name() == name);
+        CHECK(&theme.get_file_path() == path);
+        CHECK(*name == "Loaded4947");
+        CHECK(*path == file.path.string());
+    }
+
+    TEST_CASE("batch4947 explicitly named theme keeps name reference and identity while source path changes") {
+        Batch1947ThemeFile file;
+        file.write("name: YAML4947\ngui_type: ImGui\n");
+        Salix::ImGuiTheme theme("Explicit4947", "before4947.theme");
+        const auto* name = &theme.get_name();
+        const auto* path = &theme.get_file_path();
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(&theme.get_name() == name);
+        CHECK(&theme.get_file_path() == path);
+        CHECK(*name == "Explicit4947");
+        CHECK(*path == file.path.string());
+        CHECK(theme.get_data()->name == "YAML4947");
+    }
+
+    TEST_CASE("batch4947 theme data pointer remains stable across two successful YAML loads") {
+        Batch1947ThemeFile first;
+        Batch1947ThemeFile second;
+        first.write("name: First4947\nStyleFloats:\n  alpha: 0.49\n");
+        second.write("name: Second4947\nStyleFloats:\n  alpha: 0.47\n");
+        Salix::ImGuiTheme theme;
+        auto* data = theme.get_data();
+        REQUIRE(data != nullptr);
+        REQUIRE(theme.load_from_yaml(first.path.string()));
+        CHECK(theme.get_data() == data);
+        REQUIRE(theme.load_from_yaml(second.path.string()));
+        CHECK(theme.get_data() == data);
+        CHECK(data->name == "Second4947");
+        CHECK(data->alpha == doctest::Approx(0.47f));
+    }
+
+    TEST_CASE("batch4947 malformed YAML fails before changing source file path") {
+        Batch1947ThemeFile valid;
+        Batch1947ThemeFile malformed;
+        valid.write("name: Valid4947\ngui_type: ImGui\n");
+        malformed.write("name: [unterminated\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(valid.path.string()));
+        const auto previous_path = theme.get_file_path();
+        const auto previous_name = theme.get_name();
+        CHECK_FALSE(theme.load_from_yaml(malformed.path.string()));
+        CHECK(theme.get_file_path() == previous_path);
+        CHECK(theme.get_name() == previous_name);
+    }
+
+    TEST_CASE("batch4947 YAML without name preserves default public identity while updating source path") {
+        Batch1947ThemeFile file;
+        file.write("gui_type: ImGui\nStyleFloats:\n  alpha: 0.4947\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_name() == "Default ImGui Theme");
+        CHECK(theme.get_file_path() == file.path.string());
+        CHECK(theme.get_data()->alpha == doctest::Approx(0.4947f));
+    }
+
+    TEST_CASE("batch4947 partial Colors section updates selected color and preserves unrelated color") {
+        Batch1947ThemeFile file;
+        Salix::ImGuiTheme theme;
+        const auto border_before = theme.get_data()->border_color;
+        file.write(
+            "name: Colors4947\nColors:\n"
+            "  text_color: {r: 0.1, g: 0.2, b: 0.3, a: 0.4}\n");
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->text_color == Salix::Color(0.1f, 0.2f, 0.3f, 0.4f));
+        CHECK(theme.get_data()->border_color == border_before);
+    }
+
+    TEST_CASE("batch4947 save and reload preserves anti alias booleans together") {
+        Batch1947ThemeFile file;
+        Salix::ImGuiTheme source("Boolean4947");
+        source.get_data()->name = "Boolean4947";
+        source.get_data()->anti_aliased_lines = false;
+        source.get_data()->anti_aliased_lines_use_tex = false;
+        source.get_data()->anti_aliased_fill = true;
+        REQUIRE(source.save_to_yaml(file.path.string()));
+        Salix::ImGuiTheme restored;
+        REQUIRE(restored.load_from_yaml(file.path.string()));
+        CHECK_FALSE(restored.get_data()->anti_aliased_lines);
+        CHECK_FALSE(restored.get_data()->anti_aliased_lines_use_tex);
+        CHECK(restored.get_data()->anti_aliased_fill);
+    }
+
+    TEST_CASE("batch4947 save and reload preserves hover delay values including negative diagnostic input") {
+        Batch1947ThemeFile file;
+        Salix::ImGuiTheme source("Hover4947");
+        source.get_data()->name = "Hover4947";
+        source.get_data()->hover_stationary_delay = -0.25f;
+        source.get_data()->hover_delay_short = 0.4947f;
+        source.get_data()->hover_delay_normal = 4.947f;
+        REQUIRE(source.save_to_yaml(file.path.string()));
+        Salix::ImGuiTheme restored;
+        REQUIRE(restored.load_from_yaml(file.path.string()));
+        CHECK(restored.get_data()->hover_stationary_delay == doctest::Approx(-0.25f));
+        CHECK(restored.get_data()->hover_delay_short == doctest::Approx(0.4947f));
+        CHECK(restored.get_data()->hover_delay_normal == doctest::Approx(4.947f));
+    }
+
+    TEST_CASE("batch4947 save and reload preserves direction enum selections") {
+        Batch1947ThemeFile file;
+        Salix::ImGuiTheme source("Enums4947");
+        source.get_data()->name = "Enums4947";
+        source.get_data()->window_menu_button_position = ImGuiDir_Right;
+        source.get_data()->color_button_position = ImGuiDir_Left;
+        REQUIRE(source.save_to_yaml(file.path.string()));
+        Salix::ImGuiTheme restored;
+        REQUIRE(restored.load_from_yaml(file.path.string()));
+        CHECK(restored.get_data()->window_menu_button_position == ImGuiDir_Right);
+        CHECK(restored.get_data()->color_button_position == ImGuiDir_Left);
+    }
+
+    TEST_CASE("batch4947 saving to another file never changes theme source file metadata") {
+        Batch1947ThemeFile source_file;
+        Batch1947ThemeFile destination_file;
+        source_file.write("name: Source4947\ngui_type: ImGui\n");
+        Salix::ImGuiTheme theme;
+        REQUIRE(theme.load_from_yaml(source_file.path.string()));
+        const auto source_path = theme.get_file_path();
+        REQUIRE(theme.save_to_yaml(destination_file.path.string()));
+        CHECK(theme.get_file_path() == source_path);
+        CHECK(std::filesystem::is_regular_file(destination_file.path));
+    }
+}
