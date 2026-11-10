@@ -624,3 +624,101 @@ TEST_SUITE("Salix::gui::DialogBoxBatch4547") {
         CHECK(second.get_config().path == "SecondPath4547");
     }
 }
+
+TEST_SUITE("Salix::gui::DialogBoxBatch4747") {
+    TEST_CASE("batch4747 parameterized constructor copies caller key and title storage") {
+        std::string key = "Key4747";
+        std::string title = "Title4747";
+        Salix::DialogBox dialog(key, title, Salix::DialogType::File, false);
+        key = "mutated";
+        title = "mutated";
+        CHECK(dialog.get_key() == "Key4747");
+        CHECK(dialog.get_title() == "Title4747");
+    }
+
+    TEST_CASE("batch4747 filter setter copies caller storage") {
+        Salix::DialogBox dialog;
+        std::string filters = ".png,.realm";
+        dialog.set_filters(filters);
+        filters = ".txt";
+        CHECK(dialog.get_filters() == ".png,.realm");
+    }
+
+    TEST_CASE("batch4747 default path setter copies caller storage into metadata and config") {
+        Salix::DialogBox dialog;
+        std::string path = "Scenes/Batch4747";
+        dialog.set_default_path(path);
+        path = "Mutated";
+        CHECK(dialog.get_default_path() == "Scenes/Batch4747");
+        CHECK(dialog.get_config().path == "Scenes/Batch4747");
+    }
+
+    TEST_CASE("batch4747 default filename setter copies caller storage into metadata and config") {
+        Salix::DialogBox dialog;
+        std::string filename = "Main4747.realm";
+        dialog.set_default_file_name(filename);
+        filename = "Mutated.realm";
+        CHECK(dialog.get_default_filename() == "Main4747.realm");
+        CHECK(dialog.get_config().fileName == "Main4747.realm");
+    }
+
+    TEST_CASE("batch4747 direct config path mutation does not rewrite public default path metadata") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("Public4747");
+        dialog.get_config().path = "ConfigOnly4747";
+        CHECK(dialog.get_default_path() == "Public4747");
+        CHECK(dialog.get_config().path == "ConfigOnly4747");
+    }
+
+    TEST_CASE("batch4747 direct config filename mutation does not rewrite public filename metadata") {
+        Salix::DialogBox dialog;
+        dialog.set_default_file_name("Public4747.txt");
+        dialog.get_config().fileName = "ConfigOnly4747.txt";
+        CHECK(dialog.get_default_filename() == "Public4747.txt");
+        CHECK(dialog.get_config().fileName == "ConfigOnly4747.txt");
+    }
+
+    TEST_CASE("batch4747 overwrite true restores confirm flag after direct config flag removal") {
+        Salix::DialogBox dialog("Save4747", "Save", Salix::DialogType::File, true);
+        dialog.get_config().flags &= ~ImGuiFileDialogFlags_ConfirmOverwrite;
+        REQUIRE((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+        dialog.set_overwrite(true);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+    }
+
+    TEST_CASE("batch4747 overwrite false removes confirm flag while preserving modal flag") {
+        Salix::DialogBox dialog("Open4747", "Open", Salix::DialogType::File, true);
+        REQUIRE((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        REQUIRE((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+        dialog.set_overwrite(false);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+    }
+
+    TEST_CASE("batch4747 callback setter copies callable before caller clears its function") {
+        Salix::DialogBox dialog;
+        int calls = 0;
+        Salix::FileDialogCallback callback = [&](const Salix::FileDialogResult&) { ++calls; };
+        dialog.set_callback(callback);
+        callback = nullptr;
+        REQUIRE(static_cast<bool>(dialog.get_callback()));
+        Salix::FileDialogResult result{};
+        dialog.get_callback()(result);
+        CHECK(calls == 1);
+    }
+
+    TEST_CASE("batch4747 dialogs with identical identity still own independent mutable state") {
+        Salix::DialogBox first("Same4747", "Same", Salix::DialogType::File, false);
+        Salix::DialogBox second("Same4747", "Same", Salix::DialogType::File, false);
+        first.set_filters(".first").set_default_path("First4747").set_default_file_name("first.txt");
+        second.set_filters(".second").set_default_path("Second4747").set_default_file_name("second.txt");
+        CHECK(&first.get_config() != &second.get_config());
+        CHECK(first.get_filters() == ".first");
+        CHECK(second.get_filters() == ".second");
+        CHECK(first.get_default_path() == "First4747");
+        CHECK(second.get_default_path() == "Second4747");
+        CHECK(first.get_default_filename() == "first.txt");
+        CHECK(second.get_default_filename() == "second.txt");
+    }
+}
