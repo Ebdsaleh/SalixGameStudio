@@ -142,3 +142,67 @@ TEST_SUITE("Salix::core::EngineInfoBatch4047") {
         }
     }
 }
+
+TEST_SUITE("Salix::core::EngineInfoBatch4847") {
+    TEST_CASE("batch4847 accessor reference is exactly the exported version_id object") {
+        CHECK(&Salix::EngineInfo::get_engine_version() == &Salix::EngineInfo::version_id);
+    }
+
+    TEST_CASE("batch4847 accessor data pointer is exactly exported version_id character storage") {
+        CHECK(Salix::EngineInfo::get_engine_version().data() == Salix::EngineInfo::version_id.data());
+    }
+
+    TEST_CASE("batch4847 semantic core occupies exactly five characters before prerelease separator") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        const auto dash = version.find('-');
+        REQUIRE(dash != std::string::npos);
+        CHECK(dash == 5);
+        CHECK(version.substr(0, dash).size() == 5);
+    }
+
+    TEST_CASE("batch4847 prerelease suffix occupies exactly five alphabetic characters") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        const auto dash = version.find('-');
+        REQUIRE(dash != std::string::npos);
+        CHECK(version.substr(dash + 1).size() == 5);
+        CHECK(version.substr(dash + 1) == "Alpha");
+    }
+
+    TEST_CASE("batch4847 version contains exactly three numeric characters") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        const auto digits = std::count_if(version.begin(), version.end(), [](char ch) { return ch >= '0' && ch <= '9'; });
+        CHECK(digits == 3);
+    }
+
+    TEST_CASE("batch4847 version contains exactly one uppercase ASCII character") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        const auto uppercase = std::count_if(version.begin(), version.end(), [](char ch) { return ch >= 'A' && ch <= 'Z'; });
+        CHECK(uppercase == 1);
+    }
+
+    TEST_CASE("batch4847 version contains no path or URI delimiter characters") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(version.find('/') == std::string::npos);
+        CHECK(version.find('\\') == std::string::npos);
+        CHECK(version.find(':') == std::string::npos);
+    }
+
+    TEST_CASE("batch4847 exact compatibility token compares equal through std string compare") {
+        CHECK(Salix::EngineInfo::get_engine_version().compare("0.1.0-Alpha") == 0);
+    }
+
+    TEST_CASE("batch4847 appending to a mutable copy leaves exported static data pointer unchanged") {
+        const auto* before = Salix::EngineInfo::get_engine_version().data();
+        std::string copy = Salix::EngineInfo::get_engine_version();
+        copy += "+batch4847";
+        CHECK(copy == "0.1.0-Alpha+batch4847");
+        CHECK(Salix::EngineInfo::get_engine_version().data() == before);
+        CHECK(Salix::EngineInfo::get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch4847 forward iteration reconstructs exact public compatibility token") {
+        std::string reconstructed;
+        for (const char ch : Salix::EngineInfo::get_engine_version()) reconstructed.push_back(ch);
+        CHECK(reconstructed == "0.1.0-Alpha");
+    }
+}
