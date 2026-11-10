@@ -954,3 +954,88 @@ TEST_SUITE("Salix::core::SimpleGuidBatch4247") {
         CHECK(Salix::SimpleGuid::generate().get_value() == 1);
     }
 }
+
+TEST_SUITE("Salix::core::SimpleGuidBatch4647") {
+    TEST_CASE("batch4647 zero watermark leaves reset generator at first valid identifier") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(0);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch4647 watermark equal to reset next identifier advances past that known value") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2);
+    }
+
+    TEST_CASE("batch4647 watermark equal to current next identifier is skipped exactly once") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+        Salix::SimpleGuid::update_next_id(2);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 3);
+    }
+
+    TEST_CASE("batch4647 explicit maximum identifier factory never consumes generator sequence") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto maximum = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)());
+        CHECK(maximum.is_valid());
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch4647 invalid sentinel orders strictly before first explicit valid identifier") {
+        const auto invalid = Salix::SimpleGuid::invalid();
+        const auto first = Salix::SimpleGuid::from_value(1);
+        CHECK(invalid < first);
+        CHECK_FALSE(first < invalid);
+        CHECK(invalid != first);
+    }
+
+    TEST_CASE("batch4647 copy assignment replaces complete identifier value independently") {
+        Salix::SimpleGuid source = Salix::SimpleGuid::from_value(4647001ULL);
+        Salix::SimpleGuid copy = Salix::SimpleGuid::from_value(7);
+        copy = source;
+        source = Salix::SimpleGuid::from_value(99);
+        CHECK(copy.get_value() == 4647001ULL);
+        CHECK(source.get_value() == 99ULL);
+    }
+
+    TEST_CASE("batch4647 invalid sentinel hash equals independently constructed zero identifier hash") {
+        const auto invalid = Salix::SimpleGuid::invalid();
+        const auto zero = Salix::SimpleGuid::from_value(0);
+        CHECK(invalid == zero);
+        CHECK(std::hash<Salix::SimpleGuid>{}(invalid) == std::hash<Salix::SimpleGuid>{}(zero));
+    }
+
+    TEST_CASE("batch4647 JSON archive preserves invalid and two valid identifiers in sequence") {
+        const auto a = Salix::SimpleGuid::invalid();
+        const auto b = Salix::SimpleGuid::from_value(4647);
+        const auto c = Salix::SimpleGuid::from_value(7464);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(a, b, c); }
+        Salix::SimpleGuid ra, rb, rc;
+        { cereal::JSONInputArchive in(stream); in(ra, rb, rc); }
+        CHECK(ra == a);
+        CHECK(rb == b);
+        CHECK(rc == c);
+    }
+
+    TEST_CASE("batch4647 binary archive preserves maximum and adjacent identifier exactly") {
+        const auto below = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)() - 1);
+        const auto maximum = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)());
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(below, maximum); }
+        Salix::SimpleGuid restored_below, restored_maximum;
+        { cereal::BinaryInputArchive in(stream); in(restored_below, restored_maximum); }
+        CHECK(restored_below == below);
+        CHECK(restored_maximum == maximum);
+    }
+
+    TEST_CASE("batch4647 high watermark reset fully restores deterministic low sequence") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(4647000ULL);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 4647001ULL);
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1ULL);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2ULL);
+    }
+}
