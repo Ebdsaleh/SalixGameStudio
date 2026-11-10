@@ -635,3 +635,115 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch4447") {
         CHECK(manager.get_theme("Manual4447") == nullptr);
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch4947") {
+    TEST_CASE("batch4947 registered theme name vector is an independent value snapshot") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("SnapshotA4947")));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("SnapshotB4947")));
+        auto names = manager.get_registered_themes();
+        REQUIRE(names.size() == 2);
+        names.clear();
+        CHECK(manager.get_registered_themes().size() == 2);
+    }
+
+    TEST_CASE("batch4947 case distinct theme names coexist and remain independently retrievable") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Case4947")));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("case4947")));
+        CHECK(manager.get_theme("Case4947") != nullptr);
+        CHECK(manager.get_theme("case4947") != nullptr);
+        CHECK(manager.get_registered_themes().size() == 2);
+    }
+
+    TEST_CASE("batch4947 failed missing active selection preserves established active theme") {
+        Salix::ImGuiThemeManager manager;
+        auto theme = std::make_unique<MockITheme>("Active4947");
+        MockITheme* raw = theme.get();
+        REQUIRE(manager.register_theme(std::move(theme)));
+        REQUIRE(manager.set_active_theme("Active4947"));
+        CHECK_FALSE(manager.set_active_theme("Missing4947"));
+        CHECK(manager.get_active_theme() == raw);
+    }
+
+    TEST_CASE("batch4947 unregistering active theme clears selection and removes registry entry") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("ActiveRemove4947")));
+        REQUIRE(manager.set_active_theme("ActiveRemove4947"));
+        REQUIRE(manager.unregister_theme("ActiveRemove4947"));
+        CHECK(manager.get_active_theme() == nullptr);
+        CHECK(manager.get_theme("ActiveRemove4947") == nullptr);
+        CHECK(manager.get_registered_themes().empty());
+    }
+
+    TEST_CASE("batch4947 purging active theme clears selection while preserving peer") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("PurgeActive4947")));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Peer4947")));
+        REQUIRE(manager.set_active_theme("PurgeActive4947"));
+        REQUIRE(manager.purge_theme("PurgeActive4947"));
+        CHECK(manager.get_active_theme() == nullptr);
+        CHECK(manager.get_theme("Peer4947") != nullptr);
+        CHECK(manager.get_registered_themes().size() == 1);
+    }
+
+    TEST_CASE("batch4947 failed apply without GUI never invokes registered theme apply") {
+        Salix::ImGuiThemeManager manager;
+        auto theme = std::make_unique<MockITheme>("NoGuiApply4947");
+        MockITheme* raw = theme.get();
+        REQUIRE(manager.register_theme(std::move(theme)));
+        CHECK_FALSE(manager.apply_theme("NoGuiApply4947"));
+        CHECK(raw->apply_count == 0);
+        CHECK(manager.get_active_theme() == nullptr);
+    }
+
+    TEST_CASE("batch4947 failed apply of peer without GUI preserves existing active selection") {
+        Salix::ImGuiThemeManager manager;
+        auto active = std::make_unique<MockITheme>("KeepActive4947");
+        MockITheme* active_raw = active.get();
+        auto peer = std::make_unique<MockITheme>("PeerApply4947");
+        MockITheme* peer_raw = peer.get();
+        REQUIRE(manager.register_theme(std::move(active)));
+        REQUIRE(manager.register_theme(std::move(peer)));
+        REQUIRE(manager.set_active_theme("KeepActive4947"));
+        CHECK_FALSE(manager.apply_theme("PeerApply4947"));
+        CHECK(manager.get_active_theme() == active_raw);
+        CHECK(peer_raw->apply_count == 0);
+    }
+
+    TEST_CASE("batch4947 saving non ImGui mock theme is rejected without calling mock serializer") {
+        Batch1947ThemeDirectory directory;
+        const auto target = directory.path / "mock4947.theme";
+        Salix::ImGuiThemeManager manager;
+        auto theme = std::make_unique<MockITheme>("MockSave4947");
+        MockITheme* raw = theme.get();
+        REQUIRE(manager.register_theme(std::move(theme)));
+        CHECK_FALSE(manager.save_theme_to_file("MockSave4947", target.string()));
+        CHECK(raw->save_count == 0);
+        CHECK_FALSE(std::filesystem::exists(target));
+    }
+
+    TEST_CASE("batch4947 internal loader replacement of active same name clears active selection when not applying") {
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "replace4947.theme";
+        { std::ofstream out(file); out << "name: Replace4947\ngui_type: ImGui\n"; }
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Replace4947")));
+        REQUIRE(manager.set_active_theme("Replace4947"));
+        REQUIRE(manager.get_active_theme() != nullptr);
+        REQUIRE(manager.load_internal_theme_from_file(file.string(), false));
+        CHECK(manager.get_theme("Replace4947") != nullptr);
+        CHECK(manager.get_active_theme() == nullptr);
+    }
+
+    TEST_CASE("batch4947 shutdown after failed null initialization still clears registry and active state") {
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Shutdown4947")));
+        REQUIRE(manager.set_active_theme("Shutdown4947"));
+        CHECK_FALSE(manager.initialize(nullptr));
+        manager.shutdown();
+        CHECK(manager.get_active_theme() == nullptr);
+        CHECK(manager.get_registered_themes().empty());
+        CHECK(manager.get_theme("Shutdown4947") == nullptr);
+    }
+}
