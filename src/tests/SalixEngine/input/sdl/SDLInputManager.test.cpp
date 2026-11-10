@@ -727,3 +727,116 @@ TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch3747") {
     }
 }
 
+TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch4747") {
+    TEST_CASE("batch4747 empty keyboard combos consistently report no trigger or all-up state") {
+        Salix::SDLInputManager manager;
+        const std::vector<Salix::KeyCode> keys;
+        CHECK_FALSE(manager.multiple_are_down(keys));
+        CHECK_FALSE(manager.multiple_are_held_down(keys));
+        CHECK_FALSE(manager.multiple_are_held_down_for(keys, 0.0f));
+        CHECK_FALSE(manager.multiple_were_released(keys));
+        CHECK_FALSE(manager.any_of_combo_was_released(keys));
+        CHECK_FALSE(manager.multiple_are_up(keys));
+    }
+
+    TEST_CASE("batch4747 empty mouse combos consistently report no trigger or all-up state") {
+        Salix::SDLInputManager manager;
+        const std::vector<Salix::MouseButton> buttons;
+        CHECK_FALSE(manager.multiple_are_down(buttons));
+        CHECK_FALSE(manager.multiple_are_held_down(buttons));
+        CHECK_FALSE(manager.multiple_are_held_down_for(buttons, 0.0f));
+        CHECK_FALSE(manager.multiple_were_released(buttons));
+        CHECK_FALSE(manager.any_of_combo_was_released(buttons));
+        CHECK_FALSE(manager.multiple_are_up(buttons));
+    }
+
+    TEST_CASE("batch4747 newly pressed key satisfies negative duration threshold before update") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_g, false, raw);
+        manager.process_event(press);
+        REQUIRE(manager.is_down(Salix::KeyCode::G));
+        CHECK(manager.is_held_down_for(Salix::KeyCode::G, -1.0f));
+    }
+
+    TEST_CASE("batch4747 newly pressed mouse satisfies negative duration threshold before update") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseButtonPressedEvent press(SDL_BUTTON_MIDDLE, raw);
+        manager.process_event(press);
+        REQUIRE(manager.is_down(Salix::MouseButton::Middle));
+        CHECK(manager.is_held_down_for(Salix::MouseButton::Middle, -1.0f));
+    }
+
+    TEST_CASE("batch4747 releasing one key resets only its timer while peer keeps accumulating") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent a(SDLK_a, false, raw), b(SDLK_b, false, raw);
+        manager.process_event(a);
+        manager.process_event(b);
+        manager.update(0.10f);
+        Salix::KeyReleasedEvent release_a(SDLK_a, raw);
+        manager.process_event(release_a);
+        manager.update(0.10f);
+        CHECK(manager.is_up(Salix::KeyCode::A));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::A, 0.001f));
+        CHECK(manager.is_held_down_for(Salix::KeyCode::B, 0.19f));
+    }
+
+    TEST_CASE("batch4747 releasing one mouse button resets only its timer while peer keeps accumulating") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseButtonPressedEvent left(SDL_BUTTON_LEFT, raw), right(SDL_BUTTON_RIGHT, raw);
+        manager.process_event(left);
+        manager.process_event(right);
+        manager.update(0.10f);
+        Salix::MouseButtonReleasedEvent release_left(SDL_BUTTON_LEFT, raw);
+        manager.process_event(release_left);
+        manager.update(0.10f);
+        CHECK(manager.is_up(Salix::MouseButton::Left));
+        CHECK_FALSE(manager.is_held_down_for(Salix::MouseButton::Left, 0.001f));
+        CHECK(manager.is_held_down_for(Salix::MouseButton::Right, 0.19f));
+    }
+
+    TEST_CASE("batch4747 unknown SDL key press is ignored without disturbing known key state") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent unknown(SDLK_UNKNOWN, false, raw);
+        manager.process_event(unknown);
+        CHECK(manager.to_salix_keycode(SDLK_UNKNOWN) == Salix::KeyCode::None);
+        CHECK(manager.is_up(Salix::KeyCode::A));
+        CHECK_FALSE(manager.wants_to_quit());
+    }
+
+    TEST_CASE("batch4747 unsupported SDL mouse button code is ignored safely") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseButtonPressedEvent unknown(99, raw);
+        CHECK_NOTHROW(manager.process_event(unknown));
+        CHECK(manager.is_up(Salix::MouseButton::Left));
+        CHECK(manager.is_up(Salix::MouseButton::Middle));
+        CHECK(manager.is_up(Salix::MouseButton::Right));
+    }
+
+    TEST_CASE("batch4747 horizontal-only scroll does not create vertical scroll direction") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseScrolledEvent horizontal(5.0f, 0.0f, raw);
+        manager.process_event(horizontal);
+        CHECK(manager.get_mouse_scroll_delta() == 0.0f);
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Backward));
+    }
+
+    TEST_CASE("batch4747 frame update never changes most recently reported mouse position") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseMovedEvent moved(-47.75f, 74.25f, raw);
+        manager.process_event(moved);
+        manager.update(0.5f);
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(x == -47);
+        CHECK(y == 74);
+    }
+}
