@@ -1127,3 +1127,177 @@ TEST_SUITE("Salix::management::SettingsManagerBatch4447") {
         CHECK_FALSE(std::filesystem::exists(target));
     }
 }
+
+TEST_SUITE("Salix::management::SettingsManagerBatch4947") {
+    TEST_CASE("batch4947 empty save path fails without creating cache side effects") {
+        Salix::SettingsManager manager;
+        Salix::ApplicationConfig config;
+        CHECK_FALSE(manager.save_settings("", config));
+    }
+
+    TEST_CASE("batch4947 partial GUI section updates all numeric GUI fields together") {
+        Batch3447SettingsFiles files("Batch4947_GuiNumbers");
+        files.write_yaml(
+            "GUI:\n"
+            "  dialog_width_ratio: 0.49\n"
+            "  dialog_height_ratio: 0.47\n"
+            "  font_scaling: 1.4947\n"
+            "  global_dpi_scaling: 2.4947\n");
+        Salix::ApplicationConfig config;
+        config.gui_type = Salix::GuiType::None;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.gui_type == Salix::GuiType::None);
+        CHECK(config.gui_settings.dialog_width_ratio == doctest::Approx(0.49f));
+        CHECK(config.gui_settings.dialog_height_ratio == doctest::Approx(0.47f));
+        CHECK(config.gui_settings.font_scaling == doctest::Approx(1.4947f));
+        CHECK(config.gui_settings.global_dpi_scaling == doctest::Approx(2.4947f));
+    }
+
+    TEST_CASE("batch4947 unknown enum strings preserve caller enums while target FPS still updates") {
+        Batch3447SettingsFiles files("Batch4947_UnknownEnums");
+        files.write_yaml(
+            "Engine:\n  initial_state: Future4947\n  target_fps: 4947\n"
+            "Renderer:\n  type: FutureRenderer4947\n"
+            "GUI:\n  type: FutureGui4947\n"
+            "Timer:\n  type: FutureTimer4947\n");
+        Salix::ApplicationConfig config;
+        config.initial_state = Salix::AppStateType::Game;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        config.gui_type = Salix::GuiType::None;
+        config.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.initial_state == Salix::AppStateType::Game);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(config.gui_type == Salix::GuiType::None);
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+        CHECK(config.target_fps == 4947);
+    }
+
+    TEST_CASE("batch4947 saving invalid enum values serializes documented fallback enum defaults") {
+        Batch3447SettingsFiles files("Batch4947_InvalidEnums");
+        Salix::ApplicationConfig source;
+        source.initial_state = static_cast<Salix::AppStateType>(4947);
+        source.renderer_type = static_cast<Salix::RendererType>(4947);
+        source.gui_type = static_cast<Salix::GuiType>(4947);
+        source.timer_type = static_cast<Salix::TimerType>(4947);
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.initial_state == Salix::AppStateType::Launch);
+        CHECK(loaded.renderer_type == Salix::RendererType::SDL);
+        CHECK(loaded.gui_type == Salix::GuiType::ImGui);
+        CHECK(loaded.timer_type == Salix::TimerType::SDL);
+    }
+
+    TEST_CASE("batch4947 save and load preserves negative and zero GUI scaling diagnostics") {
+        Batch3447SettingsFiles files("Batch4947_GuiDiagnostics");
+        Salix::ApplicationConfig source;
+        source.gui_settings.dialog_width_ratio = -0.5f;
+        source.gui_settings.dialog_height_ratio = 0.0f;
+        source.gui_settings.font_scaling = -4.947f;
+        source.gui_settings.global_dpi_scaling = 0.0f;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.gui_settings.dialog_width_ratio == doctest::Approx(-0.5f));
+        CHECK(loaded.gui_settings.dialog_height_ratio == doctest::Approx(0.0f));
+        CHECK(loaded.gui_settings.font_scaling == doctest::Approx(-4.947f));
+        CHECK(loaded.gui_settings.global_dpi_scaling == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch4947 multi dot YAML filename creates cache by replacing only final extension") {
+        Batch3447SettingsFiles files("Batch4947_MultiDot");
+        const auto yaml = files.root / "settings.dev.local.yaml";
+        const auto cache = files.root / "settings.dev.local.cache";
+        { std::ofstream out(yaml); out << "Engine:\n  target_fps: 149\n"; }
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(yaml.string(), config));
+        CHECK(config.target_fps == 149);
+        CHECK(std::filesystem::is_regular_file(cache));
+    }
+
+    TEST_CASE("batch4947 cache with same timestamp as YAML wins fast path by greater equal rule") {
+        Batch3447SettingsFiles files("Batch4947_EqualTimestamp");
+        files.write_yaml("Engine:\n  target_fps: 60\n");
+        Salix::SettingsManager manager;
+        Salix::ApplicationConfig first;
+        REQUIRE(manager.load_settings(files.yaml.string(), first));
+        REQUIRE(first.target_fps == 60);
+        files.write_yaml("Engine:\n  target_fps: 144\n");
+        const auto stamp = std::filesystem::file_time_type::clock::now();
+        std::filesystem::last_write_time(files.yaml, stamp);
+        std::filesystem::last_write_time(files.cache, stamp);
+        Salix::ApplicationConfig second;
+        second.target_fps = 1;
+        REQUIRE(manager.load_settings(files.yaml.string(), second));
+        CHECK(second.target_fps == 60);
+    }
+
+    TEST_CASE("batch4947 newer valid cache restores all GUI numeric fields together") {
+        Batch3447SettingsFiles files("Batch4947_GuiCache");
+        Salix::ApplicationConfig source;
+        source.gui_settings.dialog_width_ratio = 0.11f;
+        source.gui_settings.dialog_height_ratio = 0.22f;
+        source.gui_settings.font_scaling = 1.33f;
+        source.gui_settings.global_dpi_scaling = 2.44f;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig first;
+        REQUIRE(manager.load_settings(files.yaml.string(), first));
+        const auto yaml_time = std::filesystem::last_write_time(files.yaml);
+        std::filesystem::last_write_time(files.cache, yaml_time + std::chrono::seconds(2));
+        Salix::ApplicationConfig second;
+        second.gui_settings.dialog_width_ratio = 9.0f;
+        second.gui_settings.dialog_height_ratio = 9.0f;
+        second.gui_settings.font_scaling = 9.0f;
+        second.gui_settings.global_dpi_scaling = 9.0f;
+        REQUIRE(manager.load_settings(files.yaml.string(), second));
+        CHECK(second.gui_settings.dialog_width_ratio == doctest::Approx(0.11f));
+        CHECK(second.gui_settings.dialog_height_ratio == doctest::Approx(0.22f));
+        CHECK(second.gui_settings.font_scaling == doctest::Approx(1.33f));
+        CHECK(second.gui_settings.global_dpi_scaling == doctest::Approx(2.44f));
+    }
+
+    TEST_CASE("batch4947 empty recognized YAML sections preserve complete caller configuration") {
+        Batch3447SettingsFiles files("Batch4947_EmptySections");
+        files.write_yaml("Window: {}\nEngine: {}\nRenderer: {}\nGUI: {}\nTimer: {}\n");
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Keep4947";
+        config.window_config.width = 494;
+        config.window_config.height = 947;
+        config.target_fps = 149;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        config.initial_state = Salix::AppStateType::Game;
+        config.gui_type = Salix::GuiType::None;
+        config.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "Keep4947");
+        CHECK(config.window_config.width == 494);
+        CHECK(config.window_config.height == 947);
+        CHECK(config.target_fps == 149);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(config.initial_state == Salix::AppStateType::Game);
+        CHECK(config.gui_type == Salix::GuiType::None);
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch4947 save replaces existing YAML content without leaving stale unknown section") {
+        Batch3447SettingsFiles files("Batch4947_ReplaceContent");
+        files.write_yaml("Unknown4947:\n  stale: true\nThisIsExtra: 123\n");
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Fresh4947";
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), config));
+        std::ifstream in(files.yaml);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CHECK(text.find("Fresh4947") != std::string::npos);
+        CHECK(text.find("Unknown4947") == std::string::npos);
+        CHECK(text.find("ThisIsExtra") == std::string::npos);
+    }
+}
