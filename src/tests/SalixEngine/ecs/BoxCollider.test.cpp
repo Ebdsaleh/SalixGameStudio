@@ -869,3 +869,109 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch4347") {
         CHECK(first.get_size() != second.get_size());
     }
 }
+
+TEST_SUITE("Salix::ecs::BoxColliderBatch4847") {
+    TEST_CASE("batch4847 setter copies caller vector storage independently") {
+        Salix::BoxCollider collider;
+        Salix::Vector3 source(4.0f, -8.0f, 47.0f);
+        collider.set_size(source);
+        source = Salix::Vector3::Zero;
+        CHECK(collider.get_size() == Salix::Vector3(4.0f, -8.0f, 47.0f));
+    }
+
+    TEST_CASE("batch4847 positive and negative infinity size components are preserved") {
+        Salix::BoxCollider collider;
+        const float inf = std::numeric_limits<float>::infinity();
+        collider.set_size({inf, -inf, 1.0f});
+        CHECK(std::isinf(collider.get_size().x));
+        CHECK(collider.get_size().x > 0.0f);
+        CHECK(std::isinf(collider.get_size().y));
+        CHECK(collider.get_size().y < 0.0f);
+        CHECK(collider.get_size().z == 1.0f);
+    }
+
+    TEST_CASE("batch4847 NaN size component remains NaN without affecting peer axes") {
+        Salix::BoxCollider collider;
+        collider.set_size({2.0f, std::numeric_limits<float>::quiet_NaN(), -3.0f});
+        CHECK(collider.get_size().x == 2.0f);
+        CHECK(std::isnan(collider.get_size().y));
+        CHECK(collider.get_size().z == -3.0f);
+    }
+
+    TEST_CASE("batch4847 infinite update delta never changes stored geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({4.847f, -48.47f, 484.7f});
+        collider.update(std::numeric_limits<float>::infinity());
+        CHECK(collider.get_size() == Salix::Vector3(4.847f, -48.47f, 484.7f));
+    }
+
+    TEST_CASE("batch4847 repeated initialize calls preserve identifier name visibility and geometry") {
+        Salix::BoxCollider collider;
+        collider.set_name("RepeatedInit4847");
+        collider.set_visibility(false);
+        collider.set_size({1.0f, 4.0f, 7.0f});
+        const auto id = collider.get_id();
+        collider.initialize();
+        collider.initialize();
+        CHECK(collider.get_id() == id);
+        CHECK(collider.get_name() == "RepeatedInit4847");
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(1.0f, 4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch4847 null renderer on load is repeatable and geometry neutral") {
+        Salix::BoxCollider collider;
+        Salix::InitContext context{};
+        collider.set_size({8.0f, 4.0f, 7.0f});
+        CHECK_NOTHROW(collider.on_load(context));
+        CHECK_NOTHROW(collider.on_load(context));
+        CHECK(collider.get_size() == Salix::Vector3(8.0f, 4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch4847 binary roundtrip preserves maximum finite geometry") {
+        Salix::BoxCollider source;
+        const float max = (std::numeric_limits<float>::max)();
+        source.set_size({max, -max, max});
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_size().x == max);
+        CHECK(restored.get_size().y == -max);
+        CHECK(restored.get_size().z == max);
+    }
+
+    TEST_CASE("batch4847 binary roundtrip preserves signed zero geometry components") {
+        Salix::BoxCollider source;
+        source.set_size({-0.0f, 0.0f, -0.0f});
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(std::signbit(restored.get_size().x));
+        CHECK_FALSE(std::signbit(restored.get_size().y));
+        CHECK(std::signbit(restored.get_size().z));
+    }
+
+    TEST_CASE("batch4847 changing identifier repeatedly never changes geometry storage address") {
+        Salix::BoxCollider collider;
+        collider.set_size({4.0f, 8.0f, 47.0f});
+        const auto* address = &collider.get_size();
+        collider.set_id(Salix::SimpleGuid::from_value(4847001ULL));
+        collider.set_id(Salix::SimpleGuid::from_value(4847002ULL));
+        CHECK(&collider.get_size() == address);
+        CHECK(*address == Salix::Vector3(4.0f, 8.0f, 47.0f));
+    }
+
+    TEST_CASE("batch4847 two colliders can hold opposite infinite geometry independently") {
+        Salix::BoxCollider first, second;
+        const float inf = std::numeric_limits<float>::infinity();
+        first.set_size({inf, 1.0f, 2.0f});
+        second.set_size({-inf, 3.0f, 4.0f});
+        CHECK(std::isinf(first.get_size().x));
+        CHECK(first.get_size().x > 0.0f);
+        CHECK(std::isinf(second.get_size().x));
+        CHECK(second.get_size().x < 0.0f);
+        CHECK(&first.get_size() != &second.get_size());
+    }
+}
