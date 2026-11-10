@@ -936,3 +936,85 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch4247") {
             {0.0, (std::numeric_limits<double>::quiet_NaN)()}));
     }
 }
+
+TEST_SUITE("Salix::core::ValidationUtilsBatch4647") {
+    TEST_CASE("batch4647 visible character among every whitespace kind remains valid under strict string policy") {
+        CHECK(Salix::ValidationUtils::is_valid_string(" \t\nX\v\f\r", false, false));
+    }
+
+    TEST_CASE("batch4647 empty string validity depends on allow empty rather than whitespace flag") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string("", false, false));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string("", false, true));
+        CHECK(Salix::ValidationUtils::is_valid_string("", true, false));
+        CHECK(Salix::ValidationUtils::is_valid_string("", true, true));
+    }
+
+    TEST_CASE("batch4647 C string validator checks pointer identity rather than textual length") {
+        const char storage[] = {'\0', 'X', '\0'};
+        CHECK(Salix::ValidationUtils::is_valid_c_str(storage));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_c_str(nullptr));
+    }
+
+    TEST_CASE("batch4647 small signed validators accept zero and reject negative and maximum sentinels") {
+        CHECK(Salix::ValidationUtils::is_valid_int8_t(static_cast<int8_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int8_t(static_cast<int8_t>(-1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int8_t((std::numeric_limits<int8_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_int16_t(static_cast<int16_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int16_t(static_cast<int16_t>(-1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int16_t((std::numeric_limits<int16_t>::max)()));
+    }
+
+    TEST_CASE("batch4647 wide signed validators reserve both bounds and reject ordinary negative values") {
+        CHECK(Salix::ValidationUtils::is_valid_int32_t(static_cast<int32_t>(4647)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int32_t((std::numeric_limits<int32_t>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int32_t((std::numeric_limits<int32_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_int64_t(static_cast<int64_t>(7464)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int64_t(static_cast<int64_t>(-4647)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int64_t((std::numeric_limits<int64_t>::max)()));
+    }
+
+    TEST_CASE("batch4647 fixed width unsigned validators accept max minus one and reserve maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_uint8_t(static_cast<uint8_t>((std::numeric_limits<uint8_t>::max)() - 1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint8_t((std::numeric_limits<uint8_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_uint16_t(static_cast<uint16_t>((std::numeric_limits<uint16_t>::max)() - 1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint16_t((std::numeric_limits<uint16_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_uint32_t((std::numeric_limits<uint32_t>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint32_t((std::numeric_limits<uint32_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_uint64_t((std::numeric_limits<uint64_t>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint64_t((std::numeric_limits<uint64_t>::max)()));
+    }
+
+    TEST_CASE("batch4647 least width signed and unsigned wrappers enforce their respective sentinel contracts") {
+        CHECK(Salix::ValidationUtils::is_valid_intleast32_t(static_cast<int_least32_t>(4647)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast32_t(static_cast<int_least32_t>(-1)));
+        CHECK(Salix::ValidationUtils::is_valid_uint_least32_t((std::numeric_limits<uint_least32_t>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least32_t((std::numeric_limits<uint_least32_t>::max)()));
+    }
+
+    TEST_CASE("batch4647 fast width signed and unsigned wrappers retain nonnegative and maximum sentinel rules") {
+        CHECK(Salix::ValidationUtils::is_valid_int_fast64_t(static_cast<int_fast64_t>(4647)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int_fast64_t(static_cast<int_fast64_t>(-1)));
+        CHECK(Salix::ValidationUtils::is_valid_uint_fast64_t((std::numeric_limits<uint_fast64_t>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_fast64_t((std::numeric_limits<uint_fast64_t>::max)()));
+    }
+
+    TEST_CASE("batch4647 max width integer wrappers accept ordinary values and reserve terminal sentinels") {
+        CHECK(Salix::ValidationUtils::is_valid_intmax_t(static_cast<intmax_t>(4647)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intmax_t((std::numeric_limits<intmax_t>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intmax_t((std::numeric_limits<intmax_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_uintmax_t((std::numeric_limits<uintmax_t>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uintmax_t((std::numeric_limits<uintmax_t>::max)()));
+    }
+
+    TEST_CASE("batch4647 floating and complex wrappers require every represented channel to remain finite") {
+        CHECK(Salix::ValidationUtils::is_valid_float((std::numeric_limits<float>::lowest)()));
+        CHECK(Salix::ValidationUtils::is_valid_double((std::numeric_limits<double>::denorm_min)()));
+        CHECK(Salix::ValidationUtils::is_valid_long_double(-4647.25L));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_float((std::numeric_limits<float>::quiet_NaN)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_double((std::numeric_limits<double>::infinity)()));
+        CHECK(Salix::ValidationUtils::is_valid_complex_float({4.0f, -6.0f}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double({0.0, (std::numeric_limits<double>::quiet_NaN)()}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_long_double(
+            {(std::numeric_limits<long double>::infinity)(), 0.0L}));
+    }
+}
