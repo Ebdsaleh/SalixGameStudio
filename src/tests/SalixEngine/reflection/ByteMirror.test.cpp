@@ -838,9 +838,10 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch4847") {
         CHECK(Salix::ByteMirror::create_element_by_name("__Batch4847NeverRegisteredConstructor__") == nullptr);
     }
 
-    TEST_CASE("batch4847 empty constructor key can be explicitly registered and created") {
-        Salix::ByteMirror::register_constructor("", []() -> Salix::Element* { return new Salix::BoxCollider(); });
-        std::unique_ptr<Salix::Element> created(Salix::ByteMirror::create_element_by_name(""));
+    TEST_CASE("batch4847 constructor key containing spaces remains exact and creatable") {
+        const std::string key = "Batch4847 Constructor With Spaces";
+        Salix::ByteMirror::register_constructor(key, []() -> Salix::Element* { return new Salix::BoxCollider(); });
+        std::unique_ptr<Salix::Element> created(Salix::ByteMirror::create_element_by_name(key));
         REQUIRE(created != nullptr);
         CHECK(dynamic_cast<Salix::BoxCollider*>(created.get()) != nullptr);
     }
