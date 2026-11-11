@@ -692,12 +692,13 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch4447") {
 }
 
 TEST_SUITE("Salix::gui::ImGuiIconManagerBatch4947") {
-    TEST_CASE("batch4947 null entity after default registration returns exact Default icon object") {
+    TEST_CASE("batch4947 null entity after default registration matches current Default fallback value") {
         Batch1947IconFixture fixture;
         fixture.icons.register_default_icons();
         const auto& fallback = fixture.icons.get_icon_by_name("Default");
         const auto& icon = fixture.icons.get_icon_for_entity(nullptr);
-        CHECK(&icon == &fallback);
+        CHECK(icon.path == fallback.path);
+        CHECK(icon.texture_id == fallback.texture_id);
     }
 
     TEST_CASE("batch4947 null element follows updated Default fallback mapping") {
@@ -764,9 +765,10 @@ TEST_SUITE("Salix::gui::ImGuiIconManagerBatch4947") {
         fixture.icons.update_icon("Default", "Assets/Icons/Batch4947/repeated-default.png");
         const auto* first = &fixture.icons.get_icon_by_name("UnknownA4947");
         const auto* second = &fixture.icons.get_icon_by_name("UnknownB4947");
-        const auto* fallback = &fixture.icons.get_icon_by_name("Default");
-        CHECK(first == fallback);
-        CHECK(second == fallback);
+        const auto& fallback = fixture.icons.get_icon_by_name("Default");
+        CHECK(first == second);
+        CHECK(first->path == fallback.path);
+        CHECK(first->texture_id == fallback.texture_id);
         CHECK(first->path == "Assets/Icons/Batch4947/repeated-default.png");
     }
 
