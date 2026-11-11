@@ -745,3 +745,82 @@ TEST_SUITE("Salix::core::LoggingBatch4847") {
         CHECK(output.str().empty());
     }
 }
+
+TEST_SUITE("Salix::core::LoggingBatch5047") {
+    TEST_CASE("batch5047 info ignores empty source metadata and preserves payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "info5047", "", -7);
+        const auto text = output.str();
+        CHECK(text.find("[INFO] info5047") != std::string::npos);
+        CHECK(text.find(":-7") == std::string::npos);
+    }
+
+    TEST_CASE("batch5047 warning preserves embedded newline payload bytes") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::WARNING, "line1\nline2-5047", "ignored.cpp", 5);
+        const auto text = output.str();
+        CHECK(text.find("[WARN] line1\nline2-5047") != std::string::npos);
+    }
+
+    TEST_CASE("batch5047 error preserves negative diagnostic line number") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "error5047", "Negative.cpp", -5047);
+        CHECK(output.str().find("[ERROR] [Negative.cpp:-5047] error5047") != std::string::npos);
+    }
+
+    TEST_CASE("batch5047 debug with empty filename still emits explicit source location") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "debug5047", "", 47);
+        CHECK(output.str().find("[DEBUG] [:47] debug5047") != std::string::npos);
+    }
+
+    TEST_CASE("batch5047 unknown negative severity omits source location but keeps payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(static_cast<Salix::LogLevel>(-5047), "unknown-negative", "Hidden.cpp", 9);
+        const auto text = output.str();
+        CHECK(text.find("[] unknown-negative") != std::string::npos);
+        CHECK(text.find("Hidden.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch5047 mixed severity records preserve emission order") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "first5047");
+        Salix::LogMessage(Salix::LogLevel::WARNING, "second5047");
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "third5047", "Order.cpp", 3);
+        const auto text = output.str();
+        CHECK(text.find("first5047") < text.find("second5047"));
+        CHECK(text.find("second5047") < text.find("third5047"));
+    }
+
+    TEST_CASE("batch5047 info macro honors boolalpha stream manipulator") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_INFO(std::boolalpha << true << "-5047");
+        CHECK(output.str().find("[INFO] true-5047") != std::string::npos);
+    }
+
+    TEST_CASE("batch5047 warning macro honors width formatting in streamed payload") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_WARNING("n=" << std::setw(4) << 7);
+        CHECK(output.str().find("[WARN] n=   7") != std::string::npos);
+    }
+
+    TEST_CASE("batch5047 error macro emits payload and captured call site") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_ERROR("macro-error-5047");
+        const auto text = output.str();
+        CHECK(text.find("macro-error-5047") != std::string::npos);
+        CHECK(text.find(__FILE__) != std::string::npos);
+        CHECK(text.find("[ERROR]") != std::string::npos);
+    }
+
+    TEST_CASE("batch5047 satisfied assert evaluates condition once and never evaluates message") {
+        std::stringstream output; CerrRedirect redirect(output);
+        int condition_calls = 0;
+        int message_calls = 0;
+        LOG_ASSERT((++condition_calls) == 1, (++message_calls, "unused5047"));
+        CHECK(condition_calls == 1);
+        CHECK(message_calls == 0);
+        CHECK(output.str().empty());
+    }
+}
+
