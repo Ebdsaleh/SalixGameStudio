@@ -964,3 +964,80 @@ TEST_SUITE("Salix::math::ColorBatch4647") {
         CHECK(restored == original);
     }
 }
+
+TEST_SUITE("Salix::math::ColorBatch5047") {
+    TEST_CASE("batch5047 HSV primary and secondary sector boundaries map to canonical colors") {
+        CHECK(Salix::Color::from_hsv(0.0f, 1.0f, 1.0f) == Salix::Red);
+        CHECK(Salix::Color::from_hsv(60.0f, 1.0f, 1.0f) == Salix::Yellow);
+        CHECK(Salix::Color::from_hsv(120.0f, 1.0f, 1.0f) == Salix::Green);
+        CHECK(Salix::Color::from_hsv(180.0f, 1.0f, 1.0f) == Salix::Cyan);
+        CHECK(Salix::Color::from_hsv(240.0f, 1.0f, 1.0f) == Salix::Blue);
+        CHECK(Salix::Color::from_hsv(300.0f, 1.0f, 1.0f) == Salix::Magenta);
+    }
+
+    TEST_CASE("batch5047 negative sixty degree hue wraps to three hundred degree magenta") {
+        CHECK(Salix::Color::from_hsv(-60.0f, 1.0f, 1.0f) == Salix::Magenta);
+    }
+
+    TEST_CASE("batch5047 negative saturation follows grayscale branch and preserves alpha") {
+        const auto c = Salix::Color::from_hsv(240.0f, -1.0f, 0.25f, 0.75f);
+        CHECK(c == Salix::Color(0.25f, 0.25f, 0.25f, 0.75f));
+    }
+
+    TEST_CASE("batch5047 HSV factory default alpha remains opaque") {
+        const auto c = Salix::Color::from_hsv(180.0f, 0.5f, 0.5f);
+        CHECK(c.a == 1.0f);
+    }
+
+    TEST_CASE("batch5047 ImGui conversion observes mutations to every channel") {
+        Salix::Color c;
+        c.r = -1.0f; c.g = 2.0f; c.b = -3.0f; c.a = 4.0f;
+        const auto v = c.to_imvec4();
+        CHECK(v.x == -1.0f);
+        CHECK(v.y == 2.0f);
+        CHECK(v.z == -3.0f);
+        CHECK(v.w == 4.0f);
+    }
+
+    TEST_CASE("batch5047 YAML emitter roundtrip preserves all signed finite channels") {
+        const Salix::Color original(-5.047f, 7.405f, -0.25f, 1.25f);
+        YAML::Emitter out;
+        out << original;
+        Salix::Color restored;
+        YAML::Load(out.c_str()) >> restored;
+        CHECK(restored.r == doctest::Approx(original.r));
+        CHECK(restored.g == doctest::Approx(original.g));
+        CHECK(restored.b == doctest::Approx(original.b));
+        CHECK(restored.a == doctest::Approx(original.a));
+    }
+
+    TEST_CASE("batch5047 YAML decode with alpha only clears omitted color channels") {
+        Salix::Color c(1.0f, 2.0f, 3.0f, 4.0f);
+        YAML::Load("{a: 0.5047}") >> c;
+        CHECK(c.r == 0.0f);
+        CHECK(c.g == 0.0f);
+        CHECK(c.b == 0.0f);
+        CHECK(c.a == doctest::Approx(0.5047f));
+    }
+
+    TEST_CASE("batch5047 ostream preserves color channel order and labels") {
+        const Salix::Color c(1.0f, 2.0f, 3.0f, 4.0f);
+        std::stringstream stream;
+        stream << c;
+        CHECK(stream.str() == "{ r: 1, g: 2, b: 3, a: 4 }");
+    }
+
+    TEST_CASE("batch5047 midpoint interpolation averages every channel independently") {
+        const Salix::Color a(-2.0f, 0.0f, 2.0f, 4.0f);
+        const Salix::Color b(2.0f, 4.0f, 6.0f, 8.0f);
+        CHECK(Salix::Color::lerp(a, b, 0.5f) == Salix::Color(0.0f, 2.0f, 4.0f, 6.0f));
+    }
+
+    TEST_CASE("batch5047 inequality detects alpha only difference") {
+        const Salix::Color a(1.0f, 2.0f, 3.0f, 4.0f);
+        const Salix::Color b(1.0f, 2.0f, 3.0f, 5.0f);
+        CHECK(a != b);
+        CHECK_FALSE(a == b);
+    }
+}
+
