@@ -1039,3 +1039,92 @@ TEST_SUITE("Salix::core::SimpleGuidBatch4647") {
         CHECK(Salix::SimpleGuid::generate().get_value() == 2ULL);
     }
 }
+
+TEST_SUITE("Salix::core::SimpleGuidBatch5047") {
+    TEST_CASE("batch5047 reset generator produces three consecutive valid identifiers") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 3);
+    }
+
+    TEST_CASE("batch5047 higher watermark advances generator and later lower watermark is ignored") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(5047);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 5048);
+        Salix::SimpleGuid::update_next_id(7);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 5049);
+    }
+
+    TEST_CASE("batch5047 explicit factories never consume reset generator sequence") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto a = Salix::SimpleGuid::from_value(5047);
+        const auto b = Salix::SimpleGuid::from_value(7054);
+        CHECK(a.get_value() == 5047);
+        CHECK(b.get_value() == 7054);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch5047 invalid factory matches explicit zero value and both are invalid") {
+        const auto invalid = Salix::SimpleGuid::invalid();
+        const auto zero = Salix::SimpleGuid::from_value(0);
+        CHECK(invalid == zero);
+        CHECK_FALSE(invalid.is_valid());
+        CHECK_FALSE(zero.is_valid());
+    }
+
+    TEST_CASE("batch5047 ordering is strict across ascending explicit identifiers") {
+        const auto a = Salix::SimpleGuid::from_value(1);
+        const auto b = Salix::SimpleGuid::from_value(5047);
+        const auto c = Salix::SimpleGuid::from_value(7054);
+        CHECK(a < b);
+        CHECK(b < c);
+        CHECK(a < c);
+        CHECK_FALSE(c < a);
+    }
+
+    TEST_CASE("batch5047 equal identifiers are neither less than one another nor unequal") {
+        const auto a = Salix::SimpleGuid::from_value(5047);
+        const auto b = Salix::SimpleGuid::from_value(5047);
+        CHECK(a == b);
+        CHECK_FALSE(a != b);
+        CHECK_FALSE(a < b);
+        CHECK_FALSE(b < a);
+    }
+
+    TEST_CASE("batch5047 equal identifiers produce equal standard hashes") {
+        const auto a = Salix::SimpleGuid::from_value(5047);
+        const auto b = Salix::SimpleGuid::from_value(5047);
+        CHECK(std::hash<Salix::SimpleGuid>{}(a) == std::hash<Salix::SimpleGuid>{}(b));
+    }
+
+    TEST_CASE("batch5047 copy construction preserves value after source reassignment") {
+        Salix::SimpleGuid source = Salix::SimpleGuid::from_value(5047);
+        const Salix::SimpleGuid copy(source);
+        source = Salix::SimpleGuid::from_value(7054);
+        CHECK(copy.get_value() == 5047);
+        CHECK(source.get_value() == 7054);
+    }
+
+    TEST_CASE("batch5047 JSON archive roundtrip preserves generated and explicit identifiers") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto generated = Salix::SimpleGuid::generate();
+        const auto explicit_guid = Salix::SimpleGuid::from_value(5047);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(generated, explicit_guid); }
+        Salix::SimpleGuid restored_generated;
+        Salix::SimpleGuid restored_explicit;
+        { cereal::JSONInputArchive in(stream); in(restored_generated, restored_explicit); }
+        CHECK(restored_generated == generated);
+        CHECK(restored_explicit == explicit_guid);
+    }
+
+    TEST_CASE("batch5047 largest explicit identifier remains valid and greater than ordinary values") {
+        const auto maximum = Salix::SimpleGuid::from_value((std::numeric_limits<std::uint64_t>::max)());
+        const auto ordinary = Salix::SimpleGuid::from_value(5047);
+        CHECK(maximum.is_valid());
+        CHECK(ordinary < maximum);
+        CHECK_FALSE(maximum < ordinary);
+    }
+}
+
