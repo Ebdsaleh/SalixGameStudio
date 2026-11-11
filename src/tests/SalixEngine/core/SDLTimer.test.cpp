@@ -643,3 +643,112 @@ TEST_SUITE("Salix::core::SDLTimerBatch4547") {
         CHECK(timer.get_delta_time() == measured);
     }
 }
+
+TEST_SUITE("Salix::core::SDLTimerBatch5047") {
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 target assignments never synthesize delta on a fresh timer") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(60);
+        timer.set_target_fps(0);
+        timer.set_target_fps(-60);
+        CHECK(timer.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 delayed frame measurement remains positive and finite") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        CHECK(timer.get_delta_time() > 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 repeated uncapped tick end calls preserve measured delta") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(0);
+        timer.tick_end();
+        timer.tick_end();
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 repeated negative cap completion preserves measured delta") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(-5047);
+        timer.tick_end();
+        timer.tick_end();
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 positive zero positive cap transitions preserve fresh state") {
+        Salix::SDLTimer timer;
+        timer.set_target_fps(30);
+        timer.set_target_fps(0);
+        timer.set_target_fps(120);
+        CHECK(timer.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 ITimer target transitions do not rewrite measured delta") {
+        Salix::SDLTimer concrete;
+        Salix::ITimer& timer = concrete;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(60);
+        timer.set_target_fps(0);
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 measuring one timer leaves an independently constructed peer fresh") {
+        Salix::SDLTimer first;
+        Salix::SDLTimer second;
+        first.tick_start();
+        SDL_Delay(2);
+        first.tick_start();
+        REQUIRE(first.get_delta_time() > 0.0f);
+        CHECK(second.get_delta_time() == 0.0f);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 successive delayed starts replace delta with latest finite measurement") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        REQUIRE(timer.get_delta_time() > 0.0f);
+        SDL_Delay(3);
+        timer.tick_start();
+        CHECK(timer.get_delta_time() > 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 positive cap completion leaves measured delta untouched") {
+        Salix::SDLTimer timer;
+        timer.tick_start();
+        SDL_Delay(2);
+        timer.tick_start();
+        const float measured = timer.get_delta_time();
+        timer.set_target_fps(500000);
+        timer.tick_end();
+        CHECK(timer.get_delta_time() == measured);
+    }
+
+    TEST_CASE_FIXTURE(SDLTimerFixture, "batch5047 virtual uncapped lifecycle remains independently repeatable") {
+        Salix::SDLTimer concrete;
+        Salix::ITimer& timer = concrete;
+        timer.set_target_fps(0);
+        timer.tick_start();
+        timer.tick_end();
+        timer.tick_start();
+        timer.tick_end();
+        CHECK(timer.get_delta_time() >= 0.0f);
+        CHECK(std::isfinite(timer.get_delta_time()));
+    }
+}
+
