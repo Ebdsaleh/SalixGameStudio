@@ -1018,3 +1018,73 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch4647") {
             {(std::numeric_limits<long double>::infinity)(), 0.0L}));
     }
 }
+
+TEST_SUITE("Salix::core::ValidationUtilsBatch5047") {
+    TEST_CASE("batch5047 primary signed int validator accepts zero and max minus one but rejects sentinels") {
+        CHECK(Salix::ValidationUtils::is_valid_int(0));
+        CHECK(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int(-1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::max)()));
+    }
+
+    TEST_CASE("batch5047 primary unsigned validator accepts zero and max minus one but reserves max") {
+        CHECK(Salix::ValidationUtils::is_valid_unsigned_int(0u));
+        CHECK(Salix::ValidationUtils::is_valid_unsigned_int((std::numeric_limits<unsigned int>::max)() - 1u));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_unsigned_int((std::numeric_limits<unsigned int>::max)()));
+    }
+
+    TEST_CASE("batch5047 least eight and sixteen signed validators reject negatives independently") {
+        CHECK(Salix::ValidationUtils::is_valid_intleast8_t(static_cast<int_least8_t>(5)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast8_t(static_cast<int_least8_t>(-5)));
+        CHECK(Salix::ValidationUtils::is_valid_intleast16_t(static_cast<int_least16_t>(16)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast16_t(static_cast<int_least16_t>(-16)));
+    }
+
+    TEST_CASE("batch5047 least eight and sixteen unsigned validators reserve only maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_valid_uint_least8_t(static_cast<uint_least8_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least8_t((std::numeric_limits<uint_least8_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_uint_least16_t(static_cast<uint_least16_t>(1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least16_t((std::numeric_limits<uint_least16_t>::max)()));
+    }
+
+    TEST_CASE("batch5047 least sixty four wrappers preserve signed and unsigned policies") {
+        CHECK(Salix::ValidationUtils::is_valid_intleast64_t(static_cast<int_least64_t>(5047)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast64_t(static_cast<int_least64_t>(-5047)));
+        CHECK(Salix::ValidationUtils::is_valid_uint_least64_t((std::numeric_limits<uint_least64_t>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least64_t((std::numeric_limits<uint_least64_t>::max)()));
+    }
+
+    TEST_CASE("batch5047 fast eight and sixteen signed validators accept zero and reject terminal maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_int_fast8_t(static_cast<int_fast8_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int_fast8_t((std::numeric_limits<int_fast8_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_int_fast16_t(static_cast<int_fast16_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int_fast16_t((std::numeric_limits<int_fast16_t>::max)()));
+    }
+
+    TEST_CASE("batch5047 fast thirty two unsigned validator accepts ordinary values and reserves maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_uint_fast32_t(static_cast<uint_fast32_t>(5047)));
+        CHECK(Salix::ValidationUtils::is_valid_uint_fast32_t((std::numeric_limits<uint_fast32_t>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_fast32_t((std::numeric_limits<uint_fast32_t>::max)()));
+    }
+
+    TEST_CASE("batch5047 long double validator accepts finite extremes and rejects infinity") {
+        CHECK(Salix::ValidationUtils::is_valid_long_double((std::numeric_limits<long double>::lowest)()));
+        CHECK(Salix::ValidationUtils::is_valid_long_double((std::numeric_limits<long double>::denorm_min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_long_double((std::numeric_limits<long double>::infinity)()));
+    }
+
+    TEST_CASE("batch5047 complex float rejects nonfinite real or imaginary channel independently") {
+        CHECK(Salix::ValidationUtils::is_valid_complex_float({5.0f, -4.0f}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_float(
+            {(std::numeric_limits<float>::quiet_NaN)(), 0.0f}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_float(
+            {0.0f, (std::numeric_limits<float>::infinity)()}));
+    }
+
+    TEST_CASE("batch5047 complex long double accepts signed zero components and rejects NaN") {
+        CHECK(Salix::ValidationUtils::is_valid_complex_long_double({-0.0L, 0.0L}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_long_double(
+            {0.0L, (std::numeric_limits<long double>::quiet_NaN)()}));
+    }
+}
+
