@@ -984,3 +984,48 @@ TEST_SUITE("Salix::core::StringUtilsBatch4647") {
         CHECK(Salix::StringUtils::convert_from_pascal_case("Version42Alpha") == "Version 42 Alpha");
     }
 }
+
+TEST_SUITE("Salix::core::StringUtilsBatch5047") {
+    TEST_CASE("batch5047 title case treats tab and newline as word boundaries") {
+        CHECK(Salix::StringUtils::to_title_case("aLPHA\tbETA\ngAMMA") == "Alpha\tBeta\nGamma");
+    }
+
+    TEST_CASE("batch5047 capitalize preserves leading whitespace while lowercasing remaining letters") {
+        CHECK(Salix::StringUtils::capitalize(" HELLO WORLD") == " hello world");
+    }
+
+    TEST_CASE("batch5047 snake validation accepts digit-only segments around separators") {
+        CHECK(Salix::StringUtils::is_snake_case("12_34_56"));
+    }
+
+    TEST_CASE("batch5047 snake validation rejects hyphen even when another valid separator exists") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha_beta-gamma"));
+    }
+
+    TEST_CASE("batch5047 snake substring detection finds inner segment surrounded by underscores") {
+        CHECK(Salix::StringUtils::contains_snake_case("__a_b__"));
+    }
+
+    TEST_CASE("batch5047 snake conversion preserves doubled separators without alphanumeric neighbors") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("alpha__beta") == "alpha__beta");
+    }
+
+    TEST_CASE("batch5047 single uppercase letter satisfies Pascal validation") {
+        CHECK(Salix::StringUtils::is_pascal_case("A"));
+        CHECK_FALSE(Salix::StringUtils::contains_pascal_case("A"));
+    }
+
+    TEST_CASE("batch5047 leading digit prevents Pascal validation") {
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("1Alpha"));
+    }
+
+    TEST_CASE("batch5047 Pascal substring detection requires lowercase to uppercase transition") {
+        CHECK(Salix::StringUtils::contains_pascal_case("aB"));
+        CHECK_FALSE(Salix::StringUtils::contains_pascal_case("AB"));
+    }
+
+    TEST_CASE("batch5047 Pascal conversion retains acronym run and separates following numeric token") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("HTTPServer2D") == "HTTPServer 2D");
+    }
+}
+
