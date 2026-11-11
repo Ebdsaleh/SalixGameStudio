@@ -792,3 +792,61 @@ TEST_SUITE("Salix::math::MathUtilsBatch4647") {
         CHECK(Salix::inv_sqrt(16.0f) == doctest::Approx(0.25f).epsilon(0.01));
     }
 }
+
+TEST_SUITE("Salix::math::MathUtilsBatch5047") {
+    TEST_CASE("batch5047 exported circle constants retain expected algebraic relationships") {
+        CHECK(Salix::TAU == doctest::Approx(Salix::PI * 2.0f));
+        CHECK(Salix::PI_2 == doctest::Approx(Salix::PI * 0.5f));
+        CHECK(Salix::PI_4 == doctest::Approx(Salix::PI * 0.25f));
+    }
+
+    TEST_CASE("batch5047 float lerp handles reversed endpoints and clamps outside fractions") {
+        CHECK(Salix::lerp<float>(10.0f, -10.0f, 0.25f) == doctest::Approx(5.0f));
+        CHECK(Salix::lerp<float>(10.0f, -10.0f, -1.0f) == doctest::Approx(10.0f));
+        CHECK(Salix::lerp<float>(10.0f, -10.0f, 2.0f) == doctest::Approx(-10.0f));
+    }
+
+    TEST_CASE("batch5047 inverse lerp supports descending source interval") {
+        CHECK(Salix::inverse_lerp(10.0f, 0.0f, 5.0f) == doctest::Approx(0.5f));
+        CHECK(Salix::inverse_lerp(10.0f, 0.0f, 15.0f) == doctest::Approx(-0.5f));
+    }
+
+    TEST_CASE("batch5047 remap supports descending destination interval") {
+        CHECK(Salix::remap(5.0f, 0.0f, 10.0f, 100.0f, 0.0f) == doctest::Approx(50.0f));
+        CHECK(Salix::remap(10.0f, 0.0f, 10.0f, 100.0f, 0.0f) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch5047 smooth step clamps values below and above interval") {
+        CHECK(Salix::smooth_step(2.0f, 4.0f, 1.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::smooth_step(2.0f, 4.0f, 5.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5047 smoother step clamps values below and above interval") {
+        CHECK(Salix::smoother_step(2.0f, 4.0f, 1.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::smoother_step(2.0f, 4.0f, 5.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5047 ping pong mirrors equal offsets around length boundary") {
+        CHECK(Salix::ping_pong(2.0f, 4.0f) == doctest::Approx(2.0f));
+        CHECK(Salix::ping_pong(6.0f, 4.0f) == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch5047 cubic interpolation of constant samples remains constant") {
+        CHECK(Salix::cubic_interpolate(5.0f, 5.0f, 5.0f, 5.0f, 0.0f) == doctest::Approx(5.0f));
+        CHECK(Salix::cubic_interpolate(5.0f, 5.0f, 5.0f, 5.0f, 0.5f) == doctest::Approx(5.0f));
+        CHECK(Salix::cubic_interpolate(5.0f, 5.0f, 5.0f, 5.0f, 1.0f) == doctest::Approx(5.0f));
+    }
+
+    TEST_CASE("batch5047 wrap maps exact upper bound back to lower bound") {
+        CHECK(Salix::wrap(14.0f, 10.0f, 14.0f) == doctest::Approx(10.0f));
+        CHECK(Salix::wrap(10.0f, 10.0f, 14.0f) == doctest::Approx(10.0f));
+    }
+
+    TEST_CASE("batch5047 saturation exact equality and inverse square root preserve basic contracts") {
+        CHECK(Salix::saturate(0.5047f) == doctest::Approx(0.5047f));
+        CHECK(Salix::nearly_equal(5.0f, 5.0f, 0.0f));
+        CHECK_FALSE(Salix::nearly_equal(5.0f, 5.01f, 0.001f));
+        CHECK(Salix::inv_sqrt(9.0f) == doctest::Approx(1.0f / 3.0f).epsilon(0.02));
+    }
+}
+
