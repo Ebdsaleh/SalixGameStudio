@@ -1058,3 +1058,81 @@ TEST_SUITE("Salix::math::Vector2Batch4647") {
         CHECK(restored.y == doctest::Approx(original.y));
     }
 }
+
+TEST_SUITE("Salix::math::Vector2Batch5047") {
+    TEST_CASE("batch5047 normalization of positive axis vector produces positive unit axis") {
+        Salix::Vector2 v(0.0f, 5.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector2(0.0f, 1.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5047 normalization of signed diagonal preserves direction and unit length") {
+        Salix::Vector2 v(-3.0f, 4.0f);
+        v.normalize();
+        CHECK(v.x == doctest::Approx(-0.6f));
+        CHECK(v.y == doctest::Approx(0.8f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5047 normalizing zero vector is an exact no op") {
+        Salix::Vector2 v;
+        v.normalize();
+        CHECK(v == Salix::Vector2(0.0f, 0.0f));
+        CHECK(v.length() == 0.0f);
+    }
+
+    TEST_CASE("batch5047 interpolation clamps both outside endpoints") {
+        const Salix::Vector2 a(-5.0f, 4.0f);
+        const Salix::Vector2 b(7.0f, -6.0f);
+        CHECK(Salix::Vector2::lerp(a, b, -1.0f) == a);
+        CHECK(Salix::Vector2::lerp(a, b, 2.0f) == b);
+    }
+
+    TEST_CASE("batch5047 vector addition is componentwise commutative") {
+        const Salix::Vector2 a(-5.0f, 4.0f);
+        const Salix::Vector2 b(7.0f, -6.0f);
+        CHECK(a + b == b + a);
+        CHECK(a + b == Salix::Vector2(2.0f, -2.0f));
+    }
+
+    TEST_CASE("batch5047 scalar addition is symmetric across operand order") {
+        const Salix::Vector2 v(-5.0f, 4.0f);
+        CHECK(v + 3.0f == 3.0f + v);
+        CHECK(v + 3.0f == Salix::Vector2(-2.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5047 scalar minus vector preserves operand orientation") {
+        const Salix::Vector2 v(-5.0f, 4.0f);
+        CHECK(3.0f - v == Salix::Vector2(8.0f, -1.0f));
+        CHECK(v - 3.0f == Salix::Vector2(-8.0f, 1.0f));
+    }
+
+    TEST_CASE("batch5047 compound arithmetic operators return self and preserve component math") {
+        Salix::Vector2 v(1.0f, 2.0f);
+        Salix::Vector2& add_ref = (v += Salix::Vector2(3.0f, 4.0f));
+        CHECK(&add_ref == &v);
+        Salix::Vector2& sub_ref = (v -= Salix::Vector2(1.0f, 2.0f));
+        CHECK(&sub_ref == &v);
+        Salix::Vector2& mul_ref = (v *= 2.0f);
+        CHECK(&mul_ref == &v);
+        Salix::Vector2& div_ref = (v /= 2.0f);
+        CHECK(&div_ref == &v);
+        CHECK(v == Salix::Vector2(3.0f, 4.0f));
+    }
+
+    TEST_CASE("batch5047 cross product is antisymmetric for nonparallel vectors") {
+        const Salix::Vector2 a(2.0f, 3.0f);
+        const Salix::Vector2 b(-4.0f, 5.0f);
+        CHECK(Salix::cross(a, b) == doctest::Approx(-Salix::cross(b, a)));
+        CHECK(Salix::cross(a, b) == doctest::Approx(22.0f));
+    }
+
+    TEST_CASE("batch5047 YAML decode with x only clears omitted y coordinate") {
+        Salix::Vector2 v(9.0f, 8.0f);
+        YAML::Load("{x: -5.047}") >> v;
+        CHECK(v.x == doctest::Approx(-5.047f));
+        CHECK(v.y == 0.0f);
+    }
+}
+
