@@ -481,3 +481,117 @@ TEST_SUITE("Salix::core::EngineBatch4847") {
         CHECK(engine.get_time_scale() == doctest::Approx(-0.25f));
     }
 }
+
+TEST_SUITE("Salix::core::EngineBatch5247") {
+    TEST_CASE("batch5247 fresh engine exposes complete scalar and subsystem defaults together") {
+        Salix::Engine engine;
+        CHECK_FALSE(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+        CHECK(engine.get_time_scale() == doctest::Approx(1.0f));
+        CHECK(engine.get_renderer() == nullptr);
+        CHECK(engine.get_asset_manager() == nullptr);
+        CHECK(engine.get_event_manager() == nullptr);
+        CHECK(engine.get_input_manager() == nullptr);
+    }
+
+    TEST_CASE("batch5247 running transitions preserve configured mode and time scale") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Game);
+        engine.set_time_scale(5.247f);
+        engine.is_running(true);
+        engine.is_running(false);
+        CHECK(engine.get_mode() == Salix::EngineMode::Game);
+        CHECK(engine.get_time_scale() == doctest::Approx(5.247f));
+    }
+
+    TEST_CASE("batch5247 mode transitions preserve running state and diagnostic scale") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_time_scale(-5.247f);
+        engine.set_mode(Salix::EngineMode::Launch);
+        engine.set_mode(Salix::EngineMode::Editor);
+        engine.set_mode(Salix::EngineMode::Debug);
+        CHECK(engine.is_running());
+        CHECK(engine.get_time_scale() == doctest::Approx(-5.247f));
+        CHECK(engine.get_mode() == Salix::EngineMode::Debug);
+    }
+
+    TEST_CASE("batch5247 time scale replacements preserve running state and selected mode") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_time_scale(10.0f);
+        engine.set_time_scale(0.0f);
+        engine.set_time_scale(-2.5f);
+        CHECK(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::Options);
+        CHECK(engine.get_time_scale() == doctest::Approx(-2.5f));
+    }
+
+    TEST_CASE("batch5247 invalid engine mode value is stored without altering other scalar channels") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_time_scale(2.0f);
+        const auto invalid = static_cast<Salix::EngineMode>(5247);
+        engine.set_mode(invalid);
+        CHECK(engine.get_mode() == invalid);
+        CHECK(engine.is_running());
+        CHECK(engine.get_time_scale() == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch5247 negative zero time scale preserves sign and mode") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Debug);
+        engine.set_time_scale(-0.0f);
+        CHECK(std::signbit(engine.get_time_scale()));
+        CHECK(engine.get_mode() == Salix::EngineMode::Debug);
+    }
+
+    TEST_CASE("batch5247 null state operations preserve running configured engine") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_mode(Salix::EngineMode::Game);
+        engine.set_time_scale(0.5247f);
+        engine.push_state(nullptr);
+        engine.change_state(nullptr);
+        engine.pop_state();
+        CHECK(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::Game);
+        CHECK(engine.get_time_scale() == doctest::Approx(0.5247f));
+    }
+
+    TEST_CASE("batch5247 scalar mutations never materialize preinitialized subsystems") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_mode(Salix::EngineMode::Editor);
+        engine.set_time_scale(3.0f);
+        CHECK(engine.get_renderer() == nullptr);
+        CHECK(engine.get_asset_manager() == nullptr);
+        CHECK(engine.get_event_manager() == nullptr);
+        CHECK(engine.get_input_manager() == nullptr);
+    }
+
+    TEST_CASE("batch5247 EngineInterface dispatch preserves independent scalar channels") {
+        std::unique_ptr<Salix::EngineInterface> engine = std::make_unique<Salix::Engine>();
+        engine->set_mode(Salix::EngineMode::Launch);
+        engine->set_time_scale(7.25f);
+        CHECK(engine->is_running(true));
+        CHECK(engine->get_mode() == Salix::EngineMode::Launch);
+        CHECK(engine->get_time_scale() == doctest::Approx(7.25f));
+        CHECK(engine->is_running());
+    }
+
+    TEST_CASE("batch5247 two fresh engines remain independent after mutating only one") {
+        Salix::Engine first, second;
+        first.is_running(true);
+        first.set_mode(Salix::EngineMode::Debug);
+        first.set_time_scale(-7.0f);
+        CHECK(first.is_running());
+        CHECK(first.get_mode() == Salix::EngineMode::Debug);
+        CHECK(first.get_time_scale() == doctest::Approx(-7.0f));
+        CHECK_FALSE(second.is_running());
+        CHECK(second.get_mode() == Salix::EngineMode::None);
+        CHECK(second.get_time_scale() == doctest::Approx(1.0f));
+    }
+}
+
