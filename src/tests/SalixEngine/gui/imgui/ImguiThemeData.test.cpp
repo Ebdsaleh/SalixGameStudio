@@ -326,3 +326,92 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch3847") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeDataBatch5347") {
+    TEST_CASE("batch5347 default theme identity and GUI type remain canonical") {
+        Salix::ImGuiThemeData data;
+        CHECK(data.get_name() == "New ImGui Theme");
+        CHECK(data.get_gui_type() == "ImGui");
+    }
+
+    TEST_CASE("batch5347 named constructor preserves whitespace rich name exactly") {
+        const std::string name = "  Theme 5347\t ";
+        Salix::ImGuiThemeData data(name);
+        CHECK(data.get_name() == name);
+        CHECK(data.get_gui_type() == "ImGui");
+    }
+
+    TEST_CASE("batch5347 font fallback metadata remains internally consistent") {
+        Salix::ImGuiThemeData data;
+        CHECK(data.default_font_name == "Roboto-Regular");
+        CHECK(data.font_family == data.default_font_name);
+        CHECK(data.default_font_size == doctest::Approx(20.0f));
+        CHECK(data.font_size == doctest::Approx(data.default_font_size));
+        CHECK(data.font_scale_main == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5347 icon map begins empty and accepts independent entries") {
+        Salix::ImGuiThemeData data;
+        REQUIRE(data.icon_paths.empty());
+        data.icon_paths["Entity"] = "entity5347.png";
+        data.icon_paths["Camera"] = "camera5347.png";
+        CHECK(data.icon_paths.size() == 2);
+        CHECK(data.icon_paths.at("Entity") == "entity5347.png");
+        CHECK(data.icon_paths.at("Camera") == "camera5347.png");
+    }
+
+    TEST_CASE("batch5347 every style registry entry owns a nonnull pointer") {
+        Salix::ImGuiThemeData data;
+        for (const auto& entry : data.theme_colors) CHECK(entry.second != nullptr);
+        for (const auto& entry : data.float_style_vars) CHECK(entry.second != nullptr);
+        for (const auto& entry : data.vector2_style_vars) CHECK(entry.second != nullptr);
+    }
+
+    TEST_CASE("batch5347 Text color registry entry points directly at owned text color") {
+        Salix::ImGuiThemeData data;
+        const auto it = std::find_if(data.theme_colors.begin(), data.theme_colors.end(),
+            [](const auto& entry) { return entry.first == "Text"; });
+        REQUIRE(it != data.theme_colors.end());
+        CHECK(it->second == &data.text_color);
+    }
+
+    TEST_CASE("batch5347 Alpha registry mutation updates owned scalar field") {
+        Salix::ImGuiThemeData data;
+        const auto it = std::find_if(data.float_style_vars.begin(), data.float_style_vars.end(),
+            [](const auto& entry) { return entry.first == "Alpha"; });
+        REQUIRE(it != data.float_style_vars.end());
+        REQUIRE(it->second == &data.alpha);
+        *it->second = 0.5347f;
+        CHECK(data.alpha == doctest::Approx(0.5347f));
+    }
+
+    TEST_CASE("batch5347 WindowPadding registry mutation updates owned vector field") {
+        Salix::ImGuiThemeData data;
+        const auto it = std::find_if(data.vector2_style_vars.begin(), data.vector2_style_vars.end(),
+            [](const auto& entry) { return entry.first == "WindowPadding"; });
+        REQUIRE(it != data.vector2_style_vars.end());
+        REQUIRE(it->second == &data.window_padding);
+        *it->second = Salix::Vector2(53.0f, 47.0f);
+        CHECK(data.window_padding == Salix::Vector2(53.0f, 47.0f));
+    }
+
+    TEST_CASE("batch5347 separate instances bind same labels to different storage") {
+        Salix::ImGuiThemeData first, second;
+        const auto a = std::find_if(first.theme_colors.begin(), first.theme_colors.end(),
+            [](const auto& entry) { return entry.first == "Button"; });
+        const auto b = std::find_if(second.theme_colors.begin(), second.theme_colors.end(),
+            [](const auto& entry) { return entry.first == "Button"; });
+        REQUIRE(a != first.theme_colors.end());
+        REQUIRE(b != second.theme_colors.end());
+        CHECK(a->second == &first.button_color);
+        CHECK(b->second == &second.button_color);
+        CHECK(a->second != b->second);
+    }
+
+    TEST_CASE("batch5347 self referential theme data remains noncopyable and nonmovable") {
+        CHECK_FALSE((std::is_copy_constructible_v<Salix::ImGuiThemeData>));
+        CHECK_FALSE((std::is_copy_assignable_v<Salix::ImGuiThemeData>));
+        CHECK_FALSE((std::is_move_constructible_v<Salix::ImGuiThemeData>));
+        CHECK_FALSE((std::is_move_assignable_v<Salix::ImGuiThemeData>));
+    }
+}
+
