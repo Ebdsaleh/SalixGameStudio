@@ -722,3 +722,112 @@ TEST_SUITE("Salix::gui::DialogBoxBatch4747") {
         CHECK(second.get_default_filename() == "second.txt");
     }
 }
+
+TEST_SUITE("Salix::gui::DialogBoxBatch5247") {
+    TEST_CASE("batch5247 default dialog keeps neutral identity and config together") {
+        Salix::DialogBox dialog;
+        CHECK(dialog.get_key().empty());
+        CHECK(dialog.get_title().empty());
+        CHECK(dialog.get_type() == Salix::DialogType::File);
+        CHECK(dialog.get_filters().empty());
+        CHECK(dialog.get_default_path() == ".");
+        CHECK(dialog.get_default_filename().empty());
+        CHECK(dialog.get_config().path == ".");
+        CHECK(dialog.get_config().fileName.empty());
+    }
+
+    TEST_CASE("batch5247 fluent setters always return the same dialog interface") {
+        Salix::DialogBox dialog;
+        Salix::IDialog* base = &dialog;
+        CHECK(&base->set_filters(".realm") == base);
+        CHECK(&base->set_default_path("Scenes/5247") == base);
+        CHECK(&base->set_default_file_name("Main5247.realm") == base);
+        CHECK(&base->set_overwrite(true) == base);
+        CHECK(&base->set_callback([](const Salix::FileDialogResult&) {}) == base);
+    }
+
+    TEST_CASE("batch5247 repeated overwrite enable is idempotent and preserves modal flag") {
+        Salix::DialogBox dialog("Save5247", "Save", Salix::DialogType::File, false);
+        dialog.set_overwrite(true);
+        dialog.set_overwrite(true);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+    }
+
+    TEST_CASE("batch5247 overwrite toggles never rewrite selection count or user data") {
+        Salix::DialogBox dialog("Save5247B", "Save", Salix::DialogType::File, false);
+        auto& config = dialog.get_config();
+        config.countSelectionMax = 7;
+        config.userDatas = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x5247));
+        dialog.set_overwrite(true);
+        dialog.set_overwrite(false);
+        CHECK(config.countSelectionMax == 7);
+        CHECK(config.userDatas == reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x5247)));
+    }
+
+    TEST_CASE("batch5247 filter mutation is independent from path and filename metadata") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("Scenes/Stable5247");
+        dialog.set_default_file_name("Stable5247.realm");
+        dialog.set_filters(".realm,.json");
+        CHECK(dialog.get_filters() == ".realm,.json");
+        CHECK(dialog.get_default_path() == "Scenes/Stable5247");
+        CHECK(dialog.get_default_filename() == "Stable5247.realm");
+        CHECK(dialog.get_config().path == "Scenes/Stable5247");
+        CHECK(dialog.get_config().fileName == "Stable5247.realm");
+    }
+
+    TEST_CASE("batch5247 path and filename setters remain independently replaceable") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("FirstPath5247");
+        dialog.set_default_file_name("First5247.txt");
+        dialog.set_default_path("SecondPath5247");
+        CHECK(dialog.get_default_path() == "SecondPath5247");
+        CHECK(dialog.get_default_filename() == "First5247.txt");
+        dialog.set_default_file_name("Second5247.txt");
+        CHECK(dialog.get_default_path() == "SecondPath5247");
+        CHECK(dialog.get_default_filename() == "Second5247.txt");
+    }
+
+    TEST_CASE("batch5247 replacing callback invokes only newest callable when explicitly called") {
+        Salix::DialogBox dialog;
+        int first_calls = 0;
+        int second_calls = 0;
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++first_calls; });
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++second_calls; });
+        REQUIRE(static_cast<bool>(dialog.get_callback()));
+        Salix::FileDialogResult result{};
+        dialog.get_callback()(result);
+        CHECK(first_calls == 0);
+        CHECK(second_calls == 1);
+    }
+
+    TEST_CASE("batch5247 callback can be cleared after a working assignment") {
+        Salix::DialogBox dialog;
+        dialog.set_callback([](const Salix::FileDialogResult&) {});
+        REQUIRE(static_cast<bool>(dialog.get_callback()));
+        dialog.set_callback(nullptr);
+        CHECK_FALSE(static_cast<bool>(dialog.get_callback()));
+    }
+
+    TEST_CASE("batch5247 folder dialog may store later filter metadata without changing folder type") {
+        Salix::DialogBox dialog("Folder5247", "Folder", Salix::DialogType::Folder, false);
+        REQUIRE(dialog.get_filters().empty());
+        dialog.set_filters(".ignored5247");
+        CHECK(dialog.get_type() == Salix::DialogType::Folder);
+        CHECK(dialog.get_filters() == ".ignored5247");
+    }
+
+    TEST_CASE("batch5247 two dialogs own independent config and callback state") {
+        Salix::DialogBox first("Same5247", "Same", Salix::DialogType::File, false);
+        Salix::DialogBox second("Same5247", "Same", Salix::DialogType::File, false);
+        first.set_default_path("First5247").set_default_file_name("first.txt").set_overwrite(true);
+        second.set_default_path("Second5247").set_default_file_name("second.txt").set_overwrite(false);
+        CHECK(&first.get_config() != &second.get_config());
+        CHECK(first.get_default_path() == "First5247");
+        CHECK(second.get_default_path() == "Second5247");
+        CHECK((first.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        CHECK((second.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+    }
+}
+
