@@ -800,3 +800,101 @@ TEST_SUITE("Salix::ecs::CameraBatch4847") {
         CHECK(camera.get_is_active());
     }
 }
+
+TEST_SUITE("Salix::ecs::CameraBatch5147") {
+    TEST_CASE("batch5147 constructor exposes complete scalar projection defaults") {
+        Salix::Camera camera;
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_field_of_view() == doctest::Approx(45.0f));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(10.0f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.1f));
+        CHECK(camera.get_far_clip() == doctest::Approx(1000.0f));
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5147 activity toggles preserve every projection scalar") {
+        Salix::Camera camera;
+        camera.set_field_of_view(51.47f);
+        camera.set_orthographic_size(14.0f);
+        camera.set_near_clip(0.25f);
+        camera.set_far_clip(5147.0f);
+        camera.activate();
+        camera.deactivate();
+        CHECK(camera.get_field_of_view() == doctest::Approx(51.47f));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(14.0f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.25f));
+        CHECK(camera.get_far_clip() == doctest::Approx(5147.0f));
+    }
+
+    TEST_CASE("batch5147 field of view replacement leaves mode and clip planes untouched") {
+        Salix::Camera camera;
+        camera.set_field_of_view(75.0f);
+        CHECK(camera.get_field_of_view() == doctest::Approx(75.0f));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_near_clip() == doctest::Approx(0.1f));
+        CHECK(camera.get_far_clip() == doctest::Approx(1000.0f));
+    }
+
+    TEST_CASE("batch5147 orthographic size replacement leaves perspective mode unchanged until explicitly switched") {
+        Salix::Camera camera;
+        camera.set_orthographic_size(51.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(51.47f));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch5147 near clip replacement leaves far clip independently stored") {
+        Salix::Camera camera;
+        camera.set_far_clip(900.0f);
+        camera.set_near_clip(0.5147f);
+        CHECK(camera.get_near_clip() == doctest::Approx(0.5147f));
+        CHECK(camera.get_far_clip() == doctest::Approx(900.0f));
+    }
+
+    TEST_CASE("batch5147 far clip replacement leaves near clip independently stored") {
+        Salix::Camera camera;
+        camera.set_near_clip(0.75f);
+        camera.set_far_clip(514.7f);
+        CHECK(camera.get_near_clip() == doctest::Approx(0.75f));
+        CHECK(camera.get_far_clip() == doctest::Approx(514.7f));
+    }
+
+    TEST_CASE("batch5147 zero viewport height is a complete projection no op") {
+        Salix::Camera camera;
+        camera.set_viewport_size(800, 600);
+        const glm::mat4 before = camera.get_projection_matrix();
+        camera.set_viewport_size(5147, 0);
+        const glm::mat4 after = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch5147 ownerless camera exposes null transform and identity view") {
+        Salix::Camera camera;
+        CHECK(camera.get_transform() == nullptr);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch5147 two dimensional mode toggles do not rewrite public projection configuration") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(20.0f);
+        camera.set_2D_mode(true);
+        camera.set_2D_mode(false);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(20.0f));
+    }
+
+    TEST_CASE("batch5147 separate cameras retain independent projection and activity state") {
+        Salix::Camera first, second;
+        first.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        first.set_orthographic_size(51.0f);
+        first.activate();
+        second.set_field_of_view(47.0f);
+        CHECK(first.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(first.get_orthographic_size() == doctest::Approx(51.0f));
+        CHECK(first.get_is_active());
+        CHECK(second.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(second.get_field_of_view() == doctest::Approx(47.0f));
+        CHECK_FALSE(second.get_is_active());
+    }
+}
+
