@@ -911,3 +911,119 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch4747") {
         CHECK(node["ModeNoIndex4747"].as<std::string>() == "Stable4747");
     }
 }
+
+namespace {
+struct Batch5247YamlEnumTag {};
+}
+
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch5247") {
+    TEST_CASE("batch5247 integer handle ignores mismatched floating write") {
+        YAML::Node node;
+        node["Integer5247"] = 47;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Integer5247", Salix::PropertyType::Int), &node);
+        handle.set_value(Salix::PropertyValue{5.247f});
+        CHECK(node["Integer5247"].as<int>() == 47);
+        CHECK(std::get<int>(handle.get_value()) == 47);
+    }
+
+    TEST_CASE("batch5247 uint64 handle preserves maximum value") {
+        YAML::Node node;
+        const auto value = (std::numeric_limits<std::uint64_t>::max)();
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Id5247", Salix::PropertyType::UInt64), &node);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<std::uint64_t>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5247 bool handle supports repeated toggles") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Flag5247", Salix::PropertyType::Bool), &node);
+        handle.set_value(Salix::PropertyValue{true});
+        REQUIRE(std::get<bool>(handle.get_value()));
+        handle.set_value(Salix::PropertyValue{false});
+        CHECK_FALSE(std::get<bool>(handle.get_value()));
+    }
+
+    TEST_CASE("batch5247 string handle preserves multiline whitespace") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Text5247", Salix::PropertyType::String), &node);
+        const std::string value = "  Batch5247\nLine2\t ";
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<std::string>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5247 Vector3 handle preserves signed finite components") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Vector35247", Salix::PropertyType::Vector3), &node);
+        const Salix::Vector3 value(-5.247f, 14.0f, -7.0f);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Vector3>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5247 plain enum handle roundtrips negative integer value") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Enum5247", Salix::PropertyType::Enum), &node);
+        handle.set_value(Salix::PropertyValue{-5247});
+        CHECK(node["Enum5247"].as<int>() == -5247);
+        CHECK(std::get<int>(handle.get_value()) == -5247);
+    }
+
+    TEST_CASE("batch5247 registered enum class writes display name and reads numeric value") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[51] = "FiftyOne5247";
+        data.value_to_string[47] = "FortySeven5247";
+        data.ordered_names = {"FiftyOne5247", "FortySeven5247"};
+        Salix::EnumRegistry::register_enum(typeid(Batch5247YamlEnumTag), std::move(data));
+        Salix::TypeInfo contained;
+        contained.name = "Batch5247YamlEnumTag";
+        contained.type_index = typeid(Batch5247YamlEnumTag);
+        auto property = batch1047_yaml_property("Mode5247", Salix::PropertyType::EnumClass);
+        property.contained_type_info = &contained;
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(property, &node);
+        handle.set_value(Salix::PropertyValue{51});
+        CHECK(node["Mode5247"].as<std::string>() == "FiftyOne5247");
+        CHECK(std::get<int>(handle.get_value()) == 51);
+    }
+
+    TEST_CASE("batch5247 enum class unknown name reads registry fallback minus one") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[1] = "One5247";
+        Salix::EnumRegistry::register_enum(typeid(Batch5247YamlEnumTag), std::move(data));
+        Salix::TypeInfo contained;
+        contained.type_index = typeid(Batch5247YamlEnumTag);
+        auto property = batch1047_yaml_property("UnknownMode5247", Salix::PropertyType::EnumClass);
+        property.contained_type_info = &contained;
+        YAML::Node node;
+        node["UnknownMode5247"] = "Missing5247";
+        Salix::PropertyHandleYaml handle(property, &node);
+        CHECK(std::get<int>(handle.get_value()) == -1);
+    }
+
+    TEST_CASE("batch5247 enum class without registry leaves existing YAML unchanged") {
+        struct LocalNeverRegistered5247 {};
+        Salix::TypeInfo contained;
+        contained.type_index = typeid(LocalNeverRegistered5247);
+        auto property = batch1047_yaml_property("Unregistered5247", Salix::PropertyType::EnumClass);
+        property.contained_type_info = &contained;
+        YAML::Node node;
+        node["Unregistered5247"] = "Stable5247";
+        Salix::PropertyHandleYaml handle(property, &node);
+        handle.set_value(Salix::PropertyValue{47});
+        CHECK(node["Unregistered5247"].as<std::string>() == "Stable5247");
+        const auto read = handle.get_value();
+        CHECK(std::holds_alternative<int>(read));
+        CHECK(std::get<int>(read) == 0);
+    }
+
+    TEST_CASE("batch5247 missing property read does not create YAML key") {
+        YAML::Node node;
+        node["Other5247"] = 1;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Missing5247", Salix::PropertyType::String), &node);
+        const auto value = handle.get_value();
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+        CHECK_FALSE(node["Missing5247"]);
+        CHECK(node["Other5247"].as<int>() == 1);
+    }
+}
+
