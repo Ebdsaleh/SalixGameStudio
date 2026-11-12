@@ -1041,3 +1041,72 @@ TEST_SUITE("Salix::math::ColorBatch5047") {
     }
 }
 
+TEST_SUITE("Salix::math::ColorBatch5447") {
+    TEST_CASE("batch5447 HSV full rotation wraps to red") {
+        CHECK(Salix::Color::from_hsv(360.0f, 1.0f, 1.0f) == Salix::Red);
+        CHECK(Salix::Color::from_hsv(720.0f, 1.0f, 1.0f) == Salix::Red);
+    }
+
+    TEST_CASE("batch5447 negative hue wraps across multiple rotations") {
+        CHECK(Salix::Color::from_hsv(-300.0f, 1.0f, 1.0f) == Salix::Yellow);
+    }
+
+    TEST_CASE("batch5447 zero saturation preserves value across RGB and explicit alpha") {
+        const auto c = Salix::Color::from_hsv(123.0f, 0.0f, 0.5447f, 0.25f);
+        CHECK(c == Salix::Color(0.5447f, 0.5447f, 0.5447f, 0.25f));
+    }
+
+    TEST_CASE("batch5447 integer factory preserves out of range numeric ratios without clamping") {
+        const auto c = Salix::Color::from_rgba_int(510, -255, 255, 128);
+        CHECK(c.r == doctest::Approx(2.0f));
+        CHECK(c.g == doctest::Approx(-1.0f));
+        CHECK(c.b == doctest::Approx(1.0f));
+        CHECK(c.a == doctest::Approx(128.0f / 255.0f));
+    }
+
+    TEST_CASE("batch5447 interpolation clamps below zero to start color") {
+        const Salix::Color start(-1.0f, 2.0f, -3.0f, 4.0f);
+        const Salix::Color end(5.0f, 6.0f, 7.0f, 8.0f);
+        CHECK(Salix::Color::lerp(start, end, -5.447f) == start);
+    }
+
+    TEST_CASE("batch5447 interpolation clamps above one to end color") {
+        const Salix::Color start(-1.0f, 2.0f, -3.0f, 4.0f);
+        const Salix::Color end(5.0f, 6.0f, 7.0f, 8.0f);
+        CHECK(Salix::Color::lerp(start, end, 5.447f) == end);
+    }
+
+    TEST_CASE("batch5447 ImGui conversion preserves exact channel order") {
+        const Salix::Color c(-5.0f, 4.0f, 4.0f, 7.0f);
+        const auto v = c.to_imvec4();
+        CHECK(v.x == c.r);
+        CHECK(v.y == c.g);
+        CHECK(v.z == c.b);
+        CHECK(v.w == c.a);
+    }
+
+    TEST_CASE("batch5447 YAML decode with green and alpha only clears omitted channels") {
+        Salix::Color c(9.0f, 8.0f, 7.0f, 6.0f);
+        YAML::Load("{g: -5.447, a: 7.445}") >> c;
+        CHECK(c.r == 0.0f);
+        CHECK(c.g == doctest::Approx(-5.447f));
+        CHECK(c.b == 0.0f);
+        CHECK(c.a == doctest::Approx(7.445f));
+    }
+
+    TEST_CASE("batch5447 JSON roundtrip preserves zero and negative channels") {
+        const Salix::Color original(0.0f, -5.447f, 7.445f, -0.0f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::Color restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch5447 arithmetic addition and subtraction restore original value") {
+        const Salix::Color original(-5.0f, 4.0f, 4.0f, 7.0f);
+        const Salix::Color delta(1.0f, -2.0f, 3.0f, -4.0f);
+        CHECK((original + delta) - delta == original);
+    }
+}
+
