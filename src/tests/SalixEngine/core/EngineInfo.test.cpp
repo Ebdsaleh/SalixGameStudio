@@ -206,3 +206,64 @@ TEST_SUITE("Salix::core::EngineInfoBatch4847") {
         CHECK(reconstructed == "0.1.0-Alpha");
     }
 }
+
+TEST_SUITE("Salix::core::EngineInfoBatch5247") {
+    TEST_CASE("batch5247 compatibility token remains exact") {
+        CHECK(Salix::EngineInfo::get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch5247 compatibility token contains expected punctuation positions") {
+        const auto& v = Salix::EngineInfo::get_engine_version();
+        REQUIRE(v.size() == 11);
+        CHECK(v[1] == '.');
+        CHECK(v[3] == '.');
+        CHECK(v[5] == '-');
+    }
+
+    TEST_CASE("batch5247 semantic core compares exactly against zero one zero") {
+        const auto& v = Salix::EngineInfo::get_engine_version();
+        CHECK(v.compare(0, 5, "0.1.0") == 0);
+    }
+
+    TEST_CASE("batch5247 prerelease suffix compares exactly against Alpha") {
+        const auto& v = Salix::EngineInfo::get_engine_version();
+        CHECK(v.compare(6, 5, "Alpha") == 0);
+    }
+
+    TEST_CASE("batch5247 version contains no ASCII whitespace") {
+        const auto& v = Salix::EngineInfo::get_engine_version();
+        CHECK(v.find_first_of(" \t\r\n") == std::string::npos);
+    }
+
+    TEST_CASE("batch5247 version contains no path or URI delimiters") {
+        const auto& v = Salix::EngineInfo::get_engine_version();
+        CHECK(v.find('/') == std::string::npos);
+        CHECK(v.find('\\') == std::string::npos);
+        CHECK(v.find(':') == std::string::npos);
+    }
+
+    TEST_CASE("batch5247 version contains exactly two dots and one dash") {
+        const auto& v = Salix::EngineInfo::get_engine_version();
+        CHECK(std::count(v.begin(), v.end(), '.') == 2);
+        CHECK(std::count(v.begin(), v.end(), '-') == 1);
+    }
+
+    TEST_CASE("batch5247 version contains exactly three numeric characters") {
+        const auto& v = Salix::EngineInfo::get_engine_version();
+        const auto digits = std::count_if(v.begin(), v.end(), [](char ch) { return ch >= '0' && ch <= '9'; });
+        CHECK(digits == 3);
+    }
+
+    TEST_CASE("batch5247 mutable erased copy never changes exported metadata") {
+        std::string copy = Salix::EngineInfo::get_engine_version();
+        copy.erase();
+        CHECK(copy.empty());
+        CHECK(Salix::EngineInfo::get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch5247 accessor and exported version object remain the same static string") {
+        CHECK(&Salix::EngineInfo::get_engine_version() == &Salix::EngineInfo::version_id);
+        CHECK(Salix::EngineInfo::get_engine_version().c_str() == Salix::EngineInfo::version_id.c_str());
+    }
+}
+
