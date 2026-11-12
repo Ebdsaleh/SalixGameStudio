@@ -578,3 +578,92 @@ TEST_SUITE("Salix::ecs::CppScriptBatch4847") {
         CHECK(&first.get_script_name() != &second.get_script_name());
     }
 }
+
+TEST_SUITE("Salix::ecs::CppScriptBatch5247") {
+    TEST_CASE("batch5247 constructor keeps display identity independent from empty runtime name") {
+        Salix::CppScript script;
+        CHECK(std::string(script.get_class_name()) == "CppScript");
+        CHECK(script.get_name() == "CppScript");
+        CHECK(script.get_script_name().empty());
+    }
+
+    TEST_CASE("batch5247 runtime name can be cleared after multiple replacements") {
+        Salix::CppScript script;
+        script.set_script_name("First5247");
+        script.set_script_name("Second5247");
+        script.set_script_name("");
+        CHECK(script.get_script_name().empty());
+    }
+
+    TEST_CASE("batch5247 punctuation rich runtime name is preserved verbatim") {
+        Salix::CppScript script;
+        const std::string value = "Scripts.Gameplay::Player-Controller_v5.247";
+        script.set_script_name(value);
+        CHECK(script.get_script_name() == value);
+    }
+
+    TEST_CASE("batch5247 runtime name preserves leading trailing and internal whitespace") {
+        Salix::CppScript script;
+        const std::string value = " \t Player 5247 Controller \n";
+        script.set_script_name(value);
+        CHECK(script.get_script_name() == value);
+    }
+
+    TEST_CASE("batch5247 owner replacements never rewrite runtime script metadata") {
+        Salix::Entity first, second;
+        Salix::CppScript script;
+        script.set_script_name("OwnerStable5247");
+        script.set_owner(&first);
+        script.set_owner(&second);
+        script.set_owner(nullptr);
+        CHECK(script.get_owner() == nullptr);
+        CHECK(script.get_script_name() == "OwnerStable5247");
+    }
+
+    TEST_CASE("batch5247 visibility toggles never rewrite runtime script metadata") {
+        Salix::CppScript script;
+        script.set_script_name("VisibilityStable5247");
+        script.set_visibility(false);
+        script.set_visibility(true);
+        script.set_visibility(false);
+        CHECK_FALSE(script.is_visible());
+        CHECK(script.get_script_name() == "VisibilityStable5247");
+    }
+
+    TEST_CASE("batch5247 lifecycle sequence preserves runtime name and identifier") {
+        Salix::CppScript script;
+        script.set_script_name("Lifecycle5247");
+        const auto id = script.get_id();
+        script.initialize();
+        script.update(0.0f);
+        script.update(-5.247f);
+        script.shutdown();
+        CHECK(script.get_script_name() == "Lifecycle5247");
+        CHECK(script.get_id() == id);
+    }
+
+    TEST_CASE("batch5247 identifier replacement never rewrites runtime name") {
+        Salix::CppScript script;
+        script.set_script_name("Identifier5247");
+        script.set_id(Salix::SimpleGuid::from_value(5247001ULL));
+        CHECK(script.get_id().get_value() == 5247001ULL);
+        CHECK(script.get_script_name() == "Identifier5247");
+    }
+
+    TEST_CASE("batch5247 display name replacement never rewrites runtime name") {
+        Salix::CppScript script;
+        script.set_script_name("Runtime5247");
+        script.set_name("Display5247");
+        CHECK(script.get_name() == "Display5247");
+        CHECK(script.get_script_name() == "Runtime5247");
+    }
+
+    TEST_CASE("batch5247 equal runtime names still use independent string objects") {
+        Salix::CppScript first, second;
+        first.set_script_name("Shared5247");
+        second.set_script_name("Shared5247");
+        CHECK(first.get_script_name() == second.get_script_name());
+        CHECK(&first.get_script_name() != &second.get_script_name());
+    }
+}
+
