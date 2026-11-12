@@ -1088,3 +1088,70 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch5047") {
     }
 }
 
+TEST_SUITE("Salix::core::ValidationUtilsBatch5447") {
+    TEST_CASE("batch5447 every supported whitespace byte is rejected when whitespace only is forbidden") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string(" \t\n\v\f\r"));
+        CHECK(Salix::ValidationUtils::is_valid_string(" \tX\n"));
+    }
+
+    TEST_CASE("batch5447 nonnull empty C string is considered valid pointer input") {
+        const char* empty = "";
+        CHECK(Salix::ValidationUtils::is_valid_c_str(empty));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_c_str(nullptr));
+    }
+
+    TEST_CASE("batch5447 signed fixed width zero values are valid across all widths") {
+        CHECK(Salix::ValidationUtils::is_valid_int8_t(0));
+        CHECK(Salix::ValidationUtils::is_valid_int16_t(0));
+        CHECK(Salix::ValidationUtils::is_valid_int32_t(0));
+        CHECK(Salix::ValidationUtils::is_valid_int64_t(0));
+    }
+
+    TEST_CASE("batch5447 unsigned fixed width zero values are valid across all widths") {
+        CHECK(Salix::ValidationUtils::is_valid_uint8_t(0));
+        CHECK(Salix::ValidationUtils::is_valid_uint16_t(0));
+        CHECK(Salix::ValidationUtils::is_valid_uint32_t(0));
+        CHECK(Salix::ValidationUtils::is_valid_uint64_t(0));
+    }
+
+    TEST_CASE("batch5447 signed primary validator rejects both negative and maximum sentinel") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int(-5447));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::max)() - 1));
+    }
+
+    TEST_CASE("batch5447 generic integral validator accepts minimum signed value but reserves maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_integral((std::numeric_limits<int>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_integral((std::numeric_limits<int>::max)()));
+    }
+
+    TEST_CASE("batch5447 negative zero floating values remain finite and valid") {
+        CHECK(Salix::ValidationUtils::is_valid_float(-0.0f));
+        CHECK(Salix::ValidationUtils::is_valid_double(-0.0));
+        CHECK(Salix::ValidationUtils::is_valid_long_double(-0.0L));
+    }
+
+    TEST_CASE("batch5447 generic floating validator rejects NaN and both infinities") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_floating_point((std::numeric_limits<double>::quiet_NaN)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_floating_point((std::numeric_limits<double>::infinity)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_floating_point(-(std::numeric_limits<double>::infinity)()));
+        CHECK(Salix::ValidationUtils::is_valid_floating_point(5.447));
+    }
+
+    TEST_CASE("batch5447 complex double rejects each nonfinite channel independently") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double(
+            {(std::numeric_limits<double>::infinity)(), 1.0}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double(
+            {1.0, (std::numeric_limits<double>::quiet_NaN)()}));
+        CHECK(Salix::ValidationUtils::is_valid_complex_double({-5.447, 7.445}));
+    }
+
+    TEST_CASE("batch5447 pointer validator accepts object address and rejects null") {
+        int value = 5447;
+        int* pointer = &value;
+        int* missing = nullptr;
+        CHECK(Salix::ValidationUtils::is_valid_ptr(pointer));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_ptr(missing));
+    }
+}
+
