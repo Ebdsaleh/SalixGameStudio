@@ -566,3 +566,110 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch4747") {
         CHECK(manager.multiple_are_up(buttons));
     }
 }
+
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch5347") {
+    TEST_CASE("batch5347 update is a no op for wheel and position state") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = 5.347f;
+        ImGui::GetIO().MousePos = ImVec2(53.75f, -47.25f);
+        manager.update(0.25f);
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(manager.get_mouse_scroll_delta() == doctest::Approx(5.347f));
+        CHECK(x == 53);
+        CHECK(y == -47);
+    }
+
+    TEST_CASE("batch5347 process event leaves handled flag unchanged") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        Salix::MockEvent event;
+        REQUIRE_FALSE(event.handled);
+        manager.process_event(event);
+        CHECK_FALSE(event.handled);
+        event.handled = true;
+        manager.process_event(event);
+        CHECK(event.handled);
+    }
+
+    TEST_CASE("batch5347 GUI input manager never requests engine quit") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK_FALSE(manager.wants_to_quit());
+        manager.update(-5.347f);
+        CHECK_FALSE(manager.wants_to_quit());
+    }
+
+    TEST_CASE("batch5347 invalid scroll direction is always false") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = -53.47f;
+        CHECK_FALSE(manager.did_scroll(static_cast<Salix::MouseScroll>(5347)));
+    }
+
+    TEST_CASE("batch5347 unmapped Separator key remains safely inactive and up") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK_FALSE(manager.is_down(Salix::KeyCode::Separator));
+        CHECK_FALSE(manager.is_held_down(Salix::KeyCode::Separator));
+        CHECK_FALSE(manager.was_released(Salix::KeyCode::Separator));
+        CHECK(manager.is_up(Salix::KeyCode::Separator));
+    }
+
+    TEST_CASE("batch5347 None key remains safely inactive and up") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK_FALSE(manager.is_down(Salix::KeyCode::None));
+        CHECK_FALSE(manager.is_held_down(Salix::KeyCode::None));
+        CHECK_FALSE(manager.was_released(Salix::KeyCode::None));
+        CHECK(manager.is_up(Salix::KeyCode::None));
+    }
+
+    TEST_CASE("batch5347 None mouse button remains safely inactive and up") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK_FALSE(manager.is_down(Salix::MouseButton::None));
+        CHECK_FALSE(manager.is_held_down(Salix::MouseButton::None));
+        CHECK_FALSE(manager.was_released(Salix::MouseButton::None));
+        CHECK(manager.is_up(Salix::MouseButton::None));
+    }
+
+    TEST_CASE("batch5347 empty keyboard combos retain vacuous all semantics") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::KeyCode> keys;
+        CHECK(manager.multiple_are_down(keys));
+        CHECK(manager.multiple_are_held_down(keys));
+        CHECK(manager.multiple_are_held_down_for(keys, 5347.0f));
+        CHECK(manager.multiple_were_released(keys));
+        CHECK(manager.multiple_are_up(keys));
+        CHECK_FALSE(manager.any_of_combo_was_released(keys));
+    }
+
+    TEST_CASE("batch5347 empty mouse combos retain vacuous all semantics") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::MouseButton> buttons;
+        CHECK(manager.multiple_are_down(buttons));
+        CHECK(manager.multiple_are_held_down(buttons));
+        CHECK(manager.multiple_are_held_down_for(buttons, 5347.0f));
+        CHECK(manager.multiple_were_released(buttons));
+        CHECK(manager.multiple_are_up(buttons));
+        CHECK_FALSE(manager.any_of_combo_was_released(buttons));
+    }
+
+    TEST_CASE("batch5347 separate managers observe the same isolated ImGui IO state") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager first, second;
+        ImGui::GetIO().MouseWheel = 0.5347f;
+        ImGui::GetIO().MousePos = ImVec2(12.9f, 34.1f);
+        int x = 0, y = 0;
+        second.get_mouse_position(&x, &y);
+        CHECK(first.get_mouse_scroll_delta() == doctest::Approx(0.5347f));
+        CHECK(second.get_mouse_scroll_delta() == doctest::Approx(0.5347f));
+        CHECK(x == 12);
+        CHECK(y == 34);
+    }
+}
+
