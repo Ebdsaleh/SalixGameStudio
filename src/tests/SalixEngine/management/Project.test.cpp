@@ -712,3 +712,100 @@ TEST_SUITE("Salix::management::ProjectBatch4347") {
         CHECK(restored.get_engine_version() == "0.1.0-Alpha");
     }
 }
+
+TEST_SUITE("Salix::management::ProjectBatch5247") {
+    TEST_CASE("batch5247 named project preserves root and derives filenames verbatim") {
+        Salix::Project project("Game 5247", "D:/Projects/Game 5247");
+        CHECK(project.get_name() == "Game 5247");
+        CHECK(project.get_path() == "D:/Projects/Game 5247");
+        CHECK(project.get_project_file_name() == "Game 5247.salixproj");
+        CHECK(project.get_game_dll_name() == "Game 5247.dll");
+        CHECK(project.get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch5247 empty project name still derives suffix-only filenames") {
+        Salix::Project project("", "Root5247");
+        CHECK(project.get_name().empty());
+        CHECK(project.get_path() == "Root5247");
+        CHECK(project.get_project_file_name() == ".salixproj");
+        CHECK(project.get_game_dll_name() == ".dll");
+    }
+
+    TEST_CASE("batch5247 starting realm may be replaced and explicitly cleared") {
+        Salix::Project project;
+        project.set_starting_realm("Menu5247");
+        CHECK(project.get_starting_realm() == "Menu5247");
+        project.set_starting_realm("World5247");
+        CHECK(project.get_starting_realm() == "World5247");
+        project.set_starting_realm("");
+        CHECK(project.get_starting_realm().empty());
+    }
+
+    TEST_CASE("batch5247 replacing one realm key preserves unrelated mappings") {
+        Salix::Project project;
+        project.add_realm_path("Menu5247", "MenuOld5247.realm");
+        project.add_realm_path("World5247", "World5247.realm");
+        project.add_realm_path("Menu5247", "MenuNew5247.realm");
+        REQUIRE(project.get_realm_paths().size() == 2);
+        CHECK(project.get_realm_paths().at("Menu5247") == "MenuNew5247.realm");
+        CHECK(project.get_realm_paths().at("World5247") == "World5247.realm");
+    }
+
+    TEST_CASE("batch5247 missing realm removal returns false and preserves map") {
+        Salix::Project project;
+        project.add_realm_path("Keep5247", "Keep5247.realm");
+        CHECK_FALSE(project.remove_realm_path("Missing5247.realm"));
+        REQUIRE(project.get_realm_paths().size() == 1);
+        CHECK(project.get_realm_paths().at("Keep5247") == "Keep5247.realm");
+    }
+
+    TEST_CASE("batch5247 mapped missing path is removed from metadata despite absent disk file") {
+        Salix::Project project;
+        project.add_realm_path("Remove5247", "__batch5247_missing__/Remove5247.realm");
+        CHECK(project.remove_realm_path("__batch5247_missing__/Remove5247.realm"));
+        CHECK(project.get_realm_paths().empty());
+    }
+
+    TEST_CASE("batch5247 shutdown before initialization preserves persistent metadata") {
+        Salix::Project project("Shutdown5247", "Root5247");
+        project.set_starting_realm("Main5247");
+        project.add_realm_path("Main5247", "Main5247.realm");
+        CHECK_NOTHROW(project.shutdown());
+        CHECK(project.get_realm_manager() == nullptr);
+        CHECK(project.get_starting_realm() == "Main5247");
+        CHECK(project.get_realm_paths().at("Main5247") == "Main5247.realm");
+    }
+
+    TEST_CASE("batch5247 preinitialization update and render remain complete no ops") {
+        Salix::Project project("Lifecycle5247", "Root5247");
+        project.add_realm_path("Main5247", "Main5247.realm");
+        CHECK_NOTHROW(project.update(-5.247f));
+        CHECK_NOTHROW(project.render(nullptr));
+        CHECK(project.get_realm_manager() == nullptr);
+        CHECK(project.get_realm_paths().count("Main5247") == 1);
+    }
+
+    TEST_CASE("batch5247 default realm creation before initialization never materializes runtime manager") {
+        Salix::Project project("Default5247", "Root5247");
+        project.add_realm_path("Default", "Default5247.realm");
+        project.set_starting_realm("Default");
+        CHECK_NOTHROW(project.create_and_save_default_realm());
+        CHECK(project.get_realm_manager() == nullptr);
+        CHECK(project.get_starting_realm() == "Default");
+        CHECK(project.get_realm_paths().at("Default") == "Default5247.realm");
+    }
+
+    TEST_CASE("batch5247 separate projects retain independent metadata maps and starting realms") {
+        Salix::Project first("First5247", "RootA");
+        Salix::Project second("Second5247", "RootB");
+        first.add_realm_path("Main", "First.realm");
+        first.set_starting_realm("Main");
+        second.add_realm_path("Main", "Second.realm");
+        second.set_starting_realm("Other");
+        CHECK(first.get_realm_paths().at("Main") == "First.realm");
+        CHECK(second.get_realm_paths().at("Main") == "Second.realm");
+        CHECK(first.get_starting_realm() == "Main");
+        CHECK(second.get_starting_realm() == "Other");
+    }
+}
+
