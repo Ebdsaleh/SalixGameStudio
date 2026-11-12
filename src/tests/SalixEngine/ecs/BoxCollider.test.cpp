@@ -975,3 +975,87 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch4847") {
         CHECK(&first.get_size() != &second.get_size());
     }
 }
+
+TEST_SUITE("Salix::ecs::BoxColliderBatch5147") {
+    TEST_CASE("batch5147 default size reference remains stable after replacement") {
+        Salix::BoxCollider collider;
+        const auto* address = &collider.get_size();
+        REQUIRE(*address == Salix::Vector3::One);
+        collider.set_size({5.0f, 1.0f, 47.0f});
+        CHECK(&collider.get_size() == address);
+        CHECK(*address == Salix::Vector3(5.0f, 1.0f, 47.0f));
+    }
+
+    TEST_CASE("batch5147 zero geometry is stored exactly") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3::Zero);
+        CHECK(collider.get_size() == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch5147 signed geometry components remain independent") {
+        Salix::BoxCollider collider;
+        collider.set_size({-5.0f, 14.0f, -7.0f});
+        CHECK(collider.get_size().x == -5.0f);
+        CHECK(collider.get_size().y == 14.0f);
+        CHECK(collider.get_size().z == -7.0f);
+    }
+
+    TEST_CASE("batch5147 finite update is geometry neutral") {
+        Salix::BoxCollider collider;
+        collider.set_size({5.147f, -51.47f, 514.7f});
+        collider.update(0.016f);
+        CHECK(collider.get_size() == Salix::Vector3(5.147f, -51.47f, 514.7f));
+    }
+
+    TEST_CASE("batch5147 repeated initialize is geometry neutral") {
+        Salix::BoxCollider collider;
+        collider.set_size({1.0f, 5.0f, 7.0f});
+        collider.initialize();
+        collider.initialize();
+        CHECK(collider.get_size() == Salix::Vector3(1.0f, 5.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5147 null renderer load leaves geometry unchanged") {
+        Salix::BoxCollider collider;
+        Salix::InitContext context{};
+        collider.set_size({7.0f, 1.0f, 5.0f});
+        collider.on_load(context);
+        CHECK(collider.get_size() == Salix::Vector3(7.0f, 1.0f, 5.0f));
+    }
+
+    TEST_CASE("batch5147 visibility changes never rewrite geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({5.0f, 14.0f, 7.0f});
+        collider.set_visibility(false);
+        REQUIRE_FALSE(collider.is_visible());
+        collider.set_visibility(true);
+        CHECK(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(5.0f, 14.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5147 display name changes never rewrite geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({5.0f, 1.0f, 47.0f});
+        collider.set_name("Collider5147");
+        CHECK(collider.get_name() == "Collider5147");
+        CHECK(collider.get_size() == Salix::Vector3(5.0f, 1.0f, 47.0f));
+    }
+
+    TEST_CASE("batch5147 identifier changes never rewrite geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({5.0f, 14.0f, 7.0f});
+        collider.set_id(Salix::SimpleGuid::from_value(5147001ULL));
+        CHECK(collider.get_id().get_value() == 5147001ULL);
+        CHECK(collider.get_size() == Salix::Vector3(5.0f, 14.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5147 separate colliders own independent geometry storage") {
+        Salix::BoxCollider first, second;
+        first.set_size({1.0f, 2.0f, 3.0f});
+        second.set_size({4.0f, 5.0f, 6.0f});
+        CHECK(&first.get_size() != &second.get_size());
+        CHECK(first.get_size() == Salix::Vector3(1.0f, 2.0f, 3.0f));
+        CHECK(second.get_size() == Salix::Vector3(4.0f, 5.0f, 6.0f));
+    }
+}
+
