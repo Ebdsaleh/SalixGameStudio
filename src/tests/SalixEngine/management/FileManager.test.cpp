@@ -1079,3 +1079,80 @@ TEST_SUITE("Salix::management::FileManagerBatch4947") {
         CHECK(loaded == payload);
     }
 }
+
+TEST_SUITE("Salix::management::FileManagerBatch5347") {
+    TEST_CASE("batch5347 missing owned path reports absent and nonregular") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto missing = temp.file("missing5347.bin");
+        CHECK_FALSE(Salix::FileManager::path_exists(missing));
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(missing));
+    }
+
+    TEST_CASE("batch5347 reading missing owned file returns empty string") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        CHECK(Salix::FileManager::read_file_content(temp.file("missing5347.txt")).empty());
+    }
+
+    TEST_CASE("batch5347 missing file size reports zero") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        CHECK(Salix::FileManager::get_file_size(temp.file("missing5347.bin")) == 0);
+    }
+
+    TEST_CASE("batch5347 missing file hex dump reports empty or unreadable payload") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("missing5347.bin"));
+        CHECK(dump.find("File is empty or could not be read.") != std::string::npos);
+        CHECK(dump.find("---END HEX DUMP---") != std::string::npos);
+    }
+
+    TEST_CASE("batch5347 create directory is idempotent for owned child") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto child = (temp.root / "dir5347").string();
+        REQUIRE(Salix::FileManager::create_directory(child));
+        CHECK(Salix::FileManager::create_directory(child));
+        CHECK(std::filesystem::is_directory(child));
+    }
+
+    TEST_CASE("batch5347 create directories materializes deep owned hierarchy") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto nested = temp.root / "a5347" / "b5347" / "c5347";
+        REQUIRE(Salix::FileManager::create_directories(nested.string()));
+        CHECK(std::filesystem::is_directory(nested));
+    }
+
+    TEST_CASE("batch5347 copy file overwrites destination with exact source bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("A\0B5347", 7);
+        temp.write("source5347.bin", payload);
+        temp.write("destination5347.bin", "old");
+        REQUIRE(Salix::FileManager::copy_file(temp.file("source5347.bin"), temp.file("destination5347.bin")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("destination5347.bin")) == payload);
+    }
+
+    TEST_CASE("batch5347 textual relative conversion of exact root returns dot") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:/Batch5347/Project", "C:/Batch5347/Project") == ".");
+    }
+
+    TEST_CASE("batch5347 textual relative conversion normalizes mixed separators") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:\\Batch5347\\Project",
+            "C:/Batch5347/Project/Assets\\Images\\icon.png") == "Assets/Images/icon.png");
+    }
+
+    TEST_CASE("batch5347 regular file and directory probes remain distinct") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("regular5347.txt", "5347");
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("regular5347.txt")));
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(temp.root.string()));
+    }
+}
+
