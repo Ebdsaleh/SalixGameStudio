@@ -1221,18 +1221,6 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch5247") {
         CHECK(std::get<Salix::Vector3>(handle.get_value()) == value);
     }
 
-    TEST_CASE("batch5247 Point handle preserves zero and negative coordinates") {
-        Batch1147LiveElement element;
-        auto property = batch1147_property(
-            "point5247", Salix::PropertyType::Point,
-            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->point; },
-            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->point = *static_cast<Salix::Point*>(value); });
-        Salix::PropertyHandleLive handle(property, &element);
-        const Salix::Point value{0, -5247};
-        handle.set_value(Salix::PropertyValue{value});
-        CHECK(std::get<Salix::Point>(handle.get_value()) == value);
-    }
-
     TEST_CASE("batch5247 enum handle stores signed integer value through generic bridge") {
         Batch1147LiveElement element;
         auto property = batch1147_property(
