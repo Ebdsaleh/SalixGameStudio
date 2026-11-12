@@ -161,3 +161,80 @@ TEST_SUITE("Salix::scripting::ScriptLoaderBatch2447") {
     }
 }
 
+TEST_SUITE("Salix::scripting::ScriptLoaderBatch5347") {
+    TEST_CASE("batch5347 empty library path remains a safe failed load") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("", context));
+    }
+
+    TEST_CASE("batch5347 uniquely missing relative DLL remains a safe failed load") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch5347_missing_relative__.dll", context));
+    }
+
+    TEST_CASE("batch5347 missing path containing spaces remains a safe failed load") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library(
+            "__batch5347 missing directory__/missing plugin.dll", context));
+    }
+
+    TEST_CASE("batch5347 extensionless missing library remains a safe failed load") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch5347_missing_extensionless__", context));
+    }
+
+    TEST_CASE("batch5347 repeated distinct missing loads remain independent failures") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch5347_missing_a__.dll", context));
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch5347_missing_b__.dll", context));
+    }
+
+    TEST_CASE("batch5347 failed load preserves DPI and project DLL path") {
+        Salix::InitContext context{};
+        context.dpi_scale = 5.347f;
+        context.project_dll_path = "Stable5347.dll";
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch5347_missing_context__.dll", context));
+        CHECK(context.dpi_scale == doctest::Approx(5.347f));
+        CHECK(context.project_dll_path == "Stable5347.dll");
+    }
+
+    TEST_CASE("batch5347 failed load preserves selected engine and backend modes") {
+        Salix::InitContext context{};
+        context.engine_mode = Salix::EngineMode::Debug;
+        context.renderer_type = Salix::RendererType::OpenGL;
+        context.gui_type = Salix::GuiType::None;
+        context.timer_type = Salix::TimerType::Chrono;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch5347_missing_modes__.dll", context));
+        CHECK(context.engine_mode == Salix::EngineMode::Debug);
+        CHECK(context.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(context.gui_type == Salix::GuiType::None);
+        CHECK(context.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch5347 shutdown remains harmless after failed load") {
+        Salix::InitContext context{};
+        Salix::ScriptLoader loader;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch5347_missing_shutdown__.dll", context));
+        CHECK_NOTHROW(loader.shutdown_plugin());
+        CHECK_NOTHROW(loader.shutdown_plugin());
+    }
+
+    TEST_CASE("batch5347 independent loader objects can both shut down after shared failure") {
+        Salix::InitContext context{};
+        Salix::ScriptLoader first, second;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch5347_shared_missing__.dll", context));
+        CHECK_NOTHROW(first.shutdown_plugin());
+        CHECK_NOTHROW(second.shutdown_plugin());
+    }
+
+    TEST_CASE("batch5347 repeated same missing path remains false across shutdown boundary") {
+        Salix::InitContext context{};
+        Salix::ScriptLoader loader;
+        const std::string path = "__batch5347_repeat_missing__.dll";
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library(path, context));
+        loader.shutdown_plugin();
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library(path, context));
+        loader.shutdown_plugin();
+    }
+}
+
