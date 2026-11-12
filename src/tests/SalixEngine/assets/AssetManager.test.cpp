@@ -986,3 +986,142 @@ TEST_SUITE("Salix::assets::AssetManagerBatch4847") {
         CHECK(renderer.calls == 2);
     }
 }
+
+TEST_SUITE("Salix::assets::AssetManagerBatch5247") {
+    TEST_CASE("batch5247 fresh manager without renderer returns null and remains reusable") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5247/Fresh";
+        Salix::AssetManager assets;
+        CHECK(assets.get_texture("Assets/fresh.png") == nullptr);
+        CountingAssetRenderer renderer;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/fresh.png") != nullptr);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5247 explicit null initialization can recover through later renderer") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5247/Recover";
+        Salix::AssetManager assets;
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("Assets/recover.png") == nullptr);
+        CountingAssetRenderer renderer;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/recover.png") != nullptr);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5247 cached texture remains readable after renderer pointer is cleared") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5247/Cached";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* cached = assets.get_texture("Assets/cached.png");
+        REQUIRE(cached != nullptr);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("Assets/cached.png") == cached);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5247 shutdown clears cache but retains current renderer for reload") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5247/Shutdown";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/reload.png") != nullptr);
+        CHECK(renderer.calls == 1);
+        assets.shutdown();
+        REQUIRE(assets.get_texture("Assets/reload.png") != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch5247 same relative path under two roots creates independent cache entries") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/Batch5247/RootA";
+        auto* first = assets.get_texture("Assets/shared.png");
+        Salix::g_project_root_path = "C:/Batch5247/RootB";
+        auto* second = assets.get_texture("Assets/shared.png");
+        REQUIRE(first != nullptr);
+        REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch5247 returning to earlier project root reuses its existing cache entry") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/Batch5247/ReturnA";
+        auto* first = assets.get_texture("Assets/return.png");
+        Salix::g_project_root_path = "C:/Batch5247/ReturnB";
+        REQUIRE(assets.get_texture("Assets/return.png") != nullptr);
+        Salix::g_project_root_path = "C:/Batch5247/ReturnA";
+        CHECK(assets.get_texture("Assets/return.png") == first);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch5247 lexically equivalent project roots share one normalized cache key") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/Batch5247/Equivalent/Folder/..";
+        auto* first = assets.get_texture("Assets/icon.png");
+        Salix::g_project_root_path = "C:/Batch5247/Equivalent";
+        auto* second = assets.get_texture("Assets/icon.png");
+        REQUIRE(first != nullptr);
+        CHECK(second == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5247 complex relative aliases collapse before renderer load") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5247/Alias";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("Assets/UI/../UI/./icon.png");
+        auto* second = assets.get_texture("Assets/UI/icon.png");
+        REQUIRE(first != nullptr);
+        CHECK(second == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5247 failed key under one project root does not poison another root") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/Batch5247/FailA";
+        renderer.should_texture_load_fail = true;
+        CHECK(assets.get_texture("Assets/recover.png") == nullptr);
+        Salix::g_project_root_path = "C:/Batch5247/FailB";
+        renderer.should_texture_load_fail = false;
+        REQUIRE(assets.get_texture("Assets/recover.png") != nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch5247 shutting down one manager never evicts another managers cache") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5247/Independent";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager first, second;
+        first.initialize(&renderer);
+        second.initialize(&renderer);
+        auto* first_texture = first.get_texture("Assets/shared.png");
+        auto* second_texture = second.get_texture("Assets/shared.png");
+        REQUIRE(first_texture != nullptr);
+        REQUIRE(second_texture != nullptr);
+        REQUIRE(first_texture != second_texture);
+        first.shutdown();
+        CHECK(second.get_texture("Assets/shared.png") == second_texture);
+        CHECK(renderer.calls == 2);
+    }
+}
+
