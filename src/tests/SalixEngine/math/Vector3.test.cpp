@@ -1329,3 +1329,78 @@ TEST_SUITE("Salix::math::Vector3Batch5147") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector3Batch5547") {
+    TEST_CASE("batch5547 negative X axis normalization produces canonical unit axis") {
+        Salix::Vector3 v(-5.0f, 0.0f, 0.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector3(-1.0f, 0.0f, 0.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5547 signed diagonal normalization preserves direction and unit length") {
+        Salix::Vector3 v(-2.0f, 3.0f, -6.0f);
+        const auto before = v;
+        v.normalize();
+        CHECK(v.length() == doctest::Approx(1.0f));
+        CHECK(Salix::dot(v, before) > 0.0f);
+    }
+
+    TEST_CASE("batch5547 midpoint interpolation averages all three components") {
+        const Salix::Vector3 a(-5.0f, 4.0f, -7.0f);
+        const Salix::Vector3 b(7.0f, -6.0f, 9.0f);
+        CHECK(Salix::Vector3::lerp(a, b, 0.5f) == Salix::Vector3(1.0f, -1.0f, 1.0f));
+    }
+
+    TEST_CASE("batch5547 component multiplication is commutative") {
+        const Salix::Vector3 a(-5.0f, 4.0f, -7.0f);
+        const Salix::Vector3 b(7.0f, -6.0f, 9.0f);
+        CHECK(a * b == b * a);
+        CHECK(a * b == Salix::Vector3(-35.0f, -24.0f, -63.0f));
+    }
+
+    TEST_CASE("batch5547 scalar subtraction preserves operand orientation") {
+        const Salix::Vector3 v(-5.0f, 4.0f, -7.0f);
+        CHECK(v - 2.0f == Salix::Vector3(-7.0f, 2.0f, -9.0f));
+        CHECK(2.0f - v == Salix::Vector3(7.0f, -2.0f, 9.0f));
+    }
+
+    TEST_CASE("batch5547 dot product with perpendicular cross product is zero") {
+        const Salix::Vector3 a(1.0f, 2.0f, 3.0f);
+        const Salix::Vector3 b(-4.0f, 5.0f, -6.0f);
+        const auto c = Salix::cross(a, b);
+        CHECK(Salix::dot(a, c) == doctest::Approx(0.0f));
+        CHECK(Salix::dot(b, c) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch5547 GLM conversion preserves signed components in both directions") {
+        const Salix::Vector3 source(-5.547f, 7.445f, -0.25f);
+        const glm::vec3 raw = source.to_glm();
+        CHECK(raw.x == source.x);
+        CHECK(raw.y == source.y);
+        CHECK(raw.z == source.z);
+        CHECK(Salix::Vector3::from_glm(raw) == source);
+    }
+
+    TEST_CASE("batch5547 scalar multiply divide roundtrip restores finite vector") {
+        const Salix::Vector3 source(-5.0f, 4.0f, -7.0f);
+        CHECK((source * 4.0f) / 4.0f == source);
+    }
+
+    TEST_CASE("batch5547 YAML decode with y only clears omitted x and z") {
+        Salix::Vector3 v(9.0f, 8.0f, 7.0f);
+        YAML::Load("{y: -5.547}") >> v;
+        CHECK(v.x == 0.0f);
+        CHECK(v.y == doctest::Approx(-5.547f));
+        CHECK(v.z == 0.0f);
+    }
+
+    TEST_CASE("batch5547 JSON roundtrip preserves signed coordinates") {
+        const Salix::Vector3 source(-5.547f, 7.445f, -0.125f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::Vector3 restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == source);
+    }
+}
+
