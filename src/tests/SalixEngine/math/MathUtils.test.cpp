@@ -850,3 +850,57 @@ TEST_SUITE("Salix::math::MathUtilsBatch5047") {
     }
 }
 
+TEST_SUITE("Salix::math::MathUtilsBatch5447") {
+    TEST_CASE("batch5447 degree radian conversion factors are reciprocal") {
+        CHECK(Salix::DEG2RAD * Salix::RAD2DEG == doctest::Approx(1.0f));
+        CHECK(180.0f * Salix::DEG2RAD == doctest::Approx(Salix::PI));
+    }
+
+    TEST_CASE("batch5447 float lerp midpoint of signed endpoints is zero") {
+        CHECK(Salix::lerp<float>(-5.447f, 5.447f, 0.5f) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch5447 inverse lerp descending range maps endpoints exactly") {
+        CHECK(Salix::inverse_lerp(10.0f, -10.0f, 10.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::inverse_lerp(10.0f, -10.0f, -10.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5447 remap supports signed destination range") {
+        CHECK(Salix::remap(5.0f, 0.0f, 10.0f, -100.0f, 100.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::remap(2.5f, 0.0f, 10.0f, -100.0f, 100.0f) == doctest::Approx(-50.0f));
+    }
+
+    TEST_CASE("batch5447 smooth step exact interval endpoints map to zero and one") {
+        CHECK(Salix::smooth_step(-2.0f, 3.0f, -2.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::smooth_step(-2.0f, 3.0f, 3.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5447 smoother step exact interval endpoints map to zero and one") {
+        CHECK(Salix::smoother_step(-2.0f, 3.0f, -2.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::smoother_step(-2.0f, 3.0f, 3.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5447 ping pong maps zero length offset and length boundary canonically") {
+        CHECK(Salix::ping_pong(0.0f, 5.0f) == doctest::Approx(0.0f));
+        CHECK(Salix::ping_pong(5.0f, 5.0f) == doctest::Approx(5.0f));
+        CHECK(Salix::ping_pong(10.0f, 5.0f) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch5447 cubic interpolation returns inner samples at zero and one") {
+        CHECK(Salix::cubic_interpolate(-5.0f, 4.0f, 7.0f, 9.0f, 0.0f) == doctest::Approx(4.0f));
+        CHECK(Salix::cubic_interpolate(-5.0f, 4.0f, 7.0f, 9.0f, 1.0f) == doctest::Approx(7.0f));
+    }
+
+    TEST_CASE("batch5447 wrap maps repeated signed periods into half open interval") {
+        CHECK(Salix::wrap(-1.0f, 0.0f, 4.0f) == doctest::Approx(3.0f));
+        CHECK(Salix::wrap(9.0f, 0.0f, 4.0f) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5447 saturate and nearly equal preserve exact boundary contracts") {
+        CHECK(Salix::saturate(-5.447f) == 0.0f);
+        CHECK(Salix::saturate(5.447f) == 1.0f);
+        CHECK(Salix::saturate(1.0f) == 1.0f);
+        CHECK(Salix::nearly_equal(1.0f, 1.0f + 0.5f * Salix::EPSILON, Salix::EPSILON));
+    }
+}
+
