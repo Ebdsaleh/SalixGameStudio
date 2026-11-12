@@ -1301,3 +1301,130 @@ TEST_SUITE("Salix::management::SettingsManagerBatch4947") {
         CHECK(text.find("ThisIsExtra") == std::string::npos);
     }
 }
+
+TEST_SUITE("Salix::management::SettingsManagerBatch5347") {
+    TEST_CASE("batch5347 missing YAML preserves supplied configuration and creates no cache") {
+        Batch3447SettingsFiles files("Batch5347_Missing");
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Keep5347";
+        config.target_fps = 5347;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "Keep5347");
+        CHECK(config.target_fps == 5347);
+        CHECK_FALSE(std::filesystem::exists(files.cache));
+    }
+
+    TEST_CASE("batch5347 partial Window title leaves dimensions untouched") {
+        Batch3447SettingsFiles files("Batch5347_WindowTitle");
+        files.write_yaml("Window:\n  title: Loaded5347\n");
+        Salix::ApplicationConfig config;
+        config.window_config.width = 1534;
+        config.window_config.height = 734;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "Loaded5347");
+        CHECK(config.window_config.width == 1534);
+        CHECK(config.window_config.height == 734);
+    }
+
+    TEST_CASE("batch5347 negative target FPS parses exactly without changing initial state") {
+        Batch3447SettingsFiles files("Batch5347_NegativeFps");
+        files.write_yaml("Engine:\n  target_fps: -5347\n");
+        Salix::ApplicationConfig config;
+        config.initial_state = Salix::AppStateType::Game;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.target_fps == -5347);
+        CHECK(config.initial_state == Salix::AppStateType::Game);
+    }
+
+    TEST_CASE("batch5347 unknown enum strings preserve all caller enum selections") {
+        Batch3447SettingsFiles files("Batch5347_UnknownEnums");
+        files.write_yaml(
+            "Engine:\n  initial_state: Future5347\n"
+            "Renderer:\n  type: FutureRenderer5347\n"
+            "GUI:\n  type: FutureGui5347\n"
+            "Timer:\n  type: FutureTimer5347\n");
+        Salix::ApplicationConfig config;
+        config.initial_state = Salix::AppStateType::Options;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        config.gui_type = Salix::GuiType::None;
+        config.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.initial_state == Salix::AppStateType::Options);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(config.gui_type == Salix::GuiType::None);
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch5347 save and load preserve whitespace rich window title") {
+        Batch3447SettingsFiles files("Batch5347_Title");
+        Salix::ApplicationConfig source;
+        source.window_config.title = "  Batch 5347\nSecond Line\t ";
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.title == source.window_config.title);
+    }
+
+    TEST_CASE("batch5347 save and load preserve signed window dimensions") {
+        Batch3447SettingsFiles files("Batch5347_Dimensions");
+        Salix::ApplicationConfig source;
+        source.window_config.width = -5347;
+        source.window_config.height = 0;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.width == -5347);
+        CHECK(loaded.window_config.height == 0);
+    }
+
+    TEST_CASE("batch5347 save and load preserve explicit nondefault enum selections") {
+        Batch3447SettingsFiles files("Batch5347_Enums");
+        Salix::ApplicationConfig source;
+        source.initial_state = Salix::AppStateType::Options;
+        source.renderer_type = Salix::RendererType::OpenGL;
+        source.gui_type = Salix::GuiType::None;
+        source.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.initial_state == Salix::AppStateType::Options);
+        CHECK(loaded.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(loaded.gui_type == Salix::GuiType::None);
+        CHECK(loaded.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch5347 malformed YAML returns false without creating cache") {
+        Batch3447SettingsFiles files("Batch5347_Malformed");
+        files.write_yaml("Window: [unterminated\n");
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        CHECK_FALSE(manager.load_settings(files.yaml.string(), config));
+        CHECK_FALSE(std::filesystem::exists(files.cache));
+    }
+
+    TEST_CASE("batch5347 empty save path is rejected") {
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        CHECK_FALSE(manager.save_settings("", config));
+    }
+
+    TEST_CASE("batch5347 extensionless settings source creates sibling cache") {
+        Batch3447SettingsFiles files("Batch5347_Extensionless");
+        const auto source = files.root / "settings5347";
+        const auto cache = files.root / "settings5347.cache";
+        { std::ofstream out(source); out << "Engine:\n  target_fps: 347\n"; }
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(source.string(), config));
+        CHECK(config.target_fps == 347);
+        CHECK(std::filesystem::is_regular_file(cache));
+    }
+}
+
