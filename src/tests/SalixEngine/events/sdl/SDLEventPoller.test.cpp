@@ -729,3 +729,104 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch4747") {
         CHECK(order[1] == 2);
     }
 }
+
+TEST_SUITE("Salix::events::SDLEventPollerBatch5347") {
+    TEST_CASE("batch5347 callback handles are never reused after unregister") {
+        Salix::SDLEventPoller poller;
+        const auto first = poller.register_raw_event_callback([](void*) {});
+        poller.unregister_raw_event_callback(first);
+        const auto second = poller.register_raw_event_callback([](void*) {});
+        CHECK(first == 1);
+        CHECK(second == 2);
+    }
+
+    TEST_CASE("batch5347 independent pollers each begin handle allocation at one") {
+        Salix::SDLEventPoller first, second;
+        CHECK(first.register_raw_event_callback([](void*) {}) == 1);
+        CHECK(second.register_raw_event_callback([](void*) {}) == 1);
+    }
+
+    TEST_CASE("batch5347 unregistering zero handle before registration is harmless") {
+        Salix::SDLEventPoller poller;
+        CHECK_NOTHROW(poller.unregister_raw_event_callback(0));
+        CHECK(poller.register_raw_event_callback([](void*) {}) == 1);
+    }
+
+    TEST_CASE("batch5347 empty callback registration still consumes exactly one handle") {
+        Salix::SDLEventPoller poller;
+        Salix::RawEventCallback empty{};
+        CHECK(poller.register_raw_event_callback(empty) == 1);
+        CHECK(poller.register_raw_event_callback([](void*) {}) == 2);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5347 polling empty SDL queue performs no dispatch") {
+        Salix::SDLEventPoller poller;
+        int calls = 0;
+        poller.poll_events([&](Salix::IEvent&) { ++calls; });
+        CHECK(calls == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5347 unknown window event stays raw only") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event event{};
+        event.type = SDL_WINDOWEVENT;
+        event.window.event = SDL_WINDOWEVENT_FOCUS_GAINED;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 1);
+        CHECK(processed == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5347 two user events visit each raw callback exactly twice") {
+        Salix::SDLEventPoller poller;
+        int first = 0, second = 0, processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++first; });
+        poller.register_raw_event_callback([&](void*) { ++second; });
+        SDL_Event a{}; a.type = SDL_USEREVENT;
+        SDL_Event b{}; b.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&a) == 1);
+        REQUIRE(SDL_PushEvent(&b) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(first == 2);
+        CHECK(second == 2);
+        CHECK(processed == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5347 unregister before poll removes only requested callback") {
+        Salix::SDLEventPoller poller;
+        int first = 0, second = 0;
+        const auto first_handle = poller.register_raw_event_callback([&](void*) { ++first; });
+        poller.register_raw_event_callback([&](void*) { ++second; });
+        poller.unregister_raw_event_callback(first_handle);
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        CHECK(first == 0);
+        CHECK(second == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5347 raw callback observes exact queued native type") {
+        Salix::SDLEventPoller poller;
+        Uint32 observed = 0;
+        poller.register_raw_event_callback([&](void* raw) {
+            REQUIRE(raw != nullptr);
+            observed = static_cast<SDL_Event*>(raw)->type;
+        });
+        SDL_Event event{}; event.type = SDL_TEXTINPUT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        CHECK(observed == SDL_TEXTINPUT);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5347 quit event dispatches once with no raw callbacks installed") {
+        Salix::SDLEventPoller poller;
+        int processed = 0;
+        SDL_Event event{}; event.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(processed == 1);
+    }
+}
+
