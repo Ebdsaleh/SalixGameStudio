@@ -1013,3 +1013,78 @@ TEST_SUITE("Salix::math::RectBatch5047") {
     }
 }
 
+TEST_SUITE("Salix::math::RectBatch5447") {
+    TEST_CASE("batch5447 integer rectangle stores signed components verbatim") {
+        const Salix::RectI r(-5, 4, -4, 7);
+        CHECK(r.x == -5);
+        CHECK(r.y == 4);
+        CHECK(r.w == -4);
+        CHECK(r.h == 7);
+    }
+
+    TEST_CASE("batch5447 floating rectangle stores signed zero and fractions verbatim") {
+        const Salix::RectF r(-0.0f, 0.25f, -5.447f, 7.445f);
+        CHECK(r.x == -0.0f);
+        CHECK(r.y == 0.25f);
+        CHECK(r.w == -5.447f);
+        CHECK(r.h == 7.445f);
+    }
+
+    TEST_CASE("batch5447 double rectangle generic constructor converts integer inputs") {
+        const Salix::RectD r(-5, 4, -4, 7);
+        CHECK(r == Salix::RectD(-5.0, 4.0, -4.0, 7.0));
+    }
+
+    TEST_CASE("batch5447 float to integer conversion truncates every component toward zero") {
+        const Salix::RectF source(-5.9f, 4.9f, -4.1f, 7.8f);
+        const Salix::RectI converted(source);
+        CHECK(converted == Salix::RectI(-5, 4, -4, 7));
+    }
+
+    TEST_CASE("batch5447 integer to double conversion preserves exact integral components") {
+        const Salix::RectI source(-5447, 7445, 0, 1);
+        const Salix::RectD converted(source);
+        CHECK(converted == Salix::RectD(-5447.0, 7445.0, 0.0, 1.0));
+    }
+
+    TEST_CASE("batch5447 equality requires every component to match") {
+        const Salix::RectI base(1, 2, 3, 4);
+        CHECK(base == Salix::RectI(1, 2, 3, 4));
+        CHECK(base != Salix::RectI(1, 2, 3, 5));
+        CHECK(base != Salix::RectI(1, 2, 30, 4));
+    }
+
+    TEST_CASE("batch5447 copy construction remains independent after source mutation") {
+        Salix::RectF source(-5.0f, 4.0f, -4.0f, 7.0f);
+        const Salix::RectF copy(source);
+        source.x = 99.0f;
+        CHECK(copy == Salix::RectF(-5.0f, 4.0f, -4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5447 JSON roundtrip preserves negative dimensions") {
+        const Salix::RectI original(-5, 4, -44, -77);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::RectI restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch5447 ostream formats double rectangle in canonical field order") {
+        const Salix::RectD r(-5.5, 4.25, -4.0, 7.75);
+        std::stringstream stream;
+        stream << r;
+        CHECK(stream.str() == "{ x: -5.5, y: 4.25, w: -4, h: 7.75 }");
+    }
+
+    TEST_CASE("batch5447 all aliases retain standard value copy assignment behavior") {
+        Salix::RectI a(1, 2, 3, 4), b;
+        Salix::RectF c(1.0f, 2.0f, 3.0f, 4.0f), d;
+        Salix::RectD e(1.0, 2.0, 3.0, 4.0), f;
+        b = a; d = c; f = e;
+        CHECK(b == a);
+        CHECK(d == c);
+        CHECK(f == e);
+    }
+}
+
