@@ -786,3 +786,92 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch5147") {
     }
 }
 
+TEST_SUITE("Salix::rendering::DummyCameraBatch5547") {
+    TEST_CASE("batch5547 constructor retains perspective mode and identity matrices") {
+        Salix::DummyCamera camera;
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch5547 positive orthographic size replacement stores exact value") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(55.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(55.47f));
+    }
+
+    TEST_CASE("batch5547 repeated orthographic size replacements retain final value") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(1.0f);
+        camera.set_orthographic_size(-2.0f);
+        camera.set_orthographic_size(55.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(55.47f));
+    }
+
+    TEST_CASE("batch5547 active setter can alternate repeatedly") {
+        Salix::DummyCamera camera;
+        camera.set_is_active(true);
+        camera.set_is_active(false);
+        camera.set_is_active(true);
+        camera.set_is_active(false);
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5547 activate after explicit false sets active") {
+        Salix::DummyCamera camera;
+        camera.set_is_active(false);
+        camera.activate();
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5547 deactivate after explicit true clears active") {
+        Salix::DummyCamera camera;
+        camera.set_is_active(true);
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5547 ignored projection setter preserves identity matrices") {
+        Salix::DummyCamera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch5547 scalar changes preserve matrix reference identity") {
+        Salix::DummyCamera camera;
+        const auto* view = &camera.get_view_matrix();
+        const auto* projection = &camera.get_projection_matrix();
+        camera.set_orthographic_size(55.47f);
+        camera.set_is_active(true);
+        CHECK(&camera.get_view_matrix() == view);
+        CHECK(&camera.get_projection_matrix() == projection);
+    }
+
+    TEST_CASE("batch5547 separate cameras retain independent size and activity") {
+        Salix::DummyCamera first, second;
+        first.set_orthographic_size(55.0f);
+        first.activate();
+        second.set_orthographic_size(47.0f);
+        second.deactivate();
+        CHECK(first.get_orthographic_size() == doctest::Approx(55.0f));
+        CHECK(second.get_orthographic_size() == doctest::Approx(47.0f));
+        CHECK(first.get_is_active());
+        CHECK_FALSE(second.get_is_active());
+    }
+
+    TEST_CASE("batch5547 ICamera dispatch preserves dummy projection contract") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(5.547f);
+        camera.activate();
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(concrete.get_orthographic_size() == doctest::Approx(5.547f));
+        CHECK(camera.get_is_active());
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+}
+
