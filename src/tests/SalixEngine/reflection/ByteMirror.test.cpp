@@ -913,3 +913,95 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch4847") {
         CHECK(dynamic_cast<Salix::CppScript*>(script.get()) != nullptr);
     }
 }
+
+TEST_SUITE("Salix::reflection::ByteMirrorBatch5147") {
+    TEST_CASE("batch5147 canonical registration exposes projection mode reflection record") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::ProjectionMode));
+        REQUIRE(info != nullptr);
+        CHECK(info->name == "Salix::ProjectionMode");
+        CHECK(info->properties.empty());
+        CHECK(info->ancestor == nullptr);
+    }
+
+    TEST_CASE("batch5147 type name lookup remains case sensitive") {
+        Salix::ByteMirror::register_all_types();
+        REQUIRE(Salix::ByteMirror::get_type_info_by_name("Camera") != nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name("camera") == nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name("CAMERA") == nullptr);
+    }
+
+    TEST_CASE("batch5147 flattening null reflection record remains empty") {
+        CHECK(Salix::ByteMirror::get_all_properties_for_type(nullptr).empty());
+    }
+
+    TEST_CASE("batch5147 BoxCollider flattened properties include own geometry and inherited identity") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::BoxCollider));
+        REQUIRE(info != nullptr);
+        const auto properties = Salix::ByteMirror::get_all_properties_for_type(info);
+        CHECK(batch1147_has_property(properties, "size"));
+        CHECK(batch1147_has_property(properties, "id"));
+        CHECK(batch1147_has_property(properties, "name"));
+        CHECK(batch1147_has_property(properties, "visible"));
+    }
+
+    TEST_CASE("batch5147 BoxCollider live handles include geometry and inherited display name") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        const auto handles = Salix::ByteMirror::create_handles_for(&collider);
+        std::vector<std::string> names;
+        for (const auto& handle : handles) {
+            REQUIRE(handle != nullptr);
+            names.push_back(handle->get_name());
+        }
+        CHECK(std::find(names.begin(), names.end(), "size") != names.end());
+        CHECK(std::find(names.begin(), names.end(), "name") != names.end());
+    }
+
+    TEST_CASE("batch5147 reflected BoxCollider size reads latest live value") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        collider.set_size({5.0f, 14.0f, 7.0f});
+        const auto value = Salix::ByteMirror::get_property_value(&collider, "size");
+        REQUIRE(std::holds_alternative<Salix::Vector3>(value));
+        CHECK(std::get<Salix::Vector3>(value) == Salix::Vector3(5.0f, 14.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5147 reflected inherited name reads latest live mutation") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        collider.set_name("Collider5147");
+        const auto value = Salix::ByteMirror::get_property_value(&collider, "name");
+        REQUIRE(std::holds_alternative<std::string>(value));
+        CHECK(std::get<std::string>(value) == "Collider5147");
+    }
+
+    TEST_CASE("batch5147 null live element property lookup returns default variant") {
+        const auto value = Salix::ByteMirror::get_property_value(nullptr, "name");
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch5147 registering same constructor key replaces previous factory") {
+        const std::string key = "Batch5147ReplaceConstructor";
+        Salix::ByteMirror::register_constructor(key, []() -> Salix::Element* { return new Salix::BoxCollider(); });
+        {
+            std::unique_ptr<Salix::Element> first(Salix::ByteMirror::create_element_by_name(key));
+            REQUIRE(first != nullptr);
+            CHECK(dynamic_cast<Salix::BoxCollider*>(first.get()) != nullptr);
+        }
+        Salix::ByteMirror::register_constructor(key, []() -> Salix::Element* { return new Salix::Camera(); });
+        std::unique_ptr<Salix::Element> second(Salix::ByteMirror::create_element_by_name(key));
+        REQUIRE(second != nullptr);
+        CHECK(dynamic_cast<Salix::Camera*>(second.get()) != nullptr);
+    }
+
+    TEST_CASE("batch5147 null custom constructor and unrelated missing key both return null safely") {
+        Salix::ByteMirror::register_constructor(
+            "Batch5147NullConstructor", []() -> Salix::Element* { return nullptr; });
+        CHECK(Salix::ByteMirror::create_element_by_name("Batch5147NullConstructor") == nullptr);
+        CHECK(Salix::ByteMirror::create_element_by_name("Batch5147DefinitelyMissing") == nullptr);
+    }
+}
+
