@@ -1005,3 +1005,101 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch5147") {
     }
 }
 
+TEST_SUITE("Salix::reflection::ByteMirrorBatch5547") {
+    TEST_CASE("batch5547 canonical registration exposes all primary concrete element records") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::get_type_info(typeid(Salix::Transform)) != nullptr);
+        CHECK(Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D)) != nullptr);
+        CHECK(Salix::ByteMirror::get_type_info(typeid(Salix::Camera)) != nullptr);
+        CHECK(Salix::ByteMirror::get_type_info(typeid(Salix::BoxCollider)) != nullptr);
+        CHECK(Salix::ByteMirror::get_type_info(typeid(Salix::CppScript)) != nullptr);
+    }
+
+    TEST_CASE("batch5547 canonical type name lookup rejects whitespace decorated names") {
+        Salix::ByteMirror::register_all_types();
+        REQUIRE(Salix::ByteMirror::get_type_info_by_name("Camera") != nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name(" Camera") == nullptr);
+        CHECK(Salix::ByteMirror::get_type_info_by_name("Camera ") == nullptr);
+    }
+
+    TEST_CASE("batch5547 Camera flattened properties include projection and inherited identity") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Camera));
+        REQUIRE(info != nullptr);
+        const auto properties = Salix::ByteMirror::get_all_properties_for_type(info);
+        CHECK(batch1147_has_property(properties, "projection_mode"));
+        CHECK(batch1147_has_property(properties, "field_of_view"));
+        CHECK(batch1147_has_property(properties, "id"));
+        CHECK(batch1147_has_property(properties, "name"));
+        CHECK(batch1147_has_property(properties, "visible"));
+    }
+
+    TEST_CASE("batch5547 Sprite2D flattened properties include visual state and inherited identity") {
+        Salix::ByteMirror::register_all_types();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D));
+        REQUIRE(info != nullptr);
+        const auto properties = Salix::ByteMirror::get_all_properties_for_type(info);
+        CHECK(batch1147_has_property(properties, "color"));
+        CHECK(batch1147_has_property(properties, "pivot"));
+        CHECK(batch1147_has_property(properties, "texture_path"));
+        CHECK(batch1147_has_property(properties, "name"));
+    }
+
+    TEST_CASE("batch5547 reflected Camera field of view reads latest value") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Camera camera;
+        camera.set_field_of_view(55.47f);
+        const auto value = Salix::ByteMirror::get_property_value(&camera, "field_of_view");
+        REQUIRE(std::holds_alternative<float>(value));
+        CHECK(std::get<float>(value) == doctest::Approx(55.47f));
+    }
+
+    TEST_CASE("batch5547 reflected Sprite2D sorting layer reads latest value") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Sprite2D sprite;
+        sprite.set_sorting_layer(-5547);
+        const auto value = Salix::ByteMirror::get_property_value(&sprite, "sorting_layer");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == -5547);
+    }
+
+    TEST_CASE("batch5547 missing property on registered element returns default variant") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Camera camera;
+        const auto value = Salix::ByteMirror::get_property_value(&camera, "DefinitelyMissing5547");
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch5547 canonical factory creation returns expected dynamic types") {
+        Salix::ByteMirror::register_all_types();
+        std::unique_ptr<Salix::Element> collider(Salix::ByteMirror::create_element_by_name("BoxCollider"));
+        std::unique_ptr<Salix::Element> sprite(Salix::ByteMirror::create_element_by_name("Sprite2D"));
+        REQUIRE(collider != nullptr);
+        REQUIRE(sprite != nullptr);
+        CHECK(dynamic_cast<Salix::BoxCollider*>(collider.get()) != nullptr);
+        CHECK(dynamic_cast<Salix::Sprite2D*>(sprite.get()) != nullptr);
+    }
+
+    TEST_CASE("batch5547 custom constructor key is case sensitive") {
+        const std::string key = "Batch5547Factory";
+        Salix::ByteMirror::register_constructor(key, []() -> Salix::Element* { return new Salix::Camera(); });
+        std::unique_ptr<Salix::Element> created(Salix::ByteMirror::create_element_by_name(key));
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Salix::Camera*>(created.get()) != nullptr);
+        CHECK(Salix::ByteMirror::create_element_by_name("batch5547factory") == nullptr);
+    }
+
+    TEST_CASE("batch5547 repeated canonical registration remains factory stable") {
+        Salix::ByteMirror::register_all_types();
+        Salix::ByteMirror::register_all_types();
+        std::unique_ptr<Salix::Element> first(Salix::ByteMirror::create_element_by_name("Camera"));
+        std::unique_ptr<Salix::Element> second(Salix::ByteMirror::create_element_by_name("Camera"));
+        REQUIRE(first != nullptr);
+        REQUIRE(second != nullptr);
+        CHECK(first.get() != second.get());
+        CHECK(dynamic_cast<Salix::Camera*>(first.get()) != nullptr);
+        CHECK(dynamic_cast<Salix::Camera*>(second.get()) != nullptr);
+    }
+}
+
