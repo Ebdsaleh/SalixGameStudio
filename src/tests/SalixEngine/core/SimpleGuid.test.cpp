@@ -1128,3 +1128,86 @@ TEST_SUITE("Salix::core::SimpleGuidBatch5047") {
     }
 }
 
+TEST_SUITE("Salix::core::SimpleGuidBatch5447") {
+    TEST_CASE("batch5447 reset counter restarts deterministic generation at one") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 3);
+    }
+
+    TEST_CASE("batch5447 invalid and from value zero are equivalent") {
+        const auto a = Salix::SimpleGuid::invalid();
+        const auto b = Salix::SimpleGuid::from_value(0);
+        CHECK(a == b);
+        CHECK_FALSE(a.is_valid());
+        CHECK_FALSE(b.is_valid());
+    }
+
+    TEST_CASE("batch5447 from value never advances generation counter") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto explicit_id = Salix::SimpleGuid::from_value(5447);
+        REQUIRE(explicit_id.get_value() == 5447);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1);
+    }
+
+    TEST_CASE("batch5447 update next id equal to current counter advances by one") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        REQUIRE(Salix::SimpleGuid::generate().get_value() == 1);
+        Salix::SimpleGuid::update_next_id(2);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 3);
+    }
+
+    TEST_CASE("batch5447 update next id never rewinds after a higher value") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(5447);
+        REQUIRE(Salix::SimpleGuid::generate().get_value() == 5448);
+        Salix::SimpleGuid::update_next_id(10);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 5449);
+    }
+
+    TEST_CASE("batch5447 comparison ordering follows underlying integer value") {
+        const auto low = Salix::SimpleGuid::from_value(1);
+        const auto mid = Salix::SimpleGuid::from_value(5447);
+        const auto high = Salix::SimpleGuid::from_value(9000);
+        CHECK(low < mid);
+        CHECK(mid < high);
+        CHECK_FALSE(high < mid);
+    }
+
+    TEST_CASE("batch5447 maximum explicit value remains valid") {
+        const auto value = (std::numeric_limits<std::uint64_t>::max)();
+        const auto guid = Salix::SimpleGuid::from_value(value);
+        CHECK(guid.is_valid());
+        CHECK(guid.get_value() == value);
+    }
+
+    TEST_CASE("batch5447 copy construction preserves value without aliasing future assignments") {
+        auto original = Salix::SimpleGuid::from_value(5447);
+        auto copy = original;
+        original = Salix::SimpleGuid::from_value(7445);
+        CHECK(copy.get_value() == 5447);
+        CHECK(original.get_value() == 7445);
+    }
+
+    TEST_CASE("batch5447 JSON archive preserves invalid zero identifier") {
+        const auto original = Salix::SimpleGuid::invalid();
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::SimpleGuid restored = Salix::SimpleGuid::from_value(99);
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+        CHECK_FALSE(restored.is_valid());
+    }
+
+    TEST_CASE("batch5447 binary archive preserves ordinary explicit identifier") {
+        const auto original = Salix::SimpleGuid::from_value(54475447ULL);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(original); }
+        Salix::SimpleGuid restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+        CHECK(restored.get_value() == 54475447ULL);
+    }
+}
+
