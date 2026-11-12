@@ -892,3 +892,105 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch4947") {
         CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch4947NeverRegistered)) == nullptr);
     }
 }
+
+namespace {
+struct Batch5147EnumA {};
+struct Batch5147EnumB {};
+struct Batch5147EnumC {};
+struct Batch5147NeverRegistered {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch5147") {
+    TEST_CASE("batch5147 empty enum data exposes stable fallback behavior") {
+        Salix::EnumRegistry::EnumData data;
+        CHECK(data.get_name(0) == "Unknown");
+        CHECK(data.get_value("Missing5147") == -1);
+        CHECK(data.get_names().empty());
+    }
+
+    TEST_CASE("batch5147 negative and zero numeric keys roundtrip independently") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[-51] = "Negative5147";
+        data.value_to_string[0] = "Zero5147";
+        CHECK(data.get_name(-51) == "Negative5147");
+        CHECK(data.get_name(0) == "Zero5147");
+        CHECK(data.get_value("Negative5147") == -51);
+        CHECK(data.get_value("Zero5147") == 0);
+    }
+
+    TEST_CASE("batch5147 empty display name can be intentionally mapped") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[5147] = "";
+        CHECK(data.get_name(5147).empty());
+        CHECK(data.get_value("") == 5147);
+    }
+
+    TEST_CASE("batch5147 ordered names remain independently empty when numeric mappings exist") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[1] = "One5147";
+        CHECK(data.get_name(1) == "One5147");
+        CHECK(data.get_names().empty());
+    }
+
+    TEST_CASE("batch5147 custom registration pointer and reference resolve same object") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[51] = "FiftyOne5147";
+        data.ordered_names = {"FiftyOne5147"};
+        Salix::EnumRegistry::register_enum(typeid(Batch5147EnumA), std::move(data));
+        const auto* pointer = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch5147EnumA));
+        REQUIRE(pointer != nullptr);
+        CHECK(pointer == &Salix::EnumRegistry::get_enum_data(typeid(Batch5147EnumA)));
+    }
+
+    TEST_CASE("batch5147 replacing registration removes old numeric mapping and ordered names") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[1] = "Old5147";
+        first.ordered_names = {"Old5147"};
+        Salix::EnumRegistry::register_enum(typeid(Batch5147EnumB), std::move(first));
+        Salix::EnumRegistry::EnumData second;
+        second.value_to_string[2] = "New5147";
+        second.ordered_names = {"New5147"};
+        Salix::EnumRegistry::register_enum(typeid(Batch5147EnumB), std::move(second));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch5147EnumB));
+        CHECK(stored.get_name(1) == "Unknown");
+        CHECK(stored.get_name(2) == "New5147");
+        REQUIRE(stored.get_names().size() == 1);
+        CHECK(stored.get_names()[0] == "New5147");
+    }
+
+    TEST_CASE("batch5147 canonical projection registration preserves UI ordering") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& data = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        const auto& names = data.get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(names[0] == "Perspective");
+        CHECK(names[1] == "Orthographic");
+    }
+
+    TEST_CASE("batch5147 canonical editor data registration preserves UI ordering") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& data = Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode));
+        const auto& names = data.get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(names[0] == "Live");
+        CHECK(names[1] == "Yaml");
+        CHECK(data.get_value("Live") == static_cast<int>(Salix::EditorDataMode::Live));
+        CHECK(data.get_value("Yaml") == static_cast<int>(Salix::EditorDataMode::Yaml));
+    }
+
+    TEST_CASE("batch5147 unrelated custom registration survives canonical refresh") {
+        Salix::EnumRegistry::EnumData custom;
+        custom.value_to_string[5147] = "Persistent5147";
+        Salix::EnumRegistry::register_enum(typeid(Batch5147EnumC), std::move(custom));
+        Salix::EnumRegistry::register_all_enums();
+        const auto* stored = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch5147EnumC));
+        REQUIRE(stored != nullptr);
+        CHECK(stored->get_name(5147) == "Persistent5147");
+    }
+
+    TEST_CASE("batch5147 never registered pointer remains null after canonical refresh") {
+        Salix::EnumRegistry::register_all_enums();
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch5147NeverRegistered)) == nullptr);
+    }
+}
+
