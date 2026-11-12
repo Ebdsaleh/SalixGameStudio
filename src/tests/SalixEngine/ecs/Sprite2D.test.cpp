@@ -1594,3 +1594,123 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch5147") {
     }
 }
 
+TEST_SUITE("Salix::ecs::Sprite2DBatch5547") {
+    TEST_CASE("batch5547 constructor exposes canonical visual defaults") {
+        Salix::Sprite2D sprite;
+        CHECK(sprite.get_color() == Salix::White);
+        CHECK(sprite.get_offset() == Salix::Vector2(0.0f, 0.0f));
+        CHECK(sprite.get_pivot() == Salix::Vector2(0.5f, 0.5f));
+        CHECK(sprite.get_local_rotation() == 0.0f);
+        CHECK_FALSE(sprite.get_flip_h());
+        CHECK_FALSE(sprite.get_flip_v());
+        CHECK(sprite.get_sorting_layer() == 0);
+        CHECK(sprite.get_texture_path().empty());
+    }
+
+    TEST_CASE("batch5547 mutable getters update public visual properties in place") {
+        Salix::Sprite2D sprite;
+        sprite.get_color() = Salix::Cyan;
+        sprite.get_offset() = {5.0f, 47.0f};
+        sprite.get_pivot() = {0.25f, 0.75f};
+        sprite.get_local_rotation() = -55.47f;
+        CHECK(sprite.get_color() == Salix::Cyan);
+        CHECK(sprite.get_offset() == Salix::Vector2(5.0f, 47.0f));
+        CHECK(sprite.get_pivot() == Salix::Vector2(0.25f, 0.75f));
+        CHECK(sprite.get_local_rotation() == doctest::Approx(-55.47f));
+    }
+
+    TEST_CASE("batch5547 mutable flag getters update exact flag state") {
+        Salix::Sprite2D sprite;
+        sprite.get_use_entity_rotation() = true;
+        sprite.get_flip_h() = true;
+        sprite.get_flip_v() = true;
+        CHECK(sprite.get_use_entity_rotation());
+        CHECK(sprite.get_flip_h());
+        CHECK(sprite.get_flip_v());
+    }
+
+    TEST_CASE("batch5547 mutable sorting layer getter stores negative layer") {
+        Salix::Sprite2D sprite;
+        sprite.get_sorting_layer() = -5547;
+        CHECK(sprite.get_sorting_layer() == -5547);
+    }
+
+    TEST_CASE("batch5547 property setters can restore canonical defaults after mutation") {
+        Salix::Sprite2D sprite;
+        sprite.set_color(Salix::Red);
+        sprite.set_offset({5.0f, 4.0f});
+        sprite.set_pivot({0.0f, 0.0f});
+        sprite.set_flip_h(true);
+        sprite.set_flip_v(true);
+        sprite.set_color(Salix::White);
+        sprite.set_offset({0.0f, 0.0f});
+        sprite.set_pivot({0.5f, 0.5f});
+        sprite.set_flip_h(false);
+        sprite.set_flip_v(false);
+        CHECK(sprite.get_color() == Salix::White);
+        CHECK(sprite.get_offset() == Salix::Vector2());
+        CHECK(sprite.get_pivot() == Salix::Vector2(0.5f, 0.5f));
+        CHECK_FALSE(sprite.get_flip_h());
+        CHECK_FALSE(sprite.get_flip_v());
+    }
+
+    TEST_CASE("batch5547 texture path setter alone never materializes runtime texture") {
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("assets/path-only5547.png");
+        CHECK(sprite.get_texture_path() == "assets/path-only5547.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch5547 on load with path and null asset manager leaves runtime texture clear") {
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("assets/null-manager5547.png");
+        Salix::InitContext context{};
+        sprite.on_load(context);
+        CHECK(sprite.get_texture_path() == "assets/null-manager5547.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch5547 successful mock load stores expected dimensions") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/success5547.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+        CHECK(sprite.get_texture_path() == "assets/success5547.png");
+    }
+
+    TEST_CASE("batch5547 ownerless loaded sprite remains render silent") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/silent5547.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        sprite.render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 0);
+    }
+
+    TEST_CASE("batch5547 separate sprites keep visual metadata independent") {
+        Salix::Sprite2D first, second;
+        first.set_color(Salix::Red);
+        first.set_local_rotation(55.0f);
+        first.set_sorting_layer(47);
+        second.set_color(Salix::Blue);
+        second.set_local_rotation(-47.0f);
+        second.set_sorting_layer(-55);
+        CHECK(first.get_color() == Salix::Red);
+        CHECK(second.get_color() == Salix::Blue);
+        CHECK(first.get_local_rotation() == doctest::Approx(55.0f));
+        CHECK(second.get_local_rotation() == doctest::Approx(-47.0f));
+        CHECK(first.get_sorting_layer() == 47);
+        CHECK(second.get_sorting_layer() == -55);
+    }
+}
+
