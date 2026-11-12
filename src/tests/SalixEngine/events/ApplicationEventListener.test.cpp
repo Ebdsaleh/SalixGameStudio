@@ -939,3 +939,114 @@ TEST_SUITE("Salix::events::ApplicationEventListenerBatch5147") {
     }
 }
 
+TEST_SUITE("Salix::events::ApplicationEventListenerBatch5547") {
+    TEST_CASE("batch5547 null initialization is repeatably rejected") {
+        Salix::ApplicationEventListener listener;
+        CHECK_FALSE(listener.initialize(nullptr));
+        CHECK_FALSE(listener.initialize(nullptr));
+    }
+
+    TEST_CASE("batch5547 resize before initialization preserves event state") {
+        Salix::ApplicationEventListener listener;
+        Salix::WindowResizeEvent resize(5547, 7455);
+        listener.on_event(resize);
+        CHECK(resize.get_width() == 5547);
+        CHECK(resize.get_height() == 7455);
+        CHECK_FALSE(resize.handled);
+    }
+
+    TEST_CASE("batch5547 valid initialization leaves stopped engine stopped on resize") {
+        Salix::Engine engine;
+        engine.is_running(false);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent resize(55, 47);
+        listener.on_event(resize);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch5547 close stops running engine through direct listener") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+        CHECK_FALSE(close.handled);
+    }
+
+    TEST_CASE("batch5547 close stops running engine through interface dispatch") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener concrete;
+        REQUIRE(concrete.initialize(&engine));
+        Salix::IEventListener& listener = concrete;
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch5547 repeated close remains idempotent on already stopped engine") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch5547 close preserves engine time scale and mode together") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_time_scale(5.547f);
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::Options);
+        CHECK(engine.get_time_scale() == doctest::Approx(5.547f));
+    }
+
+    TEST_CASE("batch5547 failed null reinitialization preserves current engine target") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        CHECK_FALSE(listener.initialize(nullptr));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch5547 retargeting twice routes close only to final engine") {
+        Salix::Engine first, second, third;
+        first.is_running(true); second.is_running(true); third.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&first));
+        REQUIRE(listener.initialize(&second));
+        REQUIRE(listener.initialize(&third));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK(first.is_running());
+        CHECK(second.is_running());
+        CHECK_FALSE(third.is_running());
+    }
+
+    TEST_CASE("batch5547 prehandled close preserves handled flag while still stopping engine") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        close.handled = true;
+        listener.on_event(close);
+        CHECK(close.handled);
+        CHECK_FALSE(engine.is_running());
+    }
+}
+
