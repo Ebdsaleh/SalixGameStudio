@@ -1260,3 +1260,72 @@ TEST_SUITE("Salix::math::Vector3Batch4647") {
         CHECK(restored == original);
     }
 }
+
+TEST_SUITE("Salix::math::Vector3Batch5147") {
+    TEST_CASE("batch5147 integer scalar constructor broadcasts exact value to every axis") {
+        const Salix::Vector3 v(-5147);
+        CHECK(v == Salix::Vector3(-5147.0f, -5147.0f, -5147.0f));
+    }
+
+    TEST_CASE("batch5147 normalizing zero vector is an exact no op") {
+        Salix::Vector3 v = Salix::Vector3::Zero;
+        v.normalize();
+        CHECK(v == Salix::Vector3::Zero);
+        CHECK(v.length() == 0.0f);
+    }
+
+    TEST_CASE("batch5147 positive Z axis normalization produces canonical unit axis") {
+        Salix::Vector3 v(0.0f, 0.0f, 9.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector3(0.0f, 0.0f, 1.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5147 interpolation clamps both outside endpoints") {
+        const Salix::Vector3 a(-5.0f, 1.0f, 4.0f);
+        const Salix::Vector3 b(7.0f, -3.0f, 2.0f);
+        CHECK(Salix::Vector3::lerp(a, b, -1.0f) == a);
+        CHECK(Salix::Vector3::lerp(a, b, 2.0f) == b);
+    }
+
+    TEST_CASE("batch5147 scalar multiplication is symmetric across operand order") {
+        const Salix::Vector3 v(-5.0f, 1.0f, 4.0f);
+        CHECK(v * 3.0f == 3.0f * v);
+        CHECK(v * 3.0f == Salix::Vector3(-15.0f, 3.0f, 12.0f));
+    }
+
+    TEST_CASE("batch5147 vector addition followed by subtraction restores source exactly") {
+        const Salix::Vector3 source(-5.0f, 1.0f, 4.0f);
+        const Salix::Vector3 delta(7.0f, -3.0f, 2.0f);
+        CHECK((source + delta) - delta == source);
+    }
+
+    TEST_CASE("batch5147 dot product is commutative for signed vectors") {
+        const Salix::Vector3 a(-2.0f, 3.0f, 5.0f);
+        const Salix::Vector3 b(7.0f, -11.0f, 13.0f);
+        CHECK(Salix::dot(a, b) == doctest::Approx(Salix::dot(b, a)));
+        CHECK(Salix::dot(a, b) == doctest::Approx(18.0f));
+    }
+
+    TEST_CASE("batch5147 cross product is antisymmetric for nonparallel vectors") {
+        const Salix::Vector3 a(1.0f, 2.0f, 3.0f);
+        const Salix::Vector3 b(-4.0f, 5.0f, -6.0f);
+        CHECK(Salix::cross(a, b) == Salix::cross(b, a) * -1.0f);
+    }
+
+    TEST_CASE("batch5147 GLM roundtrip preserves representative finite coordinates") {
+        const Salix::Vector3 original(-5.147f, 14.0f, 7.5f);
+        const glm::vec3 glm_value = original.to_glm();
+        CHECK(Salix::Vector3::from_glm(glm_value) == original);
+        CHECK(Salix::Vector3(glm_value) == original);
+    }
+
+    TEST_CASE("batch5147 partial YAML x and z decode clears omitted y coordinate") {
+        Salix::Vector3 v(9.0f, 8.0f, 7.0f);
+        YAML::Load("{x: -5.147, z: 14.7}") >> v;
+        CHECK(v.x == doctest::Approx(-5.147f));
+        CHECK(v.y == 0.0f);
+        CHECK(v.z == doctest::Approx(14.7f));
+    }
+}
+
