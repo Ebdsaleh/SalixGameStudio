@@ -721,3 +721,93 @@ TEST_SUITE("Salix::management::RealmManagerBatch4347") {
         CHECK(manager.get_active_realm() == realm);
     }
 }
+
+TEST_SUITE("Salix::management::RealmManagerBatch5347") {
+    TEST_CASE("batch5347 fresh manager starts without active realm or project root") {
+        Salix::RealmManager manager;
+        CHECK(manager.get_active_realm() == nullptr);
+        CHECK(manager.get_project_root_path().empty());
+    }
+
+    TEST_CASE("batch5347 empty name or path realm creation is rejected") {
+        Salix::RealmManager manager;
+        CHECK(manager.create_realm("", "Scenes/Realm5347.realm") == nullptr);
+        CHECK(manager.create_realm("Realm5347", "") == nullptr);
+        CHECK(manager.get_active_realm() == nullptr);
+    }
+
+    TEST_CASE("batch5347 distinct realm creation preserves independent metadata") {
+        Salix::RealmManager manager;
+        auto* first = manager.create_realm("First5347", "Scenes/First5347.realm");
+        auto* second = manager.create_realm("Second5347", "Scenes/Second5347.realm");
+        REQUIRE(first != nullptr);
+        REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(first->get_name() == "First5347");
+        CHECK(second->get_path() == "Scenes/Second5347.realm");
+        CHECK(manager.get_active_realm() == nullptr);
+    }
+
+    TEST_CASE("batch5347 failed selection preserves existing active realm") {
+        Salix::RealmManager manager;
+        auto* first = manager.create_realm("First5347", "Scenes/First5347.realm");
+        REQUIRE(first != nullptr);
+        REQUIRE(manager.set_active_realm("First5347"));
+        CHECK_FALSE(manager.set_active_realm("Missing5347"));
+        CHECK(manager.get_active_realm() == first);
+    }
+
+    TEST_CASE("batch5347 replacing active realm retargets active pointer to replacement") {
+        Salix::RealmManager manager;
+        auto* original = manager.create_realm("Replace5347", "Scenes/Old5347.realm");
+        REQUIRE(original != nullptr);
+        REQUIRE(manager.set_active_realm("Replace5347"));
+        auto* replacement = manager.create_realm("Replace5347", "Scenes/New5347.realm");
+        REQUIRE(replacement != nullptr);
+        CHECK(manager.get_active_realm() == replacement);
+        CHECK(replacement->get_path() == "Scenes/New5347.realm");
+    }
+
+    TEST_CASE("batch5347 replacing inactive realm never changes selected realm") {
+        Salix::RealmManager manager;
+        auto* selected = manager.create_realm("Selected5347", "Scenes/Selected5347.realm");
+        REQUIRE(selected != nullptr);
+        REQUIRE(manager.create_realm("Other5347", "Scenes/OldOther5347.realm") != nullptr);
+        REQUIRE(manager.set_active_realm("Selected5347"));
+        REQUIRE(manager.create_realm("Other5347", "Scenes/NewOther5347.realm") != nullptr);
+        CHECK(manager.get_active_realm() == selected);
+    }
+
+    TEST_CASE("batch5347 project root rejects empty replacement") {
+        Salix::RealmManager manager;
+        manager.set_project_root_path("C:/Batch5347/Root");
+        manager.set_project_root_path("");
+        CHECK(manager.get_project_root_path() == "C:/Batch5347/Root");
+    }
+
+    TEST_CASE("batch5347 update and render are no ops with no active realm") {
+        Salix::RealmManager manager;
+        CHECK_NOTHROW(manager.update(-5.347f));
+        CHECK_NOTHROW(manager.render(nullptr));
+        CHECK(manager.get_active_realm() == nullptr);
+    }
+
+    TEST_CASE("batch5347 active realm cannot load assets without configured asset manager") {
+        Salix::RealmManager manager;
+        Salix::InitContext context{};
+        manager.initialize(context);
+        REQUIRE(manager.create_realm("NoAssets5347", "Scenes/NoAssets5347.realm") != nullptr);
+        REQUIRE(manager.set_active_realm("NoAssets5347"));
+        CHECK_FALSE(manager.load_active_realm());
+    }
+
+    TEST_CASE("batch5347 shutdown clears active selection and previously created realm lookup") {
+        Salix::RealmManager manager;
+        REQUIRE(manager.create_realm("Shutdown5347", "Scenes/Shutdown5347.realm") != nullptr);
+        REQUIRE(manager.set_active_realm("Shutdown5347"));
+        manager.shutdown();
+        CHECK(manager.get_active_realm() == nullptr);
+        CHECK_FALSE(manager.set_active_realm("Shutdown5347"));
+    }
+}
+
