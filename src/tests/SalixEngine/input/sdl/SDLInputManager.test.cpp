@@ -840,3 +840,96 @@ TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch4747") {
         CHECK(y == 74);
     }
 }
+
+TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch5347") {
+    TEST_CASE("batch5347 fresh manager exposes neutral quit scroll key and mouse state") {
+        Salix::SDLInputManager manager;
+        CHECK_FALSE(manager.wants_to_quit());
+        CHECK(manager.get_mouse_scroll_delta() == 0.0f);
+        CHECK(manager.is_up(Salix::KeyCode::A));
+        CHECK(manager.is_up(Salix::MouseButton::Left));
+    }
+
+    TEST_CASE("batch5347 window close permanently requests quit across updates") {
+        Salix::SDLInputManager manager;
+        Salix::WindowCloseEvent close;
+        manager.process_event(close);
+        REQUIRE(manager.wants_to_quit());
+        manager.update(0.016f);
+        CHECK(manager.wants_to_quit());
+    }
+
+    TEST_CASE("batch5347 repeated key press before update remains single Down state") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent first(SDLK_a, false, raw);
+        Salix::KeyPressedEvent second(SDLK_a, true, raw);
+        manager.process_event(first);
+        manager.process_event(second);
+        CHECK(manager.is_down(Salix::KeyCode::A));
+        CHECK_FALSE(manager.is_held_down(Salix::KeyCode::A));
+    }
+
+    TEST_CASE("batch5347 update clears scroll delta without changing mouse position") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseMovedEvent moved(53.9f, -47.9f, raw);
+        Salix::MouseScrolledEvent wheel(3.0f, -5.0f, raw);
+        manager.process_event(moved);
+        manager.process_event(wheel);
+        REQUIRE(manager.get_mouse_scroll_delta() == doctest::Approx(-5.0f));
+        manager.update(0.25f);
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(manager.get_mouse_scroll_delta() == 0.0f);
+        CHECK(x == 53);
+        CHECK(y == -47);
+    }
+
+    TEST_CASE("batch5347 mouse position query accepts both null output pointers") {
+        Salix::SDLInputManager manager;
+        CHECK_NOTHROW(manager.get_mouse_position(nullptr, nullptr));
+    }
+
+    TEST_CASE("batch5347 invalid scroll enum never reports direction") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseScrolledEvent wheel(0.0f, 5.0f, raw);
+        manager.process_event(wheel);
+        CHECK_FALSE(manager.did_scroll(static_cast<Salix::MouseScroll>(5347)));
+    }
+
+    TEST_CASE("batch5347 representative digit and punctuation keycodes translate exactly") {
+        Salix::SDLInputManager manager;
+        CHECK(manager.to_salix_keycode(SDLK_5) == Salix::KeyCode::Alpha5);
+        CHECK(manager.to_salix_keycode(SDLK_SEMICOLON) == Salix::KeyCode::SemiColon);
+        CHECK(manager.to_salix_keycode(SDLK_BACKSLASH) == Salix::KeyCode::BackSlash);
+    }
+
+    TEST_CASE("batch5347 fresh multi key up query succeeds for populated all-up combo") {
+        Salix::SDLInputManager manager;
+        const std::vector<Salix::KeyCode> keys{Salix::KeyCode::A, Salix::KeyCode::B, Salix::KeyCode::C};
+        CHECK(manager.multiple_are_up(keys));
+        CHECK_FALSE(manager.multiple_are_down(keys));
+    }
+
+    TEST_CASE("batch5347 empty combos remain explicitly false across keyboard and mouse APIs") {
+        Salix::SDLInputManager manager;
+        const std::vector<Salix::KeyCode> keys;
+        const std::vector<Salix::MouseButton> buttons;
+        CHECK_FALSE(manager.multiple_are_up(keys));
+        CHECK_FALSE(manager.multiple_are_down(keys));
+        CHECK_FALSE(manager.multiple_are_up(buttons));
+        CHECK_FALSE(manager.multiple_are_down(buttons));
+    }
+
+    TEST_CASE("batch5347 separate managers keep key state independent") {
+        Salix::SDLInputManager first, second;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_z, false, raw);
+        first.process_event(press);
+        CHECK(first.is_down(Salix::KeyCode::Z));
+        CHECK(second.is_up(Salix::KeyCode::Z));
+    }
+}
+
