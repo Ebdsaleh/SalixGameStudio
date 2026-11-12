@@ -795,3 +795,97 @@ TEST_SUITE("Salix::management::ProjectManagerBatch4947") {
         CHECK(manager.get_active_project()->get_name() == "TestProject");
     }
 }
+
+TEST_SUITE("Salix::management::ProjectManagerBatch5347") {
+    TEST_CASE("batch5347 fresh manager exposes no active project or path metadata") {
+        Salix::ProjectManager manager;
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(manager.get_project_to_load().empty());
+        CHECK(manager.get_loaded_project_directory().empty());
+    }
+
+    TEST_CASE("batch5347 project selection strings replace independently") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("First5347.salixproj");
+        manager.set_loaded_project_directory("RootA5347");
+        manager.set_project_to_load("Second5347.salixproj");
+        CHECK(manager.get_project_to_load() == "Second5347.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "RootA5347");
+        manager.set_loaded_project_directory("RootB5347");
+        CHECK(manager.get_project_to_load() == "Second5347.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "RootB5347");
+    }
+
+    TEST_CASE("batch5347 initialization preserves path selection metadata") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Selected5347.salixproj");
+        manager.set_loaded_project_directory("SelectedRoot5347");
+        Salix::InitContext context{};
+        CHECK_NOTHROW(manager.initialize(context));
+        CHECK(manager.get_project_to_load() == "Selected5347.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "SelectedRoot5347");
+    }
+
+    TEST_CASE("batch5347 update and render remain harmless without active project") {
+        Salix::ProjectManager manager;
+        CHECK_NOTHROW(manager.update(-5.347f));
+        CHECK_NOTHROW(manager.render(nullptr));
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch5347 placeholder active project exposes documented default metadata") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Ignored5347");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        CHECK(active->get_name() == "TestProject");
+        CHECK(active->get_path() == "Sandbox/TestProject");
+        CHECK(active->get_project_file_name() == "TestProject.salixproj");
+    }
+
+    TEST_CASE("batch5347 placeholder ownership does not modify selection metadata") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Keep5347.salixproj");
+        manager.set_loaded_project_directory("KeepRoot5347");
+        manager.set_active_project("Ignored");
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_project_to_load() == "Keep5347.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "KeepRoot5347");
+    }
+
+    TEST_CASE("batch5347 shutdown is repeatable and preserves selection metadata") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending5347.salixproj");
+        manager.set_loaded_project_directory("PendingRoot5347");
+        manager.set_active_project("Owned5347");
+        manager.shutdown();
+        manager.shutdown();
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(manager.get_project_to_load() == "Pending5347.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "PendingRoot5347");
+    }
+
+    TEST_CASE("batch5347 missing project file boolean load fails without active ownership") {
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.load_project("__batch5347_missing__/Missing5347.salixproj"));
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch5347 missing project file pointer load returns null without active ownership") {
+        Salix::ProjectManager manager;
+        CHECK(manager.load_project_from_file("__batch5347_missing__/PointerMissing5347.salixproj") == nullptr);
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch5347 simple project creation with punctuation safe name builds canonical file") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        const std::string name = "Demo_5347";
+        REQUIRE(manager.create_new_project(root.path.string(), name));
+        const auto project = root.path / name;
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Realms"));
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Scripts"));
+        CHECK(std::filesystem::is_regular_file(project / (name + ".salixproj")));
+    }
+}
+
