@@ -898,3 +898,101 @@ TEST_SUITE("Salix::ecs::CameraBatch5147") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CameraBatch5547") {
+    TEST_CASE("batch5547 direct active setter toggles without changing projection mode") {
+        Salix::Camera camera;
+        camera.set_is_active(true);
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        camera.set_is_active(false);
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5547 initialize preserves scalar projection configuration") {
+        Salix::Camera camera;
+        camera.set_field_of_view(55.47f);
+        camera.set_orthographic_size(47.55f);
+        camera.set_near_clip(0.5547f);
+        camera.set_far_clip(5547.0f);
+        camera.initialize();
+        CHECK(camera.get_field_of_view() == doctest::Approx(55.47f));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(47.55f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.5547f));
+        CHECK(camera.get_far_clip() == doctest::Approx(5547.0f));
+    }
+
+    TEST_CASE("batch5547 invalid projection enum is stored verbatim") {
+        Salix::Camera camera;
+        const auto invalid = static_cast<Salix::ProjectionMode>(5547);
+        camera.set_projection_mode(invalid);
+        CHECK(camera.get_projection_mode() == invalid);
+    }
+
+    TEST_CASE("batch5547 scalar getter references remain stable across replacements") {
+        Salix::Camera camera;
+        auto* fov = &camera.get_field_of_view();
+        auto* ortho = &camera.get_orthographic_size();
+        auto* near_clip = &camera.get_near_clip();
+        auto* far_clip = &camera.get_far_clip();
+        camera.set_field_of_view(60.0f);
+        camera.set_orthographic_size(20.0f);
+        camera.set_near_clip(0.2f);
+        camera.set_far_clip(200.0f);
+        CHECK(&camera.get_field_of_view() == fov);
+        CHECK(&camera.get_orthographic_size() == ortho);
+        CHECK(&camera.get_near_clip() == near_clip);
+        CHECK(&camera.get_far_clip() == far_clip);
+    }
+
+    TEST_CASE("batch5547 zero width nonzero height is accepted as zero aspect projection") {
+        Salix::Camera camera;
+        camera.set_viewport_size(0, 600);
+        const auto matrix = camera.get_projection_matrix();
+        CHECK(std::isfinite(matrix[1][1]));
+    }
+
+    TEST_CASE("batch5547 repeated activate deactivate cycle retains final inactive state") {
+        Salix::Camera camera;
+        camera.activate();
+        camera.deactivate();
+        camera.activate();
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5547 inactive update preserves activity and scalar configuration") {
+        Salix::Camera camera;
+        camera.set_field_of_view(55.0f);
+        camera.set_is_active(false);
+        camera.update(-5.547f);
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(camera.get_field_of_view() == doctest::Approx(55.0f));
+    }
+
+    TEST_CASE("batch5547 active update preserves activity and scalar configuration") {
+        Salix::Camera camera;
+        camera.set_far_clip(554.7f);
+        camera.activate();
+        camera.update(5.547f);
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_far_clip() == doctest::Approx(554.7f));
+    }
+
+    TEST_CASE("batch5547 owner assignment exposes exact entity transform pointer") {
+        Salix::Entity entity;
+        Salix::Camera camera;
+        camera.set_owner(&entity);
+        CHECK(camera.get_transform() == entity.get_transform());
+        CHECK(camera.get_transform() != nullptr);
+    }
+
+    TEST_CASE("batch5547 separate cameras keep scalar reference storage independent") {
+        Salix::Camera first, second;
+        first.set_field_of_view(55.0f);
+        second.set_field_of_view(47.0f);
+        CHECK(&first.get_field_of_view() != &second.get_field_of_view());
+        CHECK(first.get_field_of_view() == doctest::Approx(55.0f));
+        CHECK(second.get_field_of_view() == doctest::Approx(47.0f));
+    }
+}
+
