@@ -824,3 +824,82 @@ TEST_SUITE("Salix::core::LoggingBatch5047") {
     }
 }
 
+TEST_SUITE("Salix::core::LoggingBatch5447") {
+    TEST_CASE("batch5447 info omits supplied source metadata") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "info5447", "Hidden5447.cpp", 54);
+        const auto text = output.str();
+        CHECK(text.find("[INFO] info5447") != std::string::npos);
+        CHECK(text.find("Hidden5447.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch5447 warning omits supplied source metadata") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::WARNING, "warn5447", "HiddenWarn.cpp", 47);
+        const auto text = output.str();
+        CHECK(text.find("[WARN] warn5447") != std::string::npos);
+        CHECK(text.find("HiddenWarn.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch5447 error includes exact supplied source metadata") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::ERROR, "error5447", "Error5447.cpp", 5447);
+        CHECK(output.str().find("[ERROR] [Error5447.cpp:5447] error5447") != std::string::npos);
+    }
+
+    TEST_CASE("batch5447 debug includes zero line source metadata") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::DEBUG, "debug5447", "Debug5447.cpp", 0);
+        CHECK(output.str().find("[DEBUG] [Debug5447.cpp:0] debug5447") != std::string::npos);
+    }
+
+    TEST_CASE("batch5447 unknown positive severity emits empty level and no source") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(static_cast<Salix::LogLevel>(5447), "unknown5447", "Hidden.cpp", 1);
+        const auto text = output.str();
+        CHECK(text.find("[] unknown5447") != std::string::npos);
+        CHECK(text.find("Hidden.cpp") == std::string::npos);
+    }
+
+    TEST_CASE("batch5447 empty payload still emits selected level and newline") {
+        std::stringstream output; CerrRedirect redirect(output);
+        Salix::LogMessage(Salix::LogLevel::INFO, "");
+        const auto text = output.str();
+        CHECK(text.find("[INFO] ") != std::string::npos);
+        REQUIRE_FALSE(text.empty());
+        CHECK(text.back() == '\n');
+    }
+
+    TEST_CASE("batch5447 info macro evaluates streamed expression exactly once") {
+        std::stringstream output; CerrRedirect redirect(output);
+        int calls = 0;
+        auto value = [&]() { ++calls; return 5447; };
+        LOG_INFO("value=" << value());
+        CHECK(calls == 1);
+        CHECK(output.str().find("[INFO] value=5447") != std::string::npos);
+    }
+
+    TEST_CASE("batch5447 warning macro preserves hexadecimal stream formatting") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_WARNING("hex=" << std::hex << 0x1547);
+        CHECK(output.str().find("[WARN] hex=1547") != std::string::npos);
+    }
+
+    TEST_CASE("batch5447 debug macro honors boolalpha and captures call site") {
+        std::stringstream output; CerrRedirect redirect(output);
+        LOG_DEBUG("flag=" << std::boolalpha << true);
+        const auto text = output.str();
+        CHECK(text.find("flag=true") != std::string::npos);
+        CHECK(text.find(__FILE__) != std::string::npos);
+    }
+
+    TEST_CASE("batch5447 satisfied assert evaluates condition once and skips message") {
+        std::stringstream output; CerrRedirect redirect(output);
+        int conditions = 0, messages = 0;
+        LOG_ASSERT((++conditions) == 1, (++messages, "unused5447"));
+        CHECK(conditions == 1);
+        CHECK(messages == 0);
+        CHECK(output.str().empty());
+    }
+}
+
