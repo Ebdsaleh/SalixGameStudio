@@ -994,3 +994,103 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch5147") {
     }
 }
 
+namespace {
+struct Batch5547EnumA {};
+struct Batch5547EnumB {};
+struct Batch5547EnumC {};
+struct Batch5547NeverRegistered {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch5547") {
+    TEST_CASE("batch5547 empty enum data retains unknown fallbacks") {
+        Salix::EnumRegistry::EnumData data;
+        CHECK(data.get_name(5547) == "Unknown");
+        CHECK(data.get_value("Missing5547") == -1);
+        CHECK(data.get_names().empty());
+    }
+
+    TEST_CASE("batch5547 ordinary positive mappings roundtrip by name and value") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[55] = "FiftyFive5547";
+        data.value_to_string[47] = "FortySeven5547";
+        CHECK(data.get_name(55) == "FiftyFive5547");
+        CHECK(data.get_name(47) == "FortySeven5547");
+        CHECK(data.get_value("FiftyFive5547") == 55);
+        CHECK(data.get_value("FortySeven5547") == 47);
+    }
+
+    TEST_CASE("batch5547 ordered names preserve caller supplied duplicates and order") {
+        Salix::EnumRegistry::EnumData data;
+        data.ordered_names = {"First5547", "First5547", "Second5547"};
+        const auto& names = data.get_names();
+        REQUIRE(names.size() == 3);
+        CHECK(names[0] == "First5547");
+        CHECK(names[1] == "First5547");
+        CHECK(names[2] == "Second5547");
+    }
+
+    TEST_CASE("batch5547 custom registration exposes stable pointer across lookup calls") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[5547] = "Stable5547";
+        Salix::EnumRegistry::register_enum(typeid(Batch5547EnumA), std::move(data));
+        const auto* first = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch5547EnumA));
+        const auto* second = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch5547EnumA));
+        REQUIRE(first != nullptr);
+        CHECK(first == second);
+        CHECK(first->get_name(5547) == "Stable5547");
+    }
+
+    TEST_CASE("batch5547 replacing registration fully replaces old ordered names") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[1] = "Old5547";
+        first.ordered_names = {"Old5547", "OldAgain5547"};
+        Salix::EnumRegistry::register_enum(typeid(Batch5547EnumB), std::move(first));
+        Salix::EnumRegistry::EnumData second;
+        second.value_to_string[2] = "New5547";
+        second.ordered_names = {"New5547"};
+        Salix::EnumRegistry::register_enum(typeid(Batch5547EnumB), std::move(second));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch5547EnumB));
+        CHECK(stored.get_name(1) == "Unknown");
+        REQUIRE(stored.get_names().size() == 1);
+        CHECK(stored.get_names()[0] == "New5547");
+    }
+
+    TEST_CASE("batch5547 canonical projection mapping remains bidirectional after refresh") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& data = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        CHECK(data.get_name(static_cast<int>(Salix::ProjectionMode::Perspective)) == "Perspective");
+        CHECK(data.get_value("Orthographic") == static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
+    TEST_CASE("batch5547 canonical editor mode mapping remains bidirectional after refresh") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& data = Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode));
+        CHECK(data.get_name(static_cast<int>(Salix::EditorDataMode::Live)) == "Live");
+        CHECK(data.get_value("Yaml") == static_cast<int>(Salix::EditorDataMode::Yaml));
+    }
+
+    TEST_CASE("batch5547 canonical refresh is idempotent for ordered projection names") {
+        Salix::EnumRegistry::register_all_enums();
+        Salix::EnumRegistry::register_all_enums();
+        const auto& names = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode)).get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(names[0] == "Perspective");
+        CHECK(names[1] == "Orthographic");
+    }
+
+    TEST_CASE("batch5547 unrelated custom registration survives canonical refresh") {
+        Salix::EnumRegistry::EnumData custom;
+        custom.value_to_string[-5547] = "Persistent5547";
+        Salix::EnumRegistry::register_enum(typeid(Batch5547EnumC), std::move(custom));
+        Salix::EnumRegistry::register_all_enums();
+        const auto* stored = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch5547EnumC));
+        REQUIRE(stored != nullptr);
+        CHECK(stored->get_name(-5547) == "Persistent5547");
+    }
+
+    TEST_CASE("batch5547 never registered pointer remains null after all registration activity") {
+        Salix::EnumRegistry::register_all_enums();
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch5547NeverRegistered)) == nullptr);
+    }
+}
+
