@@ -1059,3 +1059,95 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch5147") {
     }
 }
 
+TEST_SUITE("Salix::ecs::BoxColliderBatch5547") {
+    TEST_CASE("batch5547 constructor identity matches class name and unit geometry") {
+        Salix::BoxCollider collider;
+        CHECK(std::string(collider.get_class_name()) == "BoxCollider");
+        CHECK(collider.get_name() == "BoxCollider");
+        CHECK(collider.get_size() == Salix::Vector3::One);
+    }
+
+    TEST_CASE("batch5547 initialize preserves previously assigned geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({5.0f, 5.0f, 47.0f});
+        collider.initialize();
+        CHECK(collider.get_size() == Salix::Vector3(5.0f, 5.0f, 47.0f));
+    }
+
+    TEST_CASE("batch5547 negative delta update remains geometry neutral") {
+        Salix::BoxCollider collider;
+        collider.set_size({-5.0f, 54.0f, -7.0f});
+        collider.update(-5.547f);
+        CHECK(collider.get_size() == Salix::Vector3(-5.0f, 54.0f, -7.0f));
+    }
+
+    TEST_CASE("batch5547 zero delta update remains geometry neutral") {
+        Salix::BoxCollider collider;
+        collider.set_size({5.547f, 0.0f, 7.445f});
+        collider.update(0.0f);
+        CHECK(collider.get_size() == Salix::Vector3(5.547f, 0.0f, 7.445f));
+    }
+
+    TEST_CASE("batch5547 empty display name does not affect geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({1.0f, 2.0f, 3.0f});
+        collider.set_name("");
+        CHECK(collider.get_name().empty());
+        CHECK(collider.get_size() == Salix::Vector3(1.0f, 2.0f, 3.0f));
+    }
+
+    TEST_CASE("batch5547 repeated visibility changes preserve geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({5.0f, 54.0f, 7.0f});
+        collider.set_visibility(false);
+        collider.set_visibility(false);
+        collider.set_visibility(true);
+        CHECK(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(5.0f, 54.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5547 repeated identifier replacement preserves geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({55.0f, 4.0f, 7.0f});
+        collider.set_id(Salix::SimpleGuid::from_value(5547001ULL));
+        collider.set_id(Salix::SimpleGuid::from_value(5547002ULL));
+        CHECK(collider.get_id().get_value() == 5547002ULL);
+        CHECK(collider.get_size() == Salix::Vector3(55.0f, 4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5547 null renderer load preserves metadata and geometry") {
+        Salix::BoxCollider collider;
+        collider.set_name("Collider5547");
+        collider.set_size({5.5f, 4.4f, 7.7f});
+        Salix::InitContext context{};
+        collider.on_load(context);
+        CHECK(collider.get_name() == "Collider5547");
+        CHECK(collider.get_size() == Salix::Vector3(5.5f, 4.4f, 7.7f));
+    }
+
+    TEST_CASE("batch5547 JSON roundtrip preserves name visibility and geometry") {
+        Salix::BoxCollider source;
+        source.set_name("Serialized5547");
+        source.set_visibility(false);
+        source.set_size({-5.547f, 7.445f, 0.25f});
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name() == "Serialized5547");
+        CHECK_FALSE(restored.is_visible());
+        CHECK(restored.get_size() == Salix::Vector3(-5.547f, 7.445f, 0.25f));
+    }
+
+    TEST_CASE("batch5547 separate colliders retain independent names and geometry") {
+        Salix::BoxCollider first, second;
+        first.set_name("First5547");
+        first.set_size({1.0f, 2.0f, 3.0f});
+        second.set_name("Second5547");
+        second.set_size({4.0f, 5.0f, 6.0f});
+        CHECK(first.get_name() == "First5547");
+        CHECK(second.get_name() == "Second5547");
+        CHECK(first.get_size() != second.get_size());
+    }
+}
+
