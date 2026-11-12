@@ -1029,3 +1029,50 @@ TEST_SUITE("Salix::core::StringUtilsBatch5047") {
     }
 }
 
+TEST_SUITE("Salix::core::StringUtilsBatch5447") {
+    TEST_CASE("batch5447 upper conversion with desnake replaces valid underscores before casing") {
+        CHECK(Salix::StringUtils::to_upper("alpha_beta_5447", true) == "ALPHA BETA 5447");
+    }
+
+    TEST_CASE("batch5447 lower conversion with desnake replaces valid underscores before casing") {
+        CHECK(Salix::StringUtils::to_lower("ALPHA_BETA_5447", true) == "alpha beta 5447");
+    }
+
+    TEST_CASE("batch5447 title case preserves leading trailing and repeated whitespace") {
+        CHECK(Salix::StringUtils::to_title_case("  hELLO   wORLD  ") == "  Hello   World  ");
+    }
+
+    TEST_CASE("batch5447 capitalize empty input remains empty") {
+        CHECK(Salix::StringUtils::capitalize("").empty());
+        CHECK(Salix::StringUtils::capitalize("", true).empty());
+    }
+
+    TEST_CASE("batch5447 snake validation rejects leading and trailing underscores") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("_alpha_beta"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha_beta_"));
+    }
+
+    TEST_CASE("batch5447 snake validation accepts digit adjacent separator segments") {
+        CHECK(Salix::StringUtils::is_snake_case("a1_2b_5447"));
+    }
+
+    TEST_CASE("batch5447 contains snake case recognizes one valid inner separator") {
+        CHECK(Salix::StringUtils::contains_snake_case("prefix a_b suffix"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("prefix a__b suffix"));
+    }
+
+    TEST_CASE("batch5447 snake conversion replaces only valid alphanumeric separators") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("_a_b__c_d_") == "_a b__c d_");
+    }
+
+    TEST_CASE("batch5447 Pascal validation rejects embedded punctuation but accepts digits") {
+        CHECK(Salix::StringUtils::is_pascal_case("Alpha5447Beta"));
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("Alpha-5447"));
+    }
+
+    TEST_CASE("batch5447 Pascal conversion separates lower uppercase and alpha digit transitions") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("BatchValue5447Alpha") ==
+              "Batch Value 5447 Alpha");
+    }
+}
+
