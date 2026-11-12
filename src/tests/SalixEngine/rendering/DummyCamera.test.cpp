@@ -693,3 +693,96 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch4747") {
         CHECK(camera.get_is_active());
     }
 }
+
+TEST_SUITE("Salix::rendering::DummyCameraBatch5147") {
+    TEST_CASE("batch5147 constructor exposes complete immutable camera defaults") {
+        Salix::DummyCamera camera;
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(10.0f));
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5147 zero orthographic size is stored exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(0.0f);
+        CHECK(camera.get_orthographic_size() == 0.0f);
+    }
+
+    TEST_CASE("batch5147 negative orthographic size is stored exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-51.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(-51.47f));
+    }
+
+    TEST_CASE("batch5147 repeated activation is idempotent") {
+        Salix::DummyCamera camera;
+        camera.activate();
+        camera.activate();
+        camera.activate();
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5147 repeated deactivation is idempotent after activation") {
+        Salix::DummyCamera camera;
+        camera.activate();
+        camera.deactivate();
+        camera.deactivate();
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5147 explicit active setter sequence retains final state only") {
+        Salix::DummyCamera camera;
+        camera.set_is_active(true);
+        camera.set_is_active(false);
+        camera.set_is_active(true);
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5147 ignored projection mode setter never changes size or activity") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(51.47f);
+        camera.activate();
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(51.47f));
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5147 matrix reference addresses remain stable through scalar and activity changes") {
+        Salix::DummyCamera camera;
+        const auto* view = &camera.get_view_matrix();
+        const auto* projection = &camera.get_projection_matrix();
+        camera.set_orthographic_size(14.7f);
+        camera.activate();
+        camera.deactivate();
+        CHECK(&camera.get_view_matrix() == view);
+        CHECK(&camera.get_projection_matrix() == projection);
+        CHECK(*view == glm::mat4(1.0f));
+        CHECK(*projection == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch5147 separate cameras own distinct matrices and independent activity flags") {
+        Salix::DummyCamera first, second;
+        first.activate();
+        second.deactivate();
+        CHECK(&first.get_view_matrix() != &second.get_view_matrix());
+        CHECK(&first.get_projection_matrix() != &second.get_projection_matrix());
+        CHECK(first.get_is_active());
+        CHECK_FALSE(second.get_is_active());
+    }
+
+    TEST_CASE("batch5147 ICamera virtual configuration reaches size and active implementations") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_orthographic_size(5.147f);
+        camera.set_is_active(true);
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(concrete.get_orthographic_size() == doctest::Approx(5.147f));
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+}
+
