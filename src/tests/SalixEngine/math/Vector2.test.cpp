@@ -1136,3 +1136,70 @@ TEST_SUITE("Salix::math::Vector2Batch5047") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector2Batch5447") {
+    TEST_CASE("batch5447 negative axis normalization produces negative unit axis") {
+        Salix::Vector2 v(-5.0f, 0.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector2(-1.0f, 0.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5447 interpolation midpoint averages signed components") {
+        const Salix::Vector2 a(-5.0f, 4.0f);
+        const Salix::Vector2 b(7.0f, -6.0f);
+        CHECK(Salix::Vector2::lerp(a, b, 0.5f) == Salix::Vector2(1.0f, -1.0f));
+    }
+
+    TEST_CASE("batch5447 ImGui conversion preserves signed component order") {
+        Salix::Vector2 v(-5.447f, 7.445f);
+        const auto out = v.to_im_vec2();
+        CHECK(out.x == v.x);
+        CHECK(out.y == v.y);
+    }
+
+    TEST_CASE("batch5447 vector multiplication is componentwise commutative") {
+        const Salix::Vector2 a(-5.0f, 4.0f);
+        const Salix::Vector2 b(7.0f, -6.0f);
+        CHECK(a * b == b * a);
+        CHECK(a * b == Salix::Vector2(-35.0f, -24.0f));
+    }
+
+    TEST_CASE("batch5447 dot product is commutative for signed vectors") {
+        const Salix::Vector2 a(-5.0f, 4.0f);
+        const Salix::Vector2 b(7.0f, -6.0f);
+        CHECK(Salix::dot(a, b) == Salix::dot(b, a));
+        CHECK(Salix::dot(a, b) == doctest::Approx(-59.0f));
+    }
+
+    TEST_CASE("batch5447 perpendicular vector is orthogonal to source") {
+        const Salix::Vector2 v(-5.0f, 4.0f);
+        const auto p = Salix::perp(v);
+        CHECK(p == Salix::Vector2(-4.0f, -5.0f));
+        CHECK(Salix::dot(v, p) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch5447 double perpendicular equals negated source") {
+        const Salix::Vector2 v(-5.0f, 4.0f);
+        CHECK(Salix::perp(Salix::perp(v)) == Salix::Vector2(5.0f, -4.0f));
+    }
+
+    TEST_CASE("batch5447 scalar multiplication and division restore finite vector") {
+        const Salix::Vector2 v(-5.0f, 4.0f);
+        CHECK((v * 2.0f) / 2.0f == v);
+    }
+
+    TEST_CASE("batch5447 YAML decode with y only clears omitted x coordinate") {
+        Salix::Vector2 v(9.0f, 8.0f);
+        YAML::Load("{y: -5.447}") >> v;
+        CHECK(v.x == 0.0f);
+        CHECK(v.y == doctest::Approx(-5.447f));
+    }
+
+    TEST_CASE("batch5447 ostream preserves signed component order") {
+        const Salix::Vector2 v(-5.5f, 4.25f);
+        std::stringstream stream;
+        stream << v;
+        CHECK(stream.str() == "{ x: -5.5, y: 4.25 }");
+    }
+}
+
