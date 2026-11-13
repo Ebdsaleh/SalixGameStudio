@@ -595,3 +595,108 @@ TEST_SUITE("Salix::core::EngineBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::core::EngineBatch5747") {
+    TEST_CASE("batch5747 fresh engine exposes stopped neutral unit scale state") {
+        Salix::Engine engine;
+        CHECK_FALSE(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+        CHECK(engine.get_time_scale() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5747 preinitialized subsystem getters remain null") {
+        Salix::Engine engine;
+        CHECK(engine.get_renderer() == nullptr);
+        CHECK(engine.get_asset_manager() == nullptr);
+        CHECK(engine.get_event_manager() == nullptr);
+        CHECK(engine.get_input_manager() == nullptr);
+    }
+
+    TEST_CASE("batch5747 running state follows repeated explicit writes") {
+        Salix::Engine engine;
+        CHECK(engine.is_running(true));
+        CHECK(engine.is_running(true));
+        CHECK_FALSE(engine.is_running(false));
+        CHECK(engine.is_running(true));
+        CHECK(engine.is_running());
+    }
+
+    TEST_CASE("batch5747 mode transitions can return to neutral") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Launch);
+        engine.set_mode(Salix::EngineMode::Game);
+        engine.set_mode(Salix::EngineMode::Debug);
+        engine.set_mode(Salix::EngineMode::None);
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+    }
+
+    TEST_CASE("batch5747 mode transitions preserve running state and time scale") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_time_scale(-5.747f);
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_mode(Salix::EngineMode::Editor);
+        CHECK(engine.is_running());
+        CHECK(engine.get_time_scale() == doctest::Approx(-5.747f));
+    }
+
+    TEST_CASE("batch5747 time scale replacements preserve selected mode") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Debug);
+        engine.set_time_scale(0.0f);
+        engine.set_time_scale(0.5747f);
+        engine.set_time_scale(-57.47f);
+        CHECK(engine.get_mode() == Salix::EngineMode::Debug);
+        CHECK(engine.get_time_scale() == doctest::Approx(-57.47f));
+    }
+
+    TEST_CASE("batch5747 state stack no ops preserve preinitialized scalar state") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_mode(Salix::EngineMode::Game);
+        engine.set_time_scale(5.747f);
+        engine.push_state(nullptr);
+        engine.change_state(nullptr);
+        engine.pop_state();
+        CHECK(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::Game);
+        CHECK(engine.get_time_scale() == doctest::Approx(5.747f));
+    }
+
+    TEST_CASE("batch5747 state stack no ops never materialize core subsystems") {
+        Salix::Engine engine;
+        engine.push_state(nullptr);
+        engine.pop_state();
+        engine.change_state(nullptr);
+        CHECK(engine.get_renderer() == nullptr);
+        CHECK(engine.get_asset_manager() == nullptr);
+        CHECK(engine.get_event_manager() == nullptr);
+        CHECK(engine.get_input_manager() == nullptr);
+    }
+
+    TEST_CASE("batch5747 separate engines retain independent scalar state") {
+        Salix::Engine first, second;
+        first.is_running(true);
+        first.set_mode(Salix::EngineMode::Launch);
+        first.set_time_scale(2.0f);
+        second.set_mode(Salix::EngineMode::Options);
+        second.set_time_scale(-3.0f);
+        CHECK(first.is_running());
+        CHECK(first.get_mode() == Salix::EngineMode::Launch);
+        CHECK(first.get_time_scale() == doctest::Approx(2.0f));
+        CHECK_FALSE(second.is_running());
+        CHECK(second.get_mode() == Salix::EngineMode::Options);
+        CHECK(second.get_time_scale() == doctest::Approx(-3.0f));
+    }
+
+    TEST_CASE("batch5747 EngineInterface dispatch preserves scalar independence") {
+        std::unique_ptr<Salix::EngineInterface> engine = std::make_unique<Salix::Engine>();
+        REQUIRE(engine != nullptr);
+        engine->is_running(true);
+        engine->set_mode(Salix::EngineMode::Editor);
+        engine->set_time_scale(1.5747f);
+        CHECK(engine->is_running());
+        CHECK(engine->get_mode() == Salix::EngineMode::Editor);
+        CHECK(engine->get_time_scale() == doctest::Approx(1.5747f));
+    }
+}
+
