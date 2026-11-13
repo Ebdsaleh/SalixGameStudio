@@ -1240,3 +1240,126 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch5947") {
     }
 }
 
+TEST_SUITE("Salix::ecs::BoxColliderBatch6047") {
+    TEST_CASE("batch6047 name replacement never changes assigned geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({6.0f, -4.0f, 7.0f});
+        collider.set_name("First6047");
+        collider.set_name("Final6047");
+        CHECK(collider.get_name() == "Final6047");
+        CHECK(collider.get_size() == Salix::Vector3(6.0f, -4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6047 visibility transitions preserve name and geometry") {
+        Salix::BoxCollider collider;
+        collider.set_name("Visible6047");
+        collider.set_size({60.0f, 4.0f, 7.0f});
+        collider.set_visibility(false);
+        collider.set_visibility(true);
+        collider.set_visibility(false);
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_name() == "Visible6047");
+        CHECK(collider.get_size() == Salix::Vector3(60.0f, 4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6047 identifier replacement leaves visibility and geometry untouched") {
+        Salix::BoxCollider collider;
+        collider.set_size({6.047f, 4.706f, -1.0f});
+        collider.set_visibility(false);
+        collider.set_id(Salix::SimpleGuid::from_value(6047001ULL));
+        collider.set_id(Salix::SimpleGuid::from_value(6047002ULL));
+        CHECK(collider.get_id().get_value() == 6047002ULL);
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(6.047f, 4.706f, -1.0f));
+    }
+
+    TEST_CASE("batch6047 repeated initialize preserves metadata geometry and visibility") {
+        Salix::BoxCollider collider;
+        collider.set_name("Initialized6047");
+        collider.set_size({1.0f, -6.0f, 47.0f});
+        collider.set_visibility(false);
+        collider.initialize();
+        collider.initialize();
+        CHECK(collider.get_name() == "Initialized6047");
+        CHECK(collider.get_size() == Salix::Vector3(1.0f, -6.0f, 47.0f));
+        CHECK_FALSE(collider.is_visible());
+    }
+
+    TEST_CASE("batch6047 zero and fractional updates are state neutral") {
+        Salix::BoxCollider collider;
+        collider.set_name("Update6047");
+        collider.set_size({0.25f, -0.5f, 60.47f});
+        collider.update(0.0f);
+        collider.update(0.125f);
+        CHECK(collider.get_name() == "Update6047");
+        CHECK(collider.get_size() == Salix::Vector3(0.25f, -0.5f, 60.47f));
+    }
+
+    TEST_CASE("batch6047 null load context preserves id name geometry and visibility") {
+        Salix::BoxCollider collider;
+        collider.set_id(Salix::SimpleGuid::from_value(6047003ULL));
+        collider.set_name("Load6047");
+        collider.set_size({-6.0f, 0.0f, 47.0f});
+        collider.set_visibility(false);
+        Salix::InitContext context{};
+        collider.on_load(context);
+        CHECK(collider.get_id().get_value() == 6047003ULL);
+        CHECK(collider.get_name() == "Load6047");
+        CHECK(collider.get_size() == Salix::Vector3(-6.0f, 0.0f, 47.0f));
+        CHECK_FALSE(collider.is_visible());
+    }
+
+    TEST_CASE("batch6047 assigning identical geometry repeatedly remains idempotent") {
+        Salix::BoxCollider collider;
+        const Salix::Vector3 size(-6.047f, 60.47f, 0.047f);
+        collider.set_size(size);
+        collider.set_size(size);
+        collider.set_size(size);
+        CHECK(collider.get_size() == size);
+    }
+
+    TEST_CASE("batch6047 JSON roundtrip preserves persisted id name and signed geometry") {
+        Salix::BoxCollider source;
+        source.set_id(Salix::SimpleGuid::from_value(6047004ULL));
+        source.set_name("Serialized6047");
+        source.set_size({-60.47f, 4.0f, 7.0f});
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_id().get_value() == 6047004ULL);
+        CHECK(restored.get_name() == "Serialized6047");
+        CHECK(restored.get_size() == Salix::Vector3(-60.47f, 4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6047 JSON load leaves destination runtime visibility untouched") {
+        Salix::BoxCollider source;
+        source.set_name("RuntimeVisibility6047");
+        source.set_visibility(false);
+        source.set_size({6.0f, 4.0f, 7.0f});
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        restored.set_visibility(true);
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.is_visible());
+        CHECK(restored.get_name() == "RuntimeVisibility6047");
+        CHECK(restored.get_size() == Salix::Vector3(6.0f, 4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6047 separate colliders keep visibility geometry and names independent") {
+        Salix::BoxCollider first, second;
+        first.set_name("First6047");
+        first.set_size({1.0f, 2.0f, 3.0f});
+        first.set_visibility(false);
+        second.set_name("Second6047");
+        second.set_size({4.0f, 5.0f, 6.0f});
+        second.set_visibility(true);
+        CHECK(first.get_name() == "First6047");
+        CHECK(second.get_name() == "Second6047");
+        CHECK(first.get_size() == Salix::Vector3(1.0f, 2.0f, 3.0f));
+        CHECK(second.get_size() == Salix::Vector3(4.0f, 5.0f, 6.0f));
+        CHECK_FALSE(first.is_visible());
+        CHECK(second.is_visible());
+    }
+}
