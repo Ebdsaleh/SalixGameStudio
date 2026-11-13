@@ -1475,3 +1475,68 @@ TEST_SUITE("Salix::math::Vector3Batch5947") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector3Batch6047") {
+    TEST_CASE("batch6047 vector addition is commutative for mixed signed components") {
+        const Salix::Vector3 a(-6.0f, 4.0f, 7.0f);
+        const Salix::Vector3 b(3.0f, -9.0f, 5.0f);
+        CHECK(a + b == b + a);
+        CHECK(a + b == Salix::Vector3(-3.0f, -5.0f, 12.0f));
+    }
+
+    TEST_CASE("batch6047 subtraction followed by addition restores original vector") {
+        const Salix::Vector3 a(-6.0f, 4.0f, 7.0f);
+        const Salix::Vector3 b(3.0f, -9.0f, 5.0f);
+        CHECK((a - b) + b == a);
+    }
+
+    TEST_CASE("batch6047 multiplication by zero produces canonical zero vector") {
+        const Salix::Vector3 source(-6.0f, 4.0f, 7.0f);
+        CHECK(source * 0.0f == Salix::Vector3::Zero);
+        CHECK(0.0f * source == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch6047 negative scalar multiply divide roundtrip restores finite vector") {
+        const Salix::Vector3 source(-6.0f, 4.0f, 9.0f);
+        CHECK((source * -3.0f) / -3.0f == source);
+    }
+
+    TEST_CASE("batch6047 dot product with self equals squared vector length") {
+        const Salix::Vector3 source(3.0f, 4.0f, 12.0f);
+        CHECK(Salix::dot(source, source) == doctest::Approx(source.length() * source.length()));
+        CHECK(source.length() == doctest::Approx(13.0f));
+    }
+
+    TEST_CASE("batch6047 canonical X cross Y produces canonical positive Z") {
+        CHECK(Salix::cross(
+            Salix::Vector3(1.0f, 0.0f, 0.0f),
+            Salix::Vector3(0.0f, 1.0f, 0.0f)) == Salix::Vector3(0.0f, 0.0f, 1.0f));
+    }
+
+    TEST_CASE("batch6047 cross product of vector with itself is zero") {
+        const Salix::Vector3 source(-6.0f, 4.0f, 7.0f);
+        CHECK(Salix::cross(source, source) == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch6047 quarter interpolation computes each component independently") {
+        const Salix::Vector3 start(0.0f, -8.0f, 4.0f);
+        const Salix::Vector3 end(8.0f, 8.0f, 12.0f);
+        CHECK(Salix::Vector3::lerp(start, end, 0.25f) == Salix::Vector3(2.0f, -4.0f, 6.0f));
+    }
+
+    TEST_CASE("batch6047 GLM roundtrip preserves zero and signed coordinates") {
+        const Salix::Vector3 source(0.0f, -60.47f, 47.06f);
+        const glm::vec3 raw = source.to_glm();
+        CHECK(raw.x == 0.0f);
+        CHECK(raw.y == doctest::Approx(-60.47f));
+        CHECK(raw.z == doctest::Approx(47.06f));
+        CHECK(Salix::Vector3::from_glm(raw) == source);
+    }
+
+    TEST_CASE("batch6047 YAML full mapping replaces every prior component") {
+        Salix::Vector3 value(9.0f, 8.0f, 7.0f);
+        YAML::Load("{x: -6.047, y: 0.0, z: 47.06}") >> value;
+        CHECK(value.x == doctest::Approx(-6.047f));
+        CHECK(value.y == 0.0f);
+        CHECK(value.z == doctest::Approx(47.06f));
+    }
+}
