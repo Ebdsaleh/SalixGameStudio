@@ -1540,3 +1540,71 @@ TEST_SUITE("Salix::math::Vector3Batch6047") {
         CHECK(value.z == doctest::Approx(47.06f));
     }
 }
+
+TEST_SUITE("Salix::math::Vector3Batch6147") {
+    TEST_CASE("batch6147 compound addition mutates each component and returns self") {
+        Salix::Vector3 value(-6.0f, 14.0f, 7.0f);
+        Salix::Vector3* address = &value;
+        Salix::Vector3& result = (value += Salix::Vector3(1.0f, -4.0f, 3.0f));
+        CHECK(&result == address);
+        CHECK(value == Salix::Vector3(-5.0f, 10.0f, 10.0f));
+    }
+
+    TEST_CASE("batch6147 compound subtraction mutates each component and returns self") {
+        Salix::Vector3 value(-6.0f, 14.0f, 7.0f);
+        Salix::Vector3* address = &value;
+        Salix::Vector3& result = (value -= Salix::Vector3(1.0f, -4.0f, 3.0f));
+        CHECK(&result == address);
+        CHECK(value == Salix::Vector3(-7.0f, 18.0f, 4.0f));
+    }
+
+    TEST_CASE("batch6147 compound negative scalar multiplication preserves signs exactly") {
+        Salix::Vector3 value(-2.0f, 3.0f, -4.0f);
+        value *= -2.0f;
+        CHECK(value == Salix::Vector3(4.0f, -6.0f, 8.0f));
+    }
+
+    TEST_CASE("batch6147 compound negative scalar division restores expected components") {
+        Salix::Vector3 value(4.0f, -6.0f, 8.0f);
+        value /= -2.0f;
+        CHECK(value == Salix::Vector3(-2.0f, 3.0f, -4.0f));
+    }
+
+    TEST_CASE("batch6147 compound division by zero resets every component to zero") {
+        Salix::Vector3 value(6.0f, -14.0f, 7.0f);
+        value /= 0.0f;
+        CHECK(value == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch6147 component division zeroes only axes with zero divisors") {
+        const Salix::Vector3 numerator(8.0f, 9.0f, 10.0f);
+        const Salix::Vector3 divisor(2.0f, 0.0f, 5.0f);
+        CHECK(numerator / divisor == Salix::Vector3(4.0f, 0.0f, 2.0f));
+    }
+
+    TEST_CASE("batch6147 scalar divided by vector zeroes only zero component axes") {
+        const Salix::Vector3 divisor(2.0f, 0.0f, -4.0f);
+        CHECK(8.0f / divisor == Salix::Vector3(4.0f, 0.0f, -2.0f));
+    }
+
+    TEST_CASE("batch6147 lerp exact endpoints return exact source values") {
+        const Salix::Vector3 start(-6.0f, 14.0f, 7.0f);
+        const Salix::Vector3 end(1.0f, -4.0f, 3.0f);
+        CHECK(Salix::Vector3::lerp(start, end, 0.0f) == start);
+        CHECK(Salix::Vector3::lerp(start, end, 1.0f) == end);
+    }
+
+    TEST_CASE("batch6147 normalizing an already unit axis remains unchanged") {
+        Salix::Vector3 value(0.0f, -1.0f, 0.0f);
+        value.normalize();
+        CHECK(value == Salix::Vector3(0.0f, -1.0f, 0.0f));
+        CHECK(value.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6147 zero vector is neutral for dot and cross products") {
+        const Salix::Vector3 value(-6.0f, 14.0f, 7.0f);
+        CHECK(Salix::dot(value, Salix::Vector3::Zero) == 0.0f);
+        CHECK(Salix::cross(value, Salix::Vector3::Zero) == Salix::Vector3::Zero);
+        CHECK(Salix::cross(Salix::Vector3::Zero, value) == Salix::Vector3::Zero);
+    }
+}
