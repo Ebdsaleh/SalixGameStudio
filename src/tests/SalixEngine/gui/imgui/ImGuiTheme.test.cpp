@@ -867,12 +867,12 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch5647") {
         CHECK(data->get_gui_type() == "ImGui");
     }
 
-    TEST_CASE("batch5647 named constructor keeps explicit public identity") {
+    TEST_CASE("batch5647 named constructor keeps explicit public identity separate from default data identity") {
         Salix::ImGuiTheme theme("Named5647");
         CHECK(theme.get_name() == "Named5647");
         CHECK(theme.get_file_path().empty());
         REQUIRE(theme.get_data() != nullptr);
-        CHECK(theme.get_data()->get_name() == "Named5647");
+        CHECK(theme.get_data()->get_name() == "New ImGui Theme");
     }
 
     TEST_CASE("batch5647 named path constructor preserves metadata verbatim") {
