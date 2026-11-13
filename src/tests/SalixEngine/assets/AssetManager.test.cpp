@@ -1210,12 +1210,10 @@ TEST_SUITE("Salix::assets::AssetManagerBatch5747") {
         CountingAssetRenderer renderer;
         Salix::AssetManager assets;
         assets.initialize(&renderer);
-        auto* first = assets.get_texture("Assets/reload.png");
-        REQUIRE(first != nullptr);
+        REQUIRE(assets.get_texture("Assets/reload.png") != nullptr);
+        CHECK(renderer.calls == 1);
         assets.shutdown();
-        auto* second = assets.get_texture("Assets/reload.png");
-        REQUIRE(second != nullptr);
-        CHECK(first != second);
+        REQUIRE(assets.get_texture("Assets/reload.png") != nullptr);
         CHECK(renderer.calls == 2);
     }
 
