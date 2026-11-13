@@ -1051,3 +1051,129 @@ TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch6247") {
+    TEST_CASE("batch6247 key held duration accumulates across consecutive updates") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_a, false, raw);
+        manager.process_event(press);
+        manager.update(0.25f);
+        REQUIRE(manager.is_held_down(Salix::KeyCode::A));
+        CHECK(manager.is_held_down_for(Salix::KeyCode::A, 0.25f));
+        manager.update(0.25f);
+        CHECK(manager.is_held_down_for(Salix::KeyCode::A, 0.5f));
+    }
+
+    TEST_CASE("batch6247 released key is visible for one frame then becomes up") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_b, false, raw);
+        Salix::KeyReleasedEvent release(SDLK_b, raw);
+        manager.process_event(press);
+        manager.update(0.1f);
+        manager.process_event(release);
+        REQUIRE(manager.was_released(Salix::KeyCode::B));
+        manager.update(0.0f);
+        CHECK(manager.is_up(Salix::KeyCode::B));
+        CHECK_FALSE(manager.was_released(Salix::KeyCode::B));
+    }
+
+    TEST_CASE("batch6247 two key combo transitions from down trigger to maintained held state") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent a(SDLK_a, false, raw);
+        Salix::KeyPressedEvent b(SDLK_b, false, raw);
+        manager.process_event(a);
+        manager.process_event(b);
+        const std::vector<Salix::KeyCode> keys{Salix::KeyCode::A, Salix::KeyCode::B};
+        REQUIRE(manager.multiple_are_down(keys));
+        manager.update(0.5f);
+        CHECK(manager.multiple_are_held_down(keys));
+        CHECK(manager.multiple_are_held_down_for(keys, 0.5f));
+    }
+
+    TEST_CASE("batch6247 one released key while peer remains held breaks all released but triggers any released") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent a(SDLK_a, false, raw);
+        Salix::KeyPressedEvent b(SDLK_b, false, raw);
+        manager.process_event(a);
+        manager.process_event(b);
+        manager.update(0.1f);
+        Salix::KeyReleasedEvent release_a(SDLK_a, raw);
+        manager.process_event(release_a);
+        const std::vector<Salix::KeyCode> keys{Salix::KeyCode::A, Salix::KeyCode::B};
+        CHECK_FALSE(manager.multiple_were_released(keys));
+        CHECK(manager.any_of_combo_was_released(keys));
+    }
+
+    TEST_CASE("batch6247 releasing both keys in same frame satisfies combo released contract") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent a(SDLK_a, false, raw);
+        Salix::KeyPressedEvent b(SDLK_b, false, raw);
+        manager.process_event(a);
+        manager.process_event(b);
+        manager.update(0.1f);
+        Salix::KeyReleasedEvent release_a(SDLK_a, raw);
+        Salix::KeyReleasedEvent release_b(SDLK_b, raw);
+        manager.process_event(release_a);
+        manager.process_event(release_b);
+        const std::vector<Salix::KeyCode> keys{Salix::KeyCode::A, Salix::KeyCode::B};
+        CHECK(manager.multiple_were_released(keys));
+        CHECK(manager.any_of_combo_was_released(keys));
+    }
+
+    TEST_CASE("batch6247 two mouse buttons transition from down to maintained held state") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseButtonPressedEvent left(SDL_BUTTON_LEFT, raw);
+        Salix::MouseButtonPressedEvent right(SDL_BUTTON_RIGHT, raw);
+        manager.process_event(left);
+        manager.process_event(right);
+        const std::vector<Salix::MouseButton> buttons{Salix::MouseButton::Left, Salix::MouseButton::Right};
+        REQUIRE(manager.multiple_are_down(buttons));
+        manager.update(0.25f);
+        CHECK(manager.multiple_are_held_down(buttons));
+        CHECK(manager.multiple_are_held_down_for(buttons, 0.25f));
+    }
+
+    TEST_CASE("batch6247 horizontal only wheel leaves vertical scroll direction neutral") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseScrolledEvent wheel(62.47f, 0.0f, raw);
+        manager.process_event(wheel);
+        CHECK(manager.get_mouse_scroll_delta() == 0.0f);
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Backward));
+    }
+
+    TEST_CASE("batch6247 mouse movement stores zero and signed coordinate independently") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseMovedEvent moved(0.0f, -6247.9f, raw);
+        manager.process_event(moved);
+        int x = 99, y = 99;
+        manager.get_mouse_position(&x, &y);
+        CHECK(x == 0);
+        CHECK(y == -6247);
+    }
+
+    TEST_CASE("batch6247 representative modifier arrow and GUI translations are exact") {
+        Salix::SDLInputManager manager;
+        CHECK(manager.to_salix_keycode(SDLK_LSHIFT) == Salix::KeyCode::LeftShift);
+        CHECK(manager.to_salix_keycode(SDLK_RIGHT) == Salix::KeyCode::Right);
+        CHECK(manager.to_salix_keycode(SDLK_LGUI) == Salix::KeyCode::LeftGui);
+        CHECK(manager.to_salix_keycode(SDLK_APPLICATION) == Salix::KeyCode::ContextMenu);
+    }
+
+    TEST_CASE("batch6247 unsupported extra mouse button event leaves supported buttons unchanged") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseButtonPressedEvent extra(SDL_BUTTON_X1, raw);
+        manager.process_event(extra);
+        CHECK(manager.is_up(Salix::MouseButton::Left));
+        CHECK(manager.is_up(Salix::MouseButton::Middle));
+        CHECK(manager.is_up(Salix::MouseButton::Right));
+    }
+}
