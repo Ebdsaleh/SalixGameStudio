@@ -1125,14 +1125,15 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch5547") {
         CHECK(collider.get_size() == Salix::Vector3(5.5f, 4.4f, 7.7f));
     }
 
-    TEST_CASE("batch5547 JSON roundtrip preserves name visibility and geometry") {
+    TEST_CASE("batch5547 JSON roundtrip preserves name and geometry while visibility remains runtime local") {
         Salix::BoxCollider source;
         source.set_name("Serialized5547");
-        source.set_visibility(false);
+        source.set_visibility(true);
         source.set_size({-5.547f, 7.445f, 0.25f});
         std::stringstream stream;
         { cereal::JSONOutputArchive out(stream); out(source); }
         Salix::BoxCollider restored;
+        restored.set_visibility(false);
         { cereal::JSONInputArchive in(stream); in(restored); }
         CHECK(restored.get_name() == "Serialized5547");
         CHECK_FALSE(restored.is_visible());
