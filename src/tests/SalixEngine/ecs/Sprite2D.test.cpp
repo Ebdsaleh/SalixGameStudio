@@ -1841,3 +1841,149 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch5947") {
     }
 }
 
+TEST_SUITE("Salix::ecs::Sprite2DBatch6047") {
+    TEST_CASE("batch6047 repeated path replacement never materializes a runtime texture") {
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("assets/first6047.png");
+        sprite.set_texture_path("assets/final6047.png");
+        CHECK(sprite.get_texture_path() == "assets/final6047.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch6047 on load with portable path requests one texture and stores dimensions") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("assets/on-load6047.png");
+        Salix::InitContext context{};
+        context.asset_manager = &assets;
+        sprite.on_load(context);
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(renderer.load_texture_calls == 1);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+    }
+
+    TEST_CASE("batch6047 repeated direct load of same path reuses asset manager cache") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/cached6047.png");
+        auto* first = sprite.get_texture();
+        REQUIRE(first != nullptr);
+        sprite.load_texture(&assets, "assets/cached6047.png");
+        CHECK(sprite.get_texture() == first);
+        CHECK(renderer.load_texture_calls == 1);
+    }
+
+    TEST_CASE("batch6047 owned loaded sprite without flips forwards None") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/none6047.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 1);
+        CHECK(renderer.last_flip_state == Salix::SpriteFlip::None);
+    }
+
+    TEST_CASE("batch6047 owned loaded sprite with horizontal flip forwards Horizontal") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/horizontal6047.png");
+        sprite->set_flip_h(true);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 1);
+        CHECK(renderer.last_flip_state == Salix::SpriteFlip::Horizontal);
+    }
+
+    TEST_CASE("batch6047 owned loaded sprite with vertical flip forwards Vertical") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/vertical6047.png");
+        sprite->set_flip_v(true);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 1);
+        CHECK(renderer.last_flip_state == Salix::SpriteFlip::Vertical);
+    }
+
+    TEST_CASE("batch6047 clearing both flips changes later render state back to None") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/toggle6047.png");
+        sprite->set_flip_h(true);
+        sprite->set_flip_v(true);
+        sprite->render(&renderer);
+        REQUIRE(renderer.last_flip_state == Salix::SpriteFlip::Both);
+        sprite->set_flip_h(false);
+        sprite->set_flip_v(false);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 2);
+        CHECK(renderer.last_flip_state == Salix::SpriteFlip::None);
+    }
+
+    TEST_CASE("batch6047 successful texture load preserves visual metadata") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.set_color(Salix::Yellow);
+        sprite.set_offset({6.0f, -47.0f});
+        sprite.set_pivot({0.2f, 0.8f});
+        sprite.set_local_rotation(60.47f);
+        sprite.set_sorting_layer(-6047);
+        sprite.load_texture(&assets, "assets/metadata6047.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_color() == Salix::Yellow);
+        CHECK(sprite.get_offset() == Salix::Vector2(6.0f, -47.0f));
+        CHECK(sprite.get_pivot() == Salix::Vector2(0.2f, 0.8f));
+        CHECK(sprite.get_local_rotation() == doctest::Approx(60.47f));
+        CHECK(sprite.get_sorting_layer() == -6047);
+    }
+
+    TEST_CASE("batch6047 empty reload after success clears runtime and suppresses owned render") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/clear6047.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        sprite->load_texture(&assets, "");
+        REQUIRE(sprite->get_texture() == nullptr);
+        sprite->render(&renderer);
+        CHECK(renderer.draw_sprite_call_count == 0);
+    }
+
+    TEST_CASE("batch6047 separate sprites loading same path share cached texture identity") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D first, second;
+        first.load_texture(&assets, "assets/shared6047.png");
+        second.load_texture(&assets, "assets/shared6047.png");
+        REQUIRE(first.get_texture() != nullptr);
+        CHECK(second.get_texture() == first.get_texture());
+        CHECK(renderer.load_texture_calls == 1);
+    }
+}
