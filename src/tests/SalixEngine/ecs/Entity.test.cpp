@@ -1507,3 +1507,104 @@ TEST_SUITE("Salix::ecs::EntityBatch5347") {
     }
 }
 
+TEST_SUITE("Salix::ecs::EntityBatch5747") {
+    TEST_CASE("batch5747 fresh entity owns mandatory transform and collider") {
+        Salix::Entity entity;
+        CHECK(entity.is_visible());
+        CHECK_FALSE(entity.is_purged());
+        CHECK(entity.get_transform() != nullptr);
+        CHECK(entity.get_element<Salix::BoxCollider>() != nullptr);
+        CHECK(entity.get_all_elements().size() == 2);
+    }
+
+    TEST_CASE("batch5747 whitespace rich name preserves entity identifier") {
+        Salix::Entity entity;
+        const auto id = entity.get_id();
+        const std::string name = "  Entity 5747\t ";
+        entity.set_name(name);
+        CHECK(entity.get_name() == name);
+        CHECK(entity.get_id() == id);
+    }
+
+    TEST_CASE("batch5747 explicit identifier replacement preserves scalar metadata") {
+        Salix::Entity entity;
+        entity.set_name("Stable5747");
+        entity.set_visible(false);
+        entity.set_id(Salix::SimpleGuid::from_value(5747001ULL));
+        CHECK(entity.get_id().get_value() == 5747001ULL);
+        CHECK(entity.get_name() == "Stable5747");
+        CHECK_FALSE(entity.is_visible());
+    }
+
+    TEST_CASE("batch5747 visibility toggles preserve mandatory component identities") {
+        Salix::Entity entity;
+        auto* transform = entity.get_transform();
+        auto* collider = entity.get_element<Salix::BoxCollider>();
+        entity.set_visible(false);
+        entity.set_visible(true);
+        entity.set_visible(false);
+        CHECK_FALSE(entity.is_visible());
+        CHECK(entity.get_transform() == transform);
+        CHECK(entity.get_element<Salix::BoxCollider>() == collider);
+    }
+
+    TEST_CASE("batch5747 mutable element snapshot remains container independent") {
+        Salix::Entity entity;
+        auto snapshot = entity.get_all_elements();
+        REQUIRE(snapshot.size() == 2);
+        snapshot.clear();
+        CHECK(snapshot.empty());
+        CHECK(entity.get_all_elements().size() == 2);
+    }
+
+    TEST_CASE("batch5747 missing element lookups preserve owned component count") {
+        Salix::Entity entity;
+        const auto count = entity.get_all_elements().size();
+        CHECK(entity.get_element_by_name("Missing5747") == nullptr);
+        CHECK(entity.get_element_by_type_name("MissingType5747") == nullptr);
+        CHECK(entity.get_elements_by_type_name("MissingType5747").empty());
+        CHECK(entity.get_all_elements().size() == count);
+    }
+
+    TEST_CASE("batch5747 invalid element identifier lookup preserves mandatory components") {
+        Salix::Entity entity;
+        CHECK(entity.get_element_by_id(Salix::SimpleGuid::invalid()) == nullptr);
+        CHECK(entity.get_transform() != nullptr);
+        CHECK(entity.get_element<Salix::BoxCollider>() != nullptr);
+    }
+
+    TEST_CASE("batch5747 added Sprite2D is discoverable through concrete and string lookup") {
+        Salix::Entity entity;
+        auto* sprite = entity.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->set_name("Sprite5747");
+        CHECK(sprite->get_owner() == &entity);
+        CHECK(entity.get_element<Salix::Sprite2D>() == sprite);
+        CHECK(entity.get_element_by_type_name("Sprite2D") == sprite);
+        CHECK(entity.get_element_by_name("Sprite5747") == sprite);
+    }
+
+    TEST_CASE("batch5747 simple purge suppresses named lookup while retaining ownership snapshot") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements();
+        REQUIRE(before.size() == 2);
+        entity.simple_purge();
+        REQUIRE(entity.is_purged());
+        CHECK(entity.get_all_elements().size() == before.size());
+        CHECK(entity.get_element_by_name(before[0]->get_name()) == nullptr);
+        CHECK(entity.get_element_by_name(before[1]->get_name()) == nullptr);
+    }
+
+    TEST_CASE("batch5747 separate entities retain independent names visibility and identifiers") {
+        Salix::Entity first, second;
+        first.set_name("First5747");
+        first.set_visible(false);
+        second.set_name("Second5747");
+        CHECK(first.get_name() == "First5747");
+        CHECK_FALSE(first.is_visible());
+        CHECK(second.get_name() == "Second5747");
+        CHECK(second.is_visible());
+        CHECK(first.get_id() != second.get_id());
+    }
+}
+
