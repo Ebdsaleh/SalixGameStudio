@@ -809,3 +809,95 @@ TEST_SUITE("Salix::management::ProjectBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectBatch5747") {
+    TEST_CASE("batch5747 named project derives filenames without rewriting root") {
+        Salix::Project project("Game 5747", "D:/Projects/Game 5747");
+        CHECK(project.get_name() == "Game 5747");
+        CHECK(project.get_path() == "D:/Projects/Game 5747");
+        CHECK(project.get_project_file_name() == "Game 5747.salixproj");
+        CHECK(project.get_game_dll_name() == "Game 5747.dll");
+        CHECK(project.get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch5747 empty project name derives suffix only filenames") {
+        Salix::Project project("", "Root5747");
+        CHECK(project.get_name().empty());
+        CHECK(project.get_path() == "Root5747");
+        CHECK(project.get_project_file_name() == ".salixproj");
+        CHECK(project.get_game_dll_name() == ".dll");
+    }
+
+    TEST_CASE("batch5747 starting realm supports repeated replacement and clearing") {
+        Salix::Project project;
+        project.set_starting_realm("Menu5747");
+        project.set_starting_realm("World5747");
+        CHECK(project.get_starting_realm() == "World5747");
+        project.set_starting_realm("");
+        CHECK(project.get_starting_realm().empty());
+    }
+
+    TEST_CASE("batch5747 independent realm keys retain independent paths") {
+        Salix::Project project;
+        project.add_realm_path("Menu5747", "Scenes/Menu5747.realm");
+        project.add_realm_path("World5747", "Scenes/World5747.realm");
+        REQUIRE(project.get_realm_paths().size() == 2);
+        CHECK(project.get_realm_paths().at("Menu5747") == "Scenes/Menu5747.realm");
+        CHECK(project.get_realm_paths().at("World5747") == "Scenes/World5747.realm");
+    }
+
+    TEST_CASE("batch5747 existing realm key replacement does not duplicate entry") {
+        Salix::Project project;
+        project.add_realm_path("World5747", "Old5747.realm");
+        project.add_realm_path("World5747", "New5747.realm");
+        REQUIRE(project.get_realm_paths().size() == 1);
+        CHECK(project.get_realm_paths().at("World5747") == "New5747.realm");
+    }
+
+    TEST_CASE("batch5747 missing realm path removal preserves all mappings") {
+        Salix::Project project;
+        project.add_realm_path("Keep5747", "Keep5747.realm");
+        CHECK_FALSE(project.remove_realm_path("Missing5747.realm"));
+        REQUIRE(project.get_realm_paths().size() == 1);
+        CHECK(project.get_realm_paths().at("Keep5747") == "Keep5747.realm");
+    }
+
+    TEST_CASE("batch5747 mapped absent realm path is removed from metadata") {
+        Salix::Project project;
+        project.add_realm_path("Remove5747", "__batch5747_missing__/Remove5747.realm");
+        CHECK(project.remove_realm_path("__batch5747_missing__/Remove5747.realm"));
+        CHECK(project.get_realm_paths().empty());
+    }
+
+    TEST_CASE("batch5747 shutdown before initialization preserves persistent metadata") {
+        Salix::Project project("Shutdown5747", "Root5747");
+        project.set_starting_realm("Main5747");
+        project.add_realm_path("Main5747", "Main5747.realm");
+        CHECK_NOTHROW(project.shutdown());
+        CHECK(project.get_realm_manager() == nullptr);
+        CHECK(project.get_starting_realm() == "Main5747");
+        CHECK(project.get_realm_paths().at("Main5747") == "Main5747.realm");
+    }
+
+    TEST_CASE("batch5747 preinitialization update and render remain no ops") {
+        Salix::Project project("Lifecycle5747", "Root5747");
+        project.add_realm_path("Main5747", "Main5747.realm");
+        CHECK_NOTHROW(project.update(-5.747f));
+        CHECK_NOTHROW(project.render(nullptr));
+        CHECK(project.get_realm_manager() == nullptr);
+        CHECK(project.get_realm_paths().count("Main5747") == 1);
+    }
+
+    TEST_CASE("batch5747 separate projects retain independent persistent metadata") {
+        Salix::Project first("First5747", "RootA5747");
+        Salix::Project second("Second5747", "RootB5747");
+        first.add_realm_path("Main", "First5747.realm");
+        first.set_starting_realm("Main");
+        second.add_realm_path("Main", "Second5747.realm");
+        second.set_starting_realm("Other5747");
+        CHECK(first.get_realm_paths().at("Main") == "First5747.realm");
+        CHECK(second.get_realm_paths().at("Main") == "Second5747.realm");
+        CHECK(first.get_starting_realm() == "Main");
+        CHECK(second.get_starting_realm() == "Other5747");
+    }
+}
+
