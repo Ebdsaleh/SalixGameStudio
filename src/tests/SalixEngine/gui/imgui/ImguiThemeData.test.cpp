@@ -415,3 +415,96 @@ TEST_SUITE("Salix::gui::ImGuiThemeDataBatch5347") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeDataBatch5747") {
+    TEST_CASE("batch5747 default identity and GUI type remain canonical") {
+        Salix::ImGuiThemeData data;
+        CHECK(data.get_name() == "New ImGui Theme");
+        CHECK(data.get_gui_type() == "ImGui");
+    }
+
+    TEST_CASE("batch5747 named constructor preserves embedded null bytes") {
+        const std::string name("Theme\0Data5747", 14);
+        Salix::ImGuiThemeData data(name);
+        CHECK(data.get_name() == name);
+        CHECK(data.get_name().size() == name.size());
+        CHECK(data.get_gui_type() == "ImGui");
+    }
+
+    TEST_CASE("batch5747 font fallback metadata remains internally consistent") {
+        Salix::ImGuiThemeData data;
+        CHECK(data.default_font_name == "Roboto-Regular");
+        CHECK(data.default_font_path == "Assets/Fonts/Roboto-Regular.ttf");
+        CHECK(data.default_font_size == doctest::Approx(20.0f));
+        CHECK(data.font_family == data.default_font_name);
+        CHECK(data.font_size == doctest::Approx(data.default_font_size));
+        CHECK(data.font_scale_main == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5747 every registry binding pointer is nonnull") {
+        Salix::ImGuiThemeData data;
+        for (const auto& entry : data.theme_colors) CHECK(entry.second != nullptr);
+        for (const auto& entry : data.float_style_vars) CHECK(entry.second != nullptr);
+        for (const auto& entry : data.vector2_style_vars) CHECK(entry.second != nullptr);
+    }
+
+    TEST_CASE("batch5747 registry labels remain unique within each registry") {
+        Salix::ImGuiThemeData data;
+        std::set<std::string> colors;
+        std::set<std::string> floats;
+        std::set<std::string> vectors;
+        for (const auto& entry : data.theme_colors) CHECK(colors.insert(entry.first).second);
+        for (const auto& entry : data.float_style_vars) CHECK(floats.insert(entry.first).second);
+        for (const auto& entry : data.vector2_style_vars) CHECK(vectors.insert(entry.first).second);
+    }
+
+    TEST_CASE("batch5747 Button color binding points directly at owned field") {
+        Salix::ImGuiThemeData data;
+        const auto it = std::find_if(data.theme_colors.begin(), data.theme_colors.end(),
+            [](const auto& entry) { return entry.first == "Button"; });
+        REQUIRE(it != data.theme_colors.end());
+        REQUIRE(it->second == &data.button_color);
+        *it->second = Salix::Color(0.57f, 0.47f, 0.25f, 0.75f);
+        CHECK(data.button_color == Salix::Color(0.57f, 0.47f, 0.25f, 0.75f));
+    }
+
+    TEST_CASE("batch5747 WindowRounding binding mutates owned scalar field") {
+        Salix::ImGuiThemeData data;
+        const auto it = std::find_if(data.float_style_vars.begin(), data.float_style_vars.end(),
+            [](const auto& entry) { return entry.first == "WindowRounding"; });
+        REQUIRE(it != data.float_style_vars.end());
+        REQUIRE(it->second == &data.window_rounding);
+        *it->second = 5.747f;
+        CHECK(data.window_rounding == doctest::Approx(5.747f));
+    }
+
+    TEST_CASE("batch5747 ItemSpacing binding mutates owned vector field only") {
+        Salix::ImGuiThemeData data;
+        const auto frame_before = data.frame_padding;
+        const auto it = std::find_if(data.vector2_style_vars.begin(), data.vector2_style_vars.end(),
+            [](const auto& entry) { return entry.first == "ItemSpacing"; });
+        REQUIRE(it != data.vector2_style_vars.end());
+        REQUIRE(it->second == &data.item_spacing);
+        *it->second = Salix::Vector2(57.0f, 47.0f);
+        CHECK(data.item_spacing == Salix::Vector2(57.0f, 47.0f));
+        CHECK(data.frame_padding == frame_before);
+    }
+
+    TEST_CASE("batch5747 icon maps remain independent across instances") {
+        Salix::ImGuiThemeData first, second;
+        first.icon_paths["Entity"] = "first5747.png";
+        second.icon_paths["Entity"] = "second5747.png";
+        first.icon_paths["Camera"] = "camera5747.png";
+        CHECK(first.icon_paths.at("Entity") == "first5747.png");
+        CHECK(second.icon_paths.at("Entity") == "second5747.png");
+        CHECK(first.icon_paths.count("Camera") == 1);
+        CHECK(second.icon_paths.count("Camera") == 0);
+    }
+
+    TEST_CASE("batch5747 self referential theme data remains noncopyable and nonmovable") {
+        CHECK_FALSE((std::is_copy_constructible_v<Salix::ImGuiThemeData>));
+        CHECK_FALSE((std::is_copy_assignable_v<Salix::ImGuiThemeData>));
+        CHECK_FALSE((std::is_move_constructible_v<Salix::ImGuiThemeData>));
+        CHECK_FALSE((std::is_move_assignable_v<Salix::ImGuiThemeData>));
+    }
+}
+
