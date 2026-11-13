@@ -996,3 +996,110 @@ TEST_SUITE("Salix::ecs::CameraBatch5547") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CameraBatch5947") {
+    TEST_CASE("batch5947 constructor exposes canonical projection and activity defaults") {
+        Salix::Camera camera;
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_field_of_view() == doctest::Approx(45.0f));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(10.0f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.1f));
+        CHECK(camera.get_far_clip() == doctest::Approx(1000.0f));
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5947 projection mode can roundtrip between supported values") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        REQUIRE(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch5947 scalar projection settings remain independently replaceable") {
+        Salix::Camera camera;
+        camera.set_field_of_view(59.47f);
+        camera.set_orthographic_size(47.59f);
+        camera.set_near_clip(0.5947f);
+        camera.set_far_clip(5947.0f);
+        CHECK(camera.get_field_of_view() == doctest::Approx(59.47f));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(47.59f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.5947f));
+        CHECK(camera.get_far_clip() == doctest::Approx(5947.0f));
+    }
+
+    TEST_CASE("batch5947 initialize preserves scalar configuration and activity") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(59.47f);
+        camera.activate();
+        camera.initialize();
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(59.47f));
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5947 zero viewport height leaves existing projection unchanged") {
+        Salix::Camera camera;
+        camera.set_viewport_size(800, 600);
+        const glm::mat4 before = camera.get_projection_matrix();
+        camera.set_viewport_size(5947, 0);
+        const glm::mat4 after = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch5947 changing aspect ratio changes perspective projection") {
+        Salix::Camera camera;
+        camera.set_viewport_size(1600, 900);
+        const glm::mat4 wide = camera.get_projection_matrix();
+        camera.set_viewport_size(900, 1600);
+        const glm::mat4 tall = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(wide, tall));
+    }
+
+    TEST_CASE("batch5947 ownerless camera exposes null transform and identity view") {
+        Salix::Camera camera;
+        CHECK(camera.get_transform() == nullptr);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch5947 assigned owner exposes exact transform and view reacts to position") {
+        Salix::Entity entity;
+        Salix::Camera camera;
+        camera.set_owner(&entity);
+        auto* transform = entity.get_transform();
+        REQUIRE(transform != nullptr);
+        CHECK(camera.get_transform() == transform);
+        const glm::mat4 before = camera.get_view_matrix();
+        transform->set_position(5.0f, 9.0f, -47.0f);
+        const glm::mat4 after = camera.get_view_matrix();
+        CHECK(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch5947 update never changes active flag or configured scalar") {
+        Salix::Camera camera;
+        camera.set_far_clip(594.7f);
+        camera.activate();
+        camera.update(-59.47f);
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_far_clip() == doctest::Approx(594.7f));
+        camera.deactivate();
+        camera.update(59.47f);
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(camera.get_far_clip() == doctest::Approx(594.7f));
+    }
+
+    TEST_CASE("batch5947 separate cameras retain independent projection and activity state") {
+        Salix::Camera first, second;
+        first.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        first.set_orthographic_size(59.0f);
+        first.activate();
+        second.set_field_of_view(47.0f);
+        CHECK(first.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(first.get_orthographic_size() == doctest::Approx(59.0f));
+        CHECK(first.get_is_active());
+        CHECK(second.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(second.get_field_of_view() == doctest::Approx(47.0f));
+        CHECK_FALSE(second.get_is_active());
+    }
+}
+
