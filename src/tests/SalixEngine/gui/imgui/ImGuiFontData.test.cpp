@@ -725,3 +725,120 @@ TEST_SUITE("Salix::gui::ImGuiFontDataBatch4947") {
         CHECK(copy.rasterizer_density == doctest::Approx(4.947f));
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontDataBatch5647") {
+    TEST_CASE("batch5647 default config exposes documented rasterization defaults") {
+        Salix::ImGuiFontData data;
+        CHECK_FALSE(data.config.merge_mode);
+        CHECK_FALSE(data.config.pixel_snap_h);
+        CHECK(data.config.pixel_snap_v);
+        CHECK(data.config.oversample_h == 2);
+        CHECK(data.config.oversample_v == 1);
+        CHECK(data.config.rasterizer_multiply == doctest::Approx(1.0f));
+        CHECK(data.config.rasterizer_density == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5647 custom constructor preserves metadata and gui type") {
+        Salix::ImGuiFontData data("Name5647", "path5647.ttf", 56.47f);
+        CHECK(data.get_name() == "Name5647");
+        CHECK(data.get_file_path() == "path5647.ttf");
+        CHECK(data.get_font_size() == doctest::Approx(56.47f));
+        CHECK(data.get_gui_type() == "ImGui");
+        CHECK(data.config.size_pixels == doctest::Approx(56.47f));
+    }
+
+    TEST_CASE("batch5647 metadata size setter does not rewrite independent config pixel size") {
+        Salix::ImGuiFontData data("Size5647", "size5647.ttf", 12.0f);
+        data.set_font_size(56.47f);
+        CHECK(data.get_font_size() == doctest::Approx(56.47f));
+        CHECK(data.config.size_pixels == doctest::Approx(12.0f));
+    }
+
+    TEST_CASE("batch5647 config conversion preserves boolean and oversampling channels") {
+        Salix::ImGuiFontData data;
+        data.config.merge_mode = true;
+        data.config.pixel_snap_h = true;
+        data.config.pixel_snap_v = false;
+        data.config.oversample_h = 4;
+        data.config.oversample_v = 3;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.MergeMode);
+        CHECK(cfg.PixelSnapH);
+        CHECK_FALSE(cfg.PixelSnapV);
+        CHECK(cfg.OversampleH == 4);
+        CHECK(cfg.OversampleV == 3);
+    }
+
+    TEST_CASE("batch5647 glyph range pointers survive config conversion by identity") {
+        static const ImWchar include_ranges[] = {0x20, 0x7e, 0};
+        static const ImWchar exclude_ranges[] = {0x30, 0x39, 0};
+        Salix::ImGuiFontData data;
+        data.config.glyph_ranges = include_ranges;
+        data.config.glyph_exclude_ranges = exclude_ranges;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.GlyphRanges == include_ranges);
+        CHECK(cfg.GlyphExcludeRanges == exclude_ranges);
+    }
+
+    TEST_CASE("batch5647 glyph geometry converts signed values exactly") {
+        Salix::ImGuiFontData data;
+        data.config.glyph_offset = ImVec2(-5.0f, 6.47f);
+        data.config.glyph_min_advance_x = -56.0f;
+        data.config.glyph_max_advance_x = 47.0f;
+        data.config.glyph_extra_advance_x = -0.5647f;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.GlyphOffset.x == doctest::Approx(-5.0f));
+        CHECK(cfg.GlyphOffset.y == doctest::Approx(6.47f));
+        CHECK(cfg.GlyphMinAdvanceX == doctest::Approx(-56.0f));
+        CHECK(cfg.GlyphMaxAdvanceX == doctest::Approx(47.0f));
+        CHECK(cfg.GlyphExtraAdvanceX == doctest::Approx(-0.5647f));
+    }
+
+    TEST_CASE("batch5647 copy construction isolates string and scalar mutations") {
+        Salix::ImGuiFontData source("Source5647", "source5647.ttf", 17.0f);
+        source.config.rasterizer_density = 2.5f;
+        Salix::ImGuiFontData copy(source);
+        source.name = "Mutated5647";
+        source.file_path = "mutated5647.ttf";
+        source.config.rasterizer_density = 9.0f;
+        CHECK(copy.get_name() == "Source5647");
+        CHECK(copy.get_file_path() == "source5647.ttf");
+        CHECK(copy.config.rasterizer_density == doctest::Approx(2.5f));
+    }
+
+    TEST_CASE("batch5647 config assignment isolates later scalar mutations while retaining pointers") {
+        static const ImWchar ranges[] = {0x20, 0x7e, 0};
+        Salix::ImGuiFontData::Config source;
+        source.glyph_ranges = ranges;
+        source.rasterizer_multiply = 2.25f;
+        Salix::ImGuiFontData::Config copy;
+        copy = source;
+        source.rasterizer_multiply = 9.0f;
+        CHECK(copy.glyph_ranges == ranges);
+        CHECK(copy.rasterizer_multiply == doctest::Approx(2.25f));
+    }
+
+    TEST_CASE("batch5647 metadata strings preserve embedded null bytes") {
+        Salix::ImGuiFontData data;
+        const std::string name("Name\0Batch5647", 14);
+        const std::string path("Path\0Batch5647", 14);
+        data.name = name;
+        data.file_path = path;
+        CHECK(data.get_name() == name);
+        CHECK(data.get_file_path() == path);
+        CHECK(data.get_name().size() == name.size());
+        CHECK(data.get_file_path().size() == path.size());
+    }
+
+    TEST_CASE("batch5647 config conversion preserves negative rasterizer and size diagnostics") {
+        Salix::ImGuiFontData data;
+        data.config.size_pixels = -56.47f;
+        data.config.rasterizer_multiply = -2.0f;
+        data.config.rasterizer_density = -3.0f;
+        const auto cfg = data.config.to_imgui_font_config();
+        CHECK(cfg.SizePixels == doctest::Approx(-56.47f));
+        CHECK(cfg.RasterizerMultiply == doctest::Approx(-2.0f));
+        CHECK(cfg.RasterizerDensity == doctest::Approx(-3.0f));
+    }
+}
+
