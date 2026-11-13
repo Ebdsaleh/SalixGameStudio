@@ -1156,3 +1156,90 @@ TEST_SUITE("Salix::management::FileManagerBatch5347") {
     }
 }
 
+TEST_SUITE("Salix::management::FileManagerBatch5747") {
+    TEST_CASE("batch5747 missing owned path reports absent and nonregular") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto missing = temp.file("missing5747.bin");
+        CHECK_FALSE(Salix::FileManager::path_exists(missing));
+        CHECK_FALSE(Salix::FileManager::is_regular_file_and_exists(missing));
+    }
+
+    TEST_CASE("batch5747 empty owned file remains regular with zero size") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("empty5747.bin", "");
+        CHECK(Salix::FileManager::path_exists(temp.file("empty5747.bin")));
+        CHECK(Salix::FileManager::is_regular_file_and_exists(temp.file("empty5747.bin")));
+        CHECK(Salix::FileManager::get_file_size(temp.file("empty5747.bin")) == 0);
+    }
+
+    TEST_CASE("batch5747 binary read preserves null control and high bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("\x00\x01\x7f\xffZ", 5);
+        temp.write("binary5747.bin", payload);
+        const auto loaded = Salix::FileManager::read_file_content(temp.file("binary5747.bin"));
+        CHECK(loaded.size() == payload.size());
+        CHECK(loaded == payload);
+    }
+
+    TEST_CASE("batch5747 copy overwrites destination with exact source bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const std::string payload("A\0B5747", 7);
+        temp.write("source5747.bin", payload);
+        temp.write("destination5747.bin", "old");
+        REQUIRE(Salix::FileManager::copy_file(temp.file("source5747.bin"), temp.file("destination5747.bin")));
+        CHECK(Salix::FileManager::read_file_content(temp.file("destination5747.bin")) == payload);
+        CHECK(Salix::FileManager::read_file_content(temp.file("source5747.bin")) == payload);
+    }
+
+    TEST_CASE("batch5747 missing copy source leaves destination absent") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        CHECK_FALSE(Salix::FileManager::copy_file(temp.file("missing5747.bin"), temp.file("output5747.bin")));
+        CHECK_FALSE(Salix::FileManager::path_exists(temp.file("output5747.bin")));
+    }
+
+    TEST_CASE("batch5747 create directory remains idempotent for owned child") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto child = (temp.root / "dir5747").string();
+        REQUIRE(Salix::FileManager::create_directory(child));
+        CHECK(Salix::FileManager::create_directory(child));
+        CHECK(std::filesystem::is_directory(child));
+    }
+
+    TEST_CASE("batch5747 create directories materializes deep owned hierarchy") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        const auto nested = temp.root / "a5747" / "b5747" / "c5747";
+        REQUIRE(Salix::FileManager::create_directories(nested.string()));
+        CHECK(std::filesystem::is_directory(nested));
+    }
+
+    TEST_CASE("batch5747 textual relative conversion removes exact root prefix") {
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:/Batch5747/Project",
+            "C:/Batch5747/Project/Assets/file.bin") == "Assets/file.bin");
+    }
+
+    TEST_CASE("batch5747 prefix lookalike sibling is not treated as project child") {
+        const std::string sibling = "C:/Batch5747/ProjectSibling/file.bin";
+        CHECK(Salix::FileManager::convert_to_relative(
+            "C:/Batch5747/Project", sibling) == sibling);
+    }
+
+    TEST_CASE("batch5747 hex dump separates printable and control bytes") {
+        FileManagerOwnedTemp20261019 temp;
+        REQUIRE(temp.owned);
+        temp.write("dump5747.bin", std::string{'A','\n','B'});
+        const auto dump = Salix::FileManager::generate_hex_dump(temp.file("dump5747.bin"));
+        CHECK(dump.find("Length: 3 bytes") != std::string::npos);
+        CHECK(dump.find("41 0a 42") != std::string::npos);
+        CHECK(dump.find("A.B") != std::string::npos);
+        CHECK(dump.find("---END HEX DUMP---") != std::string::npos);
+    }
+}
+
