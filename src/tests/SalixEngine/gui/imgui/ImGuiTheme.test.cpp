@@ -855,3 +855,109 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch4947") {
         CHECK(std::filesystem::is_regular_file(destination_file.path));
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeBatch5647") {
+    TEST_CASE("batch5647 default theme exposes stable owned data pointer and identity") {
+        Salix::ImGuiTheme theme;
+        auto* data = theme.get_data();
+        REQUIRE(data != nullptr);
+        CHECK(theme.get_data() == data);
+        CHECK(theme.get_name() == "Default ImGui Theme");
+        CHECK(theme.get_file_path().empty());
+        CHECK(data->get_gui_type() == "ImGui");
+    }
+
+    TEST_CASE("batch5647 named constructor keeps explicit public identity") {
+        Salix::ImGuiTheme theme("Named5647");
+        CHECK(theme.get_name() == "Named5647");
+        CHECK(theme.get_file_path().empty());
+        REQUIRE(theme.get_data() != nullptr);
+        CHECK(theme.get_data()->get_name() == "Named5647");
+    }
+
+    TEST_CASE("batch5647 named path constructor preserves metadata verbatim") {
+        Salix::ImGuiTheme theme("Theme 5647", " Themes/Theme 5647.theme ");
+        CHECK(theme.get_name() == "Theme 5647");
+        CHECK(theme.get_file_path() == " Themes/Theme 5647.theme ");
+        CHECK(theme.get_data()->get_name() == "Theme 5647");
+    }
+
+    TEST_CASE("batch5647 direct data mutations retain data pointer identity") {
+        Salix::ImGuiTheme theme("Mutable5647");
+        auto* data = theme.get_data();
+        REQUIRE(data != nullptr);
+        data->alpha = 0.5647f;
+        data->default_font_name = "Font5647";
+        CHECK(theme.get_data() == data);
+        CHECK(theme.get_data()->alpha == doctest::Approx(0.5647f));
+        CHECK(theme.get_data()->default_font_name == "Font5647");
+    }
+
+    TEST_CASE("batch5647 saving empty path fails without changing public metadata") {
+        Salix::ImGuiTheme theme("NoSave5647", "source5647.theme");
+        CHECK_FALSE(theme.save_to_yaml(""));
+        CHECK(theme.get_name() == "NoSave5647");
+        CHECK(theme.get_file_path() == "source5647.theme");
+    }
+
+    TEST_CASE("batch5647 missing load preserves existing data and source metadata") {
+        Salix::ImGuiTheme theme("Keep5647", "keep5647.theme");
+        theme.get_data()->alpha = 0.47f;
+        const auto missing = std::filesystem::temp_directory_path() / "SalixGameStudio_Batch5647_missing_theme.yaml";
+        std::error_code ec;
+        std::filesystem::remove(missing, ec);
+        CHECK_FALSE(theme.load_from_yaml(missing.string()));
+        CHECK(theme.get_name() == "Keep5647");
+        CHECK(theme.get_file_path() == "keep5647.theme");
+        CHECK(theme.get_data()->alpha == doctest::Approx(0.47f));
+    }
+
+    TEST_CASE("batch5647 explicitly named theme retains public name while YAML updates data name") {
+        Batch1147ThemeTempFile file;
+        file.write("name: DataName5647\ngui_type: ImGui\nStyleFloats:\n  alpha: 0.5647\n");
+        Salix::ImGuiTheme theme("PublicName5647", "before5647.theme");
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_name() == "PublicName5647");
+        CHECK(theme.get_file_path() == file.path.string());
+        CHECK(theme.get_data()->name == "DataName5647");
+        CHECK(theme.get_data()->alpha == doctest::Approx(0.5647f));
+    }
+
+    TEST_CASE("batch5647 partial style load updates alpha while retaining unrelated float") {
+        Batch1147ThemeTempFile file;
+        Salix::ImGuiTheme theme;
+        const float before = theme.get_data()->window_rounding;
+        file.write("name: Style5647\nStyleFloats:\n  alpha: 0.47\n");
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->alpha == doctest::Approx(0.47f));
+        CHECK(theme.get_data()->window_rounding == doctest::Approx(before));
+    }
+
+    TEST_CASE("batch5647 partial color load updates text while retaining border color") {
+        Batch1147ThemeTempFile file;
+        Salix::ImGuiTheme theme;
+        const auto border_before = theme.get_data()->border_color;
+        file.write(
+            "name: Color5647\nColors:\n"
+            "  text_color: {r: 0.56, g: 0.47, b: 0.25, a: 0.75}\n");
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        CHECK(theme.get_data()->text_color == Salix::Color(0.56f, 0.47f, 0.25f, 0.75f));
+        CHECK(theme.get_data()->border_color == border_before);
+    }
+
+    TEST_CASE("batch5647 save reload preserves selected style booleans and alpha") {
+        Batch1147ThemeTempFile file;
+        Salix::ImGuiTheme source("Roundtrip5647");
+        source.get_data()->name = "Roundtrip5647";
+        source.get_data()->alpha = 0.5647f;
+        source.get_data()->anti_aliased_lines = false;
+        source.get_data()->anti_aliased_fill = true;
+        REQUIRE(source.save_to_yaml(file.path.string()));
+        Salix::ImGuiTheme restored;
+        REQUIRE(restored.load_from_yaml(file.path.string()));
+        CHECK(restored.get_data()->alpha == doctest::Approx(0.5647f));
+        CHECK_FALSE(restored.get_data()->anti_aliased_lines);
+        CHECK(restored.get_data()->anti_aliased_fill);
+    }
+}
+
