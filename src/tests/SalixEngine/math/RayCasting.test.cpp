@@ -1147,7 +1147,7 @@ TEST_SUITE("Salix::math::RayCastingBatch5547") {
         CHECK(glm::length(ray.direction) == doctest::Approx(1.0f));
     }
 
-    TEST_CASE("batch5547 Vector2 and ImVec2 wrappers agree at bottom right viewport corner") {
+    TEST_CASE("batch5547 Vector2 and ImVec2 wrappers agree at bottom right corner under identity projection") {
         MockICamera camera;
         auto& view = const_cast<glm::mat4&>(camera.get_view_matrix());
         auto& projection = const_cast<glm::mat4&>(camera.get_projection_matrix());
@@ -1159,8 +1159,8 @@ TEST_SUITE("Salix::math::RayCastingBatch5547") {
             &camera, ImVec2(100.0f, 100.0f), ImVec2(0.0f, 0.0f), ImVec2(100.0f, 100.0f));
         check_vec3_approx(a.origin, b.origin);
         check_vec3_approx(a.direction, b.direction);
-        CHECK(a.direction.x > 0.0f);
-        CHECK(a.direction.y < 0.0f);
+        CHECK(glm::length(a.direction) == doctest::Approx(1.0f));
+        check_vec3_approx(a.direction, glm::vec3(0.0f, 0.0f, 1.0f));
     }
 }
 
