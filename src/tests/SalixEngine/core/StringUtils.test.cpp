@@ -1076,3 +1076,52 @@ TEST_SUITE("Salix::core::StringUtilsBatch5447") {
     }
 }
 
+TEST_SUITE("Salix::core::StringUtilsBatch5847") {
+    TEST_CASE("batch5847 upper conversion preserves punctuation digits and spacing") {
+        CHECK(Salix::StringUtils::to_upper("a5-b8 c4!", false) == "A5-B8 C4!");
+    }
+
+    TEST_CASE("batch5847 lower conversion with desnake replaces valid separators first") {
+        CHECK(Salix::StringUtils::to_lower("HELLO_WORLD_5847", true) == "hello world 5847");
+    }
+
+    TEST_CASE("batch5847 title case recognizes tab newline and repeated spaces as boundaries") {
+        CHECK(Salix::StringUtils::to_title_case("hELLO\twORLD\nbATCH   fIVE") ==
+              "Hello\tWorld\nBatch   Five");
+    }
+
+    TEST_CASE("batch5847 capitalize lowers remainder without skipping leading whitespace") {
+        CHECK(Salix::StringUtils::capitalize(" HELLO_B5847", false) == " hello_b5847");
+    }
+
+    TEST_CASE("batch5847 snake validation accepts mixed alphanumeric segments") {
+        CHECK(Salix::StringUtils::is_snake_case("alpha5_beta8_5847"));
+        CHECK(Salix::StringUtils::contains_snake_case("alpha5_beta8_5847"));
+    }
+
+    TEST_CASE("batch5847 snake validation rejects doubled and edge underscores") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("_alpha_beta"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha__beta"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha_beta_"));
+    }
+
+    TEST_CASE("batch5847 snake substring detection ignores invalid doubled separator") {
+        CHECK(Salix::StringUtils::contains_snake_case("prefix a_b suffix"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("prefix a__b suffix"));
+    }
+
+    TEST_CASE("batch5847 snake conversion replaces only separators with alphanumeric neighbors") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("_a_b__c_d_") == "_a b__c d_");
+    }
+
+    TEST_CASE("batch5847 Pascal validation accepts digits but rejects punctuation") {
+        CHECK(Salix::StringUtils::is_pascal_case("Alpha5847Beta"));
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("Alpha-5847"));
+    }
+
+    TEST_CASE("batch5847 Pascal conversion separates lower upper and numeric word transitions") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("BatchValue5847Alpha") ==
+              "Batch Value 5847 Alpha");
+    }
+}
+
