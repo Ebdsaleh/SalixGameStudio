@@ -1291,3 +1291,138 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch5747") {
+    TEST_CASE("batch5747 integer handle roundtrips minimum signed value") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "integer5747", Salix::PropertyType::Int,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->integer; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->integer = *static_cast<int*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const int value = (std::numeric_limits<int>::min)();
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<int>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 uint64 handle roundtrips maximum value") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "id5747", Salix::PropertyType::UInt64,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->identifier; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->identifier = *static_cast<std::uint64_t*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const auto value = (std::numeric_limits<std::uint64_t>::max)();
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<std::uint64_t>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 string handle preserves embedded null bytes") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "text5747", Salix::PropertyType::String,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->text; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->text = *static_cast<std::string*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const std::string value("Live\0Batch5747", 14);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<std::string>(handle.get_value()) == value);
+        CHECK(std::get<std::string>(handle.get_value()).size() == value.size());
+    }
+
+    TEST_CASE("batch5747 Vector2 handle preserves signed finite components") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "vector25747", Salix::PropertyType::Vector2,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->vector2; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->vector2 = *static_cast<Salix::Vector2*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const Salix::Vector2 value(-57.47f, 5.747f);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Vector2>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 Point handle preserves signed integer coordinates") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "point5747", Salix::PropertyType::Point,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->point; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->point = *static_cast<Salix::Point*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const Salix::Point value{-57, 47};
+        handle.set_value(Salix::PropertyValue{value});
+        const auto result = std::get<Salix::Point>(handle.get_value());
+        CHECK(result.x == -57);
+        CHECK(result.y == 47);
+    }
+
+    TEST_CASE("batch5747 Color handle preserves all channels") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "color5747", Salix::PropertyType::Color,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->color; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->color = *static_cast<Salix::Color*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const Salix::Color value(0.57f, 0.47f, 0.25f, 0.75f);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Color>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 Rect handle preserves signed geometry") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "rect5747", Salix::PropertyType::Rect,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->rect; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->rect = *static_cast<Salix::Rect*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        const Salix::Rect value{-57, 47, 574, 7};
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Rect>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 enum class bridge preserves negative integer value") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "enumclass5747", Salix::PropertyType::EnumClass,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->enum_class_value; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->enum_class_value = *static_cast<int*>(value); });
+        Salix::PropertyHandleLive handle(property, &element);
+        handle.set_value(Salix::PropertyValue{-5747});
+        CHECK(std::get<int>(handle.get_value()) == -5747);
+    }
+
+    TEST_CASE("batch5747 unsupported Struct access never invokes callbacks") {
+        Batch1147LiveElement element;
+        int getter_calls = 0;
+        int setter_calls = 0;
+        auto property = batch1147_property(
+            "struct5747", Salix::PropertyType::Struct,
+            [&](void*) -> void* { ++getter_calls; return &element.integer; },
+            [&](void*, void*) { ++setter_calls; });
+        Salix::PropertyHandleLive handle(property, &element);
+        const auto value = handle.get_value();
+        handle.set_value(Salix::PropertyValue{5747});
+        CHECK(getter_calls == 0);
+        CHECK(setter_calls == 0);
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch5747 metadata remains stable after repeated value writes") {
+        Batch1147LiveElement element;
+        auto property = batch1147_property(
+            "metadata5747", Salix::PropertyType::Int,
+            [](void* instance) { return &static_cast<Batch1147LiveElement*>(instance)->integer; },
+            [](void* instance, void* value) { static_cast<Batch1147LiveElement*>(instance)->integer = *static_cast<int*>(value); });
+        property.hint = Salix::UIHint::MultilineText;
+        property.display_order = 5747;
+        Salix::PropertyHandleLive handle(property, &element);
+        handle.set_value(Salix::PropertyValue{57});
+        handle.set_value(Salix::PropertyValue{47});
+        CHECK(handle.get_name() == "metadata5747");
+        CHECK(handle.get_type() == Salix::PropertyType::Int);
+        CHECK(handle.get_hint() == Salix::UIHint::MultilineText);
+        CHECK(handle.get_display_order() == 5747);
+        CHECK(std::get<int>(handle.get_value()) == 47);
+    }
+}
+
