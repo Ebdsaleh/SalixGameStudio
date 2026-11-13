@@ -1027,3 +1027,97 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch5747") {
+    TEST_CASE("batch5747 integer handle roundtrips minimum signed value") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Integer5747", Salix::PropertyType::Int), &node);
+        const int value = (std::numeric_limits<int>::min)();
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(node["Integer5747"].as<int>() == value);
+        CHECK(std::get<int>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 uint64 handle roundtrips maximum value") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Id5747", Salix::PropertyType::UInt64), &node);
+        const auto value = (std::numeric_limits<std::uint64_t>::max)();
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(node["Id5747"].as<std::uint64_t>() == value);
+        CHECK(std::get<std::uint64_t>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 float handle rejects mismatched integer write") {
+        YAML::Node node;
+        node["Float5747"] = 5.747f;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Float5747", Salix::PropertyType::Float), &node);
+        handle.set_value(Salix::PropertyValue{5747});
+        CHECK(node["Float5747"].as<float>() == doctest::Approx(5.747f));
+        CHECK(std::get<float>(handle.get_value()) == doctest::Approx(5.747f));
+    }
+
+    TEST_CASE("batch5747 Vector2 handle preserves signed components") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Vector25747", Salix::PropertyType::Vector2), &node);
+        const Salix::Vector2 value(-57.47f, 5.747f);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Vector2>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 Point handle preserves signed coordinates") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Point5747", Salix::PropertyType::Point), &node);
+        const Salix::Point value{-57, 47};
+        handle.set_value(Salix::PropertyValue{value});
+        const auto result = std::get<Salix::Point>(handle.get_value());
+        CHECK(result.x == -57);
+        CHECK(result.y == 47);
+    }
+
+    TEST_CASE("batch5747 Color handle preserves all channels") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Color5747", Salix::PropertyType::Color), &node);
+        const Salix::Color value(0.57f, 0.47f, 0.25f, 0.75f);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Color>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 Rect handle preserves signed geometry") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Rect5747", Salix::PropertyType::Rect), &node);
+        const Salix::Rect value(-57, 47, 574, 7);
+        handle.set_value(Salix::PropertyValue{value});
+        CHECK(std::get<Salix::Rect>(handle.get_value()) == value);
+    }
+
+    TEST_CASE("batch5747 matrix handle roundtrips selected components") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Matrix5747", Salix::PropertyType::GlmMat4), &node);
+        glm::mat4 value(1.0f);
+        value[0][1] = 5.747f;
+        value[3][2] = -57.47f;
+        handle.set_value(Salix::PropertyValue{value});
+        const auto result = std::get<glm::mat4>(handle.get_value());
+        CHECK(result[0][1] == doctest::Approx(5.747f));
+        CHECK(result[3][2] == doctest::Approx(-57.47f));
+    }
+
+    TEST_CASE("batch5747 plain enum handle preserves negative integer value") {
+        YAML::Node node;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Enum5747", Salix::PropertyType::Enum), &node);
+        handle.set_value(Salix::PropertyValue{-5747});
+        CHECK(node["Enum5747"].as<int>() == -5747);
+        CHECK(std::get<int>(handle.get_value()) == -5747);
+    }
+
+    TEST_CASE("batch5747 missing property read never creates requested YAML key") {
+        YAML::Node node;
+        node["Other5747"] = 47;
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Missing5747", Salix::PropertyType::String), &node);
+        const auto value = handle.get_value();
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+        CHECK_FALSE(node["Missing5747"]);
+        CHECK(node["Other5747"].as<int>() == 47);
+    }
+}
+
