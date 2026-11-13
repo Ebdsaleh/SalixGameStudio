@@ -1195,3 +1195,102 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch5947") {
     }
 }
 
+TEST_SUITE("Salix::reflection::ByteMirrorBatch6047") {
+    TEST_CASE("batch6047 reflected inherited name observes latest BoxCollider mutation") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        collider.set_name("Reflected6047");
+        const auto value = Salix::ByteMirror::get_property_value(&collider, "name");
+        REQUIRE(std::holds_alternative<std::string>(value));
+        CHECK(std::get<std::string>(value) == "Reflected6047");
+    }
+
+    TEST_CASE("batch6047 reflected inherited visibility observes both live states") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        collider.set_visibility(false);
+        auto value = Salix::ByteMirror::get_property_value(&collider, "visible");
+        REQUIRE(std::holds_alternative<bool>(value));
+        CHECK_FALSE(std::get<bool>(value));
+        collider.set_visibility(true);
+        value = Salix::ByteMirror::get_property_value(&collider, "visible");
+        CHECK(std::get<bool>(value));
+    }
+
+    TEST_CASE("batch6047 reflected inherited identifier exposes exact underlying value") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        collider.set_id(Salix::SimpleGuid::from_value(6047007ULL));
+        const auto value = Salix::ByteMirror::get_property_value(&collider, "id");
+        REQUIRE(std::holds_alternative<std::uint64_t>(value));
+        CHECK(std::get<std::uint64_t>(value) == 6047007ULL);
+    }
+
+    TEST_CASE("batch6047 reflected Sprite2D flip flag follows latest mutation") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Sprite2D sprite;
+        sprite.set_flip_h(true);
+        auto value = Salix::ByteMirror::get_property_value(&sprite, "flip_h");
+        REQUIRE(std::holds_alternative<bool>(value));
+        CHECK(std::get<bool>(value));
+        sprite.set_flip_h(false);
+        value = Salix::ByteMirror::get_property_value(&sprite, "flip_h");
+        CHECK_FALSE(std::get<bool>(value));
+    }
+
+    TEST_CASE("batch6047 reflected Sprite2D scalar properties remain independently typed") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Sprite2D sprite;
+        sprite.set_local_rotation(-60.47f);
+        sprite.set_sorting_layer(6047);
+        const auto rotation = Salix::ByteMirror::get_property_value(&sprite, "local_rotation");
+        const auto layer = Salix::ByteMirror::get_property_value(&sprite, "sorting_layer");
+        REQUIRE(std::holds_alternative<float>(rotation));
+        REQUIRE(std::holds_alternative<int>(layer));
+        CHECK(std::get<float>(rotation) == doctest::Approx(-60.47f));
+        CHECK(std::get<int>(layer) == 6047);
+    }
+
+    TEST_CASE("batch6047 reflected Camera projection mode exposes current enum integer") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        const auto value = Salix::ByteMirror::get_property_value(&camera, "projection_mode");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
+    TEST_CASE("batch6047 reflected Transform position follows complete signed mutation") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Transform transform;
+        transform.set_position(Salix::Vector3(-6.047f, 0.0f, 47.06f));
+        const auto value = Salix::ByteMirror::get_property_value(&transform, "position");
+        REQUIRE(std::holds_alternative<Salix::Vector3>(value));
+        CHECK(std::get<Salix::Vector3>(value) == Salix::Vector3(-6.047f, 0.0f, 47.06f));
+    }
+
+    TEST_CASE("batch6047 empty and unknown factory keys remain safely null") {
+        Salix::ByteMirror::register_all_types();
+        CHECK(Salix::ByteMirror::create_element_by_name("") == nullptr);
+        CHECK(Salix::ByteMirror::create_element_by_name("DefinitelyMissing6047") == nullptr);
+    }
+
+    TEST_CASE("batch6047 canonical factories create expected Transform and CppScript dynamic types") {
+        Salix::ByteMirror::register_all_types();
+        std::unique_ptr<Salix::Element> transform(Salix::ByteMirror::create_element_by_name("Transform"));
+        std::unique_ptr<Salix::Element> script(Salix::ByteMirror::create_element_by_name("CppScript"));
+        REQUIRE(transform != nullptr);
+        REQUIRE(script != nullptr);
+        CHECK(dynamic_cast<Salix::Transform*>(transform.get()) != nullptr);
+        CHECK(dynamic_cast<Salix::CppScript*>(script.get()) != nullptr);
+    }
+
+    TEST_CASE("batch6047 type and canonical name lookup resolve same Camera metadata") {
+        Salix::ByteMirror::register_all_types();
+        const auto* by_type = Salix::ByteMirror::get_type_info(typeid(Salix::Camera));
+        const auto* by_name = Salix::ByteMirror::get_type_info_by_name("Camera");
+        REQUIRE(by_type != nullptr);
+        REQUIRE(by_name != nullptr);
+        CHECK(by_type == by_name);
+    }
+}
