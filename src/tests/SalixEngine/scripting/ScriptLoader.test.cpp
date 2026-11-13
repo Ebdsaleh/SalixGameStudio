@@ -315,3 +315,90 @@ TEST_SUITE("Salix::scripting::ScriptLoaderBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::scripting::ScriptLoaderBatch6247") {
+    TEST_CASE("batch6247 whitespace only path remains a safe failed load") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("   ", context));
+    }
+
+    TEST_CASE("batch6247 missing parent traversal path remains false") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library(
+            "__batch6247_missing__/../still_missing6247.dll", context));
+    }
+
+    TEST_CASE("batch6247 missing path with mixed separators remains false") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library(
+            "__batch6247_missing__/nested\\plugin6247.dll", context));
+    }
+
+    TEST_CASE("batch6247 repeated empty path remains false across calls") {
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("", context));
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("", context));
+    }
+
+    TEST_CASE("batch6247 failed load preserves zero DPI and empty project path") {
+        Salix::InitContext context{};
+        context.dpi_scale = 0.0f;
+        context.project_dll_path.clear();
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch6247_missing_zero__.dll", context));
+        CHECK(context.dpi_scale == 0.0f);
+        CHECK(context.project_dll_path.empty());
+    }
+
+    TEST_CASE("batch6247 failed load preserves negative DPI and selected modes") {
+        Salix::InitContext context{};
+        context.dpi_scale = -6.247f;
+        context.engine_mode = Salix::EngineMode::Editor;
+        context.renderer_type = Salix::RendererType::None;
+        context.gui_type = Salix::GuiType::None;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch6247_missing_negative__.dll", context));
+        CHECK(context.dpi_scale == doctest::Approx(-6.247f));
+        CHECK(context.engine_mode == Salix::EngineMode::Editor);
+        CHECK(context.renderer_type == Salix::RendererType::None);
+        CHECK(context.gui_type == Salix::GuiType::None);
+    }
+
+    TEST_CASE("batch6247 two independent contexts preserve their own metadata after failures") {
+        Salix::InitContext first{};
+        Salix::InitContext second{};
+        first.dpi_scale = 6.247f;
+        first.project_dll_path = "First6247.dll";
+        second.dpi_scale = 4.726f;
+        second.project_dll_path = "Second6247.dll";
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch6247_missing_first__.dll", first));
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch6247_missing_second__.dll", second));
+        CHECK(first.project_dll_path == "First6247.dll");
+        CHECK(second.project_dll_path == "Second6247.dll");
+        CHECK(first.dpi_scale == doctest::Approx(6.247f));
+        CHECK(second.dpi_scale == doctest::Approx(4.726f));
+    }
+
+    TEST_CASE("batch6247 shutdown before and after failed load remains harmless") {
+        Salix::ScriptLoader loader;
+        Salix::InitContext context{};
+        CHECK_NOTHROW(loader.shutdown_plugin());
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch6247_missing_shutdown__.dll", context));
+        CHECK_NOTHROW(loader.shutdown_plugin());
+    }
+
+    TEST_CASE("batch6247 several loader shutdowns remain harmless around shared failure") {
+        Salix::ScriptLoader first, second, third;
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch6247_missing_shared__.dll", context));
+        CHECK_NOTHROW(first.shutdown_plugin());
+        CHECK_NOTHROW(second.shutdown_plugin());
+        CHECK_NOTHROW(third.shutdown_plugin());
+    }
+
+    TEST_CASE("batch6247 distinct missing paths remain false across shutdown boundary") {
+        Salix::ScriptLoader loader;
+        Salix::InitContext context{};
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch6247_missing_a__.dll", context));
+        loader.shutdown_plugin();
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library("__batch6247_missing_b__.dll", context));
+        loader.shutdown_plugin();
+    }
+}
