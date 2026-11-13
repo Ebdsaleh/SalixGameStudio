@@ -875,3 +875,98 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch5547") {
     }
 }
 
+TEST_SUITE("Salix::rendering::DummyCameraBatch5947") {
+    TEST_CASE("batch5947 constructor exposes identity matrices perspective mode and inactive state") {
+        Salix::DummyCamera camera;
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(10.0f));
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5947 zero orthographic size is stored exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(0.0f);
+        CHECK(camera.get_orthographic_size() == 0.0f);
+    }
+
+    TEST_CASE("batch5947 negative orthographic size is stored exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-59.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(-59.47f));
+    }
+
+    TEST_CASE("batch5947 repeated size replacement retains final value") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(1.0f);
+        camera.set_orthographic_size(-2.0f);
+        camera.set_orthographic_size(59.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(59.47f));
+    }
+
+    TEST_CASE("batch5947 explicit active setter alternates and retains final state") {
+        Salix::DummyCamera camera;
+        camera.set_is_active(true);
+        camera.set_is_active(false);
+        camera.set_is_active(true);
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5947 activate and deactivate remain idempotent") {
+        Salix::DummyCamera camera;
+        camera.activate();
+        camera.activate();
+        REQUIRE(camera.get_is_active());
+        camera.deactivate();
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch5947 projection mode setter preserves dummy perspective contract") {
+        Salix::DummyCamera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch5947 matrix references remain stable through scalar and activity changes") {
+        Salix::DummyCamera camera;
+        const auto* view = &camera.get_view_matrix();
+        const auto* projection = &camera.get_projection_matrix();
+        camera.set_orthographic_size(59.47f);
+        camera.activate();
+        camera.deactivate();
+        CHECK(&camera.get_view_matrix() == view);
+        CHECK(&camera.get_projection_matrix() == projection);
+        CHECK(*view == glm::mat4(1.0f));
+        CHECK(*projection == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch5947 separate cameras keep size and activity independent") {
+        Salix::DummyCamera first, second;
+        first.set_orthographic_size(59.0f);
+        first.activate();
+        second.set_orthographic_size(47.0f);
+        second.deactivate();
+        CHECK(first.get_orthographic_size() == doctest::Approx(59.0f));
+        CHECK(second.get_orthographic_size() == doctest::Approx(47.0f));
+        CHECK(first.get_is_active());
+        CHECK_FALSE(second.get_is_active());
+    }
+
+    TEST_CASE("batch5947 ICamera dispatch preserves dummy projection and activity behavior") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(5.947f);
+        camera.activate();
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(concrete.get_orthographic_size() == doctest::Approx(5.947f));
+        CHECK(camera.get_is_active());
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+}
+
