@@ -1155,3 +1155,79 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch5447") {
     }
 }
 
+TEST_SUITE("Salix::core::ValidationUtilsBatch5847") {
+    TEST_CASE("batch5847 strict string validation rejects empty and whitespace only values") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string(""));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string(" \t\n\r"));
+        CHECK(Salix::ValidationUtils::is_valid_string(" \tX\n"));
+    }
+
+    TEST_CASE("batch5847 allow flags independently control empty and whitespace only strings") {
+        CHECK(Salix::ValidationUtils::is_valid_string("", true, false));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string("   ", true, false));
+        CHECK(Salix::ValidationUtils::is_valid_string("   ", false, true));
+        CHECK(Salix::ValidationUtils::is_valid_string("", true, true));
+    }
+
+    TEST_CASE("batch5847 C string and generic pointer validators use pointer validity") {
+        const char* empty = "";
+        int value = 5847;
+        int* pointer = &value;
+        int* missing = nullptr;
+        CHECK(Salix::ValidationUtils::is_valid_c_str(empty));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_c_str(nullptr));
+        CHECK(Salix::ValidationUtils::is_valid_ptr(pointer));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_ptr(missing));
+    }
+
+    TEST_CASE("batch5847 signed primary validator accepts zero and max minus one only within policy") {
+        CHECK(Salix::ValidationUtils::is_valid_int(0));
+        CHECK(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int(-1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::max)()));
+    }
+
+    TEST_CASE("batch5847 fixed width signed validators reject negative values and maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_valid_int8_t(static_cast<int8_t>(58)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int8_t(static_cast<int8_t>(-1)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int16_t((std::numeric_limits<int16_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_int32_t(static_cast<int32_t>(5847)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int64_t(static_cast<int64_t>(-5847)));
+    }
+
+    TEST_CASE("batch5847 fixed width unsigned validators reserve maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_valid_uint8_t(static_cast<uint8_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint8_t((std::numeric_limits<uint8_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_uint32_t((std::numeric_limits<uint32_t>::max)() - 1));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint32_t((std::numeric_limits<uint32_t>::max)()));
+    }
+
+    TEST_CASE("batch5847 generic integral validator permits signed minimum but reserves maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_integral((std::numeric_limits<long long>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_integral((std::numeric_limits<long long>::max)()));
+    }
+
+    TEST_CASE("batch5847 floating validators accept finite signed zero and reject NaN") {
+        CHECK(Salix::ValidationUtils::is_valid_float(-0.0f));
+        CHECK(Salix::ValidationUtils::is_valid_double(5.847));
+        CHECK(Salix::ValidationUtils::is_valid_long_double(-7.485L));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_float((std::numeric_limits<float>::quiet_NaN)()));
+    }
+
+    TEST_CASE("batch5847 floating validators reject positive and negative infinity") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_floating_point(
+            (std::numeric_limits<double>::infinity)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_floating_point(
+            -(std::numeric_limits<double>::infinity)()));
+        CHECK(Salix::ValidationUtils::is_valid_floating_point(5.847));
+    }
+
+    TEST_CASE("batch5847 complex validators require both channels finite") {
+        CHECK(Salix::ValidationUtils::is_valid_complex_double({5.847, -7.485}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double(
+            {(std::numeric_limits<double>::infinity)(), 0.0}));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_double(
+            {0.0, (std::numeric_limits<double>::quiet_NaN)()}));
+    }
+}
+
