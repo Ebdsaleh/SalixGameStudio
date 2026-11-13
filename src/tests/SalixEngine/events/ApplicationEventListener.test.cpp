@@ -1227,16 +1227,16 @@ TEST_SUITE("Salix::events::ApplicationEventListenerBatch6047") {
         CHECK(resize.get_height() == 0);
     }
 
-    TEST_CASE("batch6047 negative resize values remain event local and do not stop engine") {
+    TEST_CASE("batch6047 large unsigned resize values remain event local and do not stop engine") {
         Salix::Engine engine;
         engine.is_running(true);
         Salix::ApplicationEventListener listener;
         REQUIRE(listener.initialize(&engine));
-        Salix::WindowResizeEvent resize(-60, -47);
+        Salix::WindowResizeEvent resize(4000000000u, 3000000000u);
         listener.on_event(resize);
         CHECK(engine.is_running());
-        CHECK(resize.get_width() == -60);
-        CHECK(resize.get_height() == -47);
+        CHECK(resize.get_width() == 4000000000u);
+        CHECK(resize.get_height() == 3000000000u);
     }
 
     TEST_CASE("batch6047 resize after close never restarts engine") {
