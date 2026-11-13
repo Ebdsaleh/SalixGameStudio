@@ -1155,3 +1155,127 @@ TEST_SUITE("Salix::events::ApplicationEventListenerBatch5947") {
     }
 }
 
+TEST_SUITE("Salix::events::ApplicationEventListenerBatch6047") {
+    TEST_CASE("batch6047 rejected null initialization can recover with later valid engine") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        CHECK_FALSE(listener.initialize(nullptr));
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch6047 repeated initialization with same engine remains functional") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch6047 retargeting back to first engine closes only final target") {
+        Salix::Engine first, second;
+        first.is_running(true);
+        second.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&first));
+        REQUIRE(listener.initialize(&second));
+        REQUIRE(listener.initialize(&first));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(first.is_running());
+        CHECK(second.is_running());
+    }
+
+    TEST_CASE("batch6047 close on already stopped engine remains safely stopped") {
+        Salix::Engine engine;
+        engine.is_running(false);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch6047 repeated close events leave engine stopped") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent first;
+        Salix::WindowCloseEvent second;
+        listener.on_event(first);
+        REQUIRE_FALSE(engine.is_running());
+        listener.on_event(second);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch6047 zero sized resize preserves running state and dimensions") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent resize(0, 0);
+        listener.on_event(resize);
+        CHECK(engine.is_running());
+        CHECK(resize.get_width() == 0);
+        CHECK(resize.get_height() == 0);
+    }
+
+    TEST_CASE("batch6047 negative resize values remain event local and do not stop engine") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent resize(-60, -47);
+        listener.on_event(resize);
+        CHECK(engine.is_running());
+        CHECK(resize.get_width() == -60);
+        CHECK(resize.get_height() == -47);
+    }
+
+    TEST_CASE("batch6047 resize after close never restarts engine") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        REQUIRE_FALSE(engine.is_running());
+        Salix::WindowResizeEvent resize(6047, 4706);
+        listener.on_event(resize);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch6047 prehandled resize retains handled flag and running state") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent resize(60, 47);
+        resize.handled = true;
+        listener.on_event(resize);
+        CHECK(resize.handled);
+        CHECK(engine.is_running());
+    }
+
+    TEST_CASE("batch6047 interface resize dispatch preserves engine mode and time scale") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_time_scale(6.047f);
+        Salix::ApplicationEventListener concrete;
+        REQUIRE(concrete.initialize(&engine));
+        Salix::IEventListener& listener = concrete;
+        Salix::WindowResizeEvent resize(640, 470);
+        listener.on_event(resize);
+        CHECK(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::Options);
+        CHECK(engine.get_time_scale() == doctest::Approx(6.047f));
+    }
+}
