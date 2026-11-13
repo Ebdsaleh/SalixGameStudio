@@ -1293,3 +1293,80 @@ TEST_SUITE("Salix::core::SimpleGuidBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::core::SimpleGuidBatch6247") {
+    TEST_CASE("batch6247 default invalid construction never consumes generator sequence") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid invalid;
+        REQUIRE_FALSE(invalid.is_valid());
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1ULL);
+    }
+
+    TEST_CASE("batch6247 invalid factory never consumes generator sequence") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        const auto invalid = Salix::SimpleGuid::invalid();
+        REQUIRE(invalid.get_value() == 0ULL);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1ULL);
+    }
+
+    TEST_CASE("batch6247 zero watermark leaves fresh generator at one") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(0);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1ULL);
+    }
+
+    TEST_CASE("batch6247 watermark one advances fresh generator to two") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        Salix::SimpleGuid::update_next_id(1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2ULL);
+    }
+
+    TEST_CASE("batch6247 lower watermark after generation leaves next consecutive value") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        REQUIRE(Salix::SimpleGuid::generate().get_value() == 1ULL);
+        Salix::SimpleGuid::update_next_id(1);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 2ULL);
+    }
+
+    TEST_CASE("batch6247 equal explicit identifiers are never ordered before each other") {
+        const auto a = Salix::SimpleGuid::from_value(6247);
+        const auto b = Salix::SimpleGuid::from_value(6247);
+        CHECK(a == b);
+        CHECK_FALSE(a < b);
+        CHECK_FALSE(b < a);
+    }
+
+    TEST_CASE("batch6247 hash specialization delegates exact underlying identifier value") {
+        const auto guid = Salix::SimpleGuid::from_value(62476247ULL);
+        CHECK(std::hash<Salix::SimpleGuid>{}(guid) ==
+              std::hash<std::uint64_t>{}(62476247ULL));
+    }
+
+    TEST_CASE("batch6247 copy assignment replaces value without touching generator") {
+        Salix::SimpleGuid::reset_counter_for_testing();
+        auto target = Salix::SimpleGuid::from_value(1);
+        target = Salix::SimpleGuid::from_value(6247);
+        CHECK(target.get_value() == 6247ULL);
+        CHECK(Salix::SimpleGuid::generate().get_value() == 1ULL);
+    }
+
+    TEST_CASE("batch6247 JSON archive preserves ordered pair of valid identifiers") {
+        const auto first = Salix::SimpleGuid::from_value(62);
+        const auto second = Salix::SimpleGuid::from_value(47);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(first, second); }
+        Salix::SimpleGuid restored_first, restored_second;
+        { cereal::JSONInputArchive in(stream); in(restored_first, restored_second); }
+        CHECK(restored_first == first);
+        CHECK(restored_second == second);
+    }
+
+    TEST_CASE("batch6247 binary archive preserves invalid sentinel exactly") {
+        const auto invalid = Salix::SimpleGuid::invalid();
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(invalid); }
+        Salix::SimpleGuid restored = Salix::SimpleGuid::from_value(6247);
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored == invalid);
+        CHECK_FALSE(restored.is_valid());
+    }
+}
