@@ -986,3 +986,102 @@ TEST_SUITE("Salix::management::ProjectManagerBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectManagerBatch6247") {
+    TEST_CASE("batch6247 project selection can be cleared without clearing loaded directory") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Selected6247.salixproj");
+        manager.set_loaded_project_directory("Root6247");
+        manager.set_project_to_load("");
+        CHECK(manager.get_project_to_load().empty());
+        CHECK(manager.get_loaded_project_directory() == "Root6247");
+    }
+
+    TEST_CASE("batch6247 loaded directory can be cleared without clearing project selection") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Selected6247.salixproj");
+        manager.set_loaded_project_directory("Root6247");
+        manager.set_loaded_project_directory("");
+        CHECK(manager.get_project_to_load() == "Selected6247.salixproj");
+        CHECK(manager.get_loaded_project_directory().empty());
+    }
+
+    TEST_CASE("batch6247 initialize with empty selections leaves them empty") {
+        Salix::ProjectManager manager;
+        Salix::InitContext context{};
+        manager.initialize(context);
+        CHECK(manager.get_project_to_load().empty());
+        CHECK(manager.get_loaded_project_directory().empty());
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch6247 no project update accepts zero and negative deltas safely") {
+        Salix::ProjectManager manager;
+        CHECK_NOTHROW(manager.update(0.0f));
+        CHECK_NOTHROW(manager.update(-62.47f));
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch6247 placeholder project supports repeated update and null render dispatch") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Ignored6247");
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK_NOTHROW(manager.update(0.0f));
+        CHECK_NOTHROW(manager.update(0.25f));
+        CHECK_NOTHROW(manager.render(nullptr));
+    }
+
+    TEST_CASE("batch6247 shutdown clears placeholder ownership but preserves both selections") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Keep6247.salixproj");
+        manager.set_loaded_project_directory("KeepRoot6247");
+        manager.set_active_project("Ignored6247");
+        manager.shutdown();
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(manager.get_project_to_load() == "Keep6247.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "KeepRoot6247");
+    }
+
+    TEST_CASE("batch6247 placeholder can be reacquired after shutdown") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("First6247");
+        REQUIRE(manager.get_active_project() != nullptr);
+        manager.shutdown();
+        REQUIRE(manager.get_active_project() == nullptr);
+        manager.set_active_project("Second6247");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        CHECK(active->get_name() == "TestProject");
+    }
+
+    TEST_CASE("batch6247 missing boolean load preserves existing placeholder ownership") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Keep6247");
+        auto* before = manager.get_active_project();
+        REQUIRE(before != nullptr);
+        CHECK_FALSE(manager.load_project("__batch6247_missing__/Missing6247.salixproj"));
+        CHECK(manager.get_active_project() == before);
+    }
+
+    TEST_CASE("batch6247 missing pointer load preserves existing placeholder ownership") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Keep6247");
+        auto* before = manager.get_active_project();
+        REQUIRE(before != nullptr);
+        CHECK(manager.load_project_from_file("__batch6247_missing__/Pointer6247.salixproj") == nullptr);
+        CHECK(manager.get_active_project() == before);
+    }
+
+    TEST_CASE("batch6247 temp project creation produces all canonical asset directories") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        const std::string name = "Demo_6247";
+        REQUIRE(manager.create_new_project(root.path.string(), name));
+        const auto project = root.path / name;
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Realms"));
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Scripts"));
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Images"));
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Audio"));
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Models"));
+        CHECK(std::filesystem::is_regular_file(project / (name + ".salixproj")));
+    }
+}
