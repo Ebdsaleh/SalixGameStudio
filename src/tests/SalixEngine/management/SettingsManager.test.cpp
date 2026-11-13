@@ -1428,3 +1428,124 @@ TEST_SUITE("Salix::management::SettingsManagerBatch5347") {
     }
 }
 
+TEST_SUITE("Salix::management::SettingsManagerBatch5747") {
+    TEST_CASE("batch5747 missing YAML preserves caller configuration and creates no cache") {
+        Batch3447SettingsFiles files("Batch5747_Missing");
+        std::filesystem::remove(files.yaml);
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Keep5747";
+        config.target_fps = 5747;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "Keep5747");
+        CHECK(config.target_fps == 5747);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        CHECK_FALSE(std::filesystem::exists(files.cache));
+    }
+
+    TEST_CASE("batch5747 partial Window title preserves caller dimensions") {
+        Batch3447SettingsFiles files("Batch5747_Window");
+        files.write_yaml("Window:\n  title: \"Loaded5747\"\n");
+        Salix::ApplicationConfig config;
+        config.window_config.width = 1574;
+        config.window_config.height = 747;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.window_config.title == "Loaded5747");
+        CHECK(config.window_config.width == 1574);
+        CHECK(config.window_config.height == 747);
+    }
+
+    TEST_CASE("batch5747 partial Engine target fps preserves initial state") {
+        Batch3447SettingsFiles files("Batch5747_Engine");
+        files.write_yaml("Engine:\n  target_fps: 347\n");
+        Salix::ApplicationConfig config;
+        config.initial_state = Salix::AppStateType::Options;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.target_fps == 347);
+        CHECK(config.initial_state == Salix::AppStateType::Options);
+    }
+
+    TEST_CASE("batch5747 OpenGL renderer load preserves unrelated timer choice") {
+        Batch3447SettingsFiles files("Batch5747_Renderer");
+        files.write_yaml("Renderer:\n  type: OpenGL\n");
+        Salix::ApplicationConfig config;
+        config.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch5747 GUI None load preserves caller numeric GUI settings") {
+        Batch3447SettingsFiles files("Batch5747_Gui");
+        files.write_yaml("GUI:\n  type: None\n");
+        Salix::ApplicationConfig config;
+        config.gui_settings.dialog_width_ratio = 0.5747f;
+        config.gui_settings.font_scaling = 1.747f;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.gui_type == Salix::GuiType::None);
+        CHECK(config.gui_settings.dialog_width_ratio == doctest::Approx(0.5747f));
+        CHECK(config.gui_settings.font_scaling == doctest::Approx(1.747f));
+    }
+
+    TEST_CASE("batch5747 Chrono timer load preserves unrelated renderer choice") {
+        Batch3447SettingsFiles files("Batch5747_Timer");
+        files.write_yaml("Timer:\n  type: Chrono\n");
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+    }
+
+    TEST_CASE("batch5747 save and load preserve whitespace rich window title") {
+        Batch3447SettingsFiles files("Batch5747_Title");
+        Salix::ApplicationConfig source;
+        source.window_config.title = "  Batch 5747\nSecond Line\t ";
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.title == source.window_config.title);
+    }
+
+    TEST_CASE("batch5747 save and load preserve explicit enum selections") {
+        Batch3447SettingsFiles files("Batch5747_Enums");
+        Salix::ApplicationConfig source;
+        source.initial_state = Salix::AppStateType::Options;
+        source.renderer_type = Salix::RendererType::OpenGL;
+        source.gui_type = Salix::GuiType::None;
+        source.timer_type = Salix::TimerType::Chrono;
+        source.target_fps = 5747;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig loaded;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.initial_state == Salix::AppStateType::Options);
+        CHECK(loaded.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(loaded.gui_type == Salix::GuiType::None);
+        CHECK(loaded.timer_type == Salix::TimerType::Chrono);
+        CHECK(loaded.target_fps == 5747);
+    }
+
+    TEST_CASE("batch5747 malformed YAML returns false without creating cache") {
+        Batch3447SettingsFiles files("Batch5747_Malformed");
+        files.write_yaml("Window: [unterminated\n");
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        CHECK_FALSE(manager.load_settings(files.yaml.string(), config));
+        CHECK_FALSE(std::filesystem::exists(files.cache));
+    }
+
+    TEST_CASE("batch5747 empty settings save path is rejected") {
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        CHECK_FALSE(manager.save_settings("", config));
+    }
+}
+
