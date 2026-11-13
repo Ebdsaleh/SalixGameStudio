@@ -1231,3 +1231,72 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::core::ValidationUtilsBatch6247") {
+    TEST_CASE("batch6247 type traits classify representative integral and floating types") {
+        CHECK(Salix::ValidationUtils::is_integral<int>());
+        CHECK(Salix::ValidationUtils::is_integral<std::uint64_t>());
+        CHECK_FALSE(Salix::ValidationUtils::is_integral<double>());
+        CHECK(Salix::ValidationUtils::is_floating_point<float>());
+        CHECK(Salix::ValidationUtils::is_floating_point<long double>());
+    }
+
+    TEST_CASE("batch6247 signed and unsigned traits classify representative integer types") {
+        CHECK(Salix::ValidationUtils::is_signed<int>());
+        CHECK_FALSE(Salix::ValidationUtils::is_unsigned<int>());
+        CHECK(Salix::ValidationUtils::is_unsigned<unsigned int>());
+        CHECK_FALSE(Salix::ValidationUtils::is_signed<unsigned int>());
+    }
+
+    TEST_CASE("batch6247 exact type checker decays const and reference qualifiers") {
+        const int value = 6247;
+        CHECK(Salix::ValidationUtils::is_type<int>(value));
+        CHECK(Salix::ValidationUtils::is_type<const int&>(value));
+        CHECK_FALSE(Salix::ValidationUtils::is_type<float>(value));
+    }
+
+    TEST_CASE("batch6247 signed bounds helper rejects both sentinels and accepts zero") {
+        CHECK_FALSE(Salix::ValidationUtils::is_within_bounds((std::numeric_limits<int>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_within_bounds((std::numeric_limits<int>::max)()));
+        CHECK(Salix::ValidationUtils::is_within_bounds(0));
+    }
+
+    TEST_CASE("batch6247 unsigned bounds helper reserves only maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_within_bounds_unsigned(0u));
+        CHECK(Salix::ValidationUtils::is_within_bounds_unsigned(
+            (std::numeric_limits<unsigned int>::max)() - 1u));
+        CHECK_FALSE(Salix::ValidationUtils::is_within_bounds_unsigned(
+            (std::numeric_limits<unsigned int>::max)()));
+    }
+
+    TEST_CASE("batch6247 generic integral validator permits signed minimum but rejects maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_integral((std::numeric_limits<long long>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_integral((std::numeric_limits<long long>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_integral(6247LL));
+    }
+
+    TEST_CASE("batch6247 not negative helper accepts zero and positive but rejects negative") {
+        CHECK(Salix::ValidationUtils::is_not_negative(0));
+        CHECK(Salix::ValidationUtils::is_not_negative(6247));
+        CHECK_FALSE(Salix::ValidationUtils::is_not_negative(-1));
+    }
+
+    TEST_CASE("batch6247 finite helper accepts subnormal floating value and rejects integral input") {
+        CHECK(Salix::ValidationUtils::is_finite((std::numeric_limits<double>::denorm_min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_finite(6247));
+    }
+
+    TEST_CASE("batch6247 complex finite helper rejects nonfinite real and imaginary channels") {
+        CHECK(Salix::ValidationUtils::is_finite_complex(std::complex<double>(6.247, -4.7)));
+        CHECK_FALSE(Salix::ValidationUtils::is_finite_complex(
+            std::complex<double>((std::numeric_limits<double>::infinity)(), 0.0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_finite_complex(
+            std::complex<double>(0.0, (std::numeric_limits<double>::quiet_NaN)())));
+    }
+
+    TEST_CASE("batch6247 named uint64 validator accepts max minus one and rejects maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_uint64_t(
+            (std::numeric_limits<std::uint64_t>::max)() - 1ULL));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint64_t(
+            (std::numeric_limits<std::uint64_t>::max)()));
+    }
+}
