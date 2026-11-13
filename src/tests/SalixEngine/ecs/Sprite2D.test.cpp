@@ -1718,7 +1718,7 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch5947") {
     TEST_CASE("batch5947 constructor exposes canonical visual and runtime defaults") {
         Salix::Sprite2D sprite;
         CHECK(sprite.get_color() == Salix::White);
-        CHECK(sprite.get_offset() == Salix::Vector2::Zero);
+        CHECK(sprite.get_offset() == Salix::Vector2(0.0f, 0.0f));
         CHECK(sprite.get_pivot() == Salix::Vector2(0.5f, 0.5f));
         CHECK_FALSE(sprite.get_flip_h());
         CHECK_FALSE(sprite.get_flip_v());
