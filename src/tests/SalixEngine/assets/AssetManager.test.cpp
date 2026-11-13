@@ -1125,3 +1125,141 @@ TEST_SUITE("Salix::assets::AssetManagerBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::assets::AssetManagerBatch5747") {
+    TEST_CASE("batch5747 fresh manager recovers after preinitialization miss") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/Fresh";
+        Salix::AssetManager assets;
+        CHECK(assets.get_texture("Assets/fresh.png") == nullptr);
+        CountingAssetRenderer renderer;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/fresh.png") != nullptr);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5747 cached texture survives renderer pointer being cleared") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/Cached";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* cached = assets.get_texture("Assets/cached.png");
+        REQUIRE(cached != nullptr);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("Assets/cached.png") == cached);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5747 uncached texture while renderer is null remains unavailable") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/NullRenderer";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        REQUIRE(assets.get_texture("Assets/cached.png") != nullptr);
+        assets.initialize(nullptr);
+        CHECK(assets.get_texture("Assets/missing.png") == nullptr);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5747 renderer replacement services only future uncached requests") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/ReplaceRenderer";
+        CountingAssetRenderer first, second;
+        Salix::AssetManager assets;
+        assets.initialize(&first);
+        auto* cached = assets.get_texture("Assets/first.png");
+        REQUIRE(cached != nullptr);
+        assets.initialize(&second);
+        CHECK(assets.get_texture("Assets/first.png") == cached);
+        REQUIRE(assets.get_texture("Assets/second.png") != nullptr);
+        CHECK(first.calls == 1);
+        CHECK(second.calls == 1);
+    }
+
+    TEST_CASE("batch5747 repeated failed request is never cached") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/Failure";
+        CountingAssetRenderer renderer;
+        renderer.should_texture_load_fail = true;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        CHECK(assets.get_texture("Assets/fail.png") == nullptr);
+        CHECK(assets.get_texture("Assets/fail.png") == nullptr);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch5747 successful retry after failure becomes cached") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/Retry";
+        CountingAssetRenderer renderer;
+        renderer.should_texture_load_fail = true;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        CHECK(assets.get_texture("Assets/retry.png") == nullptr);
+        renderer.should_texture_load_fail = false;
+        auto* recovered = assets.get_texture("Assets/retry.png");
+        REQUIRE(recovered != nullptr);
+        CHECK(assets.get_texture("Assets/retry.png") == recovered);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch5747 shutdown clears cache while retaining configured renderer") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/Shutdown";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("Assets/reload.png");
+        REQUIRE(first != nullptr);
+        assets.shutdown();
+        auto* second = assets.get_texture("Assets/reload.png");
+        REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch5747 complex lexical aliases share one cache key") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/Alias";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        auto* first = assets.get_texture("Assets/UI/Buttons/.././icon.png");
+        auto* second = assets.get_texture("Assets/UI/icon.png");
+        REQUIRE(first != nullptr);
+        CHECK(second == first);
+        CHECK(renderer.calls == 1);
+    }
+
+    TEST_CASE("batch5747 changing project root separates identical relative paths") {
+        Batch4347ProjectRootGuard guard;
+        CountingAssetRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::g_project_root_path = "C:/Batch5747/RootA";
+        auto* first = assets.get_texture("Assets/shared.png");
+        Salix::g_project_root_path = "C:/Batch5747/RootB";
+        auto* second = assets.get_texture("Assets/shared.png");
+        REQUIRE(first != nullptr);
+        REQUIRE(second != nullptr);
+        CHECK(first != second);
+        CHECK(renderer.calls == 2);
+    }
+
+    TEST_CASE("batch5747 separate managers never share texture ownership") {
+        Batch4347ProjectRootGuard guard;
+        Salix::g_project_root_path = "C:/Batch5747/Independent";
+        CountingAssetRenderer renderer;
+        Salix::AssetManager first, second;
+        first.initialize(&renderer);
+        second.initialize(&renderer);
+        auto* a = first.get_texture("Assets/shared.png");
+        auto* b = second.get_texture("Assets/shared.png");
+        REQUIRE(a != nullptr);
+        REQUIRE(b != nullptr);
+        CHECK(a != b);
+        CHECK(renderer.calls == 2);
+    }
+}
+
