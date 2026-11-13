@@ -927,3 +927,112 @@ TEST_SUITE("Salix::scripting::ScriptFactoryBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::scripting::ScriptFactoryBatch5647") {
+    TEST_CASE("batch5647 singleton identity remains stable across repeated access") {
+        auto& first = Salix::ScriptFactory::get();
+        auto& second = Salix::ScriptFactory::get();
+        auto& third = Salix::ScriptFactory::get();
+        CHECK(&first == &second);
+        CHECK(&second == &third);
+    }
+
+    TEST_CASE("batch5647 unique missing key returns null without preventing later registration") {
+        auto& factory = Salix::ScriptFactory::get();
+        CHECK(factory.create_script("Batch5647::Missing") == nullptr);
+        factory.register_script("Batch5647::AfterMissing", [] { return std::make_unique<Batch1047ScriptA>(); });
+        CHECK(factory.create_script("Batch5647::AfterMissing") != nullptr);
+    }
+
+    TEST_CASE("batch5647 registered creator returns requested concrete type") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch5647::Concrete", [] { return std::make_unique<Batch1047ScriptB>(); });
+        auto created = factory.create_script("Batch5647::Concrete");
+        REQUIRE(created != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(created.get()) != nullptr);
+    }
+
+    TEST_CASE("batch5647 repeated creation yields independent owned objects") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch5647::Independent", [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto first = factory.create_script("Batch5647::Independent");
+        auto second = factory.create_script("Batch5647::Independent");
+        REQUIRE(first != nullptr);
+        REQUIRE(second != nullptr);
+        CHECK(first.get() != second.get());
+    }
+
+    TEST_CASE("batch5647 registration defers creator execution until each request") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto calls = std::make_shared<int>(0);
+        factory.register_script("Batch5647::Deferred", [calls] {
+            ++*calls;
+            return std::make_unique<Batch1047ScriptA>();
+        });
+        CHECK(*calls == 0);
+        REQUIRE(factory.create_script("Batch5647::Deferred") != nullptr);
+        CHECK(*calls == 1);
+        REQUIRE(factory.create_script("Batch5647::Deferred") != nullptr);
+        CHECK(*calls == 2);
+    }
+
+    TEST_CASE("batch5647 creator replacement affects only future requests") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch5647::Replace", [] { return std::make_unique<Batch1047ScriptA>(); });
+        auto existing = factory.create_script("Batch5647::Replace");
+        REQUIRE(dynamic_cast<Batch1047ScriptA*>(existing.get()) != nullptr);
+        factory.register_script("Batch5647::Replace", [] { return std::make_unique<Batch1047ScriptB>(); });
+        auto future = factory.create_script("Batch5647::Replace");
+        REQUIRE(future != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(future.get()) != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(existing.get()) != nullptr);
+    }
+
+    TEST_CASE("batch5647 registration keys remain case sensitive") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch5647::Case", [] { return std::make_unique<Batch1047ScriptA>(); });
+        CHECK(factory.create_script("Batch5647::case") == nullptr);
+        CHECK(factory.create_script("BATCH5647::CASE") == nullptr);
+        CHECK(factory.create_script("Batch5647::Case") != nullptr);
+    }
+
+    TEST_CASE("batch5647 leading and trailing whitespace remain distinct keys") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script(" Batch5647::Space", [] { return std::make_unique<Batch1047ScriptA>(); });
+        factory.register_script("Batch5647::Space ", [] { return std::make_unique<Batch1047ScriptB>(); });
+        auto leading = factory.create_script(" Batch5647::Space");
+        auto trailing = factory.create_script("Batch5647::Space ");
+        REQUIRE(leading != nullptr);
+        REQUIRE(trailing != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptA*>(leading.get()) != nullptr);
+        CHECK(dynamic_cast<Batch1047ScriptB*>(trailing.get()) != nullptr);
+    }
+
+    TEST_CASE("batch5647 null returning creator is invoked independently for each request") {
+        auto& factory = Salix::ScriptFactory::get();
+        auto calls = std::make_shared<int>(0);
+        factory.register_script("Batch5647::Null", [calls]() -> std::unique_ptr<Salix::ScriptElement> {
+            ++*calls;
+            return nullptr;
+        });
+        CHECK(factory.create_script("Batch5647::Null") == nullptr);
+        CHECK(factory.create_script("Batch5647::Null") == nullptr);
+        CHECK(*calls == 2);
+    }
+
+    TEST_CASE("batch5647 creator may return fully configured script metadata") {
+        auto& factory = Salix::ScriptFactory::get();
+        factory.register_script("Batch5647::Configured", [] {
+            auto script = std::make_unique<Batch1047ScriptB>();
+            script->set_id(Salix::SimpleGuid::from_value(5647007ULL));
+            script->set_name("Configured5647");
+            script->set_visibility(false);
+            return script;
+        });
+        auto created = factory.create_script("Batch5647::Configured");
+        REQUIRE(created != nullptr);
+        CHECK(created->get_id().get_value() == 5647007ULL);
+        CHECK(created->get_name() == "Configured5647");
+        CHECK_FALSE(created->is_visible());
+    }
+}
+
