@@ -779,3 +779,102 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch6247") {
+    TEST_CASE("batch6247 testing context accessor matches current fixture context") {
+        InputManagerContext fixture;
+        CHECK(Salix::ImGuiInputManager::get_context_for_testing() == ImGui::GetCurrentContext());
+    }
+
+    TEST_CASE("batch6247 update with zero and positive delta leaves wheel unchanged") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = 6.247f;
+        manager.update(0.0f);
+        manager.update(1.0f);
+        CHECK(manager.get_mouse_scroll_delta() == doctest::Approx(6.247f));
+    }
+
+    TEST_CASE("batch6247 process event preserves false and true handled states") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        Salix::MockEvent event;
+        manager.process_event(event);
+        CHECK_FALSE(event.handled);
+        event.handled = true;
+        manager.process_event(event);
+        CHECK(event.handled);
+    }
+
+    TEST_CASE("batch6247 invalid key enum remains inactive and considered up") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const auto invalid = static_cast<Salix::KeyCode>(6247);
+        CHECK_FALSE(manager.is_down(invalid));
+        CHECK_FALSE(manager.is_held_down(invalid));
+        CHECK_FALSE(manager.was_released(invalid));
+        CHECK(manager.is_up(invalid));
+    }
+
+    TEST_CASE("batch6247 invalid mouse enum remains inactive and considered up") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const auto invalid = static_cast<Salix::MouseButton>(6247);
+        CHECK_FALSE(manager.is_down(invalid));
+        CHECK_FALSE(manager.is_held_down(invalid));
+        CHECK_FALSE(manager.was_released(invalid));
+        CHECK(manager.is_up(invalid));
+    }
+
+    TEST_CASE("batch6247 one invalid key combo follows vacuous invalid mapping semantics") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::KeyCode> keys{static_cast<Salix::KeyCode>(6247)};
+        CHECK_FALSE(manager.multiple_are_down(keys));
+        CHECK_FALSE(manager.multiple_are_held_down(keys));
+        CHECK_FALSE(manager.multiple_were_released(keys));
+        CHECK(manager.multiple_are_up(keys));
+        CHECK_FALSE(manager.any_of_combo_was_released(keys));
+    }
+
+    TEST_CASE("batch6247 one invalid mouse combo follows invalid mapping semantics") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::MouseButton> buttons{static_cast<Salix::MouseButton>(6247)};
+        CHECK_FALSE(manager.multiple_are_down(buttons));
+        CHECK_FALSE(manager.multiple_are_held_down(buttons));
+        CHECK_FALSE(manager.multiple_were_released(buttons));
+        CHECK(manager.multiple_are_up(buttons));
+        CHECK_FALSE(manager.any_of_combo_was_released(buttons));
+    }
+
+    TEST_CASE("batch6247 infinite wheel signs map to forward and backward directions") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MouseWheel = (std::numeric_limits<float>::infinity)();
+        CHECK(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Backward));
+        ImGui::GetIO().MouseWheel = -(std::numeric_limits<float>::infinity)();
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK(manager.did_scroll(Salix::MouseScroll::Backward));
+    }
+
+    TEST_CASE("batch6247 mouse position truncates large signed fractions toward zero") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().MousePos = ImVec2(6247.99f, -4726.99f);
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(x == 6247);
+        CHECK(y == -4726);
+    }
+
+    TEST_CASE("batch6247 separate managers observe identical shared IO wheel value") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager first, second;
+        ImGui::GetIO().MouseWheel = -0.6247f;
+        CHECK(first.get_mouse_scroll_delta() == doctest::Approx(-0.6247f));
+        CHECK(second.get_mouse_scroll_delta() == doctest::Approx(-0.6247f));
+        CHECK_FALSE(first.wants_to_quit());
+        CHECK_FALSE(second.wants_to_quit());
+    }
+}
