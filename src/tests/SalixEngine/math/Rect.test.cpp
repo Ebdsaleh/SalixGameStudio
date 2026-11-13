@@ -1088,3 +1088,73 @@ TEST_SUITE("Salix::math::RectBatch5447") {
     }
 }
 
+TEST_SUITE("Salix::math::RectBatch5847") {
+    TEST_CASE("batch5847 default aliases initialize all components to zero") {
+        CHECK(Salix::RectI() == Salix::RectI(0, 0, 0, 0));
+        CHECK(Salix::RectF() == Salix::RectF(0.0f, 0.0f, 0.0f, 0.0f));
+        CHECK(Salix::RectD() == Salix::RectD(0.0, 0.0, 0.0, 0.0));
+    }
+
+    TEST_CASE("batch5847 signed integer components are stored verbatim") {
+        const Salix::RectI r(-58, 47, -5847, 7485);
+        CHECK(r.x == -58);
+        CHECK(r.y == 47);
+        CHECK(r.w == -5847);
+        CHECK(r.h == 7485);
+    }
+
+    TEST_CASE("batch5847 mixed floating construction truncates integer components toward zero") {
+        const Salix::RectI r(-58.9, 47.9, -5.847, 7.485);
+        CHECK(r == Salix::RectI(-58, 47, -5, 7));
+    }
+
+    TEST_CASE("batch5847 float to integer conversion truncates every component toward zero") {
+        const Salix::RectF source(-5.9f, 8.9f, -4.1f, 7.8f);
+        const Salix::RectI converted(source);
+        CHECK(converted == Salix::RectI(-5, 8, -4, 7));
+    }
+
+    TEST_CASE("batch5847 integer to double conversion preserves integral values exactly") {
+        const Salix::RectI source(-5847, 7485, 0, 1);
+        const Salix::RectD converted(source);
+        CHECK(converted == Salix::RectD(-5847.0, 7485.0, 0.0, 1.0));
+    }
+
+    TEST_CASE("batch5847 equality and inequality inspect every component") {
+        const Salix::RectI base(1, 2, 3, 4);
+        CHECK(base == Salix::RectI(1, 2, 3, 4));
+        CHECK(base != Salix::RectI(9, 2, 3, 4));
+        CHECK(base != Salix::RectI(1, 2, 3, 9));
+    }
+
+    TEST_CASE("batch5847 copy remains independent after source mutation") {
+        Salix::RectF source(-5.0f, 8.0f, -4.0f, 7.0f);
+        const Salix::RectF copy(source);
+        source.x = 99.0f;
+        source.w = 100.0f;
+        CHECK(copy == Salix::RectF(-5.0f, 8.0f, -4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5847 self assignment preserves complete value") {
+        Salix::RectD r(-5.847, 7.485, -58.0, 47.0);
+        r = r;
+        CHECK(r == Salix::RectD(-5.847, 7.485, -58.0, 47.0));
+    }
+
+    TEST_CASE("batch5847 JSON archive roundtrip preserves negative extents") {
+        const Salix::RectI original(-58, 47, -5847, -7485);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::RectI restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch5847 ostream preserves canonical component labels and order") {
+        const Salix::RectD r(-5.5, 8.25, -4.0, 7.75);
+        std::stringstream stream;
+        stream << r;
+        CHECK(stream.str() == "{ x: -5.5, y: 8.25, w: -4, h: 7.75 }");
+    }
+}
+
