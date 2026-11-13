@@ -1152,3 +1152,91 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch5547") {
     }
 }
 
+TEST_SUITE("Salix::ecs::BoxColliderBatch5947") {
+    TEST_CASE("batch5947 constructor preserves canonical identity and unit size") {
+        Salix::BoxCollider collider;
+        CHECK(std::string(collider.get_class_name()) == "BoxCollider");
+        CHECK(collider.get_name() == "BoxCollider");
+        CHECK(collider.get_size() == Salix::Vector3::One);
+    }
+
+    TEST_CASE("batch5947 zero size assignment is stored exactly") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3::Zero);
+        CHECK(collider.get_size() == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch5947 mixed signed size assignment preserves each axis") {
+        Salix::BoxCollider collider;
+        collider.set_size({-59.0f, 47.0f, -5.947f});
+        CHECK(collider.get_size() == Salix::Vector3(-59.0f, 47.0f, -5.947f));
+    }
+
+    TEST_CASE("batch5947 repeated size replacement retains only final geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({1.0f, 2.0f, 3.0f});
+        collider.set_size({4.0f, 5.0f, 6.0f});
+        collider.set_size({59.0f, 47.0f, 7.0f});
+        CHECK(collider.get_size() == Salix::Vector3(59.0f, 47.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5947 initialize never rewrites assigned geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size({5.947f, -7.495f, 0.25f});
+        collider.initialize();
+        CHECK(collider.get_size() == Salix::Vector3(5.947f, -7.495f, 0.25f));
+    }
+
+    TEST_CASE("batch5947 positive and negative updates remain geometry neutral") {
+        Salix::BoxCollider collider;
+        collider.set_size({59.47f, -4.0f, 7.0f});
+        collider.update(59.47f);
+        collider.update(-59.47f);
+        CHECK(collider.get_size() == Salix::Vector3(59.47f, -4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5947 null renderer load preserves metadata and geometry") {
+        Salix::BoxCollider collider;
+        collider.set_name("Collider5947");
+        collider.set_size({5.0f, 9.0f, 47.0f});
+        Salix::InitContext context{};
+        collider.on_load(context);
+        CHECK(collider.get_name() == "Collider5947");
+        CHECK(collider.get_size() == Salix::Vector3(5.0f, 9.0f, 47.0f));
+    }
+
+    TEST_CASE("batch5947 identifier and visibility changes are geometry independent") {
+        Salix::BoxCollider collider;
+        collider.set_size({59.0f, 4.0f, 7.0f});
+        collider.set_id(Salix::SimpleGuid::from_value(5947001ULL));
+        collider.set_visibility(false);
+        CHECK(collider.get_id().get_value() == 5947001ULL);
+        CHECK_FALSE(collider.is_visible());
+        CHECK(collider.get_size() == Salix::Vector3(59.0f, 4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch5947 JSON roundtrip preserves name and geometry") {
+        Salix::BoxCollider source;
+        source.set_name("Serialized5947");
+        source.set_size({-5.947f, 7.495f, 0.125f});
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name() == "Serialized5947");
+        CHECK(restored.get_size() == Salix::Vector3(-5.947f, 7.495f, 0.125f));
+    }
+
+    TEST_CASE("batch5947 separate colliders retain independent geometry and metadata") {
+        Salix::BoxCollider first, second;
+        first.set_name("First5947");
+        first.set_size({1.0f, 2.0f, 3.0f});
+        second.set_name("Second5947");
+        second.set_size({4.0f, 5.0f, 6.0f});
+        CHECK(first.get_name() == "First5947");
+        CHECK(second.get_name() == "Second5947");
+        CHECK(first.get_size() == Salix::Vector3(1.0f, 2.0f, 3.0f));
+        CHECK(second.get_size() == Salix::Vector3(4.0f, 5.0f, 6.0f));
+    }
+}
+
