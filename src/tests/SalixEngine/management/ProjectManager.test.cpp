@@ -889,3 +889,100 @@ TEST_SUITE("Salix::management::ProjectManagerBatch5347") {
     }
 }
 
+TEST_SUITE("Salix::management::ProjectManagerBatch5847") {
+    TEST_CASE("batch5847 fresh manager starts without ownership or selection metadata") {
+        Salix::ProjectManager manager;
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(manager.get_project_to_load().empty());
+        CHECK(manager.get_loaded_project_directory().empty());
+    }
+
+    TEST_CASE("batch5847 project and directory selections replace independently") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("First5847.salixproj");
+        manager.set_loaded_project_directory("RootA5847");
+        manager.set_project_to_load("Second5847.salixproj");
+        CHECK(manager.get_project_to_load() == "Second5847.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "RootA5847");
+        manager.set_loaded_project_directory("RootB5847");
+        CHECK(manager.get_loaded_project_directory() == "RootB5847");
+    }
+
+    TEST_CASE("batch5847 selection metadata preserves embedded null bytes") {
+        Salix::ProjectManager manager;
+        const std::string project("Project\0File5847", 16);
+        const std::string directory("Root\0Dir5847", 12);
+        manager.set_project_to_load(project);
+        manager.set_loaded_project_directory(directory);
+        CHECK(manager.get_project_to_load() == project);
+        CHECK(manager.get_loaded_project_directory() == directory);
+    }
+
+    TEST_CASE("batch5847 initialize preserves existing selection metadata") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Selected5847.salixproj");
+        manager.set_loaded_project_directory("SelectedRoot5847");
+        Salix::InitContext context{};
+        CHECK_NOTHROW(manager.initialize(context));
+        CHECK(manager.get_project_to_load() == "Selected5847.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "SelectedRoot5847");
+    }
+
+    TEST_CASE("batch5847 placeholder active project retains documented defaults") {
+        Salix::ProjectManager manager;
+        manager.set_active_project("Ignored5847");
+        auto* active = manager.get_active_project();
+        REQUIRE(active != nullptr);
+        CHECK(active->get_name() == "TestProject");
+        CHECK(active->get_path() == "Sandbox/TestProject");
+        CHECK(active->get_project_file_name() == "TestProject.salixproj");
+    }
+
+    TEST_CASE("batch5847 replacing placeholder does not alter selection metadata") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Keep5847.salixproj");
+        manager.set_loaded_project_directory("KeepRoot5847");
+        manager.set_active_project("First5847");
+        manager.set_active_project("Second5847");
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_project_to_load() == "Keep5847.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "KeepRoot5847");
+    }
+
+    TEST_CASE("batch5847 shutdown remains idempotent and preserves selections") {
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending5847.salixproj");
+        manager.set_loaded_project_directory("PendingRoot5847");
+        manager.set_active_project("Owned5847");
+        manager.shutdown();
+        manager.shutdown();
+        CHECK(manager.get_active_project() == nullptr);
+        CHECK(manager.get_project_to_load() == "Pending5847.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "PendingRoot5847");
+    }
+
+    TEST_CASE("batch5847 missing boolean project load fails without ownership") {
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.load_project("__batch5847_missing__/Missing5847.salixproj"));
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch5847 missing pointer project load returns null without ownership") {
+        Salix::ProjectManager manager;
+        CHECK(manager.load_project_from_file("__batch5847_missing__/Pointer5847.salixproj") == nullptr);
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch5847 temp project creation produces canonical core layout") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        const std::string name = "Demo_5847";
+        REQUIRE(manager.create_new_project(root.path.string(), name));
+        const auto project = root.path / name;
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Realms"));
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Scripts"));
+        CHECK(std::filesystem::is_directory(project / "Assets" / "Audio"));
+        CHECK(std::filesystem::is_regular_file(project / (name + ".salixproj")));
+    }
+}
+
