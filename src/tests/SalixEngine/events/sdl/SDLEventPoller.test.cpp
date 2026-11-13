@@ -830,3 +830,137 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch5347") {
     }
 }
 
+TEST_SUITE("Salix::events::SDLEventPollerBatch5847") {
+    TEST_CASE("batch5847 callback handles continue monotonically after multiple unregisters") {
+        Salix::SDLEventPoller poller;
+        const auto a = poller.register_raw_event_callback([](void*) {});
+        const auto b = poller.register_raw_event_callback([](void*) {});
+        poller.unregister_raw_event_callback(a);
+        poller.unregister_raw_event_callback(b);
+        const auto c = poller.register_raw_event_callback([](void*) {});
+        CHECK(a == 1);
+        CHECK(b == 2);
+        CHECK(c == 3);
+    }
+
+    TEST_CASE("batch5847 unregistering unknown large handle is harmless") {
+        Salix::SDLEventPoller poller;
+        CHECK_NOTHROW(poller.unregister_raw_event_callback(
+            static_cast<Salix::RawEventCallbackHandle>(5847000ULL)));
+        CHECK(poller.register_raw_event_callback([](void*) {}) == 1);
+    }
+
+    TEST_CASE("batch5847 empty callback followed by live callback preserves handle sequence") {
+        Salix::SDLEventPoller poller;
+        Salix::RawEventCallback empty{};
+        CHECK(poller.register_raw_event_callback(empty) == 1);
+        CHECK(poller.register_raw_event_callback([](void*) {}) == 2);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5847 text input remains raw only") {
+        Salix::SDLEventPoller poller;
+        int raw = 0;
+        int processed = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event event{};
+        event.type = SDL_TEXTINPUT;
+        event.text.text[0] = 'X';
+        event.text.text[1] = '\0';
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++processed; });
+        CHECK(raw == 1);
+        CHECK(processed == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5847 size changed converts exact dimensions") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{};
+        event.type = SDL_WINDOWEVENT;
+        event.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+        event.window.data1 = 5847;
+        event.window.data2 = 7485;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        int calls = 0;
+        poller.poll_events([&](Salix::IEvent& translated) {
+            ++calls;
+            auto* resize = dynamic_cast<Salix::WindowResizeEvent*>(&translated);
+            REQUIRE(resize != nullptr);
+            CHECK(resize->get_width() == 5847u);
+            CHECK(resize->get_height() == 7485u);
+        });
+        CHECK(calls == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5847 keydown preserves key and repeat state") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{};
+        event.type = SDL_KEYDOWN;
+        event.key.keysym.sym = SDLK_5;
+        event.key.repeat = 1;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& translated) {
+            auto* key = dynamic_cast<Salix::KeyPressedEvent*>(&translated);
+            REQUIRE(key != nullptr);
+            CHECK(key->get_key_code() == SDLK_5);
+            CHECK(key->was_repeated());
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5847 mouse motion preserves negative and positive coordinates") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{};
+        event.type = SDL_MOUSEMOTION;
+        event.motion.x = -5847;
+        event.motion.y = 7485;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& translated) {
+            auto* moved = dynamic_cast<Salix::MouseMovedEvent*>(&translated);
+            REQUIRE(moved != nullptr);
+            CHECK(moved->get_x() == doctest::Approx(-5847.0f));
+            CHECK(moved->get_y() == doctest::Approx(7485.0f));
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5847 mouse wheel preserves both signed axes") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{};
+        event.type = SDL_MOUSEWHEEL;
+        event.wheel.x = 58;
+        event.wheel.y = -47;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& translated) {
+            auto* wheel = dynamic_cast<Salix::MouseScrolledEvent*>(&translated);
+            REQUIRE(wheel != nullptr);
+            CHECK(wheel->get_x_offset() == doctest::Approx(58.0f));
+            CHECK(wheel->get_y_offset() == doctest::Approx(-47.0f));
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5847 unregistering one of three callbacks preserves remaining two") {
+        Salix::SDLEventPoller poller;
+        int a = 0, b = 0, c = 0;
+        poller.register_raw_event_callback([&](void*) { ++a; });
+        const auto remove = poller.register_raw_event_callback([&](void*) { ++b; });
+        poller.register_raw_event_callback([&](void*) { ++c; });
+        poller.unregister_raw_event_callback(remove);
+        SDL_Event event{}; event.type = SDL_USEREVENT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([](Salix::IEvent&) {});
+        CHECK(a == 1);
+        CHECK(b == 0);
+        CHECK(c == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch5847 raw callback still precedes translated quit dispatch") {
+        Salix::SDLEventPoller poller;
+        std::vector<int> order;
+        poller.register_raw_event_callback([&](void*) { order.push_back(1); });
+        SDL_Event event{}; event.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { order.push_back(2); });
+        REQUIRE(order.size() == 2);
+        CHECK(order[0] == 1);
+        CHECK(order[1] == 2);
+    }
+}
+
