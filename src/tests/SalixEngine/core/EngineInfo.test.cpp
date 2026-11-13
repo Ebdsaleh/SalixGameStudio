@@ -267,3 +267,64 @@ TEST_SUITE("Salix::core::EngineInfoBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::core::EngineInfoBatch5647") {
+    TEST_CASE("batch5647 compatibility token remains exact public value") {
+        CHECK(Salix::EngineInfo::get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch5647 compatibility token length remains eleven bytes") {
+        CHECK(Salix::EngineInfo::get_engine_version().size() == 11);
+    }
+
+    TEST_CASE("batch5647 punctuation remains at semantic version boundaries") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        REQUIRE(version.size() == 11);
+        CHECK(version[1] == '.');
+        CHECK(version[3] == '.');
+        CHECK(version[5] == '-');
+    }
+
+    TEST_CASE("batch5647 semantic core remains zero one zero") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(version.substr(0, 5) == "0.1.0");
+    }
+
+    TEST_CASE("batch5647 prerelease suffix remains Alpha") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(version.substr(6) == "Alpha");
+    }
+
+    TEST_CASE("batch5647 accessor returns exported static version object by reference") {
+        CHECK(&Salix::EngineInfo::get_engine_version() == &Salix::EngineInfo::version_id);
+    }
+
+    TEST_CASE("batch5647 repeated access shares exact character storage") {
+        const auto& first = Salix::EngineInfo::get_engine_version();
+        const auto& second = Salix::EngineInfo::get_engine_version();
+        CHECK(first.data() == second.data());
+        CHECK(first.c_str() == second.c_str());
+    }
+
+    TEST_CASE("batch5647 mutable replacement of copied token never affects static version") {
+        std::string copy = Salix::EngineInfo::get_engine_version();
+        copy.replace(0, 5, "9.9.9");
+        CHECK(copy == "9.9.9-Alpha");
+        CHECK(Salix::EngineInfo::get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch5647 version contains no whitespace or path delimiter characters") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(version.find_first_of(" \t\r\n/\\:") == std::string::npos);
+    }
+
+    TEST_CASE("batch5647 numeric and alphabetic character counts remain stable") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        const auto digits = std::count_if(version.begin(), version.end(), [](char ch) { return ch >= '0' && ch <= '9'; });
+        const auto letters = std::count_if(version.begin(), version.end(), [](char ch) {
+            return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+        });
+        CHECK(digits == 3);
+        CHECK(letters == 5);
+    }
+}
+
