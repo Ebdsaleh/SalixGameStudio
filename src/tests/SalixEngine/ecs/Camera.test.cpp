@@ -1210,3 +1210,115 @@ TEST_SUITE("Salix::ecs::CameraBatch6047") {
         CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
     }
 }
+
+TEST_SUITE("Salix::ecs::CameraBatch6147") {
+    TEST_CASE("batch6147 explicit active setter roundtrips without changing field of view") {
+        Salix::Camera camera;
+        camera.set_field_of_view(61.47f);
+        camera.set_is_active(true);
+        REQUIRE(camera.get_is_active());
+        camera.set_is_active(false);
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(camera.get_field_of_view() == doctest::Approx(61.47f));
+    }
+
+    TEST_CASE("batch6147 projection mode changes preserve every scalar setting") {
+        Salix::Camera camera;
+        camera.set_field_of_view(61.0f);
+        camera.set_orthographic_size(47.0f);
+        camera.set_near_clip(0.25f);
+        camera.set_far_clip(6147.0f);
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_field_of_view() == doctest::Approx(61.0f));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(47.0f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.25f));
+        CHECK(camera.get_far_clip() == doctest::Approx(6147.0f));
+    }
+
+    TEST_CASE("batch6147 perspective field of view mutation changes projection matrix") {
+        Salix::Camera camera;
+        camera.set_viewport_size(1600, 900);
+        camera.set_field_of_view(45.0f);
+        const glm::mat4 before = camera.get_projection_matrix();
+        camera.set_field_of_view(61.0f);
+        const glm::mat4 after = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch6147 perspective near clip mutation changes projection matrix") {
+        Salix::Camera camera;
+        camera.set_viewport_size(1600, 900);
+        camera.set_near_clip(0.1f);
+        const glm::mat4 before = camera.get_projection_matrix();
+        camera.set_near_clip(1.0f);
+        const glm::mat4 after = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch6147 perspective far clip mutation changes projection matrix") {
+        Salix::Camera camera;
+        camera.set_viewport_size(1600, 900);
+        camera.set_far_clip(1000.0f);
+        const glm::mat4 before = camera.get_projection_matrix();
+        camera.set_far_clip(6147.0f);
+        const glm::mat4 after = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch6147 orthographic size mutation changes orthographic projection") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_viewport_size(800, 600);
+        camera.set_orthographic_size(10.0f);
+        const glm::mat4 before = camera.get_projection_matrix();
+        camera.set_orthographic_size(61.47f);
+        const glm::mat4 after = camera.get_projection_matrix();
+        CHECK(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch6147 repeated identical viewport assignment preserves projection values") {
+        Salix::Camera camera;
+        camera.set_viewport_size(1024, 768);
+        const glm::mat4 first = camera.get_projection_matrix();
+        camera.set_viewport_size(1024, 768);
+        const glm::mat4 second = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(first, second));
+    }
+
+    TEST_CASE("batch6147 owner position replacement changes view matrix") {
+        Salix::Entity entity;
+        Salix::Camera camera;
+        camera.set_owner(&entity);
+        entity.get_transform()->set_position(1.0f, 2.0f, 3.0f);
+        const glm::mat4 first = camera.get_view_matrix();
+        entity.get_transform()->set_position(-6.0f, 14.0f, -7.0f);
+        const glm::mat4 second = camera.get_view_matrix();
+        CHECK(batch1247_matrix_differs(first, second));
+    }
+
+    TEST_CASE("batch6147 ownerless updates preserve identity view matrix") {
+        Salix::Camera camera;
+        camera.activate();
+        camera.update(0.0f);
+        camera.update(61.47f);
+        CHECK(camera.get_transform() == nullptr);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch6147 mutating one camera leaves a fresh camera at canonical defaults") {
+        Salix::Camera mutated, fresh;
+        mutated.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        mutated.set_field_of_view(61.0f);
+        mutated.set_orthographic_size(47.0f);
+        mutated.set_near_clip(1.0f);
+        mutated.set_far_clip(6147.0f);
+        mutated.activate();
+        CHECK(fresh.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(fresh.get_field_of_view() == doctest::Approx(45.0f));
+        CHECK(fresh.get_orthographic_size() == doctest::Approx(10.0f));
+        CHECK(fresh.get_near_clip() == doctest::Approx(0.1f));
+        CHECK(fresh.get_far_clip() == doctest::Approx(1000.0f));
+        CHECK_FALSE(fresh.get_is_active());
+    }
+}
