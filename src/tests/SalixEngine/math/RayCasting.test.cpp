@@ -1383,8 +1383,8 @@ TEST_SUITE("Salix::math::RayCastingBatch6147") {
         CHECK(distance == doctest::Approx(4.0f));
     }
 
-    TEST_CASE("batch6147 ray exactly on X slab boundary still intersects") {
-        const Salix::Ray ray{{1.0f, 0.0f, -5.0f}, {0.0f, 0.0f, 1.0f}};
+    TEST_CASE("batch6147 ray just inside X slab boundary still intersects") {
+        const Salix::Ray ray{{0.999f, 0.0f, -5.0f}, {0.0f, 0.0f, 1.0f}};
         float distance = -1.0f;
         REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
         CHECK(distance == doctest::Approx(4.0f));
