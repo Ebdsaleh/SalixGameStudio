@@ -970,3 +970,92 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch5947") {
     }
 }
 
+TEST_SUITE("Salix::rendering::DummyCameraBatch6047") {
+    TEST_CASE("batch6047 signed size replacements retain final zero exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(60.47f);
+        camera.set_orthographic_size(-47.06f);
+        camera.set_orthographic_size(0.0f);
+        CHECK(camera.get_orthographic_size() == 0.0f);
+    }
+
+    TEST_CASE("batch6047 explicit inactive setter overrides prior activation") {
+        Salix::DummyCamera camera;
+        camera.activate();
+        REQUIRE(camera.get_is_active());
+        camera.set_is_active(false);
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch6047 activate overrides prior explicit inactive state") {
+        Salix::DummyCamera camera;
+        camera.set_is_active(false);
+        camera.activate();
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch6047 deactivate overrides prior explicit active state") {
+        Salix::DummyCamera camera;
+        camera.set_is_active(true);
+        REQUIRE(camera.get_is_active());
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch6047 repeated ignored orthographic projection requests remain perspective") {
+        Salix::DummyCamera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6047 size changes never modify identity matrices") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(6.047f);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+        camera.set_orthographic_size(-60.47f);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch6047 activity changes never modify configured orthographic size") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(47.06f);
+        camera.activate();
+        camera.deactivate();
+        camera.set_is_active(true);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(47.06f));
+    }
+
+    TEST_CASE("batch6047 separate cameras own distinct matrix references with equal identity values") {
+        Salix::DummyCamera first, second;
+        CHECK(&first.get_view_matrix() != &second.get_view_matrix());
+        CHECK(&first.get_projection_matrix() != &second.get_projection_matrix());
+        CHECK(first.get_view_matrix() == second.get_view_matrix());
+        CHECK(first.get_projection_matrix() == second.get_projection_matrix());
+    }
+
+    TEST_CASE("batch6047 ICamera dispatch stores size while preserving dummy perspective behavior") {
+        Salix::DummyCamera concrete;
+        Salix::ICamera& camera = concrete;
+        camera.set_orthographic_size(-6.047f);
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(concrete.get_orthographic_size() == doctest::Approx(-6.047f));
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch6047 fresh instances remain independent after one is fully mutated") {
+        Salix::DummyCamera mutated, fresh;
+        mutated.set_orthographic_size(-60.47f);
+        mutated.activate();
+        mutated.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(mutated.get_orthographic_size() == doctest::Approx(-60.47f));
+        CHECK(mutated.get_is_active());
+        CHECK(fresh.get_orthographic_size() == doctest::Approx(10.0f));
+        CHECK_FALSE(fresh.get_is_active());
+        CHECK(fresh.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+}
