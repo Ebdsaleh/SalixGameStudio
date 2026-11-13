@@ -1164,3 +1164,101 @@ TEST_SUITE("Salix::math::RayCastingBatch5547") {
     }
 }
 
+TEST_SUITE("Salix::math::RayCastingBatch5947") {
+    TEST_CASE("batch5947 positive X axis ray hits AABB at expected entry parameter") {
+        const Salix::Ray ray{{-5.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch5947 negative X axis ray hits AABB at expected entry parameter") {
+        const Salix::Ray ray{{5.0f, 0.0f, 0.0f}, {-1.0f, 0.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch5947 ray starting inside AABB returns forward exit parameter") {
+        const Salix::Ray ray{{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}};
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-2.0f), glm::vec3(2.0f), distance));
+        CHECK(distance == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch5947 ray pointing away from AABB misses and preserves sentinel") {
+        const Salix::Ray ray{{0.0f, 0.0f, 5.0f}, {0.0f, 0.0f, 1.0f}};
+        float distance = 5947.0f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == 5947.0f);
+    }
+
+    TEST_CASE("batch5947 parallel ray outside slab misses without mutating distance") {
+        const Salix::Ray ray{{0.0f, 3.0f, -5.0f}, {0.0f, 0.0f, 1.0f}};
+        float distance = 47.0f;
+        CHECK_FALSE(Salix::Raycast::IntersectsAABB(ray, glm::vec3(-1.0f), glm::vec3(1.0f), distance));
+        CHECK(distance == 47.0f);
+    }
+
+    TEST_CASE("batch5947 Vector3 and GLM AABB overloads agree on hit distance") {
+        const Salix::Ray ray{{0.0f, 0.0f, -10.0f}, {0.0f, 0.0f, 1.0f}};
+        float vector_distance = -1.0f;
+        float glm_distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(
+            ray, Salix::Vector3(-2.0f), Salix::Vector3(2.0f), vector_distance));
+        REQUIRE(Salix::Raycast::IntersectsAABB(
+            ray, glm::vec3(-2.0f), glm::vec3(2.0f), glm_distance));
+        CHECK(vector_distance == doctest::Approx(glm_distance));
+        CHECK(vector_distance == doctest::Approx(8.0f));
+    }
+
+    TEST_CASE("batch5947 identity OBB agrees with equivalent AABB") {
+        const Salix::Ray ray{{0.0f, 0.0f, -10.0f}, {0.0f, 0.0f, 1.0f}};
+        const glm::vec3 half_extents(2.0f, 3.0f, 4.0f);
+        float aabb = -1.0f;
+        float obb = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsAABB(ray, -half_extents, half_extents, aabb));
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray, glm::mat4(1.0f), half_extents, obb));
+        CHECK(obb == doctest::Approx(aabb));
+    }
+
+    TEST_CASE("batch5947 translated OBB along positive Z reports expected local entry") {
+        const Salix::Ray ray{{0.0f, 0.0f, -10.0f}, {0.0f, 0.0f, 1.0f}};
+        const auto model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 5.0f));
+        float distance = -1.0f;
+        REQUIRE(Salix::Raycast::IntersectsOBB(ray, model, glm::vec3(1.0f), distance));
+        CHECK(distance == doctest::Approx(14.0f));
+    }
+
+    TEST_CASE("batch5947 identity camera center screen ray is normalized positive Z") {
+        MockICamera camera;
+        auto& view = const_cast<glm::mat4&>(camera.get_view_matrix());
+        auto& projection = const_cast<glm::mat4&>(camera.get_projection_matrix());
+        view = glm::mat4(1.0f);
+        projection = glm::mat4(1.0f);
+        const auto ray = Salix::Raycast::CreateRayFromScreen(
+            &camera, Salix::Vector2(50.0f, 50.0f), Salix::Vector2(0.0f, 0.0f),
+            Salix::Vector2(100.0f, 100.0f));
+        check_vec3_approx(ray.origin, glm::vec3(0.0f));
+        check_vec3_approx(ray.direction, glm::vec3(0.0f, 0.0f, 1.0f));
+        CHECK(glm::length(ray.direction) == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5947 Vector2 and ImVec2 screen ray overloads agree off center") {
+        MockICamera camera;
+        auto& view = const_cast<glm::mat4&>(camera.get_view_matrix());
+        auto& projection = const_cast<glm::mat4&>(camera.get_projection_matrix());
+        view = glm::mat4(1.0f);
+        projection = glm::mat4(1.0f);
+        const auto a = Salix::Raycast::CreateRayFromScreen(
+            &camera, Salix::Vector2(25.0f, 75.0f), Salix::Vector2(5.0f, 10.0f),
+            Salix::Vector2(100.0f, 100.0f));
+        const auto b = Salix::Raycast::CreateRayFromScreen(
+            &camera, ImVec2(25.0f, 75.0f), ImVec2(5.0f, 10.0f),
+            ImVec2(100.0f, 100.0f));
+        check_vec3_approx(a.origin, b.origin);
+        check_vec3_approx(a.direction, b.direction);
+        CHECK(glm::length(a.direction) == doctest::Approx(1.0f));
+    }
+}
+
