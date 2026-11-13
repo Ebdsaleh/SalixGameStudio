@@ -1125,3 +1125,51 @@ TEST_SUITE("Salix::core::StringUtilsBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::core::StringUtilsBatch6247") {
+    TEST_CASE("batch6247 upper conversion keeps empty input empty") {
+        CHECK(Salix::StringUtils::to_upper("", false).empty());
+        CHECK(Salix::StringUtils::to_upper("", true).empty());
+    }
+
+    TEST_CASE("batch6247 lower conversion keeps punctuation and digits unchanged") {
+        CHECK(Salix::StringUtils::to_lower("A6-B2_C4!", false) == "a6-b2_c4!");
+    }
+
+    TEST_CASE("batch6247 title case with desnake converts valid separators into word boundaries") {
+        CHECK(Salix::StringUtils::to_title_case("aLPHA_bETA_6247", true) ==
+              "Alpha Beta 6247");
+    }
+
+    TEST_CASE("batch6247 capitalize with desnake lowercases later words after separator removal") {
+        CHECK(Salix::StringUtils::capitalize("aLPHA_bETA", true) == "Alpha beta");
+    }
+
+    TEST_CASE("batch6247 snake validation accepts uppercase alphanumeric segments") {
+        CHECK(Salix::StringUtils::is_snake_case("ALPHA6_BETA2_47"));
+    }
+
+    TEST_CASE("batch6247 snake validation rejects embedded whitespace") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha_beta gamma"));
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha_beta\ngamma"));
+    }
+
+    TEST_CASE("batch6247 snake substring detection recognizes digit neighbors") {
+        CHECK(Salix::StringUtils::contains_snake_case("prefix 6_2 suffix"));
+        CHECK(Salix::StringUtils::contains_snake_case("x A_7 y"));
+    }
+
+    TEST_CASE("batch6247 snake conversion keeps edge separators while replacing valid inner ones") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("_A_6_B_2_") ==
+              "_A 6 B 2_");
+    }
+
+    TEST_CASE("batch6247 Pascal validation accepts all uppercase alphanumeric token") {
+        CHECK(Salix::StringUtils::is_pascal_case("ABC6247"));
+        CHECK_FALSE(Salix::StringUtils::contains_pascal_case("ABC6247"));
+    }
+
+    TEST_CASE("batch6247 Pascal conversion separates alpha digit and digit word transitions") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("A1Beta2Gamma") ==
+              "A 1 Beta 2 Gamma");
+    }
+}
