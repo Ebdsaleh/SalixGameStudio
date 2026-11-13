@@ -1987,3 +1987,139 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch6047") {
         CHECK(renderer.load_texture_calls == 1);
     }
 }
+
+TEST_SUITE("Salix::ecs::Sprite2DBatch6147") {
+    TEST_CASE("batch6147 path setter after successful load changes portable path without clearing runtime") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/runtime6147.png");
+        auto* loaded = sprite.get_texture();
+        REQUIRE(loaded != nullptr);
+        sprite.set_texture_path("assets/portable6147.png");
+        CHECK(sprite.get_texture_path() == "assets/portable6147.png");
+        CHECK(sprite.get_texture() == loaded);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+    }
+
+    TEST_CASE("batch6147 empty path setter after successful load leaves runtime texture intact") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/loaded6147.png");
+        auto* loaded = sprite.get_texture();
+        REQUIRE(loaded != nullptr);
+        sprite.set_texture_path("");
+        CHECK(sprite.get_texture_path().empty());
+        CHECK(sprite.get_texture() == loaded);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+    }
+
+    TEST_CASE("batch6147 direct null manager load stores requested path and clears runtime") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/first6147.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        sprite.load_texture(nullptr, "assets/null6147.png");
+        CHECK(sprite.get_texture_path() == "assets/null6147.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch6147 fresh direct null manager load preserves portable path") {
+        Salix::Sprite2D sprite;
+        sprite.load_texture(nullptr, "assets/fresh-null6147.png");
+        CHECK(sprite.get_texture_path() == "assets/fresh-null6147.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch6147 on load with null manager clears prior runtime using current portable path") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/prior6147.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        sprite.set_texture_path("assets/reload6147.png");
+        Salix::InitContext context{};
+        sprite.on_load(context);
+        CHECK(sprite.get_texture_path() == "assets/reload6147.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch6147 mutable scalar getters modify exact live values") {
+        Salix::Sprite2D sprite;
+        sprite.get_use_entity_rotation() = true;
+        sprite.get_local_rotation() = -61.47f;
+        sprite.get_sorting_layer() = 6147;
+        CHECK(sprite.get_use_entity_rotation());
+        CHECK(sprite.get_local_rotation() == doctest::Approx(-61.47f));
+        CHECK(sprite.get_sorting_layer() == 6147);
+    }
+
+    TEST_CASE("batch6147 use entity rotation setter is independent from flip flags") {
+        Salix::Sprite2D sprite;
+        sprite.set_use_entity_rotation(true);
+        sprite.set_flip_h(false);
+        sprite.set_flip_v(true);
+        CHECK(sprite.get_use_entity_rotation());
+        CHECK_FALSE(sprite.get_flip_h());
+        CHECK(sprite.get_flip_v());
+    }
+
+    TEST_CASE("batch6147 repeated owned renders reuse loaded texture without reloading asset") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Entity owner;
+        auto* sprite = owner.add_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        sprite->load_texture(&assets, "assets/repeat-render6147.png");
+        REQUIRE(sprite->get_texture() != nullptr);
+        sprite->render(&renderer);
+        sprite->render(&renderer);
+        CHECK(renderer.load_texture_calls == 1);
+        CHECK(renderer.draw_sprite_call_count == 2);
+    }
+
+    TEST_CASE("batch6147 texture path containing spaces remains exact after successful load") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/folder with spaces/sprite 6147.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture_path() == "assets/folder with spaces/sprite 6147.png");
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+    }
+
+    TEST_CASE("batch6147 mutating one sprite leaves fresh peer visual defaults untouched") {
+        Salix::Sprite2D mutated, fresh;
+        mutated.set_color(Salix::Red);
+        mutated.set_offset({6.0f, 14.0f});
+        mutated.set_pivot({0.1f, 0.9f});
+        mutated.set_flip_h(true);
+        mutated.set_flip_v(true);
+        mutated.set_local_rotation(61.47f);
+        mutated.set_sorting_layer(-6147);
+        CHECK(fresh.get_color() == Salix::White);
+        CHECK(fresh.get_offset() == Salix::Vector2(0.0f, 0.0f));
+        CHECK(fresh.get_pivot() == Salix::Vector2(0.5f, 0.5f));
+        CHECK_FALSE(fresh.get_flip_h());
+        CHECK_FALSE(fresh.get_flip_v());
+        CHECK(fresh.get_local_rotation() == 0.0f);
+        CHECK(fresh.get_sorting_layer() == 0);
+    }
+}
