@@ -667,3 +667,103 @@ TEST_SUITE("Salix::ecs::CppScriptBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CppScriptBatch5647") {
+    TEST_CASE("batch5647 constructor keeps class display and runtime identities independent") {
+        Salix::CppScript script;
+        CHECK(std::string(script.get_class_name()) == "CppScript");
+        CHECK(script.get_name() == "CppScript");
+        CHECK(script.get_script_name().empty());
+    }
+
+    TEST_CASE("batch5647 runtime script name supports repeated replacement and clearing") {
+        Salix::CppScript script;
+        script.set_script_name("First5647");
+        script.set_script_name("Second5647");
+        CHECK(script.get_script_name() == "Second5647");
+        script.set_script_name("");
+        CHECK(script.get_script_name().empty());
+    }
+
+    TEST_CASE("batch5647 runtime script name preserves punctuation and whitespace verbatim") {
+        Salix::CppScript script;
+        const std::string value = " Scripts.Game::Controller-5647\t\n";
+        script.set_script_name(value);
+        CHECK(script.get_script_name() == value);
+    }
+
+    TEST_CASE("batch5647 display name mutation never rewrites runtime script name") {
+        Salix::CppScript script;
+        script.set_script_name("Runtime5647");
+        script.set_name("Display5647");
+        CHECK(script.get_script_name() == "Runtime5647");
+        CHECK(script.get_name() == "Display5647");
+    }
+
+    TEST_CASE("batch5647 identifier mutation never rewrites runtime script name") {
+        Salix::CppScript script;
+        script.set_script_name("Identifier5647");
+        script.set_id(Salix::SimpleGuid::from_value(5647001ULL));
+        CHECK(script.get_id().get_value() == 5647001ULL);
+        CHECK(script.get_script_name() == "Identifier5647");
+    }
+
+    TEST_CASE("batch5647 visibility and owner changes leave runtime script metadata intact") {
+        Salix::Entity owner;
+        Salix::CppScript script;
+        script.set_script_name("Stable5647");
+        script.set_visibility(false);
+        script.set_owner(&owner);
+        REQUIRE(script.get_owner() == &owner);
+        script.set_owner(nullptr);
+        CHECK_FALSE(script.is_visible());
+        CHECK(script.get_owner() == nullptr);
+        CHECK(script.get_script_name() == "Stable5647");
+    }
+
+    TEST_CASE("batch5647 lifecycle calls preserve runtime name and component identity") {
+        Salix::CppScript script;
+        script.set_script_name("Lifecycle5647");
+        const auto id = script.get_id();
+        script.initialize();
+        script.update(-56.47f);
+        script.update(0.0f);
+        script.shutdown();
+        CHECK(script.get_script_name() == "Lifecycle5647");
+        CHECK(script.get_id() == id);
+    }
+
+    TEST_CASE("batch5647 JSON roundtrip preserves display and runtime names") {
+        Salix::CppScript source;
+        source.set_name("DisplaySerialized5647");
+        source.set_script_name("RuntimeSerialized5647");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name() == "DisplaySerialized5647");
+        CHECK(restored.get_script_name() == "RuntimeSerialized5647");
+    }
+
+    TEST_CASE("batch5647 binary roundtrip preserves embedded null runtime name bytes") {
+        Salix::CppScript source;
+        const std::string value("Run\0Batch5647", 13);
+        source.set_script_name(value);
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::CppScript restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.get_script_name() == value);
+        CHECK(restored.get_script_name().size() == value.size());
+    }
+
+    TEST_CASE("batch5647 separate scripts own independent runtime name storage") {
+        Salix::CppScript first, second;
+        first.set_script_name("Shared5647");
+        second.set_script_name("Shared5647");
+        CHECK(first.get_script_name() == second.get_script_name());
+        CHECK(&first.get_script_name() != &second.get_script_name());
+        first.set_script_name("Changed5647");
+        CHECK(second.get_script_name() == "Shared5647");
+    }
+}
+
