@@ -704,3 +704,114 @@ TEST_SUITE("Salix::gui::ImGuiFontBatch4947") {
         CHECK(font.get_family() == family);
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontBatch5647") {
+    TEST_CASE("batch5647 default owned data pointer remains stable across family mutation") {
+        Salix::ImGuiFont font;
+        auto* data = font.get_data();
+        REQUIRE(data != nullptr);
+        font.set_family("Family5647");
+        CHECK(font.get_data() == data);
+        CHECK(font.get_family() == "Family5647");
+        CHECK(font.get_name() == "Default Font");
+    }
+
+    TEST_CASE("batch5647 custom constructor preserves whitespace rich metadata verbatim") {
+        Salix::ImGuiFont font(" Assets/Fonts/Font 5647.ttf ", " Font 5647 ", 56.47f);
+        CHECK(font.get_name() == " Font 5647 ");
+        CHECK(font.get_data()->get_file_path() == " Assets/Fonts/Font 5647.ttf ");
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(56.47f));
+    }
+
+    TEST_CASE("batch5647 repeated family replacement exposes only final value") {
+        Salix::ImGuiFont font;
+        font.set_family("First5647");
+        font.set_family("");
+        font.set_family("Final5647");
+        CHECK(font.get_family() == "Final5647");
+    }
+
+    TEST_CASE("batch5647 runtime pointer replacement never changes family or font metadata") {
+        Salix::ImGuiFont font("runtime5647.ttf", "Runtime5647", 18.0f);
+        font.set_family("RuntimeFamily5647");
+        ImFont* first = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x56471));
+        ImFont* second = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x56472));
+        font.set_imgui_font_ptr(first);
+        font.set_imgui_font_ptr(second);
+        CHECK(font.get_imgui_font_ptr() == second);
+        CHECK(font.get_family() == "RuntimeFamily5647");
+        CHECK(font.get_name() == "Runtime5647");
+    }
+
+    TEST_CASE("batch5647 compatible data assignment replaces complete metadata snapshot") {
+        Salix::ImGuiFont font("old5647.ttf", "Old5647", 10.0f);
+        Salix::ImGuiFontData replacement("New5647", "new5647.ttf", 24.0f);
+        replacement.config.pixel_snap_h = true;
+        font.set_data(&replacement);
+        CHECK(font.get_name() == "New5647");
+        CHECK(font.get_data()->get_file_path() == "new5647.ttf");
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(24.0f));
+        auto* stored = dynamic_cast<Salix::ImGuiFontData*>(font.get_data());
+        REQUIRE(stored != nullptr);
+        CHECK(stored->config.pixel_snap_h);
+    }
+
+    TEST_CASE("batch5647 compatible data assignment owns a copy independent from source strings") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData replacement("Snapshot5647", "snapshot5647.ttf", 19.0f);
+        font.set_data(&replacement);
+        replacement.name = "Mutated5647";
+        replacement.file_path = "mutated5647.ttf";
+        CHECK(font.get_name() == "Snapshot5647");
+        CHECK(font.get_data()->get_file_path() == "snapshot5647.ttf");
+    }
+
+    TEST_CASE("batch5647 null data assignment after valid replacement preserves replacement") {
+        Salix::ImGuiFont font;
+        Salix::ImGuiFontData replacement("Keep5647", "keep5647.ttf", 21.0f);
+        font.set_data(&replacement);
+        auto* stored = font.get_data();
+        font.set_data(nullptr);
+        CHECK(font.get_data() == stored);
+        CHECK(font.get_name() == "Keep5647");
+        CHECK(font.get_data()->get_file_path() == "keep5647.ttf");
+    }
+
+    TEST_CASE("batch5647 incompatible data assignment preserves existing concrete data") {
+        Salix::ImGuiFont font("keep5647.ttf", "KeepConcrete5647", 22.0f);
+        auto* before = font.get_data();
+        Batch1047ForeignFontData foreign;
+        font.set_data(&foreign);
+        CHECK(font.get_data() == before);
+        CHECK(font.get_name() == "KeepConcrete5647");
+        CHECK(font.get_data()->get_gui_type() == "ImGui");
+    }
+
+    TEST_CASE("batch5647 direct font data size mutation leaves family and runtime pointer intact") {
+        Salix::ImGuiFont font;
+        font.set_family("StableFamily5647");
+        ImFont* runtime = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x56473));
+        font.set_imgui_font_ptr(runtime);
+        font.get_data()->set_font_size(33.5f);
+        CHECK(font.get_data()->get_font_size() == doctest::Approx(33.5f));
+        CHECK(font.get_family() == "StableFamily5647");
+        CHECK(font.get_imgui_font_ptr() == runtime);
+    }
+
+    TEST_CASE("batch5647 separate fonts own independent data family and runtime pointer state") {
+        Salix::ImGuiFont first("first5647.ttf", "First5647", 11.0f);
+        Salix::ImGuiFont second("second5647.ttf", "Second5647", 22.0f);
+        first.set_family("A5647");
+        second.set_family("B5647");
+        ImFont* a = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x56474));
+        ImFont* b = reinterpret_cast<ImFont*>(static_cast<std::uintptr_t>(0x56475));
+        first.set_imgui_font_ptr(a);
+        second.set_imgui_font_ptr(b);
+        CHECK(first.get_data() != second.get_data());
+        CHECK(first.get_family() == "A5647");
+        CHECK(second.get_family() == "B5647");
+        CHECK(first.get_imgui_font_ptr() == a);
+        CHECK(second.get_imgui_font_ptr() == b);
+    }
+}
+
