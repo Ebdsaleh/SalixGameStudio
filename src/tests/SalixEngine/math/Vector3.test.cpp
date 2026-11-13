@@ -1404,3 +1404,74 @@ TEST_SUITE("Salix::math::Vector3Batch5547") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector3Batch5947") {
+    TEST_CASE("batch5947 zero vector length is zero and normalization is stable") {
+        Salix::Vector3 v = Salix::Vector3::Zero;
+        CHECK(v.length() == 0.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch5947 negative Z axis normalizes to canonical unit axis") {
+        Salix::Vector3 v(0.0f, 0.0f, -5.0f);
+        v.normalize();
+        CHECK(v == Salix::Vector3(0.0f, 0.0f, -1.0f));
+        CHECK(v.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch5947 lerp clamps below zero to start vector") {
+        const Salix::Vector3 start(-5.0f, 9.0f, -47.0f);
+        const Salix::Vector3 end(7.0f, -4.0f, 8.0f);
+        CHECK(Salix::Vector3::lerp(start, end, -5.947f) == start);
+    }
+
+    TEST_CASE("batch5947 lerp clamps above one to end vector") {
+        const Salix::Vector3 start(-5.0f, 9.0f, -47.0f);
+        const Salix::Vector3 end(7.0f, -4.0f, 8.0f);
+        CHECK(Salix::Vector3::lerp(start, end, 5.947f) == end);
+    }
+
+    TEST_CASE("batch5947 midpoint lerp averages each component independently") {
+        const Salix::Vector3 a(-6.0f, 2.0f, -4.0f);
+        const Salix::Vector3 b(8.0f, 6.0f, 10.0f);
+        CHECK(Salix::Vector3::lerp(a, b, 0.5f) == Salix::Vector3(1.0f, 4.0f, 3.0f));
+    }
+
+    TEST_CASE("batch5947 scalar subtraction preserves operand orientation") {
+        const Salix::Vector3 v(-5.0f, 9.0f, -47.0f);
+        CHECK(v - 2.0f == Salix::Vector3(-7.0f, 7.0f, -49.0f));
+        CHECK(2.0f - v == Salix::Vector3(7.0f, -7.0f, 49.0f));
+    }
+
+    TEST_CASE("batch5947 component multiplication is commutative") {
+        const Salix::Vector3 a(-5.0f, 9.0f, -47.0f);
+        const Salix::Vector3 b(7.0f, -4.0f, 8.0f);
+        CHECK(a * b == b * a);
+        CHECK(a * b == Salix::Vector3(-35.0f, -36.0f, -376.0f));
+    }
+
+    TEST_CASE("batch5947 dot product remains commutative for signed vectors") {
+        const Salix::Vector3 a(-2.0f, 3.0f, 5.0f);
+        const Salix::Vector3 b(7.0f, -11.0f, 13.0f);
+        CHECK(Salix::dot(a, b) == doctest::Approx(Salix::dot(b, a)));
+        CHECK(Salix::dot(a, b) == doctest::Approx(18.0f));
+    }
+
+    TEST_CASE("batch5947 cross product remains antisymmetric") {
+        const Salix::Vector3 a(1.0f, 2.0f, 3.0f);
+        const Salix::Vector3 b(-4.0f, 5.0f, -6.0f);
+        CHECK(Salix::cross(a, b) == Salix::cross(b, a) * -1.0f);
+    }
+
+    TEST_CASE("batch5947 GLM and YAML conversions preserve documented component semantics") {
+        const Salix::Vector3 source(-5.947f, 7.495f, -0.25f);
+        const glm::vec3 raw = source.to_glm();
+        CHECK(Salix::Vector3::from_glm(raw) == source);
+        Salix::Vector3 partial(1.0f, 2.0f, 3.0f);
+        YAML::Load("{x: -5.947, z: 7.495}") >> partial;
+        CHECK(partial.x == doctest::Approx(-5.947f));
+        CHECK(partial.y == 0.0f);
+        CHECK(partial.z == doctest::Approx(7.495f));
+    }
+}
+
