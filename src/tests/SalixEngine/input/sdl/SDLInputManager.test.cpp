@@ -933,3 +933,121 @@ TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch5347") {
     }
 }
 
+TEST_SUITE("Salix::input::sdl::SDLInputManagerBatch5847") {
+    TEST_CASE("batch5847 fresh manager starts with neutral key mouse scroll and quit state") {
+        Salix::SDLInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::Z));
+        CHECK(manager.is_up(Salix::MouseButton::Right));
+        CHECK(manager.get_mouse_scroll_delta() == 0.0f);
+        CHECK_FALSE(manager.wants_to_quit());
+    }
+
+    TEST_CASE("batch5847 key press hold release cycle resets duration after release") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_c, false, raw);
+        manager.process_event(press);
+        REQUIRE(manager.is_down(Salix::KeyCode::C));
+        manager.update(0.25f);
+        REQUIRE(manager.is_held_down(Salix::KeyCode::C));
+        CHECK(manager.is_held_down_for(Salix::KeyCode::C, 0.25f));
+        Salix::KeyReleasedEvent release(SDLK_c, raw);
+        manager.process_event(release);
+        REQUIRE(manager.was_released(Salix::KeyCode::C));
+        manager.update(0.0f);
+        CHECK(manager.is_up(Salix::KeyCode::C));
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::C, 0.0f));
+    }
+
+    TEST_CASE("batch5847 mouse press hold release cycle resets duration after release") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseButtonPressedEvent press(SDL_BUTTON_RIGHT, raw);
+        manager.process_event(press);
+        REQUIRE(manager.is_down(Salix::MouseButton::Right));
+        manager.update(0.5f);
+        REQUIRE(manager.is_held_down(Salix::MouseButton::Right));
+        CHECK(manager.is_held_down_for(Salix::MouseButton::Right, 0.5f));
+        Salix::MouseButtonReleasedEvent release(SDL_BUTTON_RIGHT, raw);
+        manager.process_event(release);
+        manager.update(0.0f);
+        CHECK(manager.is_up(Salix::MouseButton::Right));
+        CHECK_FALSE(manager.is_held_down_for(Salix::MouseButton::Right, 0.0f));
+    }
+
+    TEST_CASE("batch5847 repeated pressed event before update remains Down") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent first(SDLK_x, false, raw);
+        Salix::KeyPressedEvent repeat(SDLK_x, true, raw);
+        manager.process_event(first);
+        manager.process_event(repeat);
+        CHECK(manager.is_down(Salix::KeyCode::X));
+        CHECK_FALSE(manager.is_held_down(Salix::KeyCode::X));
+    }
+
+    TEST_CASE("batch5847 vertical scroll reports sign and update clears it") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseScrolledEvent wheel(99.0f, -5.847f, raw);
+        manager.process_event(wheel);
+        CHECK(manager.did_scroll(Salix::MouseScroll::Backward));
+        CHECK_FALSE(manager.did_scroll(Salix::MouseScroll::Forward));
+        CHECK(manager.get_mouse_scroll_delta() == doctest::Approx(-5.847f));
+        manager.update(0.0f);
+        CHECK(manager.get_mouse_scroll_delta() == 0.0f);
+    }
+
+    TEST_CASE("batch5847 mouse movement truncates coordinates and survives update") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::MouseMovedEvent moved(-58.99f, 47.99f, raw);
+        manager.process_event(moved);
+        manager.update(0.25f);
+        int x = 0, y = 0;
+        manager.get_mouse_position(&x, &y);
+        CHECK(x == -58);
+        CHECK(y == 47);
+    }
+
+    TEST_CASE("batch5847 window close request remains sticky") {
+        Salix::SDLInputManager manager;
+        Salix::WindowCloseEvent close;
+        manager.process_event(close);
+        REQUIRE(manager.wants_to_quit());
+        manager.update(1.0f);
+        manager.update(-1.0f);
+        CHECK(manager.wants_to_quit());
+    }
+
+    TEST_CASE("batch5847 representative alpha digit function and punctuation translations are exact") {
+        Salix::SDLInputManager manager;
+        CHECK(manager.to_salix_keycode(SDLK_q) == Salix::KeyCode::Q);
+        CHECK(manager.to_salix_keycode(SDLK_8) == Salix::KeyCode::Alpha8);
+        CHECK(manager.to_salix_keycode(SDLK_F11) == Salix::KeyCode::F11);
+        CHECK(manager.to_salix_keycode(SDLK_QUOTE) == Salix::KeyCode::Apostrophe);
+    }
+
+    TEST_CASE("batch5847 unknown SDL keycode maps to None without disturbing state") {
+        Salix::SDLInputManager manager;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent unknown(SDLK_UNKNOWN, false, raw);
+        manager.process_event(unknown);
+        CHECK(manager.to_salix_keycode(SDLK_UNKNOWN) == Salix::KeyCode::None);
+        CHECK(manager.is_up(Salix::KeyCode::A));
+    }
+
+    TEST_CASE("batch5847 separate managers retain independent key and quit state") {
+        Salix::SDLInputManager first, second;
+        SDL_Event raw{};
+        Salix::KeyPressedEvent press(SDLK_v, false, raw);
+        first.process_event(press);
+        Salix::WindowCloseEvent close;
+        first.process_event(close);
+        CHECK(first.is_down(Salix::KeyCode::V));
+        CHECK(first.wants_to_quit());
+        CHECK(second.is_up(Salix::KeyCode::V));
+        CHECK_FALSE(second.wants_to_quit());
+    }
+}
+
