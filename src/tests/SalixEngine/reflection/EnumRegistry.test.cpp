@@ -1302,3 +1302,107 @@ TEST_SUITE("Salix::reflection::EnumRegistryBatch6047") {
         CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch6047NeverRegistered)) == nullptr);
     }
 }
+
+namespace {
+struct Batch6147EnumA {};
+struct Batch6147EnumB {};
+struct Batch6147EnumC {};
+struct Batch6147NeverRegistered {};
+}
+
+TEST_SUITE("Salix::reflection::EnumRegistryBatch6147") {
+    TEST_CASE("batch6147 unknown numeric lookup remains Unknown even with ordered names") {
+        Salix::EnumRegistry::EnumData data;
+        data.ordered_names = {"Only6147"};
+        CHECK(data.get_name(6147) == "Unknown");
+        REQUIRE(data.get_names().size() == 1);
+        CHECK(data.get_names()[0] == "Only6147");
+    }
+
+    TEST_CASE("batch6147 unknown name lookup remains invalid with populated mappings") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[1] = "Known6147";
+        CHECK(data.get_value("Known6147") == 1);
+        CHECK(data.get_value("Missing6147") == -1);
+    }
+
+    TEST_CASE("batch6147 numeric mapping may exist while ordered names remain empty") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[-61] = "Negative6147";
+        CHECK(data.get_name(-61) == "Negative6147");
+        CHECK(data.get_names().empty());
+    }
+
+    TEST_CASE("batch6147 custom registration supports independent negative zero and positive values") {
+        Salix::EnumRegistry::EnumData data;
+        data.value_to_string[-1] = "Negative6147";
+        data.value_to_string[0] = "Zero6147";
+        data.value_to_string[1] = "Positive6147";
+        Salix::EnumRegistry::register_enum(typeid(Batch6147EnumA), std::move(data));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch6147EnumA));
+        CHECK(stored.get_name(-1) == "Negative6147");
+        CHECK(stored.get_name(0) == "Zero6147");
+        CHECK(stored.get_name(1) == "Positive6147");
+    }
+
+    TEST_CASE("batch6147 replacement swaps both mapping and ordered names") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[1] = "Old6147";
+        first.ordered_names = {"Old6147"};
+        Salix::EnumRegistry::register_enum(typeid(Batch6147EnumB), std::move(first));
+        Salix::EnumRegistry::EnumData second;
+        second.value_to_string[2] = "New6147";
+        second.ordered_names = {"New6147"};
+        Salix::EnumRegistry::register_enum(typeid(Batch6147EnumB), std::move(second));
+        const auto& stored = Salix::EnumRegistry::get_enum_data(typeid(Batch6147EnumB));
+        CHECK(stored.get_name(1) == "Unknown");
+        CHECK(stored.get_name(2) == "New6147");
+        REQUIRE(stored.get_names().size() == 1);
+        CHECK(stored.get_names()[0] == "New6147");
+    }
+
+    TEST_CASE("batch6147 two custom enum types remain independent") {
+        Salix::EnumRegistry::EnumData first;
+        first.value_to_string[61] = "First6147";
+        Salix::EnumRegistry::EnumData second;
+        second.value_to_string[47] = "Second6147";
+        Salix::EnumRegistry::register_enum(typeid(Batch6147EnumA), std::move(first));
+        Salix::EnumRegistry::register_enum(typeid(Batch6147EnumC), std::move(second));
+        CHECK(Salix::EnumRegistry::get_enum_data(typeid(Batch6147EnumA)).get_name(61) == "First6147");
+        CHECK(Salix::EnumRegistry::get_enum_data(typeid(Batch6147EnumC)).get_name(47) == "Second6147");
+    }
+
+    TEST_CASE("batch6147 canonical projection name lookup remains case sensitive") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& data = Salix::EnumRegistry::get_enum_data(typeid(Salix::ProjectionMode));
+        CHECK(data.get_value("Perspective") == static_cast<int>(Salix::ProjectionMode::Perspective));
+        CHECK(data.get_value("perspective") == -1);
+        CHECK(data.get_value("ORTHOGRAPHIC") == -1);
+    }
+
+    TEST_CASE("batch6147 canonical editor mode ordered names remain exact") {
+        Salix::EnumRegistry::register_all_enums();
+        const auto& names = Salix::EnumRegistry::get_enum_data(typeid(Salix::EditorDataMode)).get_names();
+        REQUIRE(names.size() == 2);
+        CHECK(names[0] == "Live");
+        CHECK(names[1] == "Yaml");
+    }
+
+    TEST_CASE("batch6147 custom registration survives canonical refresh with ordered names") {
+        Salix::EnumRegistry::EnumData custom;
+        custom.value_to_string[6147] = "Persistent6147";
+        custom.ordered_names = {"Persistent6147"};
+        Salix::EnumRegistry::register_enum(typeid(Batch6147EnumC), std::move(custom));
+        Salix::EnumRegistry::register_all_enums();
+        const auto* stored = Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch6147EnumC));
+        REQUIRE(stored != nullptr);
+        CHECK(stored->get_name(6147) == "Persistent6147");
+        REQUIRE(stored->get_names().size() == 1);
+        CHECK(stored->get_names()[0] == "Persistent6147");
+    }
+
+    TEST_CASE("batch6147 never registered type remains null after all registration paths") {
+        Salix::EnumRegistry::register_all_enums();
+        CHECK(Salix::EnumRegistry::get_enum_data_as_ptr(typeid(Batch6147NeverRegistered)) == nullptr);
+    }
+}
