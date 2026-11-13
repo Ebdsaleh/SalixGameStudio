@@ -1178,3 +1178,70 @@ TEST_SUITE("Salix::math::ColorBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::math::ColorBatch6247") {
+    TEST_CASE("batch6247 default constructor remains canonical white") {
+        const Salix::Color color;
+        CHECK(color == Salix::White);
+        CHECK(color.a == 1.0f);
+    }
+
+    TEST_CASE("batch6247 integer factory default alpha remains fully opaque") {
+        const auto color = Salix::Color::from_rgba_int(0, 128, 255);
+        CHECK(color.r == 0.0f);
+        CHECK(color.g == doctest::Approx(128.0f / 255.0f));
+        CHECK(color.b == 1.0f);
+        CHECK(color.a == 1.0f);
+    }
+
+    TEST_CASE("batch6247 scalar multiplication from either side produces identical color") {
+        const Salix::Color color(-6.0f, 2.0f, -4.0f, 7.0f);
+        CHECK(color * 2.0f == 2.0f * color);
+        CHECK(color * 2.0f == Salix::Color(-12.0f, 4.0f, -8.0f, 14.0f));
+    }
+
+    TEST_CASE("batch6247 scalar multiplication by zero clears every channel") {
+        const Salix::Color color(-6.0f, 2.0f, -4.0f, 7.0f);
+        CHECK(color * 0.0f == Salix::Color(0.0f, 0.0f, 0.0f, 0.0f));
+    }
+
+    TEST_CASE("batch6247 interpolation exact endpoints preserve exact source colors") {
+        const Salix::Color start(-6.0f, 2.0f, -4.0f, 7.0f);
+        const Salix::Color end(8.0f, -4.0f, 6.0f, -2.0f);
+        CHECK(Salix::Color::lerp(start, end, 0.0f) == start);
+        CHECK(Salix::Color::lerp(start, end, 1.0f) == end);
+    }
+
+    TEST_CASE("batch6247 quarter interpolation computes each channel independently") {
+        const Salix::Color start(0.0f, 0.0f, 4.0f, 8.0f);
+        const Salix::Color end(8.0f, 4.0f, 12.0f, 0.0f);
+        CHECK(Salix::Color::lerp(start, end, 0.25f) ==
+              Salix::Color(2.0f, 1.0f, 6.0f, 6.0f));
+    }
+
+    TEST_CASE("batch6247 HSV secondary sectors produce canonical yellow cyan and magenta") {
+        CHECK(Salix::Color::from_hsv(60.0f, 1.0f, 1.0f) == Salix::Yellow);
+        CHECK(Salix::Color::from_hsv(180.0f, 1.0f, 1.0f) == Salix::Cyan);
+        CHECK(Salix::Color::from_hsv(300.0f, 1.0f, 1.0f) == Salix::Magenta);
+    }
+
+    TEST_CASE("batch6247 nonpositive saturation produces grayscale for negative saturation too") {
+        const auto color = Salix::Color::from_hsv(300.0f, -1.0f, 0.6247f, 0.5f);
+        CHECK(color == Salix::Color(0.6247f, 0.6247f, 0.6247f, 0.5f));
+    }
+
+    TEST_CASE("batch6247 YAML full mapping replaces every existing channel") {
+        Salix::Color color(9.0f, 8.0f, 7.0f, 6.0f);
+        YAML::Load("{r: -6.247, g: 2.0, b: 4.7, a: 0.25}") >> color;
+        CHECK(color.r == doctest::Approx(-6.247f));
+        CHECK(color.g == doctest::Approx(2.0f));
+        CHECK(color.b == doctest::Approx(4.7f));
+        CHECK(color.a == doctest::Approx(0.25f));
+    }
+
+    TEST_CASE("batch6247 ostream preserves canonical label order") {
+        const Salix::Color color(-6.5f, 2.25f, -4.0f, 7.75f);
+        std::stringstream stream;
+        stream << color;
+        CHECK(stream.str() == "{ r: -6.5, g: 2.25, b: -4, a: 7.75 }");
+    }
+}
