@@ -1050,3 +1050,108 @@ TEST_SUITE("Salix::events::ApplicationEventListenerBatch5547") {
     }
 }
 
+TEST_SUITE("Salix::events::ApplicationEventListenerBatch5947") {
+    TEST_CASE("batch5947 null initialization is safely rejected repeatedly") {
+        Salix::ApplicationEventListener listener;
+        CHECK_FALSE(listener.initialize(nullptr));
+        CHECK_FALSE(listener.initialize(nullptr));
+    }
+
+    TEST_CASE("batch5947 close before initialization remains a harmless no op") {
+        Salix::ApplicationEventListener listener;
+        Salix::WindowCloseEvent close;
+        CHECK_NOTHROW(listener.on_event(close));
+        CHECK_FALSE(close.handled);
+    }
+
+    TEST_CASE("batch5947 valid initialization accepts engine pointer") {
+        Salix::Engine engine;
+        Salix::ApplicationEventListener listener;
+        CHECK(listener.initialize(&engine));
+    }
+
+    TEST_CASE("batch5947 resize preserves running engine and exact dimensions") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowResizeEvent resize(5947, 7495);
+        listener.on_event(resize);
+        CHECK(engine.is_running());
+        CHECK(resize.get_width() == 5947);
+        CHECK(resize.get_height() == 7495);
+    }
+
+    TEST_CASE("batch5947 close stops running engine without changing handled flag") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+        CHECK_FALSE(close.handled);
+    }
+
+    TEST_CASE("batch5947 prehandled close remains handled while stopping engine") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        close.handled = true;
+        listener.on_event(close);
+        CHECK(close.handled);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch5947 close preserves configured mode and time scale") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Debug);
+        engine.set_time_scale(-5.947f);
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::Debug);
+        CHECK(engine.get_time_scale() == doctest::Approx(-5.947f));
+    }
+
+    TEST_CASE("batch5947 failed null reinitialization preserves previous valid target") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&engine));
+        CHECK_FALSE(listener.initialize(nullptr));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch5947 retargeting routes shutdown only to newest engine") {
+        Salix::Engine first, second;
+        first.is_running(true);
+        second.is_running(true);
+        Salix::ApplicationEventListener listener;
+        REQUIRE(listener.initialize(&first));
+        REQUIRE(listener.initialize(&second));
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK(first.is_running());
+        CHECK_FALSE(second.is_running());
+    }
+
+    TEST_CASE("batch5947 interface dispatch reaches concrete shutdown behavior") {
+        Salix::Engine engine;
+        engine.is_running(true);
+        Salix::ApplicationEventListener concrete;
+        REQUIRE(concrete.initialize(&engine));
+        Salix::IEventListener& listener = concrete;
+        Salix::WindowCloseEvent close;
+        listener.on_event(close);
+        CHECK_FALSE(engine.is_running());
+    }
+}
+
