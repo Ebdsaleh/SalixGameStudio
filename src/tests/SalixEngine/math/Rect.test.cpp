@@ -1158,3 +1158,77 @@ TEST_SUITE("Salix::math::RectBatch5847") {
     }
 }
 
+TEST_SUITE("Salix::math::RectBatch6247") {
+    TEST_CASE("batch6247 generic integer rectangle constructor truncates mixed floating inputs") {
+        const Salix::RectI rect(6.9, -2.9f, 4.7, -7.9f);
+        CHECK(rect == Salix::RectI(6, -2, 4, -7));
+    }
+
+    TEST_CASE("batch6247 generic float rectangle constructor converts mixed integer and double inputs") {
+        const Salix::RectF rect(6, -2.5, 4, 7.25);
+        CHECK(rect.x == doctest::Approx(6.0f));
+        CHECK(rect.y == doctest::Approx(-2.5f));
+        CHECK(rect.w == doctest::Approx(4.0f));
+        CHECK(rect.h == doctest::Approx(7.25f));
+    }
+
+    TEST_CASE("batch6247 double to float converting constructor preserves ordinary finite values") {
+        const Salix::RectD source(-6.25, 2.5, -4.75, 7.125);
+        const Salix::RectF converted(source);
+        CHECK(converted.x == doctest::Approx(-6.25f));
+        CHECK(converted.y == doctest::Approx(2.5f));
+        CHECK(converted.w == doctest::Approx(-4.75f));
+        CHECK(converted.h == doctest::Approx(7.125f));
+    }
+
+    TEST_CASE("batch6247 float to double converting constructor preserves exact binary fractions") {
+        const Salix::RectF source(-6.25f, 2.5f, -4.75f, 7.125f);
+        const Salix::RectD converted(source);
+        CHECK(converted == Salix::RectD(-6.25, 2.5, -4.75, 7.125));
+    }
+
+    TEST_CASE("batch6247 equality rejects x only difference") {
+        const Salix::RectI base(6, 2, 4, 7);
+        CHECK(base != Salix::RectI(5, 2, 4, 7));
+        CHECK_FALSE(base == Salix::RectI(5, 2, 4, 7));
+    }
+
+    TEST_CASE("batch6247 equality rejects y only difference") {
+        const Salix::RectI base(6, 2, 4, 7);
+        CHECK(base != Salix::RectI(6, 3, 4, 7));
+        CHECK_FALSE(base == Salix::RectI(6, 3, 4, 7));
+    }
+
+    TEST_CASE("batch6247 assignment replaces all components independently") {
+        Salix::RectF target(1.0f, 2.0f, 3.0f, 4.0f);
+        const Salix::RectF source(-6.0f, 2.0f, -4.0f, 7.0f);
+        target = source;
+        CHECK(target == source);
+        CHECK(target == Salix::RectF(-6.0f, 2.0f, -4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6247 JSON roundtrip preserves floating signed components") {
+        const Salix::RectF original(-6.247f, 2.0f, -4.7f, 0.25f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::RectF restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch6247 JSON roundtrip preserves double zero extents") {
+        const Salix::RectD original(-6.25, 2.5, 0.0, 0.0);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::RectD restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch6247 ostream formats integer rectangle with signed components") {
+        const Salix::RectI rect(-62, 47, -6, 247);
+        std::stringstream stream;
+        stream << rect;
+        CHECK(stream.str() == "{ x: -62, y: 47, w: -6, h: 247 }");
+    }
+}
