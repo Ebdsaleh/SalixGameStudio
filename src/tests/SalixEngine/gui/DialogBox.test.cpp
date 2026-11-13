@@ -831,3 +831,107 @@ TEST_SUITE("Salix::gui::DialogBoxBatch5247") {
     }
 }
 
+TEST_SUITE("Salix::gui::DialogBoxBatch5647") {
+    TEST_CASE("batch5647 default dialog keeps public metadata and config defaults aligned") {
+        Salix::DialogBox dialog;
+        CHECK(dialog.get_key().empty());
+        CHECK(dialog.get_title().empty());
+        CHECK(dialog.get_type() == Salix::DialogType::File);
+        CHECK(dialog.get_default_path() == ".");
+        CHECK(dialog.get_default_filename().empty());
+        CHECK(dialog.get_config().path == ".");
+        CHECK(dialog.get_config().fileName.empty());
+    }
+
+    TEST_CASE("batch5647 file constructor without overwrite keeps modal flag only") {
+        Salix::DialogBox dialog("Open5647", "Open 5647", Salix::DialogType::File, false);
+        CHECK(dialog.get_key() == "Open5647");
+        CHECK(dialog.get_title() == "Open 5647");
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+    }
+
+    TEST_CASE("batch5647 overwrite constructor enables confirm flag while preserving modal flag") {
+        Salix::DialogBox dialog("Save5647", "Save 5647", Salix::DialogType::File, true);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_Modal) != 0);
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+    }
+
+    TEST_CASE("batch5647 fluent setter chain always returns same interface object") {
+        Salix::DialogBox dialog;
+        Salix::IDialog* base = &dialog;
+        CHECK(&base->set_filters(".5647") == base);
+        CHECK(&base->set_default_path("Path5647") == base);
+        CHECK(&base->set_default_file_name("File5647.txt") == base);
+        CHECK(&base->set_overwrite(true) == base);
+        CHECK(&base->set_callback(nullptr) == base);
+    }
+
+    TEST_CASE("batch5647 default path setter synchronizes config path and preserves filename") {
+        Salix::DialogBox dialog;
+        dialog.set_default_file_name("Keep5647.txt");
+        dialog.set_default_path("Scenes/5647");
+        CHECK(dialog.get_default_path() == "Scenes/5647");
+        CHECK(dialog.get_config().path == "Scenes/5647");
+        CHECK(dialog.get_default_filename() == "Keep5647.txt");
+        CHECK(dialog.get_config().fileName == "Keep5647.txt");
+    }
+
+    TEST_CASE("batch5647 default filename setter synchronizes config filename and preserves path") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("Scenes/Stable5647");
+        dialog.set_default_file_name("Main5647.realm");
+        CHECK(dialog.get_default_filename() == "Main5647.realm");
+        CHECK(dialog.get_config().fileName == "Main5647.realm");
+        CHECK(dialog.get_default_path() == "Scenes/Stable5647");
+        CHECK(dialog.get_config().path == "Scenes/Stable5647");
+    }
+
+    TEST_CASE("batch5647 filter mutation is independent from dialog type and config paths") {
+        Salix::DialogBox dialog("Folder5647", "Folder", Salix::DialogType::Folder, false);
+        dialog.set_default_path("FolderPath5647");
+        dialog.set_filters(".ignored5647");
+        CHECK(dialog.get_type() == Salix::DialogType::Folder);
+        CHECK(dialog.get_filters() == ".ignored5647");
+        CHECK(dialog.get_config().path == "FolderPath5647");
+    }
+
+    TEST_CASE("batch5647 callback replacement and clearing leave only latest callable") {
+        Salix::DialogBox dialog;
+        int first = 0, second = 0;
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++first; });
+        dialog.set_callback([&](const Salix::FileDialogResult&) { ++second; });
+        REQUIRE(static_cast<bool>(dialog.get_callback()));
+        Salix::FileDialogResult result{};
+        dialog.get_callback()(result);
+        CHECK(first == 0);
+        CHECK(second == 1);
+        dialog.set_callback(nullptr);
+        CHECK_FALSE(static_cast<bool>(dialog.get_callback()));
+    }
+
+    TEST_CASE("batch5647 direct config mutation does not rewrite public path metadata") {
+        Salix::DialogBox dialog;
+        dialog.set_default_path("Public5647");
+        dialog.set_default_file_name("Public5647.txt");
+        dialog.get_config().path = "Config5647";
+        dialog.get_config().fileName = "Config5647.txt";
+        CHECK(dialog.get_default_path() == "Public5647");
+        CHECK(dialog.get_default_filename() == "Public5647.txt");
+        CHECK(dialog.get_config().path == "Config5647");
+        CHECK(dialog.get_config().fileName == "Config5647.txt");
+    }
+
+    TEST_CASE("batch5647 separate dialogs own independent config and callback state") {
+        Salix::DialogBox first("Same5647", "Same", Salix::DialogType::File, false);
+        Salix::DialogBox second("Same5647", "Same", Salix::DialogType::File, false);
+        first.set_default_path("First5647").set_overwrite(true);
+        second.set_default_path("Second5647").set_overwrite(false);
+        CHECK(&first.get_config() != &second.get_config());
+        CHECK(first.get_default_path() == "First5647");
+        CHECK(second.get_default_path() == "Second5647");
+        CHECK((first.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        CHECK((second.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+    }
+}
+
