@@ -1103,3 +1103,110 @@ TEST_SUITE("Salix::ecs::CameraBatch5947") {
     }
 }
 
+TEST_SUITE("Salix::ecs::CameraBatch6047") {
+    TEST_CASE("batch6047 repeated activation transitions retain configured field of view") {
+        Salix::Camera camera;
+        camera.set_field_of_view(60.47f);
+        camera.activate();
+        camera.activate();
+        REQUIRE(camera.get_is_active());
+        camera.deactivate();
+        camera.deactivate();
+        CHECK_FALSE(camera.get_is_active());
+        CHECK(camera.get_field_of_view() == doctest::Approx(60.47f));
+    }
+
+    TEST_CASE("batch6047 field of view accepts zero then signed replacement exactly") {
+        Salix::Camera camera;
+        camera.set_field_of_view(0.0f);
+        CHECK(camera.get_field_of_view() == 0.0f);
+        camera.set_field_of_view(-60.47f);
+        CHECK(camera.get_field_of_view() == doctest::Approx(-60.47f));
+    }
+
+    TEST_CASE("batch6047 orthographic size accepts zero then signed replacement exactly") {
+        Salix::Camera camera;
+        camera.set_orthographic_size(0.0f);
+        CHECK(camera.get_orthographic_size() == 0.0f);
+        camera.set_orthographic_size(-47.06f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(-47.06f));
+    }
+
+    TEST_CASE("batch6047 near and far clip assignments remain independent") {
+        Salix::Camera camera;
+        camera.set_near_clip(6.047f);
+        camera.set_far_clip(4706.0f);
+        CHECK(camera.get_near_clip() == doctest::Approx(6.047f));
+        CHECK(camera.get_far_clip() == doctest::Approx(4706.0f));
+        camera.set_near_clip(0.0f);
+        CHECK(camera.get_near_clip() == 0.0f);
+        CHECK(camera.get_far_clip() == doctest::Approx(4706.0f));
+    }
+
+    TEST_CASE("batch6047 equivalent perspective aspect ratios produce identical projection") {
+        Salix::Camera camera;
+        camera.set_viewport_size(800, 400);
+        const glm::mat4 first = camera.get_projection_matrix();
+        camera.set_viewport_size(1600, 800);
+        const glm::mat4 second = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(first, second));
+    }
+
+    TEST_CASE("batch6047 repeated initialize preserves complete configured scalar state") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_field_of_view(60.0f);
+        camera.set_orthographic_size(47.0f);
+        camera.set_near_clip(0.25f);
+        camera.set_far_clip(6047.0f);
+        camera.activate();
+        camera.initialize();
+        camera.initialize();
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_field_of_view() == doctest::Approx(60.0f));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(47.0f));
+        CHECK(camera.get_near_clip() == doctest::Approx(0.25f));
+        CHECK(camera.get_far_clip() == doctest::Approx(6047.0f));
+        CHECK(camera.get_is_active());
+    }
+
+    TEST_CASE("batch6047 zero and positive updates preserve projection mode and scalar state") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_orthographic_size(60.47f);
+        camera.update(0.0f);
+        camera.update(6.047f);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(60.47f));
+    }
+
+    TEST_CASE("batch6047 owner reassignment exposes only newest entity transform") {
+        Salix::Entity first, second;
+        Salix::Camera camera;
+        camera.set_owner(&first);
+        REQUIRE(camera.get_transform() == first.get_transform());
+        camera.set_owner(&second);
+        CHECK(camera.get_transform() == second.get_transform());
+        CHECK(camera.get_transform() != first.get_transform());
+    }
+
+    TEST_CASE("batch6047 independently positioned owners produce distinct camera views") {
+        Salix::Entity first, second;
+        first.get_transform()->set_position(6.0f, 0.0f, 0.0f);
+        second.get_transform()->set_position(-4.0f, 7.0f, 0.0f);
+        Salix::Camera a, b;
+        a.set_owner(&first);
+        b.set_owner(&second);
+        CHECK(batch1247_matrix_differs(a.get_view_matrix(), b.get_view_matrix()));
+    }
+
+    TEST_CASE("batch6047 clearing owner restores ownerless transform contract") {
+        Salix::Entity entity;
+        Salix::Camera camera;
+        camera.set_owner(&entity);
+        REQUIRE(camera.get_transform() != nullptr);
+        camera.set_owner(nullptr);
+        CHECK(camera.get_transform() == nullptr);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+    }
+}
