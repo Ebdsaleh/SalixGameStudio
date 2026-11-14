@@ -342,3 +342,77 @@ TEST_SUITE("Salix::math::PointClosure1747") {
         CHECK((point == Salix::Point{-17, 29}));
     }
 }
+
+TEST_SUITE("Salix::math::PointBatch6347") {
+    TEST_CASE("batch6347 default point remains origin") {
+        const Salix::Point point{};
+        CHECK(point.x == 0);
+        CHECK(point.y == 0);
+    }
+
+    TEST_CASE("batch6347 signed coordinates are stored verbatim") {
+        const Salix::Point point{-63, 47};
+        CHECK(point.x == -63);
+        CHECK(point.y == 47);
+    }
+
+    TEST_CASE("batch6347 equality accepts identical negative coordinates") {
+        const Salix::Point a{-6, -347};
+        const Salix::Point b{-6, -347};
+        CHECK(a == b);
+        CHECK_FALSE(a != b);
+    }
+
+    TEST_CASE("batch6347 inequality detects x only difference") {
+        const Salix::Point a{6, 347};
+        const Salix::Point b{7, 347};
+        CHECK(a != b);
+        CHECK_FALSE(a == b);
+    }
+
+    TEST_CASE("batch6347 inequality detects y only difference") {
+        const Salix::Point a{6, 347};
+        const Salix::Point b{6, 348};
+        CHECK(a != b);
+        CHECK_FALSE(a == b);
+    }
+
+    TEST_CASE("batch6347 copy remains independent after source mutation") {
+        Salix::Point source{-63, 47};
+        const Salix::Point copy = source;
+        source.x = 99;
+        source.y = 100;
+        CHECK((copy == Salix::Point{-63, 47}));
+    }
+
+    TEST_CASE("batch6347 assignment replaces both coordinates") {
+        Salix::Point target{1, 2};
+        const Salix::Point source{-63, 47};
+        target = source;
+        CHECK(target == source);
+    }
+
+    TEST_CASE("batch6347 retained coordinate references mutate only selected axis") {
+        Salix::Point point{6, 347};
+        int& x = point.x;
+        x = -63;
+        CHECK(point.x == -63);
+        CHECK(point.y == 347);
+    }
+
+    TEST_CASE("batch6347 JSON archive roundtrip preserves signed point") {
+        const Salix::Point original{-6347, 7436};
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(original); }
+        Salix::Point restored{};
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == original);
+    }
+
+    TEST_CASE("batch6347 ostream preserves canonical field order for signed point") {
+        const Salix::Point point{-63, 47};
+        std::stringstream stream;
+        stream << point;
+        CHECK(stream.str() == "{ x: -63, y: 47 }");
+    }
+}
