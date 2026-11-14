@@ -1133,3 +1133,93 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch6947") {
         CHECK(text.find("ImGuiHoveredFlags_None") != std::string::npos);
     }
 }
+
+namespace {
+class Batch7047RejectingFontManager : public MockIFontManager {
+public:
+    bool apply_font(const std::string& name) override {
+        ++reject_calls; last_rejected=name; return false;
+    }
+    int reject_calls=0;
+    std::string last_rejected;
+};
+}
+
+TEST_SUITE("Salix::gui::ImGuiThemeBatch7047") {
+    TEST_CASE("batch7047 registered requested font failure reaches apply error branch") {
+        Batch6947ThemeContext context; Salix::ImGuiTheme theme("Reject7047");
+        theme.get_data()->font_family="RejectFamily7047"; theme.get_data()->font_size=18.0f; theme.get_data()->default_font_size=20.0f;
+        Batch7047RejectingFontManager fonts;
+        REQUIRE(fonts.register_font(std::make_unique<MockIFont>("RejectFamily7047_18px","RejectFamily7047",18.0f)));
+        MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,&fonts,nullptr);
+        theme.apply(&gui); CHECK(fonts.reject_calls==1); CHECK(fonts.last_rejected=="RejectFamily7047_18px");
+    }
+
+    TEST_CASE("batch7047 default fallback font failure also reaches apply error branch") {
+        Batch6947ThemeContext context; Salix::ImGuiTheme theme("RejectDefault7047");
+        theme.get_data()->font_family="RejectFamily7047"; theme.get_data()->font_size=18.0f; theme.get_data()->default_font_size=20.0f;
+        Batch7047RejectingFontManager fonts;
+        REQUIRE(fonts.register_font(std::make_unique<MockIFont>("RejectFamily7047_20px","RejectFamily7047",20.0f)));
+        MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,&fonts,nullptr);
+        theme.apply(&gui); CHECK(fonts.reject_calls==1); CHECK(fonts.last_rejected=="RejectFamily7047_20px");
+    }
+
+    TEST_CASE("batch7047 builtin fallback font failure reaches apply error branch") {
+        Batch6947ThemeContext context; Salix::ImGuiTheme theme("RejectBuiltin7047");
+        theme.get_data()->font_family="Missing7047"; theme.get_data()->font_size=18.0f; theme.get_data()->default_font_size=20.0f;
+        Batch7047RejectingFontManager fonts;
+        REQUIRE(fonts.register_font(std::make_unique<MockIFont>("Roboto-Regular_20px","Roboto-Regular",20.0f)));
+        MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,&fonts,nullptr);
+        theme.apply(&gui); CHECK(fonts.reject_calls==1); CHECK(fonts.last_rejected=="Roboto-Regular_20px");
+    }
+
+    TEST_CASE("batch7047 save emits Down and Up direction branches explicitly") {
+        Batch1147ThemeTempFile file; Salix::ImGuiTheme theme("Directions7047A");
+        theme.get_data()->window_menu_button_position=ImGuiDir_Down; theme.get_data()->color_button_position=ImGuiDir_Up;
+        REQUIRE(theme.save_to_yaml(file.path.string()));
+        const auto text=Salix::FileManager::read_file_content(file.path.string());
+        CHECK(text.find("ImGuiDir_Down")!=std::string::npos); CHECK(text.find("ImGuiDir_Up")!=std::string::npos);
+    }
+
+    TEST_CASE("batch7047 save emits explicit None direction branches") {
+        Batch1147ThemeTempFile file; Salix::ImGuiTheme theme("Directions7047B");
+        theme.get_data()->window_menu_button_position=ImGuiDir_None; theme.get_data()->color_button_position=ImGuiDir_None;
+        REQUIRE(theme.save_to_yaml(file.path.string()));
+        const auto text=Salix::FileManager::read_file_content(file.path.string());
+        CHECK(text.find("ImGuiDir_None")!=std::string::npos);
+    }
+
+    TEST_CASE("batch7047 save emits Down for both direction fields") {
+        Batch1147ThemeTempFile file; Salix::ImGuiTheme theme("Directions7047C");
+        theme.get_data()->window_menu_button_position=ImGuiDir_Down; theme.get_data()->color_button_position=ImGuiDir_Down;
+        REQUIRE(theme.save_to_yaml(file.path.string()));
+        const auto text=Salix::FileManager::read_file_content(file.path.string());
+        CHECK(text.find("ImGuiDir_Down")!=std::string::npos);
+    }
+
+    TEST_CASE("batch7047 save emits Up for both direction fields") {
+        Batch1147ThemeTempFile file; Salix::ImGuiTheme theme("Directions7047D");
+        theme.get_data()->window_menu_button_position=ImGuiDir_Up; theme.get_data()->color_button_position=ImGuiDir_Up;
+        REQUIRE(theme.save_to_yaml(file.path.string()));
+        const auto text=Salix::FileManager::read_file_content(file.path.string());
+        CHECK(text.find("ImGuiDir_Up")!=std::string::npos);
+    }
+
+    TEST_CASE("batch7047 no font manager remains safe after full style application") {
+        Batch6947ThemeContext context; Salix::ImGuiTheme theme("NoManager7047");
+        theme.get_data()->alpha=.7047f; MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        CHECK_NOTHROW(theme.apply(&gui)); CHECK(ImGui::GetStyle().Alpha==doctest::Approx(.7047f));
+    }
+
+    TEST_CASE("batch7047 no safe registered font leaves current default font pointer unchanged") {
+        Batch6947ThemeContext context; Salix::ImGuiTheme theme("NoSafe7047"); MockIFontManager fonts;
+        theme.get_data()->font_family="Absent7047"; theme.get_data()->font_size=18.0f; theme.get_data()->default_font_size=20.0f;
+        ImFont* before=ImGui::GetIO().FontDefault; MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,&fonts,nullptr);
+        theme.apply(&gui); CHECK(ImGui::GetIO().FontDefault==before); CHECK(fonts.apply_calls==0);
+    }
+
+    TEST_CASE("batch7047 malformed existing YAML remains a controlled load failure") {
+        Batch1147ThemeTempFile file; file.write("Enums: [unterminated\n"); Salix::ImGuiTheme theme("Malformed7047");
+        CHECK_FALSE(theme.load_from_yaml(file.path.string())); CHECK(theme.get_name()=="Malformed7047");
+    }
+}
