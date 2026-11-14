@@ -140,3 +140,70 @@ TEST_SUITE("Salix::reflection::ReflectionTypesBatch2047") {
         CHECK(integer.index() == 0); CHECK(text.index() == 4); CHECK(matrix.index() == 10);
     }
 }
+
+TEST_SUITE("Salix::reflection::ReflectionTypesBatch6347") {
+    TEST_CASE("batch6347 integer alternative remains index zero") {
+        Salix::PropertyValue value = -6347;
+        CHECK(value.index() == 0);
+        CHECK(std::get<int>(value) == -6347);
+    }
+
+    TEST_CASE("batch6347 uint64 alternative remains index one") {
+        Salix::PropertyValue value = std::uint64_t{6347};
+        CHECK(value.index() == 1);
+        CHECK(std::get<std::uint64_t>(value) == 6347ULL);
+    }
+
+    TEST_CASE("batch6347 float alternative remains index two") {
+        Salix::PropertyValue value = 6.347f;
+        CHECK(value.index() == 2);
+        CHECK(std::get<float>(value) == doctest::Approx(6.347f));
+    }
+
+    TEST_CASE("batch6347 bool alternative remains index three") {
+        Salix::PropertyValue value = true;
+        CHECK(value.index() == 3);
+        CHECK(std::get<bool>(value));
+    }
+
+    TEST_CASE("batch6347 string alternative remains index four") {
+        Salix::PropertyValue value = std::string("Batch6347");
+        CHECK(value.index() == 4);
+        CHECK(std::get<std::string>(value) == "Batch6347");
+    }
+
+    TEST_CASE("batch6347 Vector2 alternative remains index five") {
+        Salix::PropertyValue value = Salix::Vector2{-6.0f, 3.0f};
+        CHECK(value.index() == 5);
+        CHECK(std::get<Salix::Vector2>(value) == Salix::Vector2(-6.0f, 3.0f));
+    }
+
+    TEST_CASE("batch6347 Vector3 alternative remains index six") {
+        Salix::PropertyValue value = Salix::Vector3{-6.0f, 3.0f, 47.0f};
+        CHECK(value.index() == 6);
+        CHECK(std::get<Salix::Vector3>(value) == Salix::Vector3(-6.0f, 3.0f, 47.0f));
+    }
+
+    TEST_CASE("batch6347 Color alternative remains index seven") {
+        Salix::PropertyValue value = Salix::Color{0.6f, 0.3f, 0.4f, 0.7f};
+        CHECK(value.index() == 7);
+        CHECK(std::get<Salix::Color>(value) == Salix::Color(0.6f, 0.3f, 0.4f, 0.7f));
+    }
+
+    TEST_CASE("batch6347 Point and Rect alternatives remain indices eight and nine") {
+        Salix::PropertyValue point = Salix::Point{-63, 47};
+        Salix::PropertyValue rect = Salix::Rect{-6, 3, 4, 7};
+        CHECK(point.index() == 8);
+        CHECK(rect.index() == 9);
+        CHECK(std::get<Salix::Point>(point) == Salix::Point{-63, 47});
+        CHECK(std::get<Salix::Rect>(rect) == Salix::Rect(-6, 3, 4, 7));
+    }
+
+    TEST_CASE("batch6347 glm matrix alternative remains index ten") {
+        glm::mat4 matrix(1.0f);
+        matrix[3][2] = 63.47f;
+        Salix::PropertyValue value = matrix;
+        CHECK(value.index() == 10);
+        CHECK(std::get<glm::mat4>(value)[3][2] == doctest::Approx(63.47f));
+    }
+}
