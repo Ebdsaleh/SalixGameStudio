@@ -1085,3 +1085,139 @@ TEST_SUITE("Salix::management::ProjectManagerBatch6247") {
         CHECK(std::filesystem::is_regular_file(project / (name + ".salixproj")));
     }
 }
+
+#include <Salix/management/ProjectConfig.h>
+#include <cereal/archives/json.hpp>
+#include <cereal/types/vector.hpp>
+
+namespace {
+std::filesystem::path batch6947_write_valid_project(
+    Batch1947ProjectRoot& root,
+    const std::string& file_stem,
+    const std::string& project_name,
+    const std::string& starting_realm = "",
+    const std::vector<Salix::RealmInfo>& realms = {}) {
+    Salix::ProjectConfig config;
+    config.project_data.project_path = root.path.string();
+    config.project_data.project_file_name = file_stem + ".salixproj";
+    config.project_data.project_name = project_name;
+    config.project_data.starting_realm = starting_realm;
+    config.project_data.realms = realms;
+    config.build_settings.game_dll_name = "__Batch6947_missing_game__.dll";
+    const auto path = root.path / config.project_data.project_file_name;
+    std::ofstream out(path, std::ios::out | std::ios::trunc);
+    cereal::JSONOutputArchive archive(out);
+    archive(config);
+    return path;
+}
+}
+
+TEST_SUITE("Salix::management::ProjectManagerBatch6947") {
+    TEST_CASE("batch6947 valid project file exercises successful load_project path") {
+        Batch1947ProjectRoot root;
+        const auto file = batch6947_write_valid_project(root, "valid6947a", "Batch6947A");
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project(file.string()));
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_active_project()->get_name() == "Batch6947A");
+    }
+
+    TEST_CASE("batch6947 successful load preserves configured project root path") {
+        Batch1947ProjectRoot root;
+        const auto file = batch6947_write_valid_project(root, "valid6947b", "Batch6947B");
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project(file.string()));
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_active_project()->get_path() == root.path.string());
+    }
+
+    TEST_CASE("batch6947 successful load applies configured starting realm text") {
+        Batch1947ProjectRoot root;
+        const auto file = batch6947_write_valid_project(root, "valid6947c", "Batch6947C", "Start6947");
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project(file.string()));
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_active_project()->get_starting_realm() == "Start6947");
+    }
+
+    TEST_CASE("batch6947 successful load copies configured realm path entries") {
+        Batch1947ProjectRoot root;
+        const std::vector<Salix::RealmInfo> realms{
+            {"RealmA6947", "Assets/Realms/A6947.realm"},
+            {"RealmB6947", "Assets/Realms/B6947.realm"}};
+        const auto file = batch6947_write_valid_project(root, "valid6947d", "Batch6947D", "", realms);
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project(file.string()));
+        REQUIRE(manager.get_active_project() != nullptr);
+        const auto& paths = manager.get_active_project()->get_realm_paths();
+        CHECK(paths.at("RealmA6947") == "Assets/Realms/A6947.realm");
+        CHECK(paths.at("RealmB6947") == "Assets/Realms/B6947.realm");
+    }
+
+    TEST_CASE("batch6947 successful load replaces an existing placeholder project") {
+        Batch1947ProjectRoot root;
+        const auto file = batch6947_write_valid_project(root, "valid6947e", "Batch6947E");
+        Salix::ProjectManager manager;
+        manager.set_active_project("placeholder");
+        auto* before = manager.get_active_project();
+        REQUIRE(before != nullptr);
+        REQUIRE(manager.load_project(file.string()));
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_active_project() != before);
+        CHECK(manager.get_active_project()->get_name() == "Batch6947E");
+    }
+
+    TEST_CASE("batch6947 valid pointer loader returns active project identity") {
+        Batch1947ProjectRoot root;
+        const auto file = batch6947_write_valid_project(root, "valid6947f", "Batch6947F");
+        Salix::ProjectManager manager;
+        Salix::Project* loaded = manager.load_project_from_file(file.string());
+        REQUIRE(loaded != nullptr);
+        CHECK(loaded == manager.get_active_project());
+        CHECK(loaded->get_name() == "Batch6947F");
+    }
+
+    TEST_CASE("batch6947 pointer loader preserves starting realm and root metadata") {
+        Batch1947ProjectRoot root;
+        const auto file = batch6947_write_valid_project(root, "valid6947g", "Batch6947G", "PointerStart6947");
+        Salix::ProjectManager manager;
+        Salix::Project* loaded = manager.load_project_from_file(file.string());
+        REQUIRE(loaded != nullptr);
+        CHECK(loaded->get_starting_realm() == "PointerStart6947");
+        CHECK(loaded->get_path() == root.path.string());
+    }
+
+    TEST_CASE("batch6947 pointer loader copies multiple realm paths") {
+        Batch1947ProjectRoot root;
+        const std::vector<Salix::RealmInfo> realms{
+            {"One6947", "One6947.realm"}, {"Two6947", "Two6947.realm"}};
+        const auto file = batch6947_write_valid_project(root, "valid6947h", "Batch6947H", "", realms);
+        Salix::ProjectManager manager;
+        Salix::Project* loaded = manager.load_project_from_file(file.string());
+        REQUIRE(loaded != nullptr);
+        CHECK(loaded->get_realm_paths().size() == 2);
+        CHECK(loaded->get_realm_paths().at("Two6947") == "Two6947.realm");
+    }
+
+    TEST_CASE("batch6947 repeated successful loads replace active project metadata") {
+        Batch1947ProjectRoot root;
+        const auto first = batch6947_write_valid_project(root, "valid6947i1", "Batch6947I1");
+        const auto second = batch6947_write_valid_project(root, "valid6947i2", "Batch6947I2");
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project(first.string()));
+        CHECK(manager.get_active_project()->get_name() == "Batch6947I1");
+        REQUIRE(manager.load_project(second.string()));
+        CHECK(manager.get_active_project()->get_name() == "Batch6947I2");
+    }
+
+    TEST_CASE("batch6947 successful load does not rewrite pending manager selection metadata") {
+        Batch1947ProjectRoot root;
+        const auto file = batch6947_write_valid_project(root, "valid6947j", "Batch6947J");
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending6947.salixproj");
+        manager.set_loaded_project_directory("PendingRoot6947");
+        REQUIRE(manager.load_project(file.string()));
+        CHECK(manager.get_project_to_load() == "Pending6947.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "PendingRoot6947");
+    }
+}
