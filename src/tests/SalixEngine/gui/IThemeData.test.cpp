@@ -76,3 +76,76 @@ TEST_SUITE("Salix::gui::IThemeDataBatch1447") {
         CHECK(data->get_gui_type() == "MockGui");
     }
 }
+
+TEST_SUITE("Salix::gui::IThemeDataBatch6647") {
+    TEST_CASE("batch6647 default mock theme data remains canonical") {
+        MockIThemeData data;
+        CHECK(data.get_name() == "MockThemeData");
+        CHECK(data.get_gui_type() == "MockGui");
+    }
+
+    TEST_CASE("batch6647 both strings may be empty simultaneously") {
+        MockIThemeData data("", "");
+        CHECK(data.get_name().empty());
+        CHECK(data.get_gui_type().empty());
+    }
+
+    TEST_CASE("batch6647 name preserves spaces punctuation and traversal text") {
+        MockIThemeData data;
+        data.set_name("../Theme #6647");
+        CHECK(data.get_name() == "../Theme #6647");
+    }
+
+    TEST_CASE("batch6647 GUI type preserves spaces and punctuation") {
+        MockIThemeData data;
+        data.set_gui_type("Mock GUI #6647");
+        CHECK(data.get_gui_type() == "Mock GUI #6647");
+    }
+
+    TEST_CASE("batch6647 name preserves embedded null bytes") {
+        MockIThemeData data;
+        data.set_name(std::string("Theme\0Data", 10));
+        CHECK(data.get_name().size() == 10);
+        CHECK(data.get_name()[5] == '\0');
+    }
+
+    TEST_CASE("batch6647 GUI type preserves embedded null bytes") {
+        MockIThemeData data;
+        data.set_gui_type(std::string("Gui\0Type", 8));
+        CHECK(data.get_gui_type().size() == 8);
+        CHECK(data.get_gui_type()[3] == '\0');
+    }
+
+    TEST_CASE("batch6647 copy remains independent after source name mutation") {
+        MockIThemeData source("Source6647", "Gui6647");
+        MockIThemeData copy = source;
+        source.set_name("Changed6647");
+        CHECK(copy.get_name() == "Source6647");
+        CHECK(copy.get_gui_type() == "Gui6647");
+    }
+
+    TEST_CASE("batch6647 copy remains independent after source GUI type mutation") {
+        MockIThemeData source("Source6647", "Gui6647");
+        MockIThemeData copy = source;
+        source.set_gui_type("ChangedGui6647");
+        CHECK(copy.get_name() == "Source6647");
+        CHECK(copy.get_gui_type() == "Gui6647");
+    }
+
+    TEST_CASE("batch6647 assignment replaces both owned strings") {
+        MockIThemeData source("Assigned6647", "AssignedGui6647");
+        MockIThemeData destination("Old6647", "OldGui6647");
+        destination = source;
+        CHECK(destination.get_name() == "Assigned6647");
+        CHECK(destination.get_gui_type() == "AssignedGui6647");
+    }
+
+    TEST_CASE("batch6647 base interface observes later concrete mutations") {
+        MockIThemeData data("Before6647", "BeforeGui6647");
+        Salix::IThemeData& interface = data;
+        data.set_name("After6647");
+        data.set_gui_type("AfterGui6647");
+        CHECK(interface.get_name() == "After6647");
+        CHECK(interface.get_gui_type() == "AfterGui6647");
+    }
+}
