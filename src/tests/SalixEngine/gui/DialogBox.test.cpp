@@ -935,3 +935,88 @@ TEST_SUITE("Salix::gui::DialogBoxBatch5647") {
     }
 }
 
+#include <ImGuiFileDialog.h>
+
+TEST_SUITE("Salix::gui::DialogBoxBatch6947") {
+    TEST_CASE("batch6947 open file without overwrite executes open-file branch") {
+        Salix::DialogBox dialog("OpenFile6947A", "Open", Salix::DialogType::File, false);
+        dialog.set_filters(".txt").set_default_path("Assets").set_default_file_name("a.txt");
+        CHECK_NOTHROW(dialog.open());
+        CHECK(dialog.get_key() == "OpenFile6947A");
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 open file with overwrite executes save-file branch") {
+        Salix::DialogBox dialog("SaveFile6947B", "Save", Salix::DialogType::File, true);
+        dialog.set_filters(".yaml").set_default_path("Config").set_default_file_name("b.yaml");
+        CHECK_NOTHROW(dialog.open());
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 open folder without overwrite executes folder-open branch") {
+        Salix::DialogBox dialog("OpenFolder6947C", "Folder", Salix::DialogType::Folder, false);
+        dialog.set_default_path("Assets");
+        CHECK_NOTHROW(dialog.open());
+        CHECK(dialog.get_filters().empty());
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 open folder with overwrite executes folder-create branch") {
+        Salix::DialogBox dialog("CreateFolder6947D", "Create Folder", Salix::DialogType::Folder, true);
+        dialog.set_default_path("Assets");
+        CHECK_NOTHROW(dialog.open());
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 open propagates custom selection count and user data without mutation") {
+        Salix::DialogBox dialog("Config6947E", "Config", Salix::DialogType::File, false);
+        dialog.get_config().countSelectionMax = 7;
+        dialog.get_config().userDatas = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x6947));
+        CHECK_NOTHROW(dialog.open());
+        CHECK(dialog.get_config().countSelectionMax == 7);
+        CHECK(dialog.get_config().userDatas == reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x6947)));
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 repeated open with unique file key remains safe") {
+        Salix::DialogBox dialog("Repeat6947F", "Repeat", Salix::DialogType::File, false);
+        CHECK_NOTHROW(dialog.open());
+        ImGuiFileDialog::Instance()->Close();
+        CHECK_NOTHROW(dialog.open());
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 empty path and filename remain representable during open") {
+        Salix::DialogBox dialog("Empty6947G", "Empty", Salix::DialogType::File, false);
+        dialog.set_default_path("").set_default_file_name("");
+        CHECK_NOTHROW(dialog.open());
+        CHECK(dialog.get_config().path.empty());
+        CHECK(dialog.get_config().fileName.empty());
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 folder filters remain ignored by open branch but stored by dialog") {
+        Salix::DialogBox dialog("FolderFilter6947H", "Folder", Salix::DialogType::Folder, false);
+        dialog.set_filters(".stored-but-not-used");
+        CHECK_NOTHROW(dialog.open());
+        CHECK(dialog.get_filters() == ".stored-but-not-used");
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 overwrite toggled before open changes branch flags safely") {
+        Salix::DialogBox dialog("Toggle6947I", "Toggle", Salix::DialogType::File, false);
+        dialog.set_overwrite(true);
+        CHECK_NOTHROW(dialog.open());
+        CHECK((dialog.get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+        ImGuiFileDialog::Instance()->Close();
+    }
+
+    TEST_CASE("batch6947 invalid dialog type executes explicit unknown-type branch") {
+        Salix::DialogBox dialog(
+            "Invalid6947J", "Invalid", static_cast<Salix::DialogType>(6947), false);
+        CHECK_NOTHROW(dialog.open());
+        CHECK(dialog.get_type() == static_cast<Salix::DialogType>(6947));
+    }
+}
