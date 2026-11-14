@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <string>
+#include <iterator>
 
 namespace {
 class Batch1147ThemeTempFile {
