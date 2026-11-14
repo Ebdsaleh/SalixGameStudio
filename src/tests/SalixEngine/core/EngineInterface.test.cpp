@@ -90,3 +90,95 @@ TEST_SUITE("Salix::core::EngineInterfaceBatch1347") {
         CHECK(engine->get_mode() == Salix::EngineMode::Launch);
     }
 }
+
+TEST_SUITE("Salix::core::EngineInterfaceBatch6447") {
+    TEST_CASE("batch6447 state switch count increments for every requested transition") {
+        MockEngineInterface engine;
+        Salix::EngineInterface& interface = engine;
+        interface.switch_state(Salix::AppStateType::Launch);
+        interface.switch_state(Salix::AppStateType::Editor);
+        interface.switch_state(Salix::AppStateType::Game);
+        CHECK(engine.switch_state_calls == 3);
+        CHECK(engine.current_state == Salix::AppStateType::Game);
+    }
+
+    TEST_CASE("batch6447 repeated identical state transitions remain observable") {
+        MockEngineInterface engine;
+        Salix::EngineInterface& interface = engine;
+        interface.switch_state(Salix::AppStateType::Options);
+        interface.switch_state(Salix::AppStateType::Options);
+        CHECK(engine.switch_state_calls == 2);
+        CHECK(engine.current_state == Salix::AppStateType::Options);
+    }
+
+    TEST_CASE("batch6447 repeated mode assignment increments setter accounting") {
+        MockEngineInterface engine;
+        Salix::EngineInterface& interface = engine;
+        interface.set_mode(Salix::EngineMode::Debug);
+        interface.set_mode(Salix::EngineMode::Debug);
+        CHECK(engine.set_mode_calls == 2);
+        CHECK(interface.get_mode() == Salix::EngineMode::Debug);
+    }
+
+    TEST_CASE("batch6447 running toggle returns exact newly stored state") {
+        MockEngineInterface engine;
+        Salix::EngineInterface& interface = engine;
+        CHECK_FALSE(interface.is_running(false));
+        CHECK(interface.is_running(true));
+        CHECK(interface.is_running());
+    }
+
+    TEST_CASE("batch6447 negative time scale roundtrips without changing running state") {
+        MockEngineInterface engine;
+        Salix::EngineInterface& interface = engine;
+        interface.set_time_scale(-6.447f);
+        CHECK(interface.get_time_scale() == doctest::Approx(-6.447f));
+        CHECK(interface.is_running());
+    }
+
+    TEST_CASE("batch6447 mode changes do not increment time scale setter accounting") {
+        MockEngineInterface engine;
+        Salix::EngineInterface& interface = engine;
+        interface.set_mode(Salix::EngineMode::Editor);
+        interface.set_mode(Salix::EngineMode::Game);
+        CHECK(engine.set_time_scale_calls == 0);
+        CHECK(engine.set_mode_calls == 2);
+    }
+
+    TEST_CASE("batch6447 time scale changes do not increment mode setter accounting") {
+        MockEngineInterface engine;
+        Salix::EngineInterface& interface = engine;
+        interface.set_time_scale(0.5f);
+        interface.set_time_scale(2.0f);
+        CHECK(engine.set_mode_calls == 0);
+        CHECK(engine.set_time_scale_calls == 2);
+    }
+
+    TEST_CASE("batch6447 state switches do not rewrite selected mode") {
+        MockEngineInterface engine;
+        Salix::EngineInterface& interface = engine;
+        interface.set_mode(Salix::EngineMode::Options);
+        interface.switch_state(Salix::AppStateType::Game);
+        CHECK(interface.get_mode() == Salix::EngineMode::Options);
+    }
+
+    TEST_CASE("batch6447 two engines retain independent lifecycle counters") {
+        MockEngineInterface first;
+        MockEngineInterface second;
+        first.switch_state(Salix::AppStateType::Editor);
+        first.set_mode(Salix::EngineMode::Editor);
+        second.set_time_scale(3.0f);
+        CHECK(first.switch_state_calls == 1);
+        CHECK(first.set_mode_calls == 1);
+        CHECK(first.set_time_scale_calls == 0);
+        CHECK(second.switch_state_calls == 0);
+        CHECK(second.set_mode_calls == 0);
+        CHECK(second.set_time_scale_calls == 1);
+    }
+
+    TEST_CASE("batch6447 polymorphic ownership preserves negative time scale") {
+        std::unique_ptr<Salix::EngineInterface> engine = std::make_unique<MockEngineInterface>();
+        engine->set_time_scale(-1.25f);
+        CHECK(engine->get_time_scale() == doctest::Approx(-1.25f));
+    }
+}
