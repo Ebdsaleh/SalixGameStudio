@@ -1173,3 +1173,52 @@ TEST_SUITE("Salix::core::StringUtilsBatch6247") {
               "A 1 Beta 2 Gamma");
     }
 }
+
+TEST_SUITE("Salix::core::StringUtilsBatch6847") {
+    TEST_CASE("batch6847 upper conversion leaves digits punctuation and underscores unchanged") {
+        CHECK(Salix::StringUtils::to_upper("a6_b8-4.7!", false) == "A6_B8-4.7!");
+    }
+
+    TEST_CASE("batch6847 lower conversion handles mixed case without desnaking") {
+        CHECK(Salix::StringUtils::to_lower("BaTcH_6847", false) == "batch_6847");
+    }
+
+    TEST_CASE("batch6847 title case treats vertical tab and form feed as word boundaries") {
+        CHECK(Salix::StringUtils::to_title_case("aLPHA\vBETA\fgaMMA") ==
+              "Alpha\vBeta\fGamma");
+    }
+
+    TEST_CASE("batch6847 capitalize lowercases every character after first") {
+        CHECK(Salix::StringUtils::capitalize("bATCH6847ALPHA") == "Batch6847alpha");
+    }
+
+    TEST_CASE("batch6847 snake validation requires at least one underscore") {
+        CHECK_FALSE(Salix::StringUtils::is_snake_case("alpha6847"));
+        CHECK(Salix::StringUtils::is_snake_case("alpha_6847"));
+    }
+
+    TEST_CASE("batch6847 snake substring detection ignores edge underscores") {
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("_alpha"));
+        CHECK_FALSE(Salix::StringUtils::contains_snake_case("alpha_"));
+        CHECK(Salix::StringUtils::contains_snake_case("a_b"));
+    }
+
+    TEST_CASE("batch6847 snake conversion keeps doubled underscores while replacing valid singles") {
+        CHECK(Salix::StringUtils::convert_from_snake_case("a__b_c__d") == "a__b c__d");
+    }
+
+    TEST_CASE("batch6847 Pascal validation accepts single uppercase letter") {
+        CHECK(Salix::StringUtils::is_pascal_case("A"));
+        CHECK_FALSE(Salix::StringUtils::is_pascal_case("a"));
+    }
+
+    TEST_CASE("batch6847 Pascal substring detection finds lowercase to uppercase transition only") {
+        CHECK(Salix::StringUtils::contains_pascal_case("alphaBeta6847"));
+        CHECK_FALSE(Salix::StringUtils::contains_pascal_case("ALPHABETA6847"));
+    }
+
+    TEST_CASE("batch6847 Pascal conversion keeps acronym run together before lowercase word") {
+        CHECK(Salix::StringUtils::convert_from_pascal_case("HTTPServer6847Alpha") ==
+              "HTTPServer 6847 Alpha");
+    }
+}
