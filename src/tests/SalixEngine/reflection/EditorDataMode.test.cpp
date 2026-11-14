@@ -117,3 +117,82 @@ TEST_SUITE("Salix::reflection::EditorDataModeBatch2047") {
         CHECK(identity(Salix::EditorDataMode::Live) == Salix::EditorDataMode::Live); CHECK(identity(Salix::EditorDataMode::Yaml) == Salix::EditorDataMode::Yaml);
     }
 }
+
+TEST_SUITE("Salix::reflection::EditorDataModeBatch6347") {
+    TEST_CASE("batch6347 Live underlying value remains zero") {
+        CHECK(static_cast<int>(Salix::EditorDataMode::Live) == 0);
+    }
+
+    TEST_CASE("batch6347 Yaml underlying value remains one") {
+        CHECK(static_cast<int>(Salix::EditorDataMode::Yaml) == 1);
+    }
+
+    TEST_CASE("batch6347 modes remain exactly two distinct ordered values") {
+        const std::array<Salix::EditorDataMode, 2> modes{
+            Salix::EditorDataMode::Live, Salix::EditorDataMode::Yaml
+        };
+        std::set<Salix::EditorDataMode> unique(modes.begin(), modes.end());
+        CHECK(unique.size() == 2);
+        CHECK(static_cast<int>(modes[0]) < static_cast<int>(modes[1]));
+    }
+
+    TEST_CASE("batch6347 repeated Live assignment remains Live") {
+        Salix::EditorDataMode mode = Salix::EditorDataMode::Live;
+        mode = Salix::EditorDataMode::Live;
+        CHECK(mode == Salix::EditorDataMode::Live);
+    }
+
+    TEST_CASE("batch6347 repeated Yaml assignment remains Yaml") {
+        Salix::EditorDataMode mode = Salix::EditorDataMode::Yaml;
+        mode = Salix::EditorDataMode::Yaml;
+        CHECK(mode == Salix::EditorDataMode::Yaml);
+    }
+
+    TEST_CASE("batch6347 alternating array preserves explicit ordering") {
+        const std::array<Salix::EditorDataMode, 4> modes{
+            Salix::EditorDataMode::Live, Salix::EditorDataMode::Yaml,
+            Salix::EditorDataMode::Live, Salix::EditorDataMode::Yaml
+        };
+        CHECK(modes[0] == modes[2]);
+        CHECK(modes[1] == modes[3]);
+        CHECK(modes[0] != modes[1]);
+    }
+
+    TEST_CASE("batch6347 set insertion collapses repeated Live and Yaml values") {
+        std::set<Salix::EditorDataMode> modes;
+        modes.insert(Salix::EditorDataMode::Live);
+        modes.insert(Salix::EditorDataMode::Yaml);
+        modes.insert(Salix::EditorDataMode::Yaml);
+        modes.insert(Salix::EditorDataMode::Live);
+        CHECK(modes.size() == 2);
+    }
+
+    TEST_CASE("batch6347 map replacement for Yaml leaves Live mapping untouched") {
+        std::map<Salix::EditorDataMode, std::string> labels;
+        labels[Salix::EditorDataMode::Live] = "live";
+        labels[Salix::EditorDataMode::Yaml] = "old";
+        labels[Salix::EditorDataMode::Yaml] = "yaml";
+        CHECK(labels.at(Salix::EditorDataMode::Live) == "live");
+        CHECK(labels.at(Salix::EditorDataMode::Yaml) == "yaml");
+    }
+
+    TEST_CASE("batch6347 roundtrip through underlying type preserves both modes") {
+        using U = std::underlying_type_t<Salix::EditorDataMode>;
+        CHECK(static_cast<Salix::EditorDataMode>(
+            static_cast<U>(Salix::EditorDataMode::Live)) == Salix::EditorDataMode::Live);
+        CHECK(static_cast<Salix::EditorDataMode>(
+            static_cast<U>(Salix::EditorDataMode::Yaml)) == Salix::EditorDataMode::Yaml);
+    }
+
+    TEST_CASE("batch6347 switch dispatch distinguishes both declared modes") {
+        const auto label = [](Salix::EditorDataMode mode) {
+            switch (mode) {
+                case Salix::EditorDataMode::Live: return std::string("live6347");
+                case Salix::EditorDataMode::Yaml: return std::string("yaml6347");
+            }
+            return std::string("unknown6347");
+        };
+        CHECK(label(Salix::EditorDataMode::Live) == "live6347");
+        CHECK(label(Salix::EditorDataMode::Yaml) == "yaml6347");
+    }
+}
