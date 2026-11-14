@@ -1245,3 +1245,80 @@ TEST_SUITE("Salix::math::ColorBatch6247") {
         CHECK(stream.str() == "{ r: -6.5, g: 2.25, b: -4, a: 7.75 }");
     }
 }
+
+TEST_SUITE("Salix::math::ColorBatch6847") {
+    TEST_CASE("batch6847 addition is componentwise and commutative for finite values") {
+        const Salix::Color a(-6.0f, 8.0f, 4.0f, 7.0f);
+        const Salix::Color b(1.0f, -2.0f, 3.0f, -4.0f);
+        CHECK(a + b == b + a);
+        CHECK(a + b == Salix::Color(-5.0f, 6.0f, 7.0f, 3.0f));
+    }
+
+    TEST_CASE("batch6847 subtraction preserves operand order per channel") {
+        const Salix::Color a(6.0f, 8.0f, 4.0f, 7.0f);
+        const Salix::Color b(1.0f, 2.0f, 3.0f, 4.0f);
+        CHECK(a - b == Salix::Color(5.0f, 6.0f, 1.0f, 3.0f));
+        CHECK(b - a == Salix::Color(-5.0f, -6.0f, -1.0f, -3.0f));
+    }
+
+    TEST_CASE("batch6847 integer factory preserves custom alpha ratio") {
+        const auto color = Salix::Color::from_rgba_int(255, 128, 0, 64);
+        CHECK(color.r == doctest::Approx(1.0f));
+        CHECK(color.g == doctest::Approx(128.0f / 255.0f));
+        CHECK(color.b == doctest::Approx(0.0f));
+        CHECK(color.a == doctest::Approx(64.0f / 255.0f));
+    }
+
+    TEST_CASE("batch6847 integer factory does not clamp channels outside byte range") {
+        const auto color = Salix::Color::from_rgba_int(510, -255, 255, 510);
+        CHECK(color.r == doctest::Approx(2.0f));
+        CHECK(color.g == doctest::Approx(-1.0f));
+        CHECK(color.b == doctest::Approx(1.0f));
+        CHECK(color.a == doctest::Approx(2.0f));
+    }
+
+    TEST_CASE("batch6847 quarter lerp interpolates alpha independently") {
+        const Salix::Color start(0.0f, 4.0f, 8.0f, 0.0f);
+        const Salix::Color end(8.0f, 0.0f, 0.0f, 1.0f);
+        const auto result = Salix::Color::lerp(start, end, 0.25f);
+        CHECK(result == Salix::Color(2.0f, 3.0f, 6.0f, 0.25f));
+    }
+
+    TEST_CASE("batch6847 lerp identical endpoints remains identical for interior t") {
+        const Salix::Color value(-6.847f, 2.0f, 4.0f, 7.0f);
+        CHECK(Salix::Color::lerp(value, value, 0.37f) == value);
+    }
+
+    TEST_CASE("batch6847 ImVec conversion preserves out of range signed channels") {
+        const Salix::Color color(-6.847f, 2.0f, -4.0f, 7.0f);
+        const auto vector = color.to_imvec4();
+        CHECK(vector.x == doctest::Approx(-6.847f));
+        CHECK(vector.y == doctest::Approx(2.0f));
+        CHECK(vector.z == doctest::Approx(-4.0f));
+        CHECK(vector.w == doctest::Approx(7.0f));
+    }
+
+    TEST_CASE("batch6847 inequality detects alpha only difference") {
+        const Salix::Color first(1.0f, 2.0f, 3.0f, 4.0f);
+        const Salix::Color second(1.0f, 2.0f, 3.0f, 5.0f);
+        CHECK(first != second);
+        CHECK_FALSE(first == second);
+    }
+
+    TEST_CASE("batch6847 copy storage remains independent after source channel mutation") {
+        Salix::Color source(-6.0f, 8.0f, 4.0f, 7.0f);
+        const Salix::Color copy = source;
+        source.r = 99.0f;
+        source.a = -99.0f;
+        CHECK(copy == Salix::Color(-6.0f, 8.0f, 4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6847 JSON roundtrip preserves channels outside normalized range") {
+        const Salix::Color source(-6.847f, 2.5f, -4.25f, 7.75f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::Color restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == source);
+    }
+}
