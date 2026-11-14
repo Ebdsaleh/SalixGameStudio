@@ -107,3 +107,86 @@ TEST_SUITE("Salix::gui::IDialogBatch1447") {
         dialog->open();
     }
 }
+
+TEST_SUITE("Salix::gui::IDialogBatch6547") {
+    TEST_CASE("batch6547 default mock identity remains canonical") {
+        MockIDialog dialog;
+        CHECK(dialog.get_key() == "MockDialog");
+        CHECK(dialog.get_title() == "Mock Dialog");
+        CHECK(dialog.get_type() == Salix::DialogType::File);
+    }
+
+    TEST_CASE("batch6547 empty filter text is preserved exactly") {
+        MockIDialog dialog;
+        Salix::IDialog& returned = dialog.set_filters("");
+        CHECK(&returned == &dialog);
+        CHECK(dialog.get_filters().empty());
+    }
+
+    TEST_CASE("batch6547 empty default path replaces dot default") {
+        MockIDialog dialog;
+        REQUIRE(dialog.get_default_path() == ".");
+        dialog.set_default_path("");
+        CHECK(dialog.get_default_path().empty());
+    }
+
+    TEST_CASE("batch6547 filename setter preserves spaces and punctuation") {
+        MockIDialog dialog;
+        dialog.set_default_file_name("My Realm #6547.salix");
+        CHECK(dialog.get_default_filename() == "My Realm #6547.salix");
+    }
+
+    TEST_CASE("batch6547 fluent setters may be chained through one interface reference") {
+        MockIDialog dialog;
+        Salix::IDialog& first = dialog.set_filters(".realm");
+        Salix::IDialog& second = first.set_default_path("Assets/Realms");
+        Salix::IDialog& third = second.set_default_file_name("Start.realm");
+        CHECK(&first == &dialog);
+        CHECK(&second == &dialog);
+        CHECK(&third == &dialog);
+        CHECK(dialog.get_filters() == ".realm");
+        CHECK(dialog.get_default_path() == "Assets/Realms");
+        CHECK(dialog.get_default_filename() == "Start.realm");
+    }
+
+    TEST_CASE("batch6547 mutable config transports exact user data pointer") {
+        MockIDialog dialog;
+        int payload = 6547;
+        dialog.get_config().userDatas = &payload;
+        CHECK(dialog.get_config().userDatas == &payload);
+    }
+
+    TEST_CASE("batch6547 mutable config preserves zero selection maximum") {
+        MockIDialog dialog;
+        dialog.get_config().countSelectionMax = 0;
+        CHECK(dialog.get_config().countSelectionMax == 0);
+    }
+
+    TEST_CASE("batch6547 mutable config preserves explicit flag value") {
+        MockIDialog dialog;
+        const auto flags = static_cast<ImGuiFileDialogFlags>(6547);
+        dialog.get_config().flags = flags;
+        CHECK(dialog.get_config().flags == flags);
+    }
+
+    TEST_CASE("batch6547 callback begins empty and may be cleared after assignment") {
+        MockIDialog dialog;
+        CHECK_FALSE(static_cast<bool>(dialog.get_callback()));
+        dialog.set_callback([](const Salix::FileDialogResult&) {});
+        REQUIRE(static_cast<bool>(dialog.get_callback()));
+        dialog.set_callback(Salix::FileDialogCallback{});
+        CHECK_FALSE(static_cast<bool>(dialog.get_callback()));
+    }
+
+    TEST_CASE("batch6547 overwrite setting remains independent from open accounting") {
+        MockIDialog dialog;
+        dialog.set_overwrite(true);
+        dialog.open();
+        dialog.open();
+        CHECK(dialog.overwrite_enabled());
+        CHECK(dialog.open_calls == 2);
+        dialog.set_overwrite(false);
+        CHECK_FALSE(dialog.overwrite_enabled());
+        CHECK(dialog.open_calls == 2);
+    }
+}
