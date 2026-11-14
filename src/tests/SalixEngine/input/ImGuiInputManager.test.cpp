@@ -973,3 +973,46 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch6947") {
         CHECK_FALSE(manager.any_of_combo_was_released(buttons));
     }
 }
+
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch7047") {
+    TEST_CASE("batch7047 empty key combo is vacuously all down") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_are_down(std::vector<Salix::KeyCode>{}));
+    }
+    TEST_CASE("batch7047 empty key combo is vacuously all held") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_are_held_down(std::vector<Salix::KeyCode>{}));
+    }
+    TEST_CASE("batch7047 empty key combo is vacuously held for any duration") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_are_held_down_for(std::vector<Salix::KeyCode>{},7047.0f));
+    }
+    TEST_CASE("batch7047 empty key combo is vacuously all released") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_were_released(std::vector<Salix::KeyCode>{}));
+    }
+    TEST_CASE("batch7047 empty key combo is vacuously all up") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_are_up(std::vector<Salix::KeyCode>{}));
+    }
+    TEST_CASE("batch7047 empty mouse combo is vacuously all down") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_are_down(std::vector<Salix::MouseButton>{}));
+    }
+    TEST_CASE("batch7047 empty mouse combo is vacuously all held") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_are_held_down(std::vector<Salix::MouseButton>{}));
+    }
+    TEST_CASE("batch7047 empty mouse combo is vacuously held for any duration") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_are_held_down_for(std::vector<Salix::MouseButton>{},7047.0f));
+    }
+    TEST_CASE("batch7047 empty mouse combo is vacuously all released") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_were_released(std::vector<Salix::MouseButton>{}));
+    }
+    TEST_CASE("batch7047 empty mouse combo is vacuously all up") {
+        InputManagerContext fixture; Salix::ImGuiInputManager manager;
+        CHECK(manager.multiple_are_up(std::vector<Salix::MouseButton>{}));
+    }
+}
