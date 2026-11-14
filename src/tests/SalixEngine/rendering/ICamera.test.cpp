@@ -189,3 +189,97 @@ TEST_SUITE("Salix::rendering::ICameraBatch6347") {
         CHECK(interface->get_projection_matrix()[0][0] == doctest::Approx(3.0f));
     }
 }
+
+TEST_SUITE("Salix::rendering::ICameraBatch6847") {
+    TEST_CASE("batch6847 minimal camera transform remains null after projection mutations") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        interface.set_orthographic_size(68.47f);
+        CHECK(interface.get_transform() == nullptr);
+    }
+
+    TEST_CASE("batch6847 minimal default activity hooks remain no ops across sequence") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        interface.activate();
+        interface.set_is_active(true);
+        interface.deactivate();
+        CHECK_FALSE(interface.get_is_active());
+    }
+
+    TEST_CASE("batch6847 minimal two dimensional hook never rewrites configured projection") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        interface.set_2D_mode(true);
+        interface.set_2D_mode(false);
+        CHECK(interface.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+    }
+
+    TEST_CASE("batch6847 minimal projection setter never changes matrix values") {
+        Batch1347MinimalCamera camera;
+        const glm::mat4 view_before = camera.get_view_matrix();
+        const glm::mat4 projection_before = camera.get_projection_matrix();
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_view_matrix() == view_before);
+        CHECK(camera.get_projection_matrix() == projection_before);
+    }
+
+    TEST_CASE("batch6847 mock transform pointer remains stable across state mutations") {
+        MockICamera camera;
+        Salix::ICamera& interface = camera;
+        auto* transform = interface.get_transform();
+        REQUIRE(transform != nullptr);
+        interface.activate();
+        interface.set_2D_mode(true);
+        interface.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(interface.get_transform() == transform);
+    }
+
+    TEST_CASE("batch6847 mock orthographic size accepts negative value through interface") {
+        MockICamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_orthographic_size(-68.47f);
+        CHECK(camera.get_mock_orthographic_size() == doctest::Approx(-68.47f));
+    }
+
+    TEST_CASE("batch6847 mock two dimensional state is independent from projection mode") {
+        MockICamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_2D_mode(true);
+        CHECK(camera.get_mock_2d_mode());
+        CHECK(interface.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6847 mock active state is independent from projection mode") {
+        MockICamera camera;
+        Salix::ICamera& interface = camera;
+        interface.activate();
+        interface.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(interface.get_is_active());
+        CHECK(interface.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+    }
+
+    TEST_CASE("batch6847 matrix configuration survives unrelated scalar state changes") {
+        MockICamera camera;
+        camera.set_mock_view_matrix(glm::mat4(4.0f));
+        camera.set_mock_projection_matrix(glm::mat4(5.0f));
+        camera.set_orthographic_size(68.47f);
+        camera.set_2D_mode(true);
+        CHECK(camera.get_view_matrix()[0][0] == doctest::Approx(4.0f));
+        CHECK(camera.get_projection_matrix()[0][0] == doctest::Approx(5.0f));
+    }
+
+    TEST_CASE("batch6847 separate mocks retain independent camera state") {
+        MockICamera first;
+        MockICamera second;
+        first.activate();
+        first.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        first.set_orthographic_size(68.47f);
+        CHECK(first.get_is_active());
+        CHECK_FALSE(second.get_is_active());
+        CHECK(second.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(second.get_mock_orthographic_size() == doctest::Approx(10.0f));
+    }
+}
