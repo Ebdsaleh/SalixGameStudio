@@ -149,3 +149,99 @@ TEST_SUITE("Salix::gui::IconInfoBatch2047") {
         CHECK(icon.size.x == doctest::Approx(48.0f)); CHECK(icon.uv0.x == doctest::Approx(0.25f));
     }
 }
+
+TEST_SUITE("Salix::gui::IconInfoBatch6547") {
+    TEST_CASE("batch6547 changing width leaves height and UV defaults untouched") {
+        Salix::IconInfo icon;
+        icon.size.x = 65.0f;
+        CHECK(icon.size.x == doctest::Approx(65.0f));
+        CHECK(icon.size.y == doctest::Approx(16.0f));
+        CHECK(icon.uv0.x == doctest::Approx(0.0f));
+        CHECK(icon.uv1.x == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6547 changing height leaves width and UV defaults untouched") {
+        Salix::IconInfo icon;
+        icon.size.y = 47.0f;
+        CHECK(icon.size.x == doctest::Approx(16.0f));
+        CHECK(icon.size.y == doctest::Approx(47.0f));
+        CHECK(icon.uv0.y == doctest::Approx(0.0f));
+        CHECK(icon.uv1.y == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6547 lower UV mutation never alters upper UV") {
+        Salix::IconInfo icon;
+        icon.uv0 = ImVec2(0.65f, 0.47f);
+        CHECK(icon.uv1.x == doctest::Approx(1.0f));
+        CHECK(icon.uv1.y == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6547 upper UV mutation never alters lower UV") {
+        Salix::IconInfo icon;
+        icon.uv1 = ImVec2(0.65f, 0.47f);
+        CHECK(icon.uv0.x == doctest::Approx(0.0f));
+        CHECK(icon.uv0.y == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch6547 path preserves spaces punctuation and traversal text") {
+        Salix::IconInfo icon;
+        icon.path = "../My Icons/Icon #6547.png";
+        CHECK(icon.path == "../My Icons/Icon #6547.png");
+    }
+
+    TEST_CASE("batch6547 texture handle mutation leaves path geometry and UV untouched") {
+        Salix::IconInfo icon;
+        icon.path = "icon6547.png";
+        icon.size = ImVec2(65.0f, 47.0f);
+        icon.texture_id = static_cast<ImTextureID>(6547);
+        CHECK(icon.path == "icon6547.png");
+        CHECK(icon.size.x == doctest::Approx(65.0f));
+        CHECK(icon.size.y == doctest::Approx(47.0f));
+        CHECK(icon.uv0.x == doctest::Approx(0.0f));
+        CHECK(icon.uv1.x == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6547 copy construction owns independent path storage") {
+        Salix::IconInfo source;
+        source.path = "Source6547.png";
+        Salix::IconInfo copy(source);
+        copy.path = "Copy6547.png";
+        CHECK(source.path == "Source6547.png");
+        CHECK(copy.path == "Copy6547.png");
+    }
+
+    TEST_CASE("batch6547 copy assignment owns independent geometry storage") {
+        Salix::IconInfo source;
+        source.size = ImVec2(65.0f, 47.0f);
+        Salix::IconInfo destination;
+        destination = source;
+        destination.size.x = 99.0f;
+        CHECK(source.size.x == doctest::Approx(65.0f));
+        CHECK(destination.size.x == doctest::Approx(99.0f));
+        CHECK(destination.size.y == doctest::Approx(47.0f));
+    }
+
+    TEST_CASE("batch6547 self assignment preserves texture path and UV descriptor") {
+        Salix::IconInfo icon;
+        icon.texture_id = static_cast<ImTextureID>(6547);
+        icon.path = "Self6547.png";
+        icon.uv0 = ImVec2(0.1f, 0.2f);
+        icon.uv1 = ImVec2(0.8f, 0.9f);
+        icon = icon;
+        CHECK(icon.texture_id == static_cast<ImTextureID>(6547));
+        CHECK(icon.path == "Self6547.png");
+        CHECK(icon.uv0.x == doctest::Approx(0.1f));
+        CHECK(icon.uv1.y == doctest::Approx(0.9f));
+    }
+
+    TEST_CASE("batch6547 zero size and zero texture may coexist with nonempty path") {
+        Salix::IconInfo icon;
+        icon.texture_id = static_cast<ImTextureID>(0);
+        icon.path = "Metadata6547.png";
+        icon.size = ImVec2(0.0f, 0.0f);
+        CHECK(icon.texture_id == static_cast<ImTextureID>(0));
+        CHECK(icon.path == "Metadata6547.png");
+        CHECK(icon.size.x == doctest::Approx(0.0f));
+        CHECK(icon.size.y == doctest::Approx(0.0f));
+    }
+}
