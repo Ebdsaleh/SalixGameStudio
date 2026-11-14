@@ -86,3 +86,84 @@ TEST_SUITE("Salix::core::CoreBatch1647") {
         CHECK(Salix::g_project_root_path == before);
     }
 }
+
+TEST_SUITE("Salix::core::CoreBatch6447") {
+    TEST_CASE("batch6447 project root preserves a single filename component") {
+        Batch1647ProjectRootGuard guard;
+        Salix::g_project_root_path = "Batch6447";
+        CHECK(Salix::g_project_root_path.filename() == "Batch6447");
+        CHECK(Salix::g_project_root_path.parent_path().empty());
+    }
+
+    TEST_CASE("batch6447 project root append creates expected child component") {
+        Batch1647ProjectRootGuard guard;
+        Salix::g_project_root_path = "Root6447";
+        Salix::g_project_root_path /= "Assets";
+        CHECK(Salix::g_project_root_path.filename() == "Assets");
+        CHECK(Salix::g_project_root_path.parent_path().filename() == "Root6447");
+    }
+
+    TEST_CASE("batch6447 project root replacement discards prior child components") {
+        Batch1647ProjectRootGuard guard;
+        Salix::g_project_root_path = std::filesystem::path("Old6447") / "Assets";
+        Salix::g_project_root_path = "New6447";
+        CHECK(Salix::g_project_root_path == std::filesystem::path("New6447"));
+    }
+
+    TEST_CASE("batch6447 project root preserves dot component text before normalization") {
+        Batch1647ProjectRootGuard guard;
+        Salix::g_project_root_path = std::filesystem::path("Root6447") / "." / "Game";
+        CHECK(Salix::g_project_root_path != Salix::g_project_root_path.lexically_normal());
+        CHECK(Salix::g_project_root_path.lexically_normal() == std::filesystem::path("Root6447") / "Game");
+    }
+
+    TEST_CASE("batch6447 copied root can be cleared without clearing global") {
+        Batch1647ProjectRootGuard guard;
+        Salix::g_project_root_path = std::filesystem::path("Root6447") / "Game";
+        auto copy = Salix::g_project_root_path;
+        copy.clear();
+        CHECK(copy.empty());
+        CHECK_FALSE(Salix::g_project_root_path.empty());
+    }
+
+    TEST_CASE("batch6447 global root may be cleared after populated assignment") {
+        Batch1647ProjectRootGuard guard;
+        Salix::g_project_root_path = std::filesystem::path("Root6447") / "Game";
+        Salix::g_project_root_path.clear();
+        CHECK(Salix::g_project_root_path.empty());
+    }
+
+    TEST_CASE("batch6447 extensionless root reports empty extension") {
+        Batch1647ProjectRootGuard guard;
+        Salix::g_project_root_path = std::filesystem::path("Projects") / "Batch6447";
+        CHECK(Salix::g_project_root_path.extension().empty());
+        CHECK(Salix::g_project_root_path.stem() == "Batch6447");
+    }
+
+    TEST_CASE("batch6447 dot extension root preserves full filename") {
+        Batch1647ProjectRootGuard guard;
+        Salix::g_project_root_path = std::filesystem::path("Projects") / "Batch6447.realm";
+        CHECK(Salix::g_project_root_path.extension() == ".realm");
+        CHECK(Salix::g_project_root_path.filename() == "Batch6447.realm");
+    }
+
+    TEST_CASE("batch6447 retained reference sees subsequent complete assignment") {
+        Batch1647ProjectRootGuard guard;
+        auto& retained = Salix::g_project_root_path;
+        Salix::g_project_root_path = "Before6447";
+        Salix::g_project_root_path = "After6447";
+        CHECK(retained == std::filesystem::path("After6447"));
+    }
+
+    TEST_CASE("batch6447 guard restores nested scope root after multiple mutations") {
+        const auto original = Salix::g_project_root_path;
+        {
+            Batch1647ProjectRootGuard guard;
+            Salix::g_project_root_path = "One6447";
+            Salix::g_project_root_path /= "Two6447";
+            Salix::g_project_root_path.clear();
+            Salix::g_project_root_path = "Final6447";
+        }
+        CHECK(Salix::g_project_root_path == original);
+    }
+}
