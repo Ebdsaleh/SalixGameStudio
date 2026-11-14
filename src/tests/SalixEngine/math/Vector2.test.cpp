@@ -1203,3 +1203,67 @@ TEST_SUITE("Salix::math::Vector2Batch5447") {
     }
 }
 
+TEST_SUITE("Salix::math::Vector2Batch6347") {
+    TEST_CASE("batch6347 compound addition mutates both components and returns self") {
+        Salix::Vector2 value(-6.0f, 3.0f);
+        Salix::Vector2* address = &value;
+        Salix::Vector2& result = (value += Salix::Vector2(2.0f, -4.0f));
+        CHECK(&result == address);
+        CHECK(value == Salix::Vector2(-4.0f, -1.0f));
+    }
+
+    TEST_CASE("batch6347 compound subtraction mutates both components and returns self") {
+        Salix::Vector2 value(-6.0f, 3.0f);
+        Salix::Vector2* address = &value;
+        Salix::Vector2& result = (value -= Salix::Vector2(2.0f, -4.0f));
+        CHECK(&result == address);
+        CHECK(value == Salix::Vector2(-8.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6347 compound multiplication by negative scalar flips signs") {
+        Salix::Vector2 value(-3.0f, 4.0f);
+        value *= -2.0f;
+        CHECK(value == Salix::Vector2(6.0f, -8.0f));
+    }
+
+    TEST_CASE("batch6347 compound division by zero resets vector to zero") {
+        Salix::Vector2 value(6.0f, -3.0f);
+        value /= 0.0f;
+        CHECK(value == Salix::Vector2(0.0f, 0.0f));
+    }
+
+    TEST_CASE("batch6347 scalar addition is symmetric across operand order") {
+        const Salix::Vector2 value(-6.0f, 3.0f);
+        CHECK(value + 2.0f == 2.0f + value);
+        CHECK(value + 2.0f == Salix::Vector2(-4.0f, 5.0f));
+    }
+
+    TEST_CASE("batch6347 scalar subtraction preserves operand order semantics") {
+        const Salix::Vector2 value(6.0f, 3.0f);
+        CHECK(value - 2.0f == Salix::Vector2(4.0f, 1.0f));
+        CHECK(2.0f - value == Salix::Vector2(-4.0f, -1.0f));
+    }
+
+    TEST_CASE("batch6347 component multiplication is independent per axis") {
+        const Salix::Vector2 a(-6.0f, 3.0f);
+        const Salix::Vector2 b(2.0f, -4.0f);
+        CHECK(a * b == Salix::Vector2(-12.0f, -12.0f));
+    }
+
+    TEST_CASE("batch6347 scalar divided by vector computes reciprocal scaling per axis") {
+        const Salix::Vector2 value(2.0f, -4.0f);
+        CHECK(8.0f / value == Salix::Vector2(4.0f, -2.0f));
+    }
+
+    TEST_CASE("batch6347 dot is commutative while cross is antisymmetric") {
+        const Salix::Vector2 a(2.0f, 3.0f);
+        const Salix::Vector2 b(-4.0f, 5.0f);
+        CHECK(Salix::dot(a, b) == Salix::dot(b, a));
+        CHECK(Salix::cross(a, b) == -Salix::cross(b, a));
+    }
+
+    TEST_CASE("batch6347 applying perpendicular twice yields negative original") {
+        const Salix::Vector2 value(6.0f, -3.0f);
+        CHECK(Salix::perp(Salix::perp(value)) == Salix::Vector2(-6.0f, 3.0f));
+    }
+}
