@@ -808,3 +808,149 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch5647") {
     }
 }
 
+#include <Salix/input/ImGuiInputManager.h>
+#include <Salix/core/ApplicationConfig.h>
+#include <Tests/SalixEngine/mocking/gui/MockIGui.h>
+#include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
+#include <imgui.h>
+#include <fstream>
+#include <filesystem>
+#include <atomic>
+
+namespace {
+struct Batch6947FontManagerContext {
+    ImGuiContext* previous_test = ImGui::GetCurrentContext();
+    ImGuiContext* previous_engine = Salix::ImGuiInputManager::get_context_for_testing();
+    ImGuiContext* owned = ImGui::CreateContext();
+    Batch6947FontManagerContext() {
+        ImGui::SetCurrentContext(owned);
+        Salix::ImGuiInputManager::set_context_for_testing(owned);
+    }
+    ~Batch6947FontManagerContext() {
+        Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
+        ImGui::DestroyContext(owned);
+        ImGui::SetCurrentContext(previous_test);
+    }
+};
+std::filesystem::path batch6947_bad_font_file() {
+    static std::atomic<unsigned long> counter{0};
+    const auto path = std::filesystem::temp_directory_path() /
+        ("Salix_Batch6947_BadFont_" + std::to_string(++counter) + ".ttf");
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out << "not-a-valid-font-6947";
+    return path;
+}
+}
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch6947") {
+    TEST_CASE("batch6947 SDL initialization rejects missing renderer interface") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.initialize(&gui));
+    }
+
+    TEST_CASE("batch6947 SDL initialization rejects null native renderer handle") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        MockIRenderer renderer;
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, &renderer, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.initialize(&gui));
+    }
+
+    TEST_CASE("batch6947 SDL initialization accepts opaque nonnull native handle without using backend") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        MockIRenderer renderer;
+        renderer.native_handle = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x6947));
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, &renderer, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        CHECK(manager.initialize(&gui));
+    }
+
+    TEST_CASE("batch6947 OpenGL initialization rejects missing renderer interface") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.initialize(&gui));
+    }
+
+    TEST_CASE("batch6947 OpenGL initialization rejects non OpenGL renderer implementation") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        MockIRenderer renderer;
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, &renderer, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.initialize(&gui));
+    }
+
+    TEST_CASE("batch6947 unrecognized renderer type reaches initialization success tail") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        CHECK(manager.initialize(&gui));
+    }
+
+    TEST_CASE("batch6947 rebuild after SDL setup fails safely on non SDLImGui GUI object") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        MockIRenderer renderer;
+        renderer.native_handle = reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x6947));
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, &renderer, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        CHECK_FALSE(manager.rebuild_font_atlas_texture());
+    }
+
+    TEST_CASE("batch6947 rebuild with unrecognized renderer type returns false") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        CHECK_FALSE(manager.rebuild_font_atlas_texture());
+    }
+
+    TEST_CASE("batch6947 apply font succeeds with real ImGui font pointer in bare context") {
+        Batch6947FontManagerContext context;
+        Salix::ImGuiFontManager manager;
+        auto font = std::make_unique<MockIFont>("ContextFont6947", "ContextFamily6947", 16.0f);
+        ImFont* imgui_font = ImGui::GetIO().Fonts->AddFontDefault();
+        REQUIRE(imgui_font != nullptr);
+        font->set_imgui_font_ptr(imgui_font);
+        REQUIRE(manager.register_font(std::move(font)));
+        REQUIRE(manager.apply_font("ContextFont6947"));
+        CHECK(manager.get_active_font() != nullptr);
+        CHECK(ImGui::GetIO().FontDefault == imgui_font);
+    }
+
+    TEST_CASE("batch6947 invalid TTF reaches ImGui file loading failure without native backend") {
+        Batch6947FontManagerContext context;
+        const auto file = batch6947_bad_font_file();
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file(file.string(), "BadFont6947", 16.0f, false));
+        CHECK(manager.get_font("BadFont6947") == nullptr);
+        std::error_code ec;
+        std::filesystem::remove(file, ec);
+    }
+}
