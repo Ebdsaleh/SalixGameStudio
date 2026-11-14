@@ -82,3 +82,79 @@ TEST_SUITE("Salix::rendering::ITextureBatch1347") {
         CHECK(texture->get_imgui_texture_id() == ImTextureID(42));
     }
 }
+
+TEST_SUITE("Salix::rendering::ITextureBatch6547") {
+    TEST_CASE("batch6547 width may change independently from height") {
+        MockITexture texture(16, 32, ImTextureID(1));
+        texture.set_dimensions(65, texture.get_height());
+        CHECK(texture.get_width() == 65);
+        CHECK(texture.get_height() == 32);
+    }
+
+    TEST_CASE("batch6547 height may change independently from width") {
+        MockITexture texture(16, 32, ImTextureID(1));
+        texture.set_dimensions(texture.get_width(), 47);
+        CHECK(texture.get_width() == 16);
+        CHECK(texture.get_height() == 47);
+    }
+
+    TEST_CASE("batch6547 repeated dimension changes keep latest pair") {
+        MockITexture texture;
+        texture.set_dimensions(1, 2);
+        texture.set_dimensions(65, 47);
+        CHECK(texture.get_width() == 65);
+        CHECK(texture.get_height() == 47);
+    }
+
+    TEST_CASE("batch6547 repeated texture identifier changes keep latest handle") {
+        MockITexture texture;
+        texture.set_texture_id(ImTextureID(1));
+        texture.set_texture_id(ImTextureID(6547));
+        CHECK(texture.get_imgui_texture_id() == ImTextureID(6547));
+    }
+
+    TEST_CASE("batch6547 zero texture identifier does not alter nonzero dimensions") {
+        MockITexture texture(65, 47, ImTextureID(6547));
+        texture.set_texture_id(ImTextureID(0));
+        CHECK(texture.get_imgui_texture_id() == ImTextureID(0));
+        CHECK(texture.get_width() == 65);
+        CHECK(texture.get_height() == 47);
+    }
+
+    TEST_CASE("batch6547 mixed sign dimensions remain representable") {
+        MockITexture texture(-65, 47, ImTextureID(6));
+        CHECK(texture.get_width() == -65);
+        CHECK(texture.get_height() == 47);
+    }
+
+    TEST_CASE("batch6547 dimension mutation never changes texture identifier") {
+        MockITexture texture(1, 2, ImTextureID(6547));
+        texture.set_dimensions(65, 47);
+        CHECK(texture.get_imgui_texture_id() == ImTextureID(6547));
+    }
+
+    TEST_CASE("batch6547 texture identifier mutation never changes dimensions") {
+        MockITexture texture(65, 47, ImTextureID(1));
+        texture.set_texture_id(ImTextureID(6547));
+        CHECK(texture.get_width() == 65);
+        CHECK(texture.get_height() == 47);
+    }
+
+    TEST_CASE("batch6547 two textures may share identifier while retaining independent dimensions") {
+        MockITexture first(65, 47, ImTextureID(6547));
+        MockITexture second(47, 65, ImTextureID(6547));
+        CHECK(first.get_imgui_texture_id() == second.get_imgui_texture_id());
+        CHECK(first.get_width() != second.get_width());
+        CHECK(first.get_height() != second.get_height());
+    }
+
+    TEST_CASE("batch6547 base interface reflects later concrete mutations") {
+        MockITexture texture(1, 2, ImTextureID(3));
+        Salix::ITexture& interface = texture;
+        texture.set_dimensions(65, 47);
+        texture.set_texture_id(ImTextureID(6547));
+        CHECK(interface.get_width() == 65);
+        CHECK(interface.get_height() == 47);
+        CHECK(interface.get_imgui_texture_id() == ImTextureID(6547));
+    }
+}
