@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 
 namespace {
 class Batch1147UnregisteredElement : public Salix::Element {
