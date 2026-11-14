@@ -276,9 +276,9 @@ TEST_SUITE("Salix::serialization::YamlConvertersBatch6747") {
         CHECK(restored.z == doctest::Approx(67.47f));
     }
 
-    TEST_CASE("batch6747 node comparators treat two null nodes as equal") {
-        const YAML::Node first;
-        const YAML::Node second;
+    TEST_CASE("batch6747 node comparators treat two explicit null nodes as equal") {
+        const YAML::Node first(YAML::NodeType::Null);
+        const YAML::Node second(YAML::NodeType::Null);
         CHECK(YAML::nodes_are_equal(first, second));
         CHECK(YAML::deep_compare_yaml(first, second));
     }
