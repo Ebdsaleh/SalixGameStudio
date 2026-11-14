@@ -489,3 +489,95 @@ TEST_SUITE("Salix::events::BeforeEntityPurgedEventBatch2047") {
         event.entity = nullptr; CHECK(event.to_string() == "BeforeEntityPurged");
     }
 }
+
+TEST_SUITE("Salix::events::IEventBatch6547") {
+    TEST_CASE("batch6547 zero category flags match no helper category") {
+        Batch1347Event event(Salix::EventType::None, "None6547", 0);
+        CHECK(event.get_category_flags() == 0);
+        CHECK_FALSE(event.is_application_event());
+        CHECK_FALSE(event.is_input_event());
+        CHECK_FALSE(event.is_keyboard_event());
+        CHECK_FALSE(event.is_mouse_event());
+        CHECK_FALSE(event.is_mouse_button_event());
+    }
+
+    TEST_CASE("batch6547 application and input flags may coexist") {
+        const int flags = Salix::EventCategory::Application | Salix::EventCategory::Input;
+        Batch1347Event event(Salix::EventType::AppTick, "Combined6547", flags);
+        CHECK(event.is_application_event());
+        CHECK(event.is_input_event());
+        CHECK_FALSE(event.is_keyboard_event());
+    }
+
+    TEST_CASE("batch6547 mouse and mouse button flags drive both helper predicates") {
+        const int flags = Salix::EventCategory::Mouse | Salix::EventCategory::MouseButton;
+        Batch1347Event event(Salix::EventType::MouseButtonPressed, "Mouse6547", flags);
+        CHECK(event.is_mouse_event());
+        CHECK(event.is_mouse_button_event());
+        CHECK_FALSE(event.is_application_event());
+    }
+
+    TEST_CASE("batch6547 default native handle remains null") {
+        Batch1347DefaultEvent event;
+        CHECK(event.get_native_handle() == nullptr);
+    }
+
+    TEST_CASE("batch6547 default block setter remains a no op") {
+        Batch1347DefaultEvent event;
+        CHECK_FALSE(event.should_block());
+        event.set_block(true);
+        CHECK_FALSE(event.should_block());
+        event.set_block(false);
+        CHECK_FALSE(event.should_block());
+    }
+
+    TEST_CASE("batch6547 custom block implementation roundtrips both states") {
+        Batch1347Event event;
+        event.set_block(true);
+        REQUIRE(event.should_block());
+        event.set_block(false);
+        CHECK_FALSE(event.should_block());
+    }
+
+    TEST_CASE("batch6547 custom native handle transports exact pointer") {
+        Batch1347Event event;
+        int payload = 6547;
+        event.set_native_handle(&payload);
+        CHECK(event.get_native_handle() == &payload);
+    }
+
+    TEST_CASE("batch6547 clone preserves custom type name flags and handled state") {
+        Batch1347Event source(
+            Salix::EventType::EditorElementSelected,
+            "Clone6547",
+            Salix::EventCategory::Editor | Salix::EventCategory::Input);
+        source.handled = true;
+        auto clone = source.clone();
+        REQUIRE(clone != nullptr);
+        CHECK(clone->get_event_type() == Salix::EventType::EditorElementSelected);
+        CHECK(std::string(clone->get_name()) == "Clone6547");
+        CHECK(clone->is_in_category(Salix::EventCategory::Editor));
+        CHECK(clone->is_input_event());
+        CHECK(clone->handled);
+    }
+
+    TEST_CASE("batch6547 clone preserves custom native handle identity") {
+        Batch1347Event source;
+        int payload = 47;
+        source.set_native_handle(&payload);
+        auto clone = source.clone();
+        REQUIRE(clone != nullptr);
+        CHECK(clone->get_native_handle() == &payload);
+    }
+
+    TEST_CASE("batch6547 event category bit values remain distinct powers of two") {
+        CHECK(static_cast<int>(Salix::EventCategory::None) == 0);
+        CHECK(static_cast<int>(Salix::EventCategory::Application) == 1);
+        CHECK(static_cast<int>(Salix::EventCategory::Input) == 2);
+        CHECK(static_cast<int>(Salix::EventCategory::Keyboard) == 4);
+        CHECK(static_cast<int>(Salix::EventCategory::Mouse) == 8);
+        CHECK(static_cast<int>(Salix::EventCategory::MouseButton) == 16);
+        CHECK(static_cast<int>(Salix::EventCategory::MouseAxis) == 32);
+        CHECK(static_cast<int>(Salix::EventCategory::Editor) == 64);
+    }
+}
