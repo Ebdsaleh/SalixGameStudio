@@ -1392,3 +1392,191 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch6147") {
         CHECK(batch1147_has_property(properties, "name"));
     }
 }
+
+namespace {
+std::optional<Salix::Property> batch6947_property(const Salix::TypeInfo* info, const std::string& name) {
+    if (!info) return std::nullopt;
+    const auto properties = Salix::ByteMirror::get_all_properties_for_type(info);
+    const auto it = std::find_if(properties.begin(), properties.end(), [&](const Salix::Property& property) {
+        return property.name == name;
+    });
+    if (it == properties.end()) return std::nullopt;
+    return *it;
+}
+}
+
+TEST_SUITE("Salix::reflection::ByteMirrorBatch6947") {
+    TEST_CASE("batch6947 reflected Element id setter is a deliberate no op") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Transform transform;
+        const auto before = transform.get_id();
+        auto property = batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Element)), "id");
+        REQUIRE(property.has_value());
+        std::uint64_t replacement = 6947;
+        property->set_data(&transform, &replacement);
+        CHECK(transform.get_id() == before);
+    }
+
+    TEST_CASE("batch6947 reflected Element name setter writes live element") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Transform transform;
+        auto property = batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Element)), "name");
+        REQUIRE(property.has_value());
+        std::string replacement = "Mirror6947";
+        property->set_data(&transform, &replacement);
+        CHECK(transform.get_name() == "Mirror6947");
+        CHECK(*static_cast<std::string*>(property->get_data(&transform)) == "Mirror6947");
+    }
+
+    TEST_CASE("batch6947 reflected Element visibility setter writes live element") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Transform transform;
+        auto property = batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Element)), "visible");
+        REQUIRE(property.has_value());
+        bool hidden = false;
+        property->set_data(&transform, &hidden);
+        CHECK_FALSE(transform.is_visible());
+        CHECK_FALSE(*static_cast<bool*>(property->get_data(&transform)));
+    }
+
+    TEST_CASE("batch6947 reflected BoxCollider size setter and getter share live geometry") {
+        Salix::ByteMirror::register_all_types();
+        Salix::BoxCollider collider;
+        auto property = batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::BoxCollider)), "size");
+        REQUIRE(property.has_value());
+        Salix::Vector3 size(-6.0f, 9.0f, 47.0f);
+        property->set_data(&collider, &size);
+        CHECK(collider.get_size() == size);
+        CHECK(*static_cast<Salix::Vector3*>(property->get_data(&collider)) == size);
+    }
+
+    TEST_CASE("batch6947 reflected Transform position rotation and scale setters execute live lambdas") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Transform transform;
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Transform));
+        auto position = batch6947_property(info, "position");
+        auto rotation = batch6947_property(info, "rotation");
+        auto scale = batch6947_property(info, "scale");
+        REQUIRE(position.has_value());
+        REQUIRE(rotation.has_value());
+        REQUIRE(scale.has_value());
+        Salix::Vector3 p(6.0f, 9.0f, 47.0f), r(-6.0f, 94.0f, 7.0f), s(2.0f, 3.0f, 4.0f);
+        position->set_data(&transform, &p);
+        rotation->set_data(&transform, &r);
+        scale->set_data(&transform, &s);
+        CHECK(transform.get_position() == p);
+        CHECK(transform.get_rotation() == r);
+        CHECK(transform.get_scale() == s);
+    }
+
+    TEST_CASE("batch6947 reflected Sprite2D color offset and pivot setters execute live lambdas") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Sprite2D sprite;
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D));
+        auto color = batch6947_property(info, "color");
+        auto offset = batch6947_property(info, "offset");
+        auto pivot = batch6947_property(info, "pivot");
+        REQUIRE(color.has_value());
+        REQUIRE(offset.has_value());
+        REQUIRE(pivot.has_value());
+        Salix::Color c(0.69f, 0.47f, 0.25f, 0.75f);
+        Salix::Vector2 o(-6.0f, 9.0f), p(0.25f, 0.75f);
+        color->set_data(&sprite, &c);
+        offset->set_data(&sprite, &o);
+        pivot->set_data(&sprite, &p);
+        CHECK(sprite.get_color() == c);
+        CHECK(sprite.get_offset() == o);
+        CHECK(sprite.get_pivot() == p);
+    }
+
+    TEST_CASE("batch6947 reflected Sprite2D boolean and rotation setters execute live lambdas") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Sprite2D sprite;
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D));
+        auto use_rotation = batch6947_property(info, "use_entity_rotation");
+        auto local_rotation = batch6947_property(info, "local_rotation");
+        auto flip_h = batch6947_property(info, "flip_h");
+        auto flip_v = batch6947_property(info, "flip_v");
+        REQUIRE(use_rotation.has_value());
+        REQUIRE(local_rotation.has_value());
+        REQUIRE(flip_h.has_value());
+        REQUIRE(flip_v.has_value());
+        bool yes = true;
+        float rotation = -69.47f;
+        use_rotation->set_data(&sprite, &yes);
+        local_rotation->set_data(&sprite, &rotation);
+        flip_h->set_data(&sprite, &yes);
+        flip_v->set_data(&sprite, &yes);
+        CHECK(sprite.get_use_entity_rotation());
+        CHECK(sprite.get_local_rotation() == doctest::Approx(-69.47f));
+        CHECK(sprite.get_flip_h());
+        CHECK(sprite.get_flip_v());
+    }
+
+    TEST_CASE("batch6947 reflected Sprite2D sorting path and height getter execute remaining lambdas") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Sprite2D sprite;
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D));
+        auto sorting = batch6947_property(info, "sorting_layer");
+        auto path = batch6947_property(info, "texture_path");
+        auto height = batch6947_property(info, "height");
+        REQUIRE(sorting.has_value());
+        REQUIRE(path.has_value());
+        REQUIRE(height.has_value());
+        int layer = -6947;
+        std::string texture = "Assets/Images/Batch6947.png";
+        sorting->set_data(&sprite, &layer);
+        path->set_data(&sprite, &texture);
+        CHECK(sprite.get_sorting_layer() == -6947);
+        CHECK(sprite.get_texture_path() == texture);
+        CHECK(*static_cast<int*>(height->get_data(&sprite)) == 0);
+        int ignored = 99;
+        height->set_data(&sprite, &ignored);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch6947 reflected Camera mutable setters execute active and scalar lambdas") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Camera camera;
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Camera));
+        auto active = batch6947_property(info, "active");
+        auto fov = batch6947_property(info, "field_of_view");
+        auto ortho = batch6947_property(info, "orthographic_size");
+        auto near_clip = batch6947_property(info, "near_clip");
+        auto far_clip = batch6947_property(info, "far_clip");
+        REQUIRE(active.has_value());
+        REQUIRE(fov.has_value());
+        REQUIRE(ortho.has_value());
+        REQUIRE(near_clip.has_value());
+        REQUIRE(far_clip.has_value());
+        bool on = true;
+        float fv = 69.47f, os = 47.69f, nc = 0.6947f, fc = 6947.0f;
+        active->set_data(&camera, &on);
+        fov->set_data(&camera, &fv);
+        ortho->set_data(&camera, &os);
+        near_clip->set_data(&camera, &nc);
+        far_clip->set_data(&camera, &fc);
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_field_of_view() == doctest::Approx(fv));
+        CHECK(camera.get_orthographic_size() == doctest::Approx(os));
+        CHECK(camera.get_near_clip() == doctest::Approx(nc));
+        CHECK(camera.get_far_clip() == doctest::Approx(fc));
+    }
+
+    TEST_CASE("batch6947 reflected Camera read only matrix setters remain no ops while getters execute") {
+        Salix::ByteMirror::register_all_types();
+        Salix::Camera camera;
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Salix::Camera));
+        auto view = batch6947_property(info, "view_matrix");
+        auto projection = batch6947_property(info, "projection_matrix");
+        REQUIRE(view.has_value());
+        REQUIRE(projection.has_value());
+        const glm::mat4 before_view = *static_cast<glm::mat4*>(view->get_data(&camera));
+        const glm::mat4 before_projection = *static_cast<glm::mat4*>(projection->get_data(&camera));
+        glm::mat4 replacement(9.0f);
+        view->set_data(&camera, &replacement);
+        projection->set_data(&camera, &replacement);
+        CHECK(*static_cast<glm::mat4*>(view->get_data(&camera)) == before_view);
+        CHECK(*static_cast<glm::mat4*>(projection->get_data(&camera)) == before_projection);
+    }
+}
