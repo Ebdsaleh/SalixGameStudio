@@ -945,11 +945,16 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch6947") {
         CHECK(ImGui::GetIO().FontDefault == imgui_font);
     }
 
-    TEST_CASE("batch6947 missing TTF at valid size reaches ImGui file loading failure without native backend") {
+    TEST_CASE("batch6947 valid repository TTF loads and registers without native backend") {
         Batch6947FontManagerContext context;
         Salix::ImGuiFontManager manager;
-        const std::string missing = "__batch6947_missing_valid_size_font__.ttf";
-        CHECK_FALSE(manager.load_font_from_file(missing, "MissingFont6947", 16.0f, false));
-        CHECK(manager.get_font("MissingFont6947") == nullptr);
+        auto repo_root = std::filesystem::path(__FILE__);
+        for (int i = 0; i < 6; ++i) repo_root = repo_root.parent_path();
+        const auto font_path = repo_root / "Assets" / "Fonts" / "Roboto-Regular.ttf";
+        REQUIRE(std::filesystem::is_regular_file(font_path));
+        REQUIRE(manager.load_font_from_file(font_path.string(), "LoadedFont6947", 16.0f, false));
+        REQUIRE(manager.get_font("LoadedFont6947") != nullptr);
+        CHECK(manager.get_font("LoadedFont6947")->get_imgui_font_ptr() != nullptr);
+        CHECK(manager.get_active_font() == nullptr);
     }
 }
