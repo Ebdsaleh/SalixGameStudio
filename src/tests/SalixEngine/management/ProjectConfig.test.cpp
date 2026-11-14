@@ -257,3 +257,107 @@ TEST_SUITE("Salix::management::ProjectConfigBatch2047") {
         CHECK(restored.project_data.project_name == "EmptyBuildStrings");
     }
 }
+
+TEST_SUITE("Salix::management::ProjectConfigBatch6447") {
+    TEST_CASE("batch6447 empty RealmInfo constructor arguments remain empty") {
+        const Salix::RealmInfo info("", "");
+        CHECK(info.name.empty());
+        CHECK(info.path.empty());
+    }
+
+    TEST_CASE("batch6447 RealmInfo copy remains independent after source path mutation") {
+        Salix::RealmInfo source("Realm6447", "A.realm");
+        Salix::RealmInfo copy = source;
+        source.path = "Changed.realm";
+        CHECK(copy.name == "Realm6447");
+        CHECK(copy.path == "A.realm");
+    }
+
+    TEST_CASE("batch6447 BuildSettings fields remain independently mutable") {
+        Salix::BuildSettings settings;
+        settings.engine_version = "6.4.4.7";
+        CHECK(settings.game_dll_name.empty());
+        settings.game_dll_name = "Game6447.dll";
+        CHECK(settings.engine_version == "6.4.4.7");
+        CHECK(settings.game_dll_name == "Game6447.dll");
+    }
+
+    TEST_CASE("batch6447 ProjectData path fields remain independently mutable") {
+        Salix::ProjectData data;
+        data.project_path = "Root6447";
+        data.project_file_name = "Project6447.salixproj";
+        data.project_name = "Project6447";
+        data.starting_realm = "Start6447";
+        CHECK(data.project_path == "Root6447");
+        CHECK(data.project_file_name == "Project6447.salixproj");
+        CHECK(data.project_name == "Project6447");
+        CHECK(data.starting_realm == "Start6447");
+    }
+
+    TEST_CASE("batch6447 realm vector preserves insertion order") {
+        Salix::ProjectData data;
+        data.realms.emplace_back("First6447", "First.realm");
+        data.realms.emplace_back("Second6447", "Second.realm");
+        REQUIRE(data.realms.size() == 2);
+        CHECK(data.realms[0].name == "First6447");
+        CHECK(data.realms[1].name == "Second6447");
+    }
+
+    TEST_CASE("batch6447 clearing realm vector leaves starting realm text untouched") {
+        Salix::ProjectData data;
+        data.realms.emplace_back("Start6447", "Start.realm");
+        data.starting_realm = "Start6447";
+        data.realms.clear();
+        CHECK(data.realms.empty());
+        CHECK(data.starting_realm == "Start6447");
+    }
+
+    TEST_CASE("batch6447 JSON roundtrip preserves two ordered realms") {
+        Salix::ProjectConfig source;
+        source.project_data.realms.emplace_back("A6447", "A.realm");
+        source.project_data.realms.emplace_back("B6447", "B.realm");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::ProjectConfig restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        REQUIRE(restored.project_data.realms.size() == 2);
+        CHECK(restored.project_data.realms[0].name == "A6447");
+        CHECK(restored.project_data.realms[1].name == "B6447");
+    }
+
+    TEST_CASE("batch6447 JSON roundtrip preserves empty project metadata") {
+        const Salix::ProjectConfig source;
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::ProjectConfig restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.project_data.project_path.empty());
+        CHECK(restored.project_data.project_name.empty());
+        CHECK(restored.project_data.realms.empty());
+        CHECK(restored.build_settings.engine_version == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch6447 binary roundtrip preserves project and build strings together") {
+        Salix::ProjectConfig source;
+        source.project_data.project_name = "Binary6447";
+        source.project_data.starting_realm = "Start6447";
+        source.build_settings.game_dll_name = "Binary6447.dll";
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::ProjectConfig restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.project_data.project_name == "Binary6447");
+        CHECK(restored.project_data.starting_realm == "Start6447");
+        CHECK(restored.build_settings.game_dll_name == "Binary6447.dll");
+    }
+
+    TEST_CASE("batch6447 assignment copies empty realm collection over populated destination") {
+        Salix::ProjectConfig source;
+        source.project_data.project_name = "Empty6447";
+        Salix::ProjectConfig destination;
+        destination.project_data.realms.emplace_back("Old", "Old.realm");
+        destination = source;
+        CHECK(destination.project_data.project_name == "Empty6447");
+        CHECK(destination.project_data.realms.empty());
+    }
+}
