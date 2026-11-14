@@ -105,3 +105,90 @@ TEST_SUITE("Salix::events::SDLEventBatch1547") {
         CHECK(clone->to_string() == source.to_string());
     }
 }
+
+TEST_SUITE("Salix::events::SDLEventBatch6547") {
+    TEST_CASE("batch6547 key pressed copy preserves key repeat and native handle") {
+        SDL_Event native{};
+        native.type = SDL_KEYDOWN;
+        Salix::KeyPressedEvent source(6547, true, native);
+        Salix::KeyPressedEvent copy(source);
+        CHECK(copy.get_key_code() == 6547);
+        CHECK(copy.was_repeated());
+        CHECK(copy.get_native_handle() == &native);
+    }
+
+    TEST_CASE("batch6547 key released copy preserves key and native handle") {
+        SDL_Event native{};
+        native.type = SDL_KEYUP;
+        Salix::KeyReleasedEvent source(-6547, native);
+        Salix::KeyReleasedEvent copy(source);
+        CHECK(copy.get_key_code() == -6547);
+        CHECK(copy.get_native_handle() == &native);
+    }
+
+    TEST_CASE("batch6547 mouse moved copy preserves signed coordinates") {
+        SDL_Event native{};
+        Salix::MouseMovedEvent source(-65.47f, 47.65f, native);
+        Salix::MouseMovedEvent copy(source);
+        CHECK(copy.get_x() == doctest::Approx(-65.47f));
+        CHECK(copy.get_y() == doctest::Approx(47.65f));
+    }
+
+    TEST_CASE("batch6547 mouse scrolled copy preserves signed offsets") {
+        SDL_Event native{};
+        Salix::MouseScrolledEvent source(-6.5f, 4.7f, native);
+        Salix::MouseScrolledEvent copy(source);
+        CHECK(copy.get_x_offset() == doctest::Approx(-6.5f));
+        CHECK(copy.get_y_offset() == doctest::Approx(4.7f));
+    }
+
+    TEST_CASE("batch6547 mouse button pressed supports zero button identifier") {
+        SDL_Event native{};
+        Salix::MouseButtonPressedEvent event(0, native);
+        CHECK(event.get_mouse_button() == 0);
+        CHECK(event.to_string() == "MouseButtonPressedEvent: 0");
+    }
+
+    TEST_CASE("batch6547 mouse button released supports negative edge identifier") {
+        SDL_Event native{};
+        Salix::MouseButtonReleasedEvent event(-1, native);
+        CHECK(event.get_mouse_button() == -1);
+        CHECK(event.to_string() == "MouseButtonReleasedEvent: -1");
+    }
+
+    TEST_CASE("batch6547 zero sized window resize event remains representable") {
+        Salix::WindowResizeEvent event(0u, 0u);
+        CHECK(event.get_width() == 0u);
+        CHECK(event.get_height() == 0u);
+        CHECK(event.to_string() == "WindowResizeEvent: 0, 0");
+    }
+
+    TEST_CASE("batch6547 window close clone preserves application metadata") {
+        Salix::WindowCloseEvent source;
+        auto clone = source.clone();
+        REQUIRE(clone != nullptr);
+        CHECK(clone->get_event_type() == Salix::EventType::WindowClose);
+        CHECK(clone->is_application_event());
+        CHECK(std::string(clone->get_name()) == "WindowClose");
+    }
+
+    TEST_CASE("batch6547 SDL wrapper observes later mutation of shared native event") {
+        SDL_Event native{};
+        native.type = SDL_KEYDOWN;
+        Salix::KeyPressedEvent event(1, false, native);
+        native.type = SDL_KEYUP;
+        auto* handle = static_cast<SDL_Event*>(event.get_native_handle());
+        REQUIRE(handle != nullptr);
+        CHECK(handle->type == SDL_KEYUP);
+    }
+
+    TEST_CASE("batch6547 cloned mouse event shares original native event identity") {
+        SDL_Event native{};
+        native.type = SDL_MOUSEMOTION;
+        Salix::MouseMovedEvent source(6.0f, 547.0f, native);
+        auto clone = source.clone();
+        REQUIRE(clone != nullptr);
+        CHECK(clone->get_native_handle() == &native);
+        CHECK(clone->to_string() == source.to_string());
+    }
+}
