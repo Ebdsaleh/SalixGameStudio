@@ -197,6 +197,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch6947") {
 #include <Salix/ecs/Element.h>
 #include <Salix/math/Rect.h>
 #include <cstdint>
+#include <utility>
 
 namespace {
 class Batch7047DrawerElement : public Salix::Element {
@@ -233,7 +234,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7047") {
         auto p=batch7047_drawer_property("Int7047",Salix::PropertyType::Int,
             [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->integer;});
         Salix::PropertyHandleLive h(p,&e);
-        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Int7047",&h));
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Int7047",h));
         CHECK(e.integer==7047);
     }
 
