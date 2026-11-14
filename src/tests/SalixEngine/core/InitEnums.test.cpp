@@ -117,3 +117,68 @@ TEST_SUITE("Salix::core::InitEnumsBatch2047") {
         first = second; CHECK(first == Salix::AppStateType::Game); CHECK(second == Salix::AppStateType::Game);
     }
 }
+
+TEST_SUITE("Salix::core::InitEnumsBatch6347") {
+    TEST_CASE("batch6347 renderer underlying sequence remains zero through four") {
+        CHECK(static_cast<int>(Salix::RendererType::None) == 0);
+        CHECK(static_cast<int>(Salix::RendererType::SDL) == 1);
+        CHECK(static_cast<int>(Salix::RendererType::OpenGL) == 2);
+        CHECK(static_cast<int>(Salix::RendererType::Vulkan) == 3);
+        CHECK(static_cast<int>(Salix::RendererType::DirectX) == 4);
+    }
+
+    TEST_CASE("batch6347 timer underlying sequence remains SDL zero Chrono one") {
+        CHECK(static_cast<int>(Salix::TimerType::SDL) == 0);
+        CHECK(static_cast<int>(Salix::TimerType::Chrono) == 1);
+    }
+
+    TEST_CASE("batch6347 GUI underlying sequence remains None zero ImGui one") {
+        CHECK(static_cast<int>(Salix::GuiType::None) == 0);
+        CHECK(static_cast<int>(Salix::GuiType::ImGui) == 1);
+    }
+
+    TEST_CASE("batch6347 application state sequence remains zero through four") {
+        CHECK(static_cast<int>(Salix::AppStateType::None) == 0);
+        CHECK(static_cast<int>(Salix::AppStateType::Launch) == 1);
+        CHECK(static_cast<int>(Salix::AppStateType::Editor) == 2);
+        CHECK(static_cast<int>(Salix::AppStateType::Game) == 3);
+        CHECK(static_cast<int>(Salix::AppStateType::Options) == 4);
+    }
+
+    TEST_CASE("batch6347 renderer enum remains strongly typed") {
+        CHECK((std::is_enum_v<Salix::RendererType>));
+        CHECK_FALSE((std::is_convertible_v<Salix::RendererType, int>));
+    }
+
+    TEST_CASE("batch6347 timer enum remains strongly typed") {
+        CHECK((std::is_enum_v<Salix::TimerType>));
+        CHECK_FALSE((std::is_convertible_v<Salix::TimerType, int>));
+    }
+
+    TEST_CASE("batch6347 GUI enum remains strongly typed") {
+        CHECK((std::is_enum_v<Salix::GuiType>));
+        CHECK_FALSE((std::is_convertible_v<Salix::GuiType, int>));
+    }
+
+    TEST_CASE("batch6347 application state enum remains strongly typed") {
+        CHECK((std::is_enum_v<Salix::AppStateType>));
+        CHECK_FALSE((std::is_convertible_v<Salix::AppStateType, int>));
+    }
+
+    TEST_CASE("batch6347 renderer set preserves every current backend selection") {
+        const std::set<Salix::RendererType> values{
+            Salix::RendererType::None, Salix::RendererType::SDL, Salix::RendererType::OpenGL,
+            Salix::RendererType::Vulkan, Salix::RendererType::DirectX
+        };
+        CHECK(values.size() == 5);
+    }
+
+    TEST_CASE("batch6347 app state array copy preserves transition ordering") {
+        const std::array<Salix::AppStateType, 5> states{
+            Salix::AppStateType::None, Salix::AppStateType::Launch, Salix::AppStateType::Editor,
+            Salix::AppStateType::Game, Salix::AppStateType::Options
+        };
+        const auto copy = states;
+        CHECK(copy == states);
+    }
+}
