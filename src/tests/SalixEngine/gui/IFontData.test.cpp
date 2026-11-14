@@ -83,3 +83,80 @@ TEST_SUITE("Salix::gui::IFontDataBatch1447") {
         CHECK(data->get_font_size() == doctest::Approx(24.0f));
     }
 }
+
+TEST_SUITE("Salix::gui::IFontDataBatch6547") {
+    TEST_CASE("batch6547 default mock font data remains canonical") {
+        MockIFontData data;
+        CHECK(data.get_name() == "MockFont");
+        CHECK(data.get_file_path() == "mock.ttf");
+        CHECK(data.get_font_size() == doctest::Approx(16.0f));
+        CHECK(data.get_gui_type() == "MockGui");
+    }
+
+    TEST_CASE("batch6547 empty name is stored without changing other fields") {
+        MockIFontData data("Name", "font.ttf", 18.0f, "Gui");
+        data.set_name("");
+        CHECK(data.get_name().empty());
+        CHECK(data.get_file_path() == "font.ttf");
+        CHECK(data.get_font_size() == doctest::Approx(18.0f));
+    }
+
+    TEST_CASE("batch6547 empty file path is stored without changing name") {
+        MockIFontData data("Name", "font.ttf", 18.0f, "Gui");
+        data.set_file_path("");
+        CHECK(data.get_file_path().empty());
+        CHECK(data.get_name() == "Name");
+    }
+
+    TEST_CASE("batch6547 empty GUI type is stored independently") {
+        MockIFontData data("Name", "font.ttf", 18.0f, "Gui");
+        data.set_gui_type("");
+        CHECK(data.get_gui_type().empty());
+        CHECK(data.get_name() == "Name");
+    }
+
+    TEST_CASE("batch6547 large finite font size roundtrips exactly") {
+        MockIFontData data;
+        data.set_font_size(6547.25f);
+        CHECK(data.get_font_size() == doctest::Approx(6547.25f));
+    }
+
+    TEST_CASE("batch6547 repeated size assignment keeps latest value") {
+        MockIFontData data;
+        data.set_font_size(6.0f);
+        data.set_font_size(54.0f);
+        data.set_font_size(7.0f);
+        CHECK(data.get_font_size() == doctest::Approx(7.0f));
+    }
+
+    TEST_CASE("batch6547 font name preserves embedded null bytes") {
+        MockIFontData data;
+        data.set_name(std::string("Font\0Name", 9));
+        CHECK(data.get_name().size() == 9);
+        CHECK(data.get_name()[4] == '\0');
+    }
+
+    TEST_CASE("batch6547 path preserves spaces and parent traversal text") {
+        MockIFontData data;
+        data.set_file_path("../My Fonts/Body 6547.ttf");
+        CHECK(data.get_file_path() == "../My Fonts/Body 6547.ttf");
+    }
+
+    TEST_CASE("batch6547 copy remains independent after source mutation") {
+        MockIFontData source("Source6547", "source.ttf", 17.0f, "GuiA");
+        MockIFontData copy = source;
+        source.set_name("Changed6547");
+        source.set_font_size(99.0f);
+        CHECK(copy.get_name() == "Source6547");
+        CHECK(copy.get_font_size() == doctest::Approx(17.0f));
+        CHECK(copy.get_file_path() == "source.ttf");
+        CHECK(copy.get_gui_type() == "GuiA");
+    }
+
+    TEST_CASE("batch6547 base interface setter dispatches to concrete size storage") {
+        MockIFontData data;
+        Salix::IFontData& interface = data;
+        interface.set_font_size(65.47f);
+        CHECK(interface.get_font_size() == doctest::Approx(65.47f));
+    }
+}
