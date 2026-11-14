@@ -114,3 +114,103 @@ TEST_SUITE("Salix::gui::IFontManagerBatch1447") {
         CHECK(manager.get_active_font() == nullptr);
     }
 }
+
+TEST_SUITE("Salix::gui::IFontManagerBatch6647") {
+    TEST_CASE("batch6647 null font registration is rejected without changing registry") {
+        MockIFontManager manager;
+        CHECK_FALSE(manager.register_font(nullptr));
+        CHECK(manager.get_registered_font_names().empty());
+        CHECK(manager.get_font_registry().empty());
+    }
+
+    TEST_CASE("batch6647 missing font unregister is rejected without changing registry") {
+        MockIFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Keep6647", "Body", 16.0f)));
+        CHECK_FALSE(manager.unregister_font("Missing6647"));
+        REQUIRE(manager.get_registered_font_names().size() == 1);
+        CHECK(manager.get_font("Keep6647") != nullptr);
+    }
+
+    TEST_CASE("batch6647 failed active selection preserves existing active font") {
+        MockIFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Active6647", "Body", 16.0f)));
+        REQUIRE(manager.set_active_font("Active6647"));
+        Salix::IFont* active = manager.get_active_font();
+        REQUIRE(active != nullptr);
+        CHECK_FALSE(manager.set_active_font("Missing6647"));
+        CHECK(manager.get_active_font() == active);
+    }
+
+    TEST_CASE("batch6647 missing purge preserves existing active font") {
+        MockIFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Active6647", "Body", 16.0f)));
+        REQUIRE(manager.set_active_font("Active6647"));
+        Salix::IFont* active = manager.get_active_font();
+        CHECK_FALSE(manager.purge_font("Missing6647"));
+        CHECK(manager.get_active_font() == active);
+    }
+
+    TEST_CASE("batch6647 registry reference observes later registration") {
+        MockIFontManager manager;
+        const auto& registry = manager.get_font_registry();
+        REQUIRE(registry.empty());
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Later6647", "Later", 22.0f)));
+        CHECK(registry.size() == 1);
+        CHECK(registry.count("Later6647") == 1);
+    }
+
+    TEST_CASE("batch6647 family size query preserves duplicate sizes and sorting") {
+        MockIFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("BodyA6647", "Body", 24.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("BodyB6647", "Body", 12.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("BodyC6647", "Body", 24.0f)));
+        const auto sizes = manager.get_font_sizes_for_font_family("Body");
+        REQUIRE(sizes.size() == 3);
+        CHECK(sizes[0] == doctest::Approx(12.0f));
+        CHECK(sizes[1] == doctest::Approx(24.0f));
+        CHECK(sizes[2] == doctest::Approx(24.0f));
+    }
+
+    TEST_CASE("batch6647 unique families include empty family exactly once") {
+        MockIFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("EmptyA6647", "", 10.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("EmptyB6647", "", 20.0f)));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Body6647", "Body", 30.0f)));
+        const auto families = manager.get_unique_font_families();
+        REQUIRE(families.size() == 2);
+        CHECK(families[0].empty());
+        CHECK(families[1] == "Body");
+    }
+
+    TEST_CASE("batch6647 font batch records negative and reversed bounds verbatim") {
+        MockIFontManager manager;
+        manager.create_font_batch("Fonts/Batch6647.ttf", "Batch6647", 66.47f, -6.647f);
+        CHECK(manager.create_batch_calls == 1);
+        CHECK(manager.last_batch_path == "Fonts/Batch6647.ttf");
+        CHECK(manager.last_batch_family == "Batch6647");
+        CHECK(manager.last_batch_min == doctest::Approx(66.47f));
+        CHECK(manager.last_batch_max == doctest::Approx(-6.647f));
+    }
+
+    TEST_CASE("batch6647 controlled file load failure still records complete request") {
+        MockIFontManager manager;
+        manager.load_file_result = false;
+        CHECK_FALSE(manager.load_font_from_file("missing6647.ttf", "Missing6647", 66.47f, true));
+        CHECK(manager.load_file_calls == 1);
+        CHECK(manager.last_file_path == "missing6647.ttf");
+        CHECK(manager.last_file_name == "Missing6647");
+        CHECK(manager.last_file_size == doctest::Approx(66.47f));
+        CHECK(manager.last_apply_immediately);
+    }
+
+    TEST_CASE("batch6647 repeated shutdown remains safe and increments accounting") {
+        MockIFontManager manager;
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Disposable6647", "Body", 16.0f)));
+        REQUIRE(manager.set_active_font("Disposable6647"));
+        manager.shutdown();
+        manager.shutdown();
+        CHECK(manager.shutdown_calls == 2);
+        CHECK(manager.get_font_registry().empty());
+        CHECK(manager.get_active_font() == nullptr);
+    }
+}
