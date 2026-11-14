@@ -8,6 +8,7 @@
 #include <fstream>
 #include <string>
 #include <iterator>
+#include <Salix/management/FileManager.h>
 
 namespace {
 class Batch1147ThemeTempFile {
