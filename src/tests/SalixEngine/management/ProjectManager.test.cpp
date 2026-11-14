@@ -1220,3 +1220,208 @@ TEST_SUITE("Salix::management::ProjectManagerBatch6947") {
         CHECK(manager.get_loaded_project_directory() == "PendingRoot6947");
     }
 }
+
+namespace {
+struct Batch7047ExternalProjectEnv {
+    std::filesystem::path old_cwd = std::filesystem::current_path();
+    std::filesystem::path root;
+    std::filesystem::path projects;
+
+    Batch7047ExternalProjectEnv() {
+        static std::atomic<unsigned long> counter{0};
+        root = std::filesystem::temp_directory_path() /
+            ("SalixGameStudio_Batch7047_Project_" + std::to_string(++counter));
+        projects = root / "Projects";
+        std::filesystem::create_directories(projects);
+        write_template(false);
+        write_asset_templates();
+        std::filesystem::current_path(root);
+    }
+
+    ~Batch7047ExternalProjectEnv() {
+        std::error_code ec;
+        std::filesystem::current_path(old_cwd, ec);
+        std::filesystem::remove_all(root, ec);
+    }
+
+    std::filesystem::path template_root() const {
+        return root / "src" / "Salix" / "resources" / "templates" / "default";
+    }
+
+    void write_template(bool include_default) {
+        const auto dir = template_root();
+        std::filesystem::create_directories(dir);
+        Salix::ProjectConfig config;
+        config.project_data.project_path = "TemplateRoot";
+        config.project_data.project_file_name = "Template.salixproj";
+        config.project_data.project_name = "TemplateProject";
+        config.project_data.starting_realm = "TemplateStart";
+        if (include_default)
+            config.project_data.realms.emplace_back("Default", "TemplateDefault.realm");
+        else
+            config.project_data.realms.emplace_back("Existing7047", "Existing7047.realm");
+        config.build_settings.game_dll_name = "Template.dll";
+        std::ofstream out(dir / "project.json", std::ios::out | std::ios::trunc);
+        cereal::JSONOutputArchive archive(out);
+        archive(
+            cereal::make_nvp("project_data", config.project_data),
+            cereal::make_nvp("build_settings", config.build_settings));
+    }
+
+    void write_asset_templates() {
+        const auto realm = template_root() / "Assets" / "Realms";
+        const auto sprite = template_root() / "Assets" / "Images" / "Sprites";
+        std::filesystem::create_directories(realm);
+        std::filesystem::create_directories(sprite);
+        { std::ofstream out(realm / "Default.realm"); out << "Batch7047 realm template"; }
+        { std::ofstream out(sprite / "test.png", std::ios::binary); out << "Batch7047 sprite template"; }
+    }
+
+    Salix::ProjectConfig read_generated(const std::string& name, const std::filesystem::path& base = {}) const {
+        const auto root_path = base.empty() ? projects : base;
+        std::ifstream in(root_path / name / (name + ".salixproj"));
+        Salix::ProjectConfig config;
+        cereal::JSONInputArchive archive(in);
+        archive(config);
+        return config;
+    }
+};
+}
+
+TEST_SUITE("Salix::management::ProjectManagerBatch7047") {
+    TEST_CASE("batch7047 external project creation succeeds with synthetic templates") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        CHECK(manager.create_new_external_project(env.projects.string(), "External7047A"));
+    }
+
+    TEST_CASE("batch7047 external project creation emits canonical project file") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), "External7047B"));
+        CHECK(std::filesystem::is_regular_file(env.projects / "External7047B" / "External7047B.salixproj"));
+    }
+
+    TEST_CASE("batch7047 external project creation copies realm template") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), "External7047C"));
+        const auto copied = env.projects / "External7047C" / "Assets" / "Realms" / "Default.realm";
+        REQUIRE(std::filesystem::is_regular_file(copied));
+        CHECK(Salix::FileManager::read_file_content(copied.string()) == "Batch7047 realm template");
+    }
+
+    TEST_CASE("batch7047 external project creation copies sprite template") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), "External7047D"));
+        const auto copied = env.projects / "External7047D" / "Assets" / "Images" / "test.png";
+        REQUIRE(std::filesystem::is_regular_file(copied));
+        CHECK(Salix::FileManager::read_file_content(copied.string()) == "Batch7047 sprite template");
+    }
+
+    TEST_CASE("batch7047 generated project metadata uses requested name and dll") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), "External7047E"));
+        const auto config = env.read_generated("External7047E");
+        CHECK(config.project_data.project_name == "External7047E");
+        CHECK(config.build_settings.game_dll_name == "External7047E.dll");
+    }
+
+    TEST_CASE("batch7047 generated project metadata stores absolute project root") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), "External7047F"));
+        const auto config = env.read_generated("External7047F");
+        CHECK(std::filesystem::path(config.project_data.project_path) ==
+              std::filesystem::absolute(env.projects / "External7047F"));
+    }
+
+    TEST_CASE("batch7047 generated project always selects Default starting realm") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), "External7047G"));
+        const auto config = env.read_generated("External7047G");
+        CHECK(config.project_data.starting_realm == "Default");
+    }
+
+    TEST_CASE("batch7047 missing Default realm is inserted exactly once") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), "External7047H"));
+        const auto config = env.read_generated("External7047H");
+        const auto count = std::count_if(
+            config.project_data.realms.begin(), config.project_data.realms.end(),
+            [](const Salix::RealmInfo& info) { return info.name == "Default"; });
+        CHECK(count == 1);
+        CHECK(config.project_data.realms.size() == 2);
+    }
+
+    TEST_CASE("batch7047 existing Default realm is not duplicated") {
+        Batch7047ExternalProjectEnv env;
+        env.write_template(true);
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), "External7047I"));
+        const auto config = env.read_generated("External7047I");
+        const auto count = std::count_if(
+            config.project_data.realms.begin(), config.project_data.realms.end(),
+            [](const Salix::RealmInfo& info) { return info.name == "Default"; });
+        CHECK(count == 1);
+        CHECK(config.project_data.realms.size() == 1);
+    }
+
+    TEST_CASE("batch7047 existing project directory returns true before template parsing") {
+        Batch7047ExternalProjectEnv env;
+        const auto existing = env.projects / "Existing7047J";
+        std::filesystem::create_directories(existing);
+        std::filesystem::remove(env.template_root() / "project.json");
+        Salix::ProjectManager manager;
+        CHECK(manager.create_new_external_project(env.projects.string(), "Existing7047J"));
+    }
+
+    TEST_CASE("batch7047 malformed project template is rejected after directory creation") {
+        Batch7047ExternalProjectEnv env;
+        { std::ofstream out(env.template_root() / "project.json", std::ios::trunc); out << "{ malformed"; }
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "Malformed7047K"));
+        CHECK(std::filesystem::is_directory(env.projects / "Malformed7047K" / "Assets" / "Realms"));
+    }
+
+    TEST_CASE("batch7047 missing realm template fails after project file generation") {
+        Batch7047ExternalProjectEnv env;
+        std::filesystem::remove(env.template_root() / "Assets" / "Realms" / "Default.realm");
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "MissingRealm7047L"));
+        CHECK(std::filesystem::is_regular_file(
+            env.projects / "MissingRealm7047L" / "MissingRealm7047L.salixproj"));
+    }
+
+    TEST_CASE("batch7047 missing sprite template fails after realm template copy") {
+        Batch7047ExternalProjectEnv env;
+        std::filesystem::remove(env.template_root() / "Assets" / "Images" / "Sprites" / "test.png");
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "MissingSprite7047M"));
+        CHECK(std::filesystem::is_regular_file(
+            env.projects / "MissingSprite7047M" / "Assets" / "Realms" / "Default.realm"));
+    }
+
+    TEST_CASE("batch7047 internal project wrapper creates project beneath synthetic src Sandbox") {
+        Batch7047ExternalProjectEnv env;
+        std::filesystem::create_directories(env.root / "src" / "Sandbox");
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_internal_project("Internal7047N"));
+        CHECK(std::filesystem::is_regular_file(
+            env.root / "src" / "Sandbox" / "Internal7047N" / "Internal7047N.salixproj"));
+    }
+
+    TEST_CASE("batch7047 project names containing spaces survive generated metadata") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager manager;
+        const std::string name = "External 7047 O";
+        REQUIRE(manager.create_new_external_project(env.projects.string(), name));
+        const auto config = env.read_generated(name);
+        CHECK(config.project_data.project_name == name);
+        CHECK(config.project_data.project_file_name == name + ".salixproj");
+    }
+}
