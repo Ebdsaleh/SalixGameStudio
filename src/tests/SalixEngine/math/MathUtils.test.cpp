@@ -904,3 +904,52 @@ TEST_SUITE("Salix::math::MathUtilsBatch5447") {
     }
 }
 
+TEST_SUITE("Salix::math::MathUtilsBatch6447") {
+    TEST_CASE("batch6447 pi fractions preserve expected relationships") {
+        CHECK(Salix::PI_2 * 2.0f == doctest::Approx(Salix::PI));
+        CHECK(Salix::PI_4 * 4.0f == doctest::Approx(Salix::PI));
+        CHECK(Salix::TAU == doctest::Approx(Salix::PI * 2.0f));
+    }
+
+    TEST_CASE("batch6447 square root constants square back to source values") {
+        CHECK(Salix::SQRT2 * Salix::SQRT2 == doctest::Approx(2.0f).epsilon(0.001));
+        CHECK(Salix::SQRT3 * Salix::SQRT3 == doctest::Approx(3.0f).epsilon(0.001));
+    }
+
+    TEST_CASE("batch6447 golden ratio remains greater than one and less than two") {
+        CHECK(Salix::GOLDEN_RATIO > 1.0f);
+        CHECK(Salix::GOLDEN_RATIO < 2.0f);
+    }
+
+    TEST_CASE("batch6447 float lerp clamps below zero to first endpoint") {
+        CHECK(Salix::lerp<float>(-6.0f, 4.0f, -1.0f) == doctest::Approx(-6.0f));
+    }
+
+    TEST_CASE("batch6447 float lerp clamps above one to second endpoint") {
+        CHECK(Salix::lerp<float>(-6.0f, 4.0f, 2.0f) == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch6447 inverse lerp midpoint of symmetric range is one half") {
+        CHECK(Salix::inverse_lerp(-10.0f, 10.0f, 0.0f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch6447 remap midpoint maps between signed output endpoints") {
+        CHECK(Salix::remap(0.0f, -10.0f, 10.0f, -64.0f, 47.0f) ==
+              doctest::Approx(-8.5f));
+    }
+
+    TEST_CASE("batch6447 smooth and smoother step share exact midpoint for symmetric interval") {
+        CHECK(Salix::smooth_step(0.0f, 1.0f, 0.5f) == doctest::Approx(0.5f));
+        CHECK(Salix::smoother_step(0.0f, 1.0f, 0.5f) == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("batch6447 wrap maps negative multiple exactly to lower boundary") {
+        CHECK(Salix::wrap(-8.0f, 0.0f, 4.0f) == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch6447 saturate preserves exact interior value and clamps extremes") {
+        CHECK(Salix::saturate(0.6447f) == doctest::Approx(0.6447f));
+        CHECK(Salix::saturate(-100.0f) == 0.0f);
+        CHECK(Salix::saturate(100.0f) == 1.0f);
+    }
+}
