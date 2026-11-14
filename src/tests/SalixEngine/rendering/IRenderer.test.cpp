@@ -132,3 +132,78 @@ TEST_SUITE("Salix::rendering::IRendererBatch1347") {
         CHECK(renderer.last_sphere_segments == 24);
     }
 }
+
+TEST_SUITE("Salix::rendering::IRendererBatch6647") {
+    TEST_CASE("batch6647 fresh mock renderer exposes canonical pixels per unit and line width") {
+        MockIRenderer renderer;
+        CHECK(renderer.get_pixels_per_unit() == doctest::Approx(100.0f));
+        CHECK(renderer.get_line_width() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6647 negative pixels per unit roundtrips without normalization") {
+        MockIRenderer renderer;
+        renderer.set_pixels_per_unit(-66.47f);
+        CHECK(renderer.get_pixels_per_unit() == doctest::Approx(-66.47f));
+    }
+
+    TEST_CASE("batch6647 zero line width roundtrips without changing pixels per unit") {
+        MockIRenderer renderer;
+        renderer.set_line_width(0.0f);
+        CHECK(renderer.get_line_width() == doctest::Approx(0.0f));
+        CHECK(renderer.get_pixels_per_unit() == doctest::Approx(100.0f));
+    }
+
+    TEST_CASE("batch6647 framebuffer identifiers increment monotonically") {
+        MockIRenderer renderer;
+        const auto first = renderer.create_framebuffer(64, 47);
+        const auto second = renderer.create_framebuffer(66, 46);
+        CHECK(first == 1u);
+        CHECK(second == 2u);
+    }
+
+    TEST_CASE("batch6647 framebuffer texture identifier is deterministic from framebuffer id") {
+        MockIRenderer renderer;
+        CHECK(renderer.get_framebuffer_texture_id(0u) == static_cast<ImTextureID>(1000u));
+        CHECK(renderer.get_framebuffer_texture_id(47u) == static_cast<ImTextureID>(1047u));
+    }
+
+    TEST_CASE("batch6647 begin render pass binds requested framebuffer and records call") {
+        MockIRenderer renderer;
+        renderer.begin_render_pass(66u);
+        CHECK(renderer.begin_render_pass_calls == 1);
+        CHECK(renderer.get_current_framebuffer_binding() == 66);
+    }
+
+    TEST_CASE("batch6647 end render pass is independently observable") {
+        MockIRenderer renderer;
+        renderer.end_render_pass();
+        renderer.end_render_pass();
+        CHECK(renderer.end_render_pass_calls == 2);
+    }
+
+    TEST_CASE("batch6647 viewport accepts signed coordinates and zero extent") {
+        MockIRenderer renderer;
+        renderer.set_viewport(-66, 47, 0, 0);
+        CHECK(renderer.viewport_x == -66);
+        CHECK(renderer.viewport_y == 47);
+        CHECK(renderer.viewport_width == 0);
+        CHECK(renderer.viewport_height == 0);
+    }
+
+    TEST_CASE("batch6647 native handle transports exact opaque pointer") {
+        MockIRenderer renderer;
+        int native = 6647;
+        renderer.native_handle = &native;
+        CHECK(renderer.get_native_handle() == &native);
+    }
+
+    TEST_CASE("batch6647 draw texture records exact texture pointer and destination rectangle") {
+        MockIRenderer renderer;
+        MockITexture texture(66, 47, ImTextureID(6647));
+        const Salix::Rect destination{-66, 47, 664, 7};
+        renderer.draw_texture(&texture, destination);
+        CHECK(renderer.draw_texture_calls == 1);
+        CHECK(renderer.last_texture == &texture);
+        CHECK(renderer.last_dest_rect == destination);
+    }
+}
