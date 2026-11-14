@@ -1471,3 +1471,103 @@ TEST_SUITE("Salix::ecs::BoxColliderBatch6147") {
         CHECK(fresh.is_visible());
     }
 }
+
+TEST_SUITE("Salix::ecs::BoxColliderBatch6747") {
+    TEST_CASE("batch6747 class identity remains stable after empty display name") {
+        Salix::BoxCollider collider;
+        collider.set_name("");
+        CHECK(collider.get_name().empty());
+        CHECK(std::string(collider.get_class_name()) == "BoxCollider");
+    }
+
+    TEST_CASE("batch6747 explicit invalid identifier survives initialize") {
+        Salix::BoxCollider collider;
+        collider.set_id(Salix::SimpleGuid::invalid());
+        collider.initialize();
+        CHECK_FALSE(collider.get_id().is_valid());
+    }
+
+    TEST_CASE("batch6747 owner replacement never changes geometry") {
+        Salix::Entity first;
+        Salix::Entity second;
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(-67.0f, 4.0f, 7.0f));
+        collider.set_owner(&first);
+        collider.set_owner(&second);
+        CHECK(collider.get_owner() == &second);
+        CHECK((collider.get_size() == Salix::Vector3(-67.0f, 4.0f, 7.0f)));
+    }
+
+    TEST_CASE("batch6747 zero geometry survives signed update sequence") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3::Zero);
+        collider.update(-67.47f);
+        collider.update(0.0f);
+        collider.update(67.47f);
+        CHECK(collider.get_size() == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch6747 repeated visibility toggles never rewrite geometry") {
+        Salix::BoxCollider collider;
+        collider.set_size(Salix::Vector3(6.0f, 74.0f, 7.0f));
+        collider.set_visibility(false);
+        collider.set_visibility(true);
+        collider.set_visibility(false);
+        CHECK_FALSE(collider.is_visible());
+        CHECK((collider.get_size() == Salix::Vector3(6.0f, 74.0f, 7.0f)));
+    }
+
+    TEST_CASE("batch6747 on load preserves explicit invalid identifier") {
+        Salix::BoxCollider collider;
+        collider.set_id(Salix::SimpleGuid::invalid());
+        Salix::InitContext context{};
+        collider.on_load(context);
+        CHECK_FALSE(collider.get_id().is_valid());
+    }
+
+    TEST_CASE("batch6747 JSON roundtrip preserves signed geometry") {
+        Salix::BoxCollider source;
+        source.set_size(Salix::Vector3(-6.747f, 0.0f, 67.47f));
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK((restored.get_size() == Salix::Vector3(-6.747f, 0.0f, 67.47f)));
+    }
+
+    TEST_CASE("batch6747 JSON roundtrip preserves explicit invalid identifier and name") {
+        Salix::BoxCollider source;
+        source.set_id(Salix::SimpleGuid::invalid());
+        source.set_name("Invalid6747");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK_FALSE(restored.get_id().is_valid());
+        CHECK(restored.get_name() == "Invalid6747");
+    }
+
+    TEST_CASE("batch6747 runtime owner is not restored by JSON persistence") {
+        Salix::Entity owner;
+        Salix::BoxCollider source;
+        source.set_owner(&owner);
+        source.set_name("Owner6747");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::BoxCollider restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_owner() == nullptr);
+        CHECK(restored.get_name() == "Owner6747");
+    }
+
+    TEST_CASE("batch6747 separate colliders retain independent geometry and visibility") {
+        Salix::BoxCollider first;
+        Salix::BoxCollider second;
+        first.set_size(Salix::Vector3(67.0f, 4.0f, 7.0f));
+        first.set_visibility(false);
+        CHECK((first.get_size() == Salix::Vector3(67.0f, 4.0f, 7.0f)));
+        CHECK_FALSE(first.is_visible());
+        CHECK(second.get_size() == Salix::Vector3::One);
+        CHECK(second.is_visible());
+    }
+}
