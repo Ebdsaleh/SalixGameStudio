@@ -328,3 +328,68 @@ TEST_SUITE("Salix::core::EngineInfoBatch5647") {
     }
 }
 
+TEST_SUITE("Salix::core::EngineInfoBatch6347") {
+    TEST_CASE("batch6347 version begins with semantic major digit and ends with Alpha suffix") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        REQUIRE_FALSE(version.empty());
+        CHECK(version.front() == '0');
+        CHECK(version.back() == 'a');
+    }
+
+    TEST_CASE("batch6347 semantic core digit positions remain zero one zero") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        REQUIRE(version.size() >= 5);
+        CHECK(version[0] == '0');
+        CHECK(version[2] == '1');
+        CHECK(version[4] == '0');
+    }
+
+    TEST_CASE("batch6347 prerelease marker begins immediately after semantic core") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(version.find("-Alpha") == 5);
+    }
+
+    TEST_CASE("batch6347 Alpha token begins at byte six") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(version.find("Alpha") == 6);
+    }
+
+    TEST_CASE("batch6347 version contains no embedded null byte") {
+        const auto& version = Salix::EngineInfo::get_engine_version();
+        CHECK(std::find(version.begin(), version.end(), '\0') == version.end());
+    }
+
+    TEST_CASE("batch6347 every prerelease suffix character is alphabetic ASCII") {
+        const auto suffix = Salix::EngineInfo::get_engine_version().substr(6);
+        REQUIRE(suffix == "Alpha");
+        CHECK(std::all_of(suffix.begin(), suffix.end(), [](char ch) {
+            return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+        }));
+    }
+
+    TEST_CASE("batch6347 copied version may append text without mutating exported metadata") {
+        std::string copy = Salix::EngineInfo::get_engine_version();
+        copy += "-Local";
+        CHECK(copy == "0.1.0-Alpha-Local");
+        CHECK(Salix::EngineInfo::get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch6347 copied version may clear suffix without mutating exported metadata") {
+        std::string copy = Salix::EngineInfo::get_engine_version();
+        copy.resize(5);
+        CHECK(copy == "0.1.0");
+        CHECK(Salix::EngineInfo::get_engine_version() == "0.1.0-Alpha");
+    }
+
+    TEST_CASE("batch6347 accessor reference remains identical across repeated observations") {
+        const auto& first = Salix::EngineInfo::get_engine_version();
+        const auto& second = Salix::EngineInfo::get_engine_version();
+        CHECK(&first == &second);
+        CHECK(first.data() == second.data());
+    }
+
+    TEST_CASE("batch6347 exported version object and accessor expose identical complete value") {
+        CHECK(Salix::EngineInfo::version_id == Salix::EngineInfo::get_engine_version());
+        CHECK(Salix::EngineInfo::version_id.size() == Salix::EngineInfo::get_engine_version().size());
+    }
+}
