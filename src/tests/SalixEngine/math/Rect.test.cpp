@@ -1232,3 +1232,75 @@ TEST_SUITE("Salix::math::RectBatch6247") {
         CHECK(stream.str() == "{ x: -62, y: 47, w: -6, h: 247 }");
     }
 }
+
+TEST_SUITE("Salix::math::RectBatch6847") {
+    TEST_CASE("batch6847 default aliases all begin with zero components") {
+        const Salix::RectI integer_rect{};
+        const Salix::RectF float_rect{};
+        const Salix::RectD double_rect{};
+        CHECK(integer_rect == Salix::RectI(0, 0, 0, 0));
+        CHECK(float_rect == Salix::RectF(0.0f, 0.0f, 0.0f, 0.0f));
+        CHECK(double_rect == Salix::RectD(0.0, 0.0, 0.0, 0.0));
+    }
+
+    TEST_CASE("batch6847 mixed constructor conversion truncates negative float toward zero") {
+        const Salix::RectI rect(-6.9f, 8.9f, -4.9f, 7.9f);
+        CHECK(rect == Salix::RectI(-6, 8, -4, 7));
+    }
+
+    TEST_CASE("batch6847 integer to double conversion preserves all exact components") {
+        const Salix::RectI source(-68, 47, -6, 847);
+        const Salix::RectD converted(source);
+        CHECK(converted == Salix::RectD(-68.0, 47.0, -6.0, 847.0));
+    }
+
+    TEST_CASE("batch6847 double to integer conversion truncates every fractional component") {
+        const Salix::RectD source(-6.75, 8.25, -4.99, 7.01);
+        const Salix::RectI converted(source);
+        CHECK(converted == Salix::RectI(-6, 8, -4, 7));
+    }
+
+    TEST_CASE("batch6847 inequality detects width only difference") {
+        const Salix::RectI first(1, 2, 3, 4);
+        const Salix::RectI second(1, 2, 9, 4);
+        CHECK(first != second);
+        CHECK_FALSE(first == second);
+    }
+
+    TEST_CASE("batch6847 inequality detects height only difference") {
+        const Salix::RectI first(1, 2, 3, 4);
+        const Salix::RectI second(1, 2, 3, 9);
+        CHECK(first != second);
+        CHECK_FALSE(first == second);
+    }
+
+    TEST_CASE("batch6847 copy construction owns independent component storage") {
+        Salix::RectF source(-6.0f, 8.0f, -4.0f, 7.0f);
+        Salix::RectF copy(source);
+        copy.x = 99.0f;
+        copy.h = -99.0f;
+        CHECK(source == Salix::RectF(-6.0f, 8.0f, -4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6847 self assignment preserves double precision components") {
+        Salix::RectD rect(-6.847, 8.476, -4.25, 7.125);
+        rect = rect;
+        CHECK(rect == Salix::RectD(-6.847, 8.476, -4.25, 7.125));
+    }
+
+    TEST_CASE("batch6847 JSON roundtrip replaces all destination float components") {
+        const Salix::RectF source(-6.847f, 8.476f, -4.25f, 7.125f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::RectF restored(9.0f, 9.0f, 9.0f, 9.0f);
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored == source);
+    }
+
+    TEST_CASE("batch6847 ostream preserves signed double component order") {
+        const Salix::RectD rect(-6.5, 8.25, -4.0, 7.75);
+        std::stringstream stream;
+        stream << rect;
+        CHECK(stream.str() == "{ x: -6.5, y: 8.25, w: -4, h: 7.75 }");
+    }
+}
