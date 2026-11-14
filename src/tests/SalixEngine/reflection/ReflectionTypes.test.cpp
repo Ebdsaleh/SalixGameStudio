@@ -195,7 +195,7 @@ TEST_SUITE("Salix::reflection::ReflectionTypesBatch6347") {
         Salix::PropertyValue rect = Salix::Rect{-6, 3, 4, 7};
         CHECK(point.index() == 8);
         CHECK(rect.index() == 9);
-        CHECK(std::get<Salix::Point>(point) == Salix::Point{-63, 47});
+        CHECK((std::get<Salix::Point>(point) == Salix::Point{-63, 47}));
         CHECK(std::get<Salix::Rect>(rect) == Salix::Rect(-6, 3, 4, 7));
     }
 
