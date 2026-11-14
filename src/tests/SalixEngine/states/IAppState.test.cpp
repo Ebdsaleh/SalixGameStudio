@@ -95,3 +95,106 @@ TEST_SUITE("Salix::states::IAppStateBatch1547") {
         state->render(nullptr);
     }
 }
+
+TEST_SUITE("Salix::states::IAppStateBatch6647") {
+    TEST_CASE("batch6647 repeated enter calls keep latest context pointer") {
+        MockIAppState state;
+        Salix::InitContext first{};
+        Salix::InitContext second{};
+        state.on_enter(first);
+        state.on_enter(second);
+        CHECK(state.enter_calls == 2);
+        CHECK(state.last_context == &second);
+    }
+
+    TEST_CASE("batch6647 repeated updates keep latest delta and call count") {
+        MockIAppState state;
+        state.update(1.0f);
+        state.update(-6.647f);
+        CHECK(state.update_calls == 2);
+        CHECK(state.last_delta_time == doctest::Approx(-6.647f));
+    }
+
+    TEST_CASE("batch6647 repeated renders keep latest renderer pointer") {
+        MockIAppState state;
+        MockIRenderer first;
+        MockIRenderer second;
+        state.render(&first);
+        state.render(&second);
+        CHECK(state.render_calls == 2);
+        CHECK(state.last_renderer == &second);
+    }
+
+    TEST_CASE("batch6647 renderer may transition from nonnull to null") {
+        MockIAppState state;
+        MockIRenderer renderer;
+        state.render(&renderer);
+        REQUIRE(state.last_renderer == &renderer);
+        state.render(nullptr);
+        CHECK(state.last_renderer == nullptr);
+        CHECK(state.render_calls == 2);
+    }
+
+    TEST_CASE("batch6647 null render before enter does not create context pointer") {
+        MockIAppState state;
+        state.render(nullptr);
+        CHECK(state.last_context == nullptr);
+        CHECK(state.last_renderer == nullptr);
+        CHECK(state.render_calls == 1);
+        CHECK(state.enter_calls == 0);
+    }
+
+    TEST_CASE("batch6647 exit calls do not clear last context observation") {
+        MockIAppState state;
+        Salix::InitContext context{};
+        state.on_enter(context);
+        state.on_exit();
+        CHECK(state.last_context == &context);
+        CHECK(state.exit_calls == 1);
+    }
+
+    TEST_CASE("batch6647 exit calls do not rewrite last delta observation") {
+        MockIAppState state;
+        state.update(6.647f);
+        state.on_exit();
+        CHECK(state.last_delta_time == doctest::Approx(6.647f));
+        CHECK(state.exit_calls == 1);
+    }
+
+    TEST_CASE("batch6647 update calls do not rewrite last renderer pointer") {
+        MockIAppState state;
+        MockIRenderer renderer;
+        state.render(&renderer);
+        state.update(0.25f);
+        CHECK(state.last_renderer == &renderer);
+        CHECK(state.last_delta_time == doctest::Approx(0.25f));
+    }
+
+    TEST_CASE("batch6647 two app states maintain completely independent lifecycle accounting") {
+        MockIAppState first;
+        MockIAppState second;
+        Salix::InitContext context{};
+        first.on_enter(context);
+        first.update(1.0f);
+        second.on_exit();
+        CHECK(first.enter_calls == 1);
+        CHECK(first.update_calls == 1);
+        CHECK(first.exit_calls == 0);
+        CHECK(second.enter_calls == 0);
+        CHECK(second.update_calls == 0);
+        CHECK(second.exit_calls == 1);
+    }
+
+    TEST_CASE("batch6647 polymorphic ownership preserves exact lifecycle observations") {
+        auto concrete = std::make_unique<MockIAppState>();
+        MockIAppState* raw = concrete.get();
+        std::unique_ptr<Salix::IAppState> state = std::move(concrete);
+        Salix::InitContext context{};
+        state->on_enter(context);
+        state->update(0.6647f);
+        state->render(nullptr);
+        CHECK(raw->last_context == &context);
+        CHECK(raw->last_delta_time == doctest::Approx(0.6647f));
+        CHECK(raw->render_calls == 1);
+    }
+}
