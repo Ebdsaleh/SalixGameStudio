@@ -1645,23 +1645,29 @@ TEST_SUITE("Salix::management::SettingsManagerBatch6947") {
         CHECK(loaded.window_config.title == "Final6947");
     }
 
-    TEST_CASE("batch6947 valid cache with empty title loads empty string fast path") {
+    TEST_CASE("batch6947 valid cache preserves empty title and saved target FPS on fast path") {
         Batch3447SettingsFiles files("Batch6947_EmptyTitle");
-        files.write_yaml("Engine:\n  target_fps: 1\n");
         Salix::ApplicationConfig source;
         source.target_fps = 6947;
         source.window_config.title.clear();
         Salix::SettingsManager manager;
         REQUIRE(manager.save_settings(files.yaml.string(), source));
+
         Salix::ApplicationConfig primed;
         REQUIRE(manager.load_settings(files.yaml.string(), primed));
-        CHECK(primed.target_fps == 1);
-        // YAML load refreshed cache; now make YAML older and verify cache remains readable.
+        CHECK(primed.target_fps == 6947);
+        CHECK(primed.window_config.title.empty());
+
+        // YAML load creates the cache. Make YAML older so the next call must use it.
         auto cache_time = std::filesystem::last_write_time(files.cache);
         std::filesystem::last_write_time(files.yaml, cache_time - std::chrono::seconds(2));
+
         Salix::ApplicationConfig cached;
+        cached.target_fps = 1;
+        cached.window_config.title = "NotEmpty6947";
         REQUIRE(manager.load_settings(files.yaml.string(), cached));
-        CHECK(cached.target_fps == 1);
+        CHECK(cached.target_fps == 6947);
+        CHECK(cached.window_config.title.empty());
     }
 
     TEST_CASE("batch6947 unknown enum strings preserve caller enum values") {
