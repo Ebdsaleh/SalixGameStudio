@@ -416,3 +416,77 @@ TEST_SUITE("Salix::math::PointBatch6347") {
         CHECK(stream.str() == "{ x: -63, y: 47 }");
     }
 }
+
+TEST_SUITE("Salix::math::PointBatch6847") {
+    TEST_CASE("batch6847 default constructed points compare equal") {
+        const Salix::Point first{};
+        const Salix::Point second{};
+        CHECK(first == second);
+        CHECK_FALSE(first != second);
+    }
+
+    TEST_CASE("batch6847 minimum and maximum coordinates remain independently representable") {
+        const Salix::Point point{(std::numeric_limits<int>::min)(), (std::numeric_limits<int>::max)()};
+        CHECK(point.x == (std::numeric_limits<int>::min)());
+        CHECK(point.y == (std::numeric_limits<int>::max)());
+    }
+
+    TEST_CASE("batch6847 changing x only preserves y exactly") {
+        Salix::Point point{68, 47};
+        point.x = -68;
+        CHECK(point.x == -68);
+        CHECK(point.y == 47);
+    }
+
+    TEST_CASE("batch6847 changing y only preserves x exactly") {
+        Salix::Point point{68, 47};
+        point.y = -47;
+        CHECK(point.x == 68);
+        CHECK(point.y == -47);
+    }
+
+    TEST_CASE("batch6847 equality rejects simultaneous swapped coordinates") {
+        const Salix::Point first{68, 47};
+        const Salix::Point second{47, 68};
+        CHECK(first != second);
+    }
+
+    TEST_CASE("batch6847 copy assignment remains independent after destination mutation") {
+        const Salix::Point source{-68, 47};
+        Salix::Point destination{1, 2};
+        destination = source;
+        destination.x = 999;
+        CHECK((source == Salix::Point{-68, 47}));
+        CHECK((destination == Salix::Point{999, 47}));
+    }
+
+    TEST_CASE("batch6847 self assignment preserves signed coordinates") {
+        Salix::Point point{-6847, 7486};
+        point = point;
+        CHECK((point == Salix::Point{-6847, 7486}));
+    }
+
+    TEST_CASE("batch6847 ostream handles zero and negative coordinates canonically") {
+        std::stringstream stream;
+        stream << Salix::Point{0, -6847};
+        CHECK(stream.str() == "{ x: 0, y: -6847 }");
+    }
+
+    TEST_CASE("batch6847 JSON roundtrip replaces prepopulated destination") {
+        const Salix::Point source{-6847, 7486};
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::Point destination{99, 100};
+        { cereal::JSONInputArchive in(stream); in(destination); }
+        CHECK(destination == source);
+    }
+
+    TEST_CASE("batch6847 binary roundtrip preserves signed coordinates exactly") {
+        const Salix::Point source{-6847, 7486};
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::Point restored{};
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored == source);
+    }
+}
