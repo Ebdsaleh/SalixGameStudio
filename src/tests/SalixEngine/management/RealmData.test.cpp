@@ -260,3 +260,110 @@ TEST_SUITE("Salix::management::RealmDataBatch2047") {
         CHECK(restored.unique_referenced_assets[0].path == "only.asset");
     }
 }
+
+TEST_SUITE("Salix::management::RealmDataBatch6447") {
+    TEST_CASE("batch6447 referenced asset preserves parent traversal text verbatim") {
+        const auto asset = batch1047_asset("../Assets/Texture6447.png");
+        CHECK(asset.path == "../Assets/Texture6447.png");
+    }
+
+    TEST_CASE("batch6447 referenced asset copy remains independent after source mutation") {
+        auto source = batch1047_asset("Source6447.asset");
+        auto copy = source;
+        source.path = "Changed6447.asset";
+        CHECK(copy.path == "Source6447.asset");
+    }
+
+    TEST_CASE("batch6447 fresh realm metadata fields begin empty with zero entity count") {
+        const Salix::RealmData data;
+        CHECK(data.realm_name.empty());
+        CHECK(data.realm_file_path_relative.empty());
+        CHECK(data.engine_version.empty());
+        CHECK(data.entity_count == 0);
+        CHECK(data.unique_referenced_assets.empty());
+    }
+
+    TEST_CASE("batch6447 realm metadata fields remain independently mutable") {
+        Salix::RealmData data;
+        data.realm_name = "Realm6447";
+        data.realm_file_path_relative = "Realms/Realm6447.realm";
+        data.engine_version = "Engine6447";
+        data.entity_count = 64;
+        CHECK(data.realm_name == "Realm6447");
+        CHECK(data.realm_file_path_relative == "Realms/Realm6447.realm");
+        CHECK(data.engine_version == "Engine6447");
+        CHECK(data.entity_count == 64);
+    }
+
+    TEST_CASE("batch6447 asset vector preserves duplicate paths and insertion order") {
+        Salix::RealmData data;
+        data.unique_referenced_assets = {
+            batch1047_asset("same6447.asset"),
+            batch1047_asset("other6447.asset"),
+            batch1047_asset("same6447.asset")
+        };
+        REQUIRE(data.unique_referenced_assets.size() == 3);
+        CHECK(data.unique_referenced_assets[0].path == "same6447.asset");
+        CHECK(data.unique_referenced_assets[1].path == "other6447.asset");
+        CHECK(data.unique_referenced_assets[2].path == "same6447.asset");
+    }
+
+    TEST_CASE("batch6447 clearing assets does not change entity count") {
+        Salix::RealmData data;
+        data.entity_count = 6447;
+        data.unique_referenced_assets = {batch1047_asset("one.asset")};
+        data.unique_referenced_assets.clear();
+        CHECK(data.unique_referenced_assets.empty());
+        CHECK(data.entity_count == 6447);
+    }
+
+    TEST_CASE("batch6447 JSON roundtrip preserves signed-looking text paths verbatim") {
+        Salix::RealmData source;
+        source.realm_file_path_relative = "-6447/Realm.realm";
+        source.unique_referenced_assets = {batch1047_asset("-6447/Asset.png")};
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::RealmData restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.realm_file_path_relative == "-6447/Realm.realm");
+        REQUIRE(restored.unique_referenced_assets.size() == 1);
+        CHECK(restored.unique_referenced_assets[0].path == "-6447/Asset.png");
+    }
+
+    TEST_CASE("batch6447 binary roundtrip preserves zero entity count with populated metadata") {
+        Salix::RealmData source;
+        source.realm_name = "Zero6447";
+        source.entity_count = 0;
+        source.engine_version = "Engine6447";
+        std::stringstream stream;
+        { cereal::BinaryOutputArchive out(stream); out(source); }
+        Salix::RealmData restored;
+        { cereal::BinaryInputArchive in(stream); in(restored); }
+        CHECK(restored.realm_name == "Zero6447");
+        CHECK(restored.entity_count == 0);
+        CHECK(restored.engine_version == "Engine6447");
+    }
+
+    TEST_CASE("batch6447 assignment replaces populated asset vector with source ordering") {
+        Salix::RealmData source;
+        source.unique_referenced_assets = {
+            batch1047_asset("A6447.asset"),
+            batch1047_asset("B6447.asset")
+        };
+        Salix::RealmData destination;
+        destination.unique_referenced_assets = {batch1047_asset("Old.asset")};
+        destination = source;
+        REQUIRE(destination.unique_referenced_assets.size() == 2);
+        CHECK(destination.unique_referenced_assets[0].path == "A6447.asset");
+        CHECK(destination.unique_referenced_assets[1].path == "B6447.asset");
+    }
+
+    TEST_CASE("batch6447 copied realm asset storage remains independent after copy mutation") {
+        Salix::RealmData source;
+        source.unique_referenced_assets = {batch1047_asset("Source6447.asset")};
+        Salix::RealmData copy = source;
+        copy.unique_referenced_assets[0].path = "Copy6447.asset";
+        CHECK(source.unique_referenced_assets[0].path == "Source6447.asset");
+        CHECK(copy.unique_referenced_assets[0].path == "Copy6447.asset");
+    }
+}
