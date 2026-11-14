@@ -434,3 +434,122 @@ TEST_SUITE("Salix::ecs::ElementBatch947") {
         CHECK(element.get_id() == id);
     }
 }
+
+TEST_SUITE("Salix::ecs::ElementBatch6747") {
+    TEST_CASE("batch6747 default visibility toggles without changing generated identity") {
+        MockElement element;
+        const auto id = element.get_id();
+        element.set_visibility(false);
+        element.set_visibility(true);
+        CHECK(element.is_visible());
+        CHECK(element.get_id() == id);
+    }
+
+    TEST_CASE("batch6747 empty name assignment preserves owner and identifier") {
+        Salix::Entity owner;
+        MockElement element;
+        element.set_owner(&owner);
+        const auto id = element.get_id();
+        element.set_name("");
+        CHECK(element.get_name().empty());
+        CHECK(element.get_owner() == &owner);
+        CHECK(element.get_id() == id);
+    }
+
+    TEST_CASE("batch6747 owner replacement keeps persistent metadata unchanged") {
+        Salix::Entity first;
+        Salix::Entity second;
+        MockElement element;
+        element.set_name("OwnerSwap6747");
+        const auto id = element.get_id();
+        element.set_owner(&first);
+        element.set_owner(&second);
+        CHECK(element.get_owner() == &second);
+        CHECK(element.get_name() == "OwnerSwap6747");
+        CHECK(element.get_id() == id);
+    }
+
+    TEST_CASE("batch6747 invalid identifier assignment preserves class and display names") {
+        MockElement element;
+        element.set_name("Invalid6747");
+        element.set_id(Salix::SimpleGuid::invalid());
+        CHECK_FALSE(element.get_id().is_valid());
+        CHECK(element.get_name() == "Invalid6747");
+        CHECK(std::string(element.get_class_name()) == "MockElement");
+    }
+
+    TEST_CASE("batch6747 raw identifier pointer observes repeated replacements") {
+        MockElement element;
+        const auto* raw = element.get_id_as_ptr();
+        element.set_id(Salix::SimpleGuid::from_value(6747001ULL));
+        REQUIRE(raw == element.get_id_as_ptr());
+        CHECK(*raw == 6747001ULL);
+        element.set_id(Salix::SimpleGuid::from_value(6747002ULL));
+        CHECK(*raw == 6747002ULL);
+    }
+
+    TEST_CASE("batch6747 signed update sequence leaves every metadata field untouched") {
+        Salix::Entity owner;
+        MockElement element;
+        element.set_owner(&owner);
+        element.set_name("Update6747");
+        element.set_visibility(false);
+        const auto id = element.get_id();
+        element.update(-67.47f);
+        element.update(0.0f);
+        element.update(67.47f);
+        CHECK(element.get_owner() == &owner);
+        CHECK(element.get_name() == "Update6747");
+        CHECK_FALSE(element.is_visible());
+        CHECK(element.get_id() == id);
+    }
+
+    TEST_CASE("batch6747 lifecycle sequence preserves explicitly invalid identifier") {
+        MockElement element;
+        element.set_id(Salix::SimpleGuid::invalid());
+        Salix::InitContext context{};
+        element.initialize();
+        element.on_load(context);
+        element.update(6.747f);
+        element.shutdown();
+        CHECK_FALSE(element.get_id().is_valid());
+    }
+
+    TEST_CASE("batch6747 JSON roundtrip preserves empty name and invalid identifier") {
+        MockElement source;
+        source.set_name("");
+        source.set_id(Salix::SimpleGuid::invalid());
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        MockElement restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_name().empty());
+        CHECK_FALSE(restored.get_id().is_valid());
+    }
+
+    TEST_CASE("batch6747 JSON load never restores runtime owner pointer") {
+        Salix::Entity owner;
+        MockElement source;
+        source.set_owner(&owner);
+        source.set_name("RuntimeOwner6747");
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        MockElement restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.get_owner() == nullptr);
+        CHECK(restored.get_name() == "RuntimeOwner6747");
+    }
+
+    TEST_CASE("batch6747 separate elements keep owner visibility and names independent") {
+        Salix::Entity owner;
+        MockElement first;
+        MockElement second;
+        first.set_owner(&owner);
+        first.set_visibility(false);
+        first.set_name("First6747");
+        CHECK(second.get_owner() == nullptr);
+        CHECK(second.is_visible());
+        CHECK(second.get_name() == "Element");
+        CHECK(first.get_name() == "First6747");
+    }
+}
