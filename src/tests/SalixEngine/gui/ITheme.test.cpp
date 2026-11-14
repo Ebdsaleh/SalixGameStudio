@@ -94,3 +94,89 @@ TEST_SUITE("Salix::gui::IThemeBatch1447") {
         CHECK(theme->save_to_yaml("out.yaml"));
     }
 }
+
+TEST_SUITE("Salix::gui::IThemeBatch6647") {
+    TEST_CASE("batch6647 default mock identity remains canonical") {
+        MockITheme theme;
+        CHECK(theme.get_name() == "MockTheme");
+        CHECK(theme.get_file_path() == "mock.theme");
+    }
+
+    TEST_CASE("batch6647 empty theme name and path remain representable") {
+        MockITheme theme("", "");
+        CHECK(theme.get_name().empty());
+        CHECK(theme.get_file_path().empty());
+    }
+
+    TEST_CASE("batch6647 repeated apply records latest GUI pointer and call count") {
+        MockITheme theme;
+        MockIGui first;
+        MockIGui second;
+        theme.apply(&first);
+        theme.apply(&second);
+        CHECK(theme.apply_count == 2);
+        CHECK(theme.last_gui == &second);
+    }
+
+    TEST_CASE("batch6647 successful empty path load replaces stored file path with empty string") {
+        MockITheme theme("Theme6647", "old6647.yaml");
+        theme.load_result = true;
+        CHECK(theme.load_from_yaml(""));
+        CHECK(theme.get_file_path().empty());
+        CHECK(theme.last_load_path.empty());
+    }
+
+    TEST_CASE("batch6647 failed empty path load preserves stored file path") {
+        MockITheme theme("Theme6647", "stable6647.yaml");
+        theme.load_result = false;
+        CHECK_FALSE(theme.load_from_yaml(""));
+        CHECK(theme.get_file_path() == "stable6647.yaml");
+        CHECK(theme.last_load_path.empty());
+    }
+
+    TEST_CASE("batch6647 repeated successful loads keep latest requested file path") {
+        MockITheme theme;
+        REQUIRE(theme.load_from_yaml("first6647.yaml"));
+        REQUIRE(theme.load_from_yaml("second6647.yaml"));
+        CHECK(theme.load_count == 2);
+        CHECK(theme.get_file_path() == "second6647.yaml");
+        CHECK(theme.last_load_path == "second6647.yaml");
+    }
+
+    TEST_CASE("batch6647 repeated saves keep latest destination without changing theme path") {
+        MockITheme theme("Theme6647", "source6647.yaml");
+        REQUIRE(theme.save_to_yaml("one6647.yaml"));
+        REQUIRE(theme.save_to_yaml("two6647.yaml"));
+        CHECK(theme.save_count == 2);
+        CHECK(theme.last_save_path == "two6647.yaml");
+        CHECK(theme.get_file_path() == "source6647.yaml");
+    }
+
+    TEST_CASE("batch6647 save result may transition from failure to success") {
+        MockITheme theme;
+        theme.save_result = false;
+        CHECK_FALSE(theme.save_to_yaml("first6647.yaml"));
+        theme.save_result = true;
+        CHECK(theme.save_to_yaml("second6647.yaml"));
+        CHECK(theme.save_count == 2);
+        CHECK(theme.last_save_path == "second6647.yaml");
+    }
+
+    TEST_CASE("batch6647 load result may transition from failure to success") {
+        MockITheme theme("Theme6647", "stable6647.yaml");
+        theme.load_result = false;
+        CHECK_FALSE(theme.load_from_yaml("missing6647.yaml"));
+        theme.load_result = true;
+        CHECK(theme.load_from_yaml("loaded6647.yaml"));
+        CHECK(theme.load_count == 2);
+        CHECK(theme.get_file_path() == "loaded6647.yaml");
+    }
+
+    TEST_CASE("batch6647 applying theme never changes persisted file path") {
+        MockITheme theme("Theme6647", "persist6647.yaml");
+        MockIGui gui;
+        theme.apply(&gui);
+        CHECK(theme.get_file_path() == "persist6647.yaml");
+        CHECK(theme.apply_count == 1);
+    }
+}
