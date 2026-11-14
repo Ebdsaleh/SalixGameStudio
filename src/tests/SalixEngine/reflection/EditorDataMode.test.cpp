@@ -196,3 +196,84 @@ TEST_SUITE("Salix::reflection::EditorDataModeBatch6347") {
         CHECK(label(Salix::EditorDataMode::Yaml) == "yaml6347");
     }
 }
+
+TEST_SUITE("Salix::reflection::EditorDataModeBatch6847") {
+    TEST_CASE("batch6847 value initialization remains equivalent to explicit Live") {
+        const Salix::EditorDataMode initialized{};
+        const Salix::EditorDataMode explicit_live = Salix::EditorDataMode::Live;
+        CHECK(initialized == explicit_live);
+    }
+
+    TEST_CASE("batch6847 Live remains ordered before Yaml by underlying value") {
+        using U = std::underlying_type_t<Salix::EditorDataMode>;
+        CHECK(static_cast<U>(Salix::EditorDataMode::Live) <
+              static_cast<U>(Salix::EditorDataMode::Yaml));
+    }
+
+    TEST_CASE("batch6847 converting zero underlying value produces Live") {
+        using U = std::underlying_type_t<Salix::EditorDataMode>;
+        CHECK(static_cast<Salix::EditorDataMode>(static_cast<U>(0)) ==
+              Salix::EditorDataMode::Live);
+    }
+
+    TEST_CASE("batch6847 converting one underlying value produces Yaml") {
+        using U = std::underlying_type_t<Salix::EditorDataMode>;
+        CHECK(static_cast<Salix::EditorDataMode>(static_cast<U>(1)) ==
+              Salix::EditorDataMode::Yaml);
+    }
+
+    TEST_CASE("batch6847 repeated alternating assignments end in final explicit mode") {
+        Salix::EditorDataMode mode = Salix::EditorDataMode::Live;
+        mode = Salix::EditorDataMode::Yaml;
+        mode = Salix::EditorDataMode::Live;
+        mode = Salix::EditorDataMode::Yaml;
+        CHECK(mode == Salix::EditorDataMode::Yaml);
+    }
+
+    TEST_CASE("batch6847 copied Live remains independent after source mutation") {
+        Salix::EditorDataMode source = Salix::EditorDataMode::Live;
+        const Salix::EditorDataMode copy = source;
+        source = Salix::EditorDataMode::Yaml;
+        CHECK(copy == Salix::EditorDataMode::Live);
+        CHECK(source == Salix::EditorDataMode::Yaml);
+    }
+
+    TEST_CASE("batch6847 copied Yaml remains independent after source mutation") {
+        Salix::EditorDataMode source = Salix::EditorDataMode::Yaml;
+        const Salix::EditorDataMode copy = source;
+        source = Salix::EditorDataMode::Live;
+        CHECK(copy == Salix::EditorDataMode::Yaml);
+        CHECK(source == Salix::EditorDataMode::Live);
+    }
+
+    TEST_CASE("batch6847 ordered map iteration follows Live then Yaml") {
+        std::map<Salix::EditorDataMode, std::string> labels{
+            {Salix::EditorDataMode::Yaml, "yaml"},
+            {Salix::EditorDataMode::Live, "live"}
+        };
+        auto it = labels.begin();
+        REQUIRE(it != labels.end());
+        CHECK(it->first == Salix::EditorDataMode::Live);
+        ++it;
+        REQUIRE(it != labels.end());
+        CHECK(it->first == Salix::EditorDataMode::Yaml);
+    }
+
+    TEST_CASE("batch6847 set lookup distinguishes both declared values") {
+        const std::set<Salix::EditorDataMode> modes{
+            Salix::EditorDataMode::Live, Salix::EditorDataMode::Yaml
+        };
+        CHECK(modes.count(Salix::EditorDataMode::Live) == 1);
+        CHECK(modes.count(Salix::EditorDataMode::Yaml) == 1);
+    }
+
+    TEST_CASE("batch6847 pass by value never mutates caller mode") {
+        Salix::EditorDataMode mode = Salix::EditorDataMode::Live;
+        const auto mutate_copy = [](Salix::EditorDataMode value) {
+            value = Salix::EditorDataMode::Yaml;
+            return value;
+        };
+        CHECK(mutate_copy(mode) == Salix::EditorDataMode::Yaml);
+        CHECK(mode == Salix::EditorDataMode::Live);
+    }
+}
