@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <algorithm>
 
 TEST_SUITE("Salix::management::ProjectManagerBatch1147") {
     TEST_CASE("fresh manager has no active project or pending project paths") {
