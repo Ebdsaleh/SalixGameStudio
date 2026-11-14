@@ -1608,3 +1608,69 @@ TEST_SUITE("Salix::math::Vector3Batch6147") {
         CHECK(Salix::cross(Salix::Vector3::Zero, value) == Salix::Vector3::Zero);
     }
 }
+
+TEST_SUITE("Salix::math::Vector3Batch6747") {
+    TEST_CASE("batch6747 scalar float constructor broadcasts exact value") {
+        const Salix::Vector3 value(6.747f);
+        CHECK(value.x == doctest::Approx(6.747f));
+        CHECK(value.y == doctest::Approx(6.747f));
+        CHECK(value.z == doctest::Approx(6.747f));
+    }
+
+    TEST_CASE("batch6747 scalar integer constructor broadcasts exact value") {
+        const Salix::Vector3 value(-67);
+        CHECK(value.x == doctest::Approx(-67.0f));
+        CHECK(value.y == doctest::Approx(-67.0f));
+        CHECK(value.z == doctest::Approx(-67.0f));
+    }
+
+    TEST_CASE("batch6747 vector plus scalar preserves component ordering") {
+        const Salix::Vector3 value(1.0f, -2.0f, 3.0f);
+        CHECK(((value + 4.0f) == Salix::Vector3(5.0f, 2.0f, 7.0f)));
+    }
+
+    TEST_CASE("batch6747 scalar plus vector matches vector plus scalar") {
+        const Salix::Vector3 value(-6.0f, 7.0f, 4.0f);
+        CHECK(((3.0f + value) == (value + 3.0f)));
+    }
+
+    TEST_CASE("batch6747 scalar minus vector preserves operand order") {
+        const Salix::Vector3 value(1.0f, 2.0f, 3.0f);
+        CHECK(((10.0f - value) == Salix::Vector3(9.0f, 8.0f, 7.0f)));
+    }
+
+    TEST_CASE("batch6747 component multiplication handles mixed signs") {
+        const Salix::Vector3 a(-2.0f, 3.0f, -4.0f);
+        const Salix::Vector3 b(5.0f, -6.0f, -7.0f);
+        CHECK(((a * b) == Salix::Vector3(-10.0f, -18.0f, 28.0f)));
+    }
+
+    TEST_CASE("batch6747 vector scalar zero multiplication produces zero vector") {
+        const Salix::Vector3 value(-6.0f, 7.0f, 4.0f);
+        CHECK((value * 0.0f) == Salix::Vector3::Zero);
+    }
+
+    TEST_CASE("batch6747 normalization of negative axis remains unit length") {
+        Salix::Vector3 value(-1.0f, 0.0f, 0.0f);
+        value.normalize();
+        CHECK(((value == Salix::Vector3(-1.0f, 0.0f, 0.0f))));
+        CHECK(value.length() == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6747 ostream formatting preserves signed component text") {
+        std::ostringstream stream;
+        stream << Salix::Vector3(-6.0f, 7.0f, 4.0f);
+        CHECK(stream.str() == "{ x: -6, y: 7, z: 4 }");
+    }
+
+    TEST_CASE("batch6747 JSON roundtrip preserves signed finite vector") {
+        const Salix::Vector3 source(-6.747f, 0.0f, 67.47f);
+        std::stringstream stream;
+        { cereal::JSONOutputArchive out(stream); out(source); }
+        Salix::Vector3 restored;
+        { cereal::JSONInputArchive in(stream); in(restored); }
+        CHECK(restored.x == doctest::Approx(source.x));
+        CHECK(restored.y == doctest::Approx(source.y));
+        CHECK(restored.z == doctest::Approx(source.z));
+    }
+}
