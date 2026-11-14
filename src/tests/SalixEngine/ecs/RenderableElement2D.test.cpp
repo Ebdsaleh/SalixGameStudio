@@ -95,3 +95,99 @@ TEST_SUITE("Salix::ecs::RenderableElement2DBatch1547") {
         CHECK(element->is_visible());
     }
 }
+
+TEST_SUITE("Salix::ecs::RenderableElement2DBatch6747") {
+    TEST_CASE("batch6747 repeated render calls keep latest renderer") {
+        MockRenderableElement2D element;
+        MockIRenderer first;
+        MockIRenderer second;
+        element.render(&first);
+        element.render(&second);
+        CHECK(element.render_calls == 2);
+        CHECK(element.last_renderer == &second);
+    }
+
+    TEST_CASE("batch6747 renderer pointer can be cleared with null render") {
+        MockRenderableElement2D element;
+        MockIRenderer renderer;
+        element.render(&renderer);
+        element.render(nullptr);
+        CHECK(element.render_calls == 2);
+        CHECK(element.last_renderer == nullptr);
+    }
+
+    TEST_CASE("batch6747 repeated load calls keep latest context pointer") {
+        MockRenderableElement2D element;
+        Salix::InitContext first{};
+        Salix::InitContext second{};
+        element.on_load(first);
+        element.on_load(second);
+        CHECK(element.load_calls == 2);
+        CHECK(element.last_context == &second);
+    }
+
+    TEST_CASE("batch6747 visibility survives repeated render calls") {
+        MockRenderableElement2D element;
+        element.set_visibility(false);
+        element.render(nullptr);
+        element.render(nullptr);
+        CHECK_FALSE(element.is_visible());
+    }
+
+    TEST_CASE("batch6747 inherited name survives repeated load calls") {
+        MockRenderableElement2D element;
+        Salix::InitContext context{};
+        element.set_name("TwoD6747");
+        element.on_load(context);
+        element.on_load(context);
+        CHECK(element.get_name() == "TwoD6747");
+    }
+
+    TEST_CASE("batch6747 owner can be replaced independently of lifecycle counters") {
+        Salix::Entity first;
+        Salix::Entity second;
+        MockRenderableElement2D element;
+        element.set_owner(&first);
+        element.set_owner(&second);
+        CHECK(element.get_owner() == &second);
+        CHECK(element.render_calls == 0);
+        CHECK(element.load_calls == 0);
+    }
+
+    TEST_CASE("batch6747 invalid identifier remains invalid after lifecycle calls") {
+        MockRenderableElement2D element;
+        Salix::InitContext context{};
+        element.set_id(Salix::SimpleGuid::invalid());
+        element.render(nullptr);
+        element.on_load(context);
+        CHECK_FALSE(element.get_id().is_valid());
+    }
+
+    TEST_CASE("batch6747 class identity remains stable after display name replacement") {
+        MockRenderableElement2D element;
+        element.set_name("");
+        CHECK(std::string(element.get_class_name()) == "MockRenderableElement2D");
+        element.set_name("Changed6747");
+        CHECK(std::string(element.get_class_name()) == "MockRenderableElement2D");
+    }
+
+    TEST_CASE("batch6747 generic renderable base observes same visibility storage") {
+        MockRenderableElement2D element;
+        Salix::RenderableElement& parent = element;
+        parent.set_visibility(false);
+        CHECK_FALSE(element.is_visible());
+        element.set_visibility(true);
+        CHECK(parent.is_visible());
+    }
+
+    TEST_CASE("batch6747 separate 2D renderables keep state independent") {
+        MockRenderableElement2D first;
+        MockRenderableElement2D second;
+        first.set_name("First6747");
+        first.set_visibility(false);
+        first.render(nullptr);
+        CHECK(second.get_name() == "Element");
+        CHECK(second.is_visible());
+        CHECK(second.render_calls == 0);
+    }
+}
