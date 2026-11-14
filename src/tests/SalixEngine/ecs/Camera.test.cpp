@@ -1322,3 +1322,94 @@ TEST_SUITE("Salix::ecs::CameraBatch6147") {
         CHECK_FALSE(fresh.get_is_active());
     }
 }
+
+TEST_SUITE("Salix::ecs::CameraBatch6747") {
+    TEST_CASE("batch6747 activation transitions preserve projection mode") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.activate();
+        camera.deactivate();
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch6747 set 2D mode true selects orthographic projection") {
+        Salix::Camera camera;
+        camera.set_2D_mode(true);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+    }
+
+    TEST_CASE("batch6747 set 2D mode false selects perspective projection") {
+        Salix::Camera camera;
+        camera.set_2D_mode(true);
+        camera.set_2D_mode(false);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6747 zero width viewport leaves current projection unchanged") {
+        Salix::Camera camera;
+        camera.set_viewport_size(800, 600);
+        const glm::mat4 before = camera.get_projection_matrix();
+        camera.set_viewport_size(0, 600);
+        const glm::mat4 after = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(before, after));
+    }
+
+    TEST_CASE("batch6747 repeated identical field of view assignment preserves matrix") {
+        Salix::Camera camera;
+        camera.set_viewport_size(1280, 720);
+        camera.set_field_of_view(67.47f);
+        const glm::mat4 first = camera.get_projection_matrix();
+        camera.set_field_of_view(67.47f);
+        const glm::mat4 second = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(first, second));
+    }
+
+    TEST_CASE("batch6747 repeated identical orthographic size assignment preserves matrix") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_viewport_size(800, 600);
+        camera.set_orthographic_size(67.47f);
+        const glm::mat4 first = camera.get_projection_matrix();
+        camera.set_orthographic_size(67.47f);
+        const glm::mat4 second = camera.get_projection_matrix();
+        CHECK_FALSE(batch1247_matrix_differs(first, second));
+    }
+
+    TEST_CASE("batch6747 owner assignment exposes exact entity transform") {
+        Salix::Entity owner;
+        Salix::Camera camera;
+        camera.set_owner(&owner);
+        CHECK(camera.get_transform() == owner.get_transform());
+    }
+
+    TEST_CASE("batch6747 clearing owner returns camera transform to null") {
+        Salix::Entity owner;
+        Salix::Camera camera;
+        camera.set_owner(&owner);
+        REQUIRE(camera.get_transform() == owner.get_transform());
+        camera.set_owner(nullptr);
+        CHECK(camera.get_transform() == nullptr);
+    }
+
+    TEST_CASE("batch6747 update does not change active state") {
+        Salix::Camera camera;
+        camera.activate();
+        camera.update(-67.47f);
+        CHECK(camera.get_is_active());
+        camera.deactivate();
+        camera.update(67.47f);
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch6747 separate cameras keep activation and projection independent") {
+        Salix::Camera first;
+        Salix::Camera second;
+        first.activate();
+        first.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(first.get_is_active());
+        CHECK(first.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK_FALSE(second.get_is_active());
+        CHECK(second.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+}
