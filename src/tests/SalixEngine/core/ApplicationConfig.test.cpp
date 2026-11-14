@@ -311,3 +311,101 @@ TEST_SUITE("Salix::core::ApplicationConfigClosure1747") {
         CHECK(config.gui_settings.dialog_height_ratio == doctest::Approx(2.0f));
     }
 }
+
+TEST_SUITE("Salix::core::ApplicationConfigBatch6447") {
+    TEST_CASE("batch6447 default window configuration remains canonical") {
+        const Salix::ApplicationConfig config;
+        CHECK(config.window_config.title == "SalixGameStudio");
+        CHECK(config.window_config.width == 1280);
+        CHECK(config.window_config.height == 720);
+    }
+
+    TEST_CASE("batch6447 default GUI ratios and scales remain canonical") {
+        const Salix::ApplicationConfig config;
+        CHECK(config.gui_settings.dialog_width_ratio == doctest::Approx(0.7f));
+        CHECK(config.gui_settings.dialog_height_ratio == doctest::Approx(0.75f));
+        CHECK(config.gui_settings.font_scaling == doctest::Approx(1.0f));
+        CHECK(config.gui_settings.global_dpi_scaling == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6447 changing window title leaves every top level mode untouched") {
+        Salix::ApplicationConfig config;
+        config.window_config.title = "Batch6447";
+        CHECK(config.renderer_type == Salix::RendererType::SDL);
+        CHECK(config.initial_state == Salix::AppStateType::Launch);
+        CHECK(config.gui_type == Salix::GuiType::ImGui);
+        CHECK(config.timer_type == Salix::TimerType::SDL);
+    }
+
+    TEST_CASE("batch6447 changing target FPS leaves nested GUI settings untouched") {
+        Salix::ApplicationConfig config;
+        config.target_fps = 6447;
+        CHECK(config.gui_settings.dialog_width_ratio == doctest::Approx(0.7f));
+        CHECK(config.gui_settings.dialog_height_ratio == doctest::Approx(0.75f));
+        CHECK(config.gui_settings.font_scaling == doctest::Approx(1.0f));
+        CHECK(config.gui_settings.global_dpi_scaling == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6447 all backend selections may be configured simultaneously") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::Vulkan;
+        config.initial_state = Salix::AppStateType::Game;
+        config.gui_type = Salix::GuiType::None;
+        config.timer_type = Salix::TimerType::Chrono;
+        CHECK(config.renderer_type == Salix::RendererType::Vulkan);
+        CHECK(config.initial_state == Salix::AppStateType::Game);
+        CHECK(config.gui_type == Salix::GuiType::None);
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch6447 copy preserves zero dimensions and negative FPS") {
+        Salix::ApplicationConfig source;
+        source.window_config.width = 0;
+        source.window_config.height = 0;
+        source.target_fps = -6447;
+        const Salix::ApplicationConfig copy = source;
+        CHECK(copy.window_config.width == 0);
+        CHECK(copy.window_config.height == 0);
+        CHECK(copy.target_fps == -6447);
+    }
+
+    TEST_CASE("batch6447 copied window title remains independently mutable") {
+        Salix::ApplicationConfig source;
+        source.window_config.title = "Source6447";
+        Salix::ApplicationConfig copy = source;
+        copy.window_config.title = "Copy6447";
+        CHECK(source.window_config.title == "Source6447");
+        CHECK(copy.window_config.title == "Copy6447");
+    }
+
+    TEST_CASE("batch6447 copied GUI settings remain independently mutable") {
+        Salix::ApplicationConfig source;
+        source.gui_settings.font_scaling = 1.25f;
+        Salix::ApplicationConfig copy = source;
+        copy.gui_settings.font_scaling = 2.5f;
+        CHECK(source.gui_settings.font_scaling == doctest::Approx(1.25f));
+        CHECK(copy.gui_settings.font_scaling == doctest::Approx(2.5f));
+    }
+
+    TEST_CASE("batch6447 assignment replaces nested and top level values together") {
+        Salix::ApplicationConfig source;
+        source.window_config.title = "Assigned6447";
+        source.target_fps = 144;
+        source.renderer_type = Salix::RendererType::OpenGL;
+        source.gui_settings.global_dpi_scaling = 1.75f;
+        Salix::ApplicationConfig destination;
+        destination = source;
+        CHECK(destination.window_config.title == "Assigned6447");
+        CHECK(destination.target_fps == 144);
+        CHECK(destination.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(destination.gui_settings.global_dpi_scaling == doctest::Approx(1.75f));
+    }
+
+    TEST_CASE("batch6447 separate fresh configs never share nested title storage") {
+        Salix::ApplicationConfig first;
+        Salix::ApplicationConfig second;
+        first.window_config.title = "First6447";
+        CHECK(second.window_config.title == "SalixGameStudio");
+        CHECK(first.window_config.title != second.window_config.title);
+    }
+}
