@@ -1156,3 +1156,79 @@ TEST_SUITE("Salix::rendering::DummyCameraBatch6147") {
         CHECK_FALSE(fresh.get_is_active());
     }
 }
+
+TEST_SUITE("Salix::rendering::DummyCameraBatch6847") {
+    TEST_CASE("batch6847 inherited transform accessor remains null") {
+        Salix::DummyCamera camera;
+        Salix::ICamera& interface = camera;
+        CHECK(interface.get_transform() == nullptr);
+    }
+
+    TEST_CASE("batch6847 inherited two dimensional hook is a safe no op") {
+        Salix::DummyCamera camera;
+        camera.set_2D_mode(true);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        camera.set_2D_mode(false);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6847 projection mode reference remains stable and perspective") {
+        Salix::DummyCamera camera;
+        const auto* first = &camera.get_projection_mode();
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        const auto* second = &camera.get_projection_mode();
+        CHECK(first == second);
+        CHECK(*first == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6847 orthographic size accepts zero exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(0.0f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch6847 orthographic size accepts negative finite value exactly") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(-68.47f);
+        CHECK(camera.get_orthographic_size() == doctest::Approx(-68.47f));
+    }
+
+    TEST_CASE("batch6847 two dimensional hook leaves identity matrices unchanged") {
+        Salix::DummyCamera camera;
+        camera.set_2D_mode(true);
+        CHECK(camera.get_view_matrix() == glm::mat4(1.0f));
+        CHECK(camera.get_projection_matrix() == glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch6847 activity changes never rewrite orthographic size") {
+        Salix::DummyCamera camera;
+        camera.set_orthographic_size(68.47f);
+        camera.activate();
+        camera.deactivate();
+        CHECK(camera.get_orthographic_size() == doctest::Approx(68.47f));
+    }
+
+    TEST_CASE("batch6847 separate cameras own distinct matrix storage") {
+        Salix::DummyCamera first;
+        Salix::DummyCamera second;
+        CHECK(&first.get_view_matrix() != &second.get_view_matrix());
+        CHECK(&first.get_projection_matrix() != &second.get_projection_matrix());
+    }
+
+    TEST_CASE("batch6847 ignored projection mutation never changes active state") {
+        Salix::DummyCamera camera;
+        camera.activate();
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(camera.get_is_active());
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6847 polymorphic interface preserves dummy scalar and active behavior") {
+        std::unique_ptr<Salix::ICamera> interface = std::make_unique<Salix::DummyCamera>();
+        interface->set_orthographic_size(68.47f);
+        interface->activate();
+        CHECK(interface->get_is_active());
+        CHECK(interface->get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK(interface->get_view_matrix() == glm::mat4(1.0f));
+    }
+}
