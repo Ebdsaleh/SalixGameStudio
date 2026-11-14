@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 TEST_SUITE("Salix::gui::ImGuiFontManagerBatch1247") {
     TEST_CASE("font manager starts with an empty registry and no active font") {
