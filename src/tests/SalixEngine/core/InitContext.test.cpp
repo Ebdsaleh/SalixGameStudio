@@ -213,3 +213,84 @@ TEST_SUITE("Salix::core::InitContextBatch1847") {
         CHECK(context.dpi_scale == doctest::Approx(1.5f));
     }
 }
+
+TEST_SUITE("Salix::core::InitContextBatch6447") {
+    TEST_CASE("batch6447 value initialized context begins with empty project DLL path") {
+        Salix::InitContext context{};
+        CHECK(context.project_dll_path.empty());
+    }
+
+    TEST_CASE("batch6447 value initialized context begins with zero DPI scale") {
+        Salix::InitContext context{};
+        CHECK(context.dpi_scale == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch6447 engine pointer assignment roundtrips exact nonowning address") {
+        Salix::InitContext context{};
+        MockEngineInterface engine;
+        context.engine = &engine;
+        CHECK(context.engine == &engine);
+    }
+
+    TEST_CASE("batch6447 engine pointer may be assigned then cleared") {
+        Salix::InitContext context{};
+        MockEngineInterface engine;
+        context.engine = &engine;
+        REQUIRE(context.engine == &engine);
+        context.engine = nullptr;
+        CHECK(context.engine == nullptr);
+    }
+
+    TEST_CASE("batch6447 project DLL path preserves spaces and punctuation") {
+        Salix::InitContext context{};
+        context.project_dll_path = "Build Output/Game #6447.dll";
+        CHECK(context.project_dll_path == "Build Output/Game #6447.dll");
+    }
+
+    TEST_CASE("batch6447 negative DPI scale is stored without changing GUI selection") {
+        Salix::InitContext context{};
+        context.gui_type = Salix::GuiType::ImGui;
+        context.dpi_scale = -6.447f;
+        CHECK(context.dpi_scale == doctest::Approx(-6.447f));
+        CHECK(context.gui_type == Salix::GuiType::ImGui);
+    }
+
+    TEST_CASE("batch6447 renderer and engine modes remain independently assignable") {
+        Salix::InitContext context{};
+        context.renderer_type = Salix::RendererType::OpenGL;
+        context.engine_mode = Salix::EngineMode::Debug;
+        CHECK(context.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(context.engine_mode == Salix::EngineMode::Debug);
+    }
+
+    TEST_CASE("batch6447 timer and GUI types remain independently assignable") {
+        Salix::InitContext context{};
+        context.timer_type = Salix::TimerType::Chrono;
+        context.gui_type = Salix::GuiType::None;
+        CHECK(context.timer_type == Salix::TimerType::Chrono);
+        CHECK(context.gui_type == Salix::GuiType::None);
+    }
+
+    TEST_CASE("batch6447 copy preserves configured value and engine pointer") {
+        Salix::InitContext source{};
+        MockEngineInterface engine;
+        source.engine = &engine;
+        source.engine_mode = Salix::EngineMode::Game;
+        source.project_dll_path = "Copy6447.dll";
+        source.dpi_scale = 1.75f;
+        const Salix::InitContext copy = source;
+        CHECK(copy.engine == &engine);
+        CHECK(copy.engine_mode == Salix::EngineMode::Game);
+        CHECK(copy.project_dll_path == "Copy6447.dll");
+        CHECK(copy.dpi_scale == doctest::Approx(1.75f));
+    }
+
+    TEST_CASE("batch6447 copied string storage remains independent after mutation") {
+        Salix::InitContext source{};
+        source.project_dll_path = "Source6447.dll";
+        Salix::InitContext copy = source;
+        copy.project_dll_path = "Copy6447.dll";
+        CHECK(source.project_dll_path == "Source6447.dll");
+        CHECK(copy.project_dll_path == "Copy6447.dll");
+    }
+}
