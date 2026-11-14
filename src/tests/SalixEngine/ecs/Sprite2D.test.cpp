@@ -2123,3 +2123,112 @@ TEST_SUITE("Salix::ecs::Sprite2DBatch6147") {
         CHECK(fresh.get_sorting_layer() == 0);
     }
 }
+
+TEST_SUITE("Salix::ecs::Sprite2DBatch6747") {
+    TEST_CASE("batch6747 empty texture path assignment leaves visual fields untouched") {
+        Salix::Sprite2D sprite;
+        sprite.set_color(Salix::Red);
+        sprite.set_offset(Salix::Vector2(6.0f, 7.0f));
+        sprite.set_texture_path("");
+        CHECK(sprite.get_texture_path().empty());
+        CHECK(sprite.get_color() == Salix::Red);
+        CHECK((sprite.get_offset() == Salix::Vector2(6.0f, 7.0f)));
+    }
+
+    TEST_CASE("batch6747 local rotation setter preserves sorting and flip state") {
+        Salix::Sprite2D sprite;
+        sprite.set_sorting_layer(6747);
+        sprite.set_flip_h(true);
+        sprite.set_flip_v(false);
+        sprite.set_local_rotation(-67.47f);
+        CHECK(sprite.get_local_rotation() == doctest::Approx(-67.47f));
+        CHECK(sprite.get_sorting_layer() == 6747);
+        CHECK(sprite.get_flip_h());
+        CHECK_FALSE(sprite.get_flip_v());
+    }
+
+    TEST_CASE("batch6747 sorting layer supports negative values independently") {
+        Salix::Sprite2D sprite;
+        sprite.set_sorting_layer(-6747);
+        CHECK(sprite.get_sorting_layer() == -6747);
+        CHECK(sprite.get_local_rotation() == doctest::Approx(0.0f));
+        CHECK_FALSE(sprite.get_use_entity_rotation());
+    }
+
+    TEST_CASE("batch6747 mutable pivot reference changes only pivot") {
+        Salix::Sprite2D sprite;
+        Salix::Vector2& pivot = sprite.get_pivot();
+        pivot = Salix::Vector2(-6.0f, 7.0f);
+        CHECK((sprite.get_pivot() == Salix::Vector2(-6.0f, 7.0f)));
+        CHECK((sprite.get_offset() == Salix::Vector2(0.0f, 0.0f)));
+    }
+
+    TEST_CASE("batch6747 mutable color reference changes exact live color") {
+        Salix::Sprite2D sprite;
+        Salix::Color& color = sprite.get_color();
+        color = Salix::Blue;
+        CHECK(sprite.get_color() == Salix::Blue);
+    }
+
+    TEST_CASE("batch6747 direct null manager load replaces existing portable path without runtime texture") {
+        Salix::Sprite2D sprite;
+        sprite.set_texture_path("before6747.png");
+        sprite.load_texture(nullptr, "after6747.png");
+        CHECK(sprite.get_texture_path() == "after6747.png");
+        CHECK(sprite.get_texture() == nullptr);
+        CHECK(sprite.get_texture_width() == 0);
+        CHECK(sprite.get_texture_height() == 0);
+    }
+
+    TEST_CASE("batch6747 successful mock load updates dimensions while preserving visual state") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.set_color(Salix::Red);
+        sprite.set_flip_h(true);
+        sprite.load_texture(&assets, "assets/batch6747.png");
+        REQUIRE(sprite.get_texture() != nullptr);
+        CHECK(sprite.get_texture_width() == 16);
+        CHECK(sprite.get_texture_height() == 16);
+        CHECK(sprite.get_color() == Salix::Red);
+        CHECK(sprite.get_flip_h());
+    }
+
+    TEST_CASE("batch6747 repeated mock load of same path reuses asset cache") {
+        MockIRenderer renderer;
+        Salix::AssetManager assets;
+        assets.initialize(&renderer);
+        Salix::Sprite2D sprite;
+        sprite.load_texture(&assets, "assets/cache6747.png");
+        auto* first = sprite.get_texture();
+        REQUIRE(first != nullptr);
+        sprite.load_texture(&assets, "assets/cache6747.png");
+        CHECK(sprite.get_texture() == first);
+        CHECK(renderer.load_texture_calls == 1);
+    }
+
+    TEST_CASE("batch6747 null render preserves all persistent visual fields") {
+        Salix::Sprite2D sprite;
+        sprite.set_color(Salix::Red);
+        sprite.set_offset(Salix::Vector2(6.0f, 7.0f));
+        sprite.set_pivot(Salix::Vector2(0.25f, 0.75f));
+        sprite.set_local_rotation(67.47f);
+        sprite.render(nullptr);
+        CHECK(sprite.get_color() == Salix::Red);
+        CHECK((sprite.get_offset() == Salix::Vector2(6.0f, 7.0f)));
+        CHECK((sprite.get_pivot() == Salix::Vector2(0.25f, 0.75f)));
+        CHECK(sprite.get_local_rotation() == doctest::Approx(67.47f));
+    }
+
+    TEST_CASE("batch6747 separate sprites keep portable path and visual state independent") {
+        Salix::Sprite2D first;
+        Salix::Sprite2D second;
+        first.set_texture_path("first6747.png");
+        first.set_flip_v(true);
+        first.set_sorting_layer(67);
+        CHECK(second.get_texture_path().empty());
+        CHECK_FALSE(second.get_flip_v());
+        CHECK(second.get_sorting_layer() == 0);
+    }
+}
