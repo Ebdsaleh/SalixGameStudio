@@ -94,3 +94,104 @@ TEST_SUITE("Salix::ecs::RenderableElementBatch1547") {
         CHECK(element->is_visible());
     }
 }
+
+TEST_SUITE("Salix::ecs::RenderableElementBatch6747") {
+    TEST_CASE("batch6747 repeated render calls keep latest renderer and exact count") {
+        MockRenderableElementContract element;
+        MockIRenderer first;
+        MockIRenderer second;
+        element.render(&first);
+        element.render(&second);
+        CHECK(element.render_calls == 2);
+        CHECK(element.last_renderer == &second);
+    }
+
+    TEST_CASE("batch6747 renderer may transition from nonnull to null") {
+        MockRenderableElementContract element;
+        MockIRenderer renderer;
+        element.render(&renderer);
+        REQUIRE(element.last_renderer == &renderer);
+        element.render(nullptr);
+        CHECK(element.last_renderer == nullptr);
+        CHECK(element.render_calls == 2);
+    }
+
+    TEST_CASE("batch6747 repeated load calls keep latest context and exact count") {
+        MockRenderableElementContract element;
+        Salix::InitContext first{};
+        Salix::InitContext second{};
+        element.on_load(first);
+        element.on_load(second);
+        CHECK(element.load_calls == 2);
+        CHECK(element.last_context == &second);
+    }
+
+    TEST_CASE("batch6747 visibility survives render and load sequence") {
+        MockRenderableElementContract element;
+        Salix::InitContext context{};
+        element.set_visibility(false);
+        element.render(nullptr);
+        element.on_load(context);
+        CHECK_FALSE(element.is_visible());
+    }
+
+    TEST_CASE("batch6747 display name survives render and load sequence") {
+        MockRenderableElementContract element;
+        Salix::InitContext context{};
+        element.set_name("Renderable6747");
+        element.render(nullptr);
+        element.on_load(context);
+        CHECK(element.get_name() == "Renderable6747");
+    }
+
+    TEST_CASE("batch6747 owner survives render and load sequence") {
+        Salix::Entity owner;
+        MockRenderableElementContract element;
+        Salix::InitContext context{};
+        element.set_owner(&owner);
+        element.render(nullptr);
+        element.on_load(context);
+        CHECK(element.get_owner() == &owner);
+    }
+
+    TEST_CASE("batch6747 identifier replacement survives render and load sequence") {
+        MockRenderableElementContract element;
+        element.set_id(Salix::SimpleGuid::from_value(6747003ULL));
+        Salix::InitContext context{};
+        element.render(nullptr);
+        element.on_load(context);
+        CHECK(element.get_id().get_value() == 6747003ULL);
+    }
+
+    TEST_CASE("batch6747 render never changes load accounting") {
+        MockRenderableElementContract element;
+        element.render(nullptr);
+        element.render(nullptr);
+        CHECK(element.render_calls == 2);
+        CHECK(element.load_calls == 0);
+    }
+
+    TEST_CASE("batch6747 load never changes render accounting") {
+        MockRenderableElementContract element;
+        Salix::InitContext context{};
+        element.on_load(context);
+        element.on_load(context);
+        CHECK(element.load_calls == 2);
+        CHECK(element.render_calls == 0);
+    }
+
+    TEST_CASE("batch6747 two renderables maintain independent lifecycle observations") {
+        MockRenderableElementContract first;
+        MockRenderableElementContract second;
+        Salix::InitContext context{};
+        first.set_visibility(false);
+        first.render(nullptr);
+        second.on_load(context);
+        CHECK_FALSE(first.is_visible());
+        CHECK(first.render_calls == 1);
+        CHECK(first.load_calls == 0);
+        CHECK(second.is_visible());
+        CHECK(second.render_calls == 0);
+        CHECK(second.load_calls == 1);
+    }
+}
