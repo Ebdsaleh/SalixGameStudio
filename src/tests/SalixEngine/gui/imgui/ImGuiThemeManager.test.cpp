@@ -985,3 +985,93 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch6947") {
         CHECK(manager.get_theme("SaveFail6947") != nullptr);
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch7047") {
+    TEST_CASE("batch7047 internal loader overwrites preexisting theme with YAML identity") {
+        Batch1947ThemeDirectory directory; const auto file=directory.path/"overwrite7047a.theme";
+        {std::ofstream out(file);out<<"name: Overwrite7047A\ngui_type: ImGui\n";}
+        Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Overwrite7047A")));
+        REQUIRE(manager.load_internal_theme_from_file(file.string(),false));
+        CHECK(dynamic_cast<Salix::ImGuiTheme*>(manager.get_theme("Overwrite7047A"))!=nullptr);
+    }
+
+    TEST_CASE("batch7047 named loader overwrites preexisting theme with requested identity") {
+        Batch1947ThemeDirectory directory; const auto file=directory.path/"overwrite7047b.theme";
+        {std::ofstream out(file);out<<"name: FileName7047B\ngui_type: ImGui\n";}
+        Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Overwrite7047B")));
+        REQUIRE(manager.load_theme_from_file("Overwrite7047B",file.string(),false));
+        CHECK(dynamic_cast<Salix::ImGuiTheme*>(manager.get_theme("Overwrite7047B"))!=nullptr);
+    }
+
+    TEST_CASE("batch7047 overwriting active internal theme clears stale active pointer") {
+        Batch1947ThemeDirectory directory; const auto file=directory.path/"active7047c.theme";
+        {std::ofstream out(file);out<<"name: Active7047C\ngui_type: ImGui\n";}
+        Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Active7047C")));
+        REQUIRE(manager.set_active_theme("Active7047C")); REQUIRE(manager.get_active_theme()!=nullptr);
+        REQUIRE(manager.load_internal_theme_from_file(file.string(),false));
+        CHECK(manager.get_active_theme()==nullptr);
+    }
+
+    TEST_CASE("batch7047 overwriting active named theme clears stale active pointer") {
+        Batch1947ThemeDirectory directory; const auto file=directory.path/"active7047d.theme";
+        {std::ofstream out(file);out<<"name: Ignored7047D\ngui_type: ImGui\n";}
+        Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Active7047D")));
+        REQUIRE(manager.set_active_theme("Active7047D"));
+        REQUIRE(manager.load_theme_from_file("Active7047D",file.string(),false));
+        CHECK(manager.get_active_theme()==nullptr);
+    }
+
+    TEST_CASE("batch7047 internal overwrite keeps registry size stable") {
+        Batch1947ThemeDirectory directory; const auto file=directory.path/"size7047e.theme";
+        {std::ofstream out(file);out<<"name: Size7047E\ngui_type: ImGui\n";}
+        Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Size7047E")));
+        REQUIRE(manager.load_internal_theme_from_file(file.string(),false));
+        CHECK(manager.get_registered_themes().size()==1);
+    }
+
+    TEST_CASE("batch7047 named overwrite keeps unrelated peer theme registered") {
+        Batch1947ThemeDirectory directory; const auto file=directory.path/"peer7047f.theme";
+        {std::ofstream out(file);out<<"name: Ignored7047F\ngui_type: ImGui\n";}
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Overwrite7047F")));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Peer7047F")));
+        REQUIRE(manager.load_theme_from_file("Overwrite7047F",file.string(),false));
+        CHECK(manager.get_theme("Peer7047F")!=nullptr); CHECK(manager.get_registered_themes().size()==2);
+    }
+
+    TEST_CASE("batch7047 directory loader overwrites duplicate YAML identity") {
+        Batch1947ThemeDirectory directory;
+        {std::ofstream out(directory.path/"a.theme");out<<"name: Directory7047G\ngui_type: ImGui\n";}
+        Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Directory7047G")));
+        REQUIRE(manager.load_themes_from_directory(directory.path.string()));
+        CHECK(dynamic_cast<Salix::ImGuiTheme*>(manager.get_theme("Directory7047G"))!=nullptr);
+    }
+
+    TEST_CASE("batch7047 internal overwrite can apply replacement immediately") {
+        Batch6947ThemeManagerContext context; Batch1947ThemeDirectory directory; const auto file=directory.path/"apply7047h.theme";
+        {std::ofstream out(file);out<<"name: Apply7047H\ngui_type: ImGui\n";}
+        MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr); Salix::ImGuiThemeManager manager; REQUIRE(manager.initialize(&gui));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Apply7047H")));
+        REQUIRE(manager.load_internal_theme_from_file(file.string(),true)); REQUIRE(manager.get_active_theme()!=nullptr);
+        CHECK(manager.get_active_theme()->get_name()=="Apply7047H");
+    }
+
+    TEST_CASE("batch7047 named overwrite can apply replacement immediately") {
+        Batch6947ThemeManagerContext context; Batch1947ThemeDirectory directory; const auto file=directory.path/"apply7047i.theme";
+        {std::ofstream out(file);out<<"name: Ignored7047I\ngui_type: ImGui\n";}
+        MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr); Salix::ImGuiThemeManager manager; REQUIRE(manager.initialize(&gui));
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Apply7047I")));
+        REQUIRE(manager.load_theme_from_file("Apply7047I",file.string(),true)); REQUIRE(manager.get_active_theme()!=nullptr);
+        CHECK(manager.get_active_theme()->get_name()=="Apply7047I");
+    }
+
+    TEST_CASE("batch7047 repeated named overwrite leaves one latest ImGui theme") {
+        Batch1947ThemeDirectory directory; const auto file=directory.path/"repeat7047j.theme";
+        {std::ofstream out(file);out<<"name: Ignored7047J\ngui_type: ImGui\n";}
+        Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Repeat7047J")));
+        REQUIRE(manager.load_theme_from_file("Repeat7047J",file.string(),false));
+        REQUIRE(manager.load_theme_from_file("Repeat7047J",file.string(),false));
+        CHECK(manager.get_registered_themes().size()==1);
+        CHECK(dynamic_cast<Salix::ImGuiTheme*>(manager.get_theme("Repeat7047J"))!=nullptr);
+    }
+}
