@@ -1454,3 +1454,81 @@ TEST_SUITE("Salix::ecs::RealmBatch5747") {
     }
 }
 
+#include <atomic>
+#include <filesystem>
+#include <fstream>
+
+namespace {
+struct Batch7047RealmFile {
+    std::filesystem::path root;
+    explicit Batch7047RealmFile(const std::string& stem) {
+        static std::atomic<unsigned long> counter{0};
+        root=std::filesystem::temp_directory_path()/
+            ("SalixGameStudio_Batch7047_Realm_"+stem+"_"+std::to_string(++counter));
+        std::filesystem::create_directories(root);
+    }
+    ~Batch7047RealmFile(){std::error_code ec;std::filesystem::remove_all(root,ec);}
+};
+}
+
+TEST_SUITE("Salix::ecs::RealmBatch7047") {
+    TEST_CASE("batch7047 malformed realm JSON reaches deserialization failure path") {
+        Batch7047RealmFile file("Malformed"); const auto path=file.root/"bad.realm";
+        {std::ofstream out(path);out<<"{ malformed";}
+        Salix::InitContext context{};
+        CHECK(Salix::Realm::load_from_file(path.string(),context)==nullptr);
+    }
+
+    TEST_CASE("batch7047 directory path reaches realm input open failure safely") {
+        Batch7047RealmFile file("Directory"); Salix::InitContext context{};
+        CHECK(Salix::Realm::load_from_file(file.root.string(),context)==nullptr);
+    }
+
+    TEST_CASE("batch7047 saving and loading empty realm roundtrips metadata") {
+        Batch7047RealmFile file("Roundtrip"); const auto path=file.root/"round.realm";
+        Salix::Realm source("Round7047",path.string());
+        REQUIRE(source.save_to_file(path.string()));
+        Salix::InitContext context{}; auto loaded=Salix::Realm::load_from_file(path.string(),context);
+        REQUIRE(loaded!=nullptr); CHECK(loaded->get_name()=="Round7047"); CHECK(loaded->get_path()==path.string());
+    }
+
+    TEST_CASE("batch7047 save to directory path fails before serialization") {
+        Batch7047RealmFile file("SaveDir"); Salix::Realm realm("SaveDir7047","x");
+        CHECK_FALSE(realm.save_to_file(file.root.string()));
+    }
+
+    TEST_CASE("batch7047 save beneath missing parent directory fails safely") {
+        Batch7047RealmFile file("MissingParent"); Salix::Realm realm("Missing7047","x");
+        CHECK_FALSE(realm.save_to_file((file.root/"missing"/"realm.json").string()));
+    }
+
+    TEST_CASE("batch7047 visible entity reaches realm render dispatch with null renderer") {
+        Salix::Realm realm; auto* entity=realm.create_entity("Visible7047"); REQUIRE(entity!=nullptr);
+        CHECK_NOTHROW(realm.render(nullptr)); CHECK_FALSE(entity->is_purged());
+    }
+
+    TEST_CASE("batch7047 hidden entity is skipped by realm render dispatch") {
+        Salix::Realm realm; auto* entity=realm.create_entity("Hidden7047"); REQUIRE(entity!=nullptr);
+        entity->set_visibility(false); CHECK_NOTHROW(realm.render(nullptr)); CHECK_FALSE(entity->is_visible());
+    }
+
+    TEST_CASE("batch7047 purged entity is skipped by realm render dispatch") {
+        Salix::Realm realm; auto* entity=realm.create_entity("Purged7047"); REQUIRE(entity!=nullptr);
+        entity->purge(); REQUIRE(entity->is_purged()); CHECK_NOTHROW(realm.render(nullptr));
+    }
+
+    TEST_CASE("batch7047 mixed visible hidden and purged entities render safely") {
+        Salix::Realm realm; auto* visible=realm.create_entity("V7047"); auto* hidden=realm.create_entity("H7047"); auto* purged=realm.create_entity("P7047");
+        REQUIRE(visible!=nullptr); REQUIRE(hidden!=nullptr); REQUIRE(purged!=nullptr);
+        hidden->set_visibility(false); purged->purge(); CHECK_NOTHROW(realm.render(nullptr));
+        CHECK(realm.get_entities().size()==3);
+    }
+
+    TEST_CASE("batch7047 loaded realm with one entity restores owned entity list") {
+        Batch7047RealmFile file("EntityRoundtrip"); const auto path=file.root/"entity.realm";
+        Salix::Realm source("EntityRealm7047",path.string()); REQUIRE(source.create_entity("Entity7047")!=nullptr);
+        REQUIRE(source.save_to_file(path.string())); Salix::InitContext context{};
+        auto loaded=Salix::Realm::load_from_file(path.string(),context); REQUIRE(loaded!=nullptr);
+        REQUIRE(loaded->get_entities().size()==1); CHECK(loaded->get_entity_by_name("Entity7047")!=nullptr);
+    }
+}
