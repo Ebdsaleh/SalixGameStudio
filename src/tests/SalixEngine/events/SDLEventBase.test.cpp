@@ -126,3 +126,100 @@ TEST_SUITE("Salix::events::SDLEventBaseBatch1047") {
         CHECK(source.handled);
     }
 }
+
+TEST_SUITE("Salix::events::SDLEventBaseBatch6547") {
+    TEST_CASE("batch6547 probe preserves exact native pointer across repeated access") {
+        SDL_Event raw{};
+        Batch1047SDLEventProbe event(raw);
+        void* first = event.get_native_handle();
+        void* second = event.get_native_handle();
+        CHECK(first == &raw);
+        CHECK(second == &raw);
+        CHECK(first == second);
+    }
+
+    TEST_CASE("batch6547 probe observes user event code mutation") {
+        SDL_Event raw{};
+        raw.type = SDL_USEREVENT;
+        raw.user.code = 1;
+        Batch1047SDLEventProbe event(raw);
+        raw.user.code = 6547;
+        auto* native = static_cast<SDL_Event*>(event.get_native_handle());
+        REQUIRE(native != nullptr);
+        CHECK(native->user.code == 6547);
+    }
+
+    TEST_CASE("batch6547 mutable handle writes through to original user code") {
+        SDL_Event raw{};
+        raw.type = SDL_USEREVENT;
+        Batch1047SDLEventProbe event(raw);
+        auto* native = static_cast<SDL_Event*>(event.get_native_handle());
+        REQUIRE(native != nullptr);
+        native->user.code = 47;
+        CHECK(raw.user.code == 47);
+    }
+
+    TEST_CASE("batch6547 copy construction shares exact native event reference") {
+        SDL_Event raw{};
+        raw.type = SDL_MOUSEMOTION;
+        Batch1047SDLEventProbe source(raw);
+        Batch1047SDLEventProbe copy(source);
+        CHECK(source.get_native_handle() == &raw);
+        CHECK(copy.get_native_handle() == &raw);
+    }
+
+    TEST_CASE("batch6547 clone shares exact native event reference") {
+        SDL_Event raw{};
+        raw.type = SDL_MOUSEWHEEL;
+        Batch1047SDLEventProbe source(raw);
+        auto clone = source.clone();
+        REQUIRE(clone != nullptr);
+        CHECK(clone->get_native_handle() == &raw);
+    }
+
+    TEST_CASE("batch6547 probe default handled state is false") {
+        SDL_Event raw{};
+        Batch1047SDLEventProbe event(raw);
+        CHECK_FALSE(event.handled);
+    }
+
+    TEST_CASE("batch6547 handled state is independent from native event mutation") {
+        SDL_Event raw{};
+        raw.type = SDL_KEYDOWN;
+        Batch1047SDLEventProbe event(raw);
+        event.handled = true;
+        raw.type = SDL_KEYUP;
+        CHECK(event.handled);
+        CHECK(static_cast<SDL_Event*>(event.get_native_handle())->type == SDL_KEYUP);
+    }
+
+    TEST_CASE("batch6547 probe uses default nonblocking event contract") {
+        SDL_Event raw{};
+        Batch1047SDLEventProbe event(raw);
+        CHECK_FALSE(event.should_block());
+        event.set_block(true);
+        CHECK_FALSE(event.should_block());
+    }
+
+    TEST_CASE("batch6547 probe metadata remains stable after native type mutation") {
+        SDL_Event raw{};
+        raw.type = SDL_KEYDOWN;
+        Batch1047SDLEventProbe event(raw);
+        raw.type = SDL_QUIT;
+        CHECK(event.get_event_type() == Salix::EventType::AppTick);
+        CHECK(std::string(event.get_name()) == "Batch1047SDLEventProbe");
+        CHECK(event.is_application_event());
+    }
+
+    TEST_CASE("batch6547 cloned handled state remains independently mutable") {
+        SDL_Event raw{};
+        Batch1047SDLEventProbe source(raw);
+        source.handled = true;
+        auto clone = source.clone();
+        REQUIRE(clone != nullptr);
+        CHECK(clone->handled);
+        clone->handled = false;
+        CHECK(source.handled);
+        CHECK_FALSE(clone->handled);
+    }
+}
