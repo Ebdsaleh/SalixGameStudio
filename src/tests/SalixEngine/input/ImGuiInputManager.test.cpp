@@ -878,3 +878,98 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch6247") {
         CHECK_FALSE(second.wants_to_quit());
     }
 }
+
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch6947") {
+    TEST_CASE("batch6947 numeric key mapping covers Alpha2 Alpha3 Alpha4") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::Alpha2));
+        CHECK(manager.is_up(Salix::KeyCode::Alpha3));
+        CHECK(manager.is_up(Salix::KeyCode::Alpha4));
+    }
+
+    TEST_CASE("batch6947 numeric key mapping covers Alpha6 Alpha7 Alpha8") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::Alpha6));
+        CHECK(manager.is_up(Salix::KeyCode::Alpha7));
+        CHECK(manager.is_up(Salix::KeyCode::Alpha8));
+    }
+
+    TEST_CASE("batch6947 alphabetic key mapping covers F through I") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::F));
+        CHECK(manager.is_up(Salix::KeyCode::G));
+        CHECK(manager.is_up(Salix::KeyCode::H));
+        CHECK(manager.is_up(Salix::KeyCode::I));
+    }
+
+    TEST_CASE("batch6947 alphabetic key mapping covers J through M") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::J));
+        CHECK(manager.is_up(Salix::KeyCode::K));
+        CHECK(manager.is_up(Salix::KeyCode::L));
+        CHECK(manager.is_up(Salix::KeyCode::M));
+    }
+
+    TEST_CASE("batch6947 alphabetic key mapping covers N through Q") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::N));
+        CHECK(manager.is_up(Salix::KeyCode::O));
+        CHECK(manager.is_up(Salix::KeyCode::P));
+        CHECK(manager.is_up(Salix::KeyCode::Q));
+    }
+
+    TEST_CASE("batch6947 alphabetic key mapping covers R through U") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::R));
+        CHECK(manager.is_up(Salix::KeyCode::S));
+        CHECK(manager.is_up(Salix::KeyCode::T));
+        CHECK(manager.is_up(Salix::KeyCode::U));
+    }
+
+    TEST_CASE("batch6947 function key mapping covers F2 through F5") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::F2));
+        CHECK(manager.is_up(Salix::KeyCode::F3));
+        CHECK(manager.is_up(Salix::KeyCode::F4));
+        CHECK(manager.is_up(Salix::KeyCode::F5));
+    }
+
+    TEST_CASE("batch6947 function key mapping covers F7 through F9 and F11") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        CHECK(manager.is_up(Salix::KeyCode::F7));
+        CHECK(manager.is_up(Salix::KeyCode::F8));
+        CHECK(manager.is_up(Salix::KeyCode::F9));
+        CHECK(manager.is_up(Salix::KeyCode::F11));
+    }
+
+    TEST_CASE("batch6947 held duration paths execute mapped key and mouse comparisons") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_F, true);
+        ImGui::GetIO().MouseDown[ImGuiMouseButton_Left] = true;
+        CHECK_FALSE(manager.is_held_down_for(Salix::KeyCode::F, 1.0f));
+        CHECK_FALSE(manager.is_held_down_for(Salix::MouseButton::Left, 1.0f));
+    }
+
+    TEST_CASE("batch6947 combo loops visit all mapped keys and mouse buttons") {
+        InputManagerContext fixture;
+        Salix::ImGuiInputManager manager;
+        const std::vector<Salix::KeyCode> keys{Salix::KeyCode::F, Salix::KeyCode::G, Salix::KeyCode::H};
+        const std::vector<Salix::MouseButton> buttons{
+            Salix::MouseButton::Left, Salix::MouseButton::Middle, Salix::MouseButton::Right};
+        CHECK_FALSE(manager.multiple_are_down(keys));
+        CHECK(manager.multiple_are_up(keys));
+        CHECK_FALSE(manager.any_of_combo_was_released(keys));
+        CHECK_FALSE(manager.multiple_are_down(buttons));
+        CHECK(manager.multiple_are_up(buttons));
+        CHECK_FALSE(manager.any_of_combo_was_released(buttons));
+    }
+}
