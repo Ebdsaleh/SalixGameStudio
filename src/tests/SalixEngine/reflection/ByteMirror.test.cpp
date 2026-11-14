@@ -1581,3 +1581,120 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch6947") {
         CHECK(*static_cast<glm::mat4*>(projection->get_data(&camera)) == before_projection);
     }
 }
+
+namespace {
+class Batch7047UnregisteredElement : public Salix::Element {
+public:
+    const char* get_class_name() const override { return "Batch7047UnregisteredElement"; }
+};
+}
+
+TEST_SUITE("Salix::reflection::ByteMirrorBatch7047") {
+    TEST_CASE("batch7047 reflected Transform rotation getter returns live vector") {
+        Salix::ByteMirror::register_all_types(); Salix::Transform t; t.set_rotation(Salix::Vector3(7,0,47));
+        auto p=batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Transform)),"rotation");
+        REQUIRE(p.has_value());
+        CHECK(*static_cast<Salix::Vector3*>(p->get_data(&t))==Salix::Vector3(7,0,47));
+    }
+
+    TEST_CASE("batch7047 reflected Transform scale getter returns live vector") {
+        Salix::ByteMirror::register_all_types(); Salix::Transform t; t.set_scale(Salix::Vector3(7,4,7));
+        auto p=batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Transform)),"scale");
+        REQUIRE(p.has_value());
+        CHECK(*static_cast<Salix::Vector3*>(p->get_data(&t))==Salix::Vector3(7,4,7));
+    }
+
+    TEST_CASE("batch7047 reflected Sprite color getter returns mutable live color") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D s; s.set_color(Salix::Color(0.7f,0.0f,0.4f,0.7f));
+        auto p=batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D)),"color");
+        REQUIRE(p.has_value());
+        CHECK(*static_cast<Salix::Color*>(p->get_data(&s))==s.get_color());
+    }
+
+    TEST_CASE("batch7047 reflected Sprite offset getter returns live Vector2") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D s; s.set_offset(Salix::Vector2(70,47));
+        auto p=batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D)),"offset");
+        REQUIRE(p.has_value());
+        CHECK(*static_cast<Salix::Vector2*>(p->get_data(&s))==Salix::Vector2(70,47));
+    }
+
+    TEST_CASE("batch7047 reflected Sprite use rotation getter returns live bool") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D s; s.set_use_entity_rotation(true);
+        auto p=batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D)),"use_entity_rotation");
+        REQUIRE(p.has_value());
+        CHECK(*static_cast<bool*>(p->get_data(&s)));
+    }
+
+    TEST_CASE("batch7047 reflected Sprite pivot getter returns live Vector2") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D s; s.set_pivot(Salix::Vector2(.7f,.47f));
+        auto p=batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D)),"pivot");
+        REQUIRE(p.has_value());
+        CHECK(*static_cast<Salix::Vector2*>(p->get_data(&s))==Salix::Vector2(.7f,.47f));
+    }
+
+    TEST_CASE("batch7047 reflected Sprite vertical flip getter returns live bool") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D s; s.set_flip_v(true);
+        auto p=batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Sprite2D)),"flip_v");
+        REQUIRE(p.has_value());
+        CHECK(*static_cast<bool*>(p->get_data(&s)));
+    }
+
+    TEST_CASE("batch7047 reflected Camera active getter returns current state") {
+        Salix::ByteMirror::register_all_types(); Salix::Camera c; c.activate();
+        auto p=batch6947_property(Salix::ByteMirror::get_type_info(typeid(Salix::Camera)),"active");
+        REQUIRE(p.has_value());
+        CHECK(*static_cast<bool*>(p->get_data(&c)));
+    }
+
+    TEST_CASE("batch7047 reflected Camera scalar getters return current values") {
+        Salix::ByteMirror::register_all_types(); Salix::Camera c;
+        c.set_orthographic_size(70.47f); c.set_near_clip(.7047f); c.set_far_clip(7047.f);
+        const auto* info=Salix::ByteMirror::get_type_info(typeid(Salix::Camera));
+        auto o=batch6947_property(info,"orthographic_size"); auto n=batch6947_property(info,"near_clip"); auto f=batch6947_property(info,"far_clip");
+        REQUIRE(o.has_value()); REQUIRE(n.has_value()); REQUIRE(f.has_value());
+        CHECK(*static_cast<float*>(o->get_data(&c))==doctest::Approx(70.47f));
+        CHECK(*static_cast<float*>(n->get_data(&c))==doctest::Approx(.7047f));
+        CHECK(*static_cast<float*>(f->get_data(&c))==doctest::Approx(7047.f));
+    }
+
+    TEST_CASE("batch7047 get property value returns default for unregistered element type") {
+        Salix::ByteMirror::register_all_types(); Batch7047UnregisteredElement e;
+        const auto value=Salix::ByteMirror::get_property_value(&e,"name");
+        CHECK(std::holds_alternative<int>(value)); CHECK(std::get<int>(value)==0);
+    }
+
+    TEST_CASE("batch7047 get property value returns default for missing property name") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D s;
+        const auto value=Salix::ByteMirror::get_property_value(&s,"__Missing7047__");
+        CHECK(std::holds_alternative<int>(value)); CHECK(std::get<int>(value)==0);
+    }
+
+    TEST_CASE("batch7047 get property value converts Sprite offset to Vector2 variant") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D s; s.set_offset(Salix::Vector2(7,47));
+        const auto value=Salix::ByteMirror::get_property_value(&s,"offset");
+        REQUIRE(std::holds_alternative<Salix::Vector2>(value));
+        CHECK(std::get<Salix::Vector2>(value)==Salix::Vector2(7,47));
+    }
+
+    TEST_CASE("batch7047 get property value converts Sprite color to Color variant") {
+        Salix::ByteMirror::register_all_types(); Salix::Sprite2D s; s.set_color(Salix::Color(.7f,0,.4f,.7f));
+        const auto value=Salix::ByteMirror::get_property_value(&s,"color");
+        REQUIRE(std::holds_alternative<Salix::Color>(value));
+        CHECK(std::get<Salix::Color>(value)==s.get_color());
+    }
+
+    TEST_CASE("batch7047 get property value converts Camera projection mode enum class to integer") {
+        Salix::ByteMirror::register_all_types(); Salix::Camera c; c.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        const auto value=Salix::ByteMirror::get_property_value(&c,"projection_mode");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value)==static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
+    TEST_CASE("batch7047 get property value converts Camera active and field of view primitives") {
+        Salix::ByteMirror::register_all_types(); Salix::Camera c; c.activate(); c.set_field_of_view(70.47f);
+        const auto active=Salix::ByteMirror::get_property_value(&c,"active");
+        const auto fov=Salix::ByteMirror::get_property_value(&c,"field_of_view");
+        REQUIRE(std::holds_alternative<bool>(active)); REQUIRE(std::holds_alternative<float>(fov));
+        CHECK(std::get<bool>(active)); CHECK(std::get<float>(fov)==doctest::Approx(70.47f));
+    }
+}
