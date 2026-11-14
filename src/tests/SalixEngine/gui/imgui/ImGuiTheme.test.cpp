@@ -961,3 +961,174 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch5647") {
     }
 }
 
+#include <Salix/input/ImGuiInputManager.h>
+#include <Tests/SalixEngine/mocking/gui/MockIGui.h>
+#include <Tests/SalixEngine/mocking/gui/MockIFontManager.h>
+#include <Tests/SalixEngine/mocking/gui/MockIFont.h>
+#include <imgui.h>
+#include <limits>
+
+namespace {
+struct Batch6947ThemeContext {
+    ImGuiContext* previous_test = ImGui::GetCurrentContext();
+    ImGuiContext* previous_engine = Salix::ImGuiInputManager::get_context_for_testing();
+    ImGuiContext* owned = ImGui::CreateContext();
+    Batch6947ThemeContext() {
+        ImGui::SetCurrentContext(owned);
+        Salix::ImGuiInputManager::set_context_for_testing(owned);
+    }
+    ~Batch6947ThemeContext() {
+        Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
+        ImGui::DestroyContext(owned);
+        ImGui::SetCurrentContext(previous_test);
+    }
+};
+}
+
+TEST_SUITE("Salix::gui::ImGuiThemeBatch6947") {
+    TEST_CASE("batch6947 apply copies representative color float and vector style values") {
+        Batch6947ThemeContext context;
+        Salix::ImGuiTheme theme("Apply6947");
+        auto* data = theme.get_data();
+        REQUIRE(data != nullptr);
+        data->text_color = Salix::Color(0.11f, 0.22f, 0.33f, 0.44f);
+        data->alpha = 0.6947f;
+        data->window_rounding = 6.947f;
+        data->window_padding = Salix::Vector2(12.0f, 34.0f);
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        theme.apply(&gui);
+        const ImGuiStyle& style = ImGui::GetStyle();
+        CHECK(style.Colors[ImGuiCol_Text].x == doctest::Approx(0.11f));
+        CHECK(style.Alpha == doctest::Approx(0.6947f));
+        CHECK(style.WindowRounding == doctest::Approx(6.947f));
+        CHECK(style.WindowPadding.x == doctest::Approx(12.0f));
+        CHECK(style.WindowPadding.y == doctest::Approx(34.0f));
+    }
+
+    TEST_CASE("batch6947 apply uses requested registered font variant") {
+        Batch6947ThemeContext context;
+        Salix::ImGuiTheme theme("Requested6947");
+        auto* data = theme.get_data();
+        data->font_family = "Family6947";
+        data->font_size = 18.0f;
+        data->default_font_size = 20.0f;
+        MockIFontManager fonts;
+        REQUIRE(fonts.register_font(std::make_unique<MockIFont>("Family6947_18px", "Family6947", 18.0f)));
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, &fonts, nullptr);
+        theme.apply(&gui);
+        CHECK(fonts.apply_calls == 1);
+    }
+
+    TEST_CASE("batch6947 missing requested variant falls back to registered default size") {
+        Batch6947ThemeContext context;
+        Salix::ImGuiTheme theme("DefaultFallback6947");
+        auto* data = theme.get_data();
+        data->font_family = "Family6947";
+        data->font_size = 18.0f;
+        data->default_font_size = 22.0f;
+        MockIFontManager fonts;
+        REQUIRE(fonts.register_font(std::make_unique<MockIFont>("Family6947_22px", "Family6947", 22.0f)));
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, &fonts, nullptr);
+        theme.apply(&gui);
+        CHECK(fonts.apply_calls == 1);
+    }
+
+    TEST_CASE("batch6947 missing family variants falls back to built in safe font") {
+        Batch6947ThemeContext context;
+        Salix::ImGuiTheme theme("BuiltinFallback6947");
+        auto* data = theme.get_data();
+        data->font_family = "MissingFamily6947";
+        data->font_size = 18.0f;
+        data->default_font_size = 20.0f;
+        MockIFontManager fonts;
+        REQUIRE(fonts.register_font(std::make_unique<MockIFont>("Roboto-Regular_20px", "Roboto-Regular", 20.0f)));
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, &fonts, nullptr);
+        theme.apply(&gui);
+        CHECK(fonts.apply_calls == 1);
+    }
+
+    TEST_CASE("batch6947 no registered safe font leaves font application untouched") {
+        Batch6947ThemeContext context;
+        Salix::ImGuiTheme theme("NoFont6947");
+        auto* data = theme.get_data();
+        data->font_family = "Missing6947";
+        data->font_size = 18.0f;
+        data->default_font_size = 20.0f;
+        MockIFontManager fonts;
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, &fonts, nullptr);
+        theme.apply(&gui);
+        CHECK(fonts.apply_calls == 0);
+    }
+
+    TEST_CASE("batch6947 invalid selected size still permits valid default variant") {
+        Batch6947ThemeContext context;
+        Salix::ImGuiTheme theme("InvalidSelected6947");
+        auto* data = theme.get_data();
+        data->font_family = "Family6947";
+        data->font_size = (std::numeric_limits<float>::quiet_NaN)();
+        data->default_font_size = 24.0f;
+        MockIFontManager fonts;
+        REQUIRE(fonts.register_font(std::make_unique<MockIFont>("Family6947_24px", "Family6947", 24.0f)));
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, &fonts, nullptr);
+        theme.apply(&gui);
+        CHECK(fonts.apply_calls == 1);
+    }
+
+    TEST_CASE("batch6947 invalid selected and default sizes still permit built in fallback") {
+        Batch6947ThemeContext context;
+        Salix::ImGuiTheme theme("InvalidBoth6947");
+        auto* data = theme.get_data();
+        data->font_family = "Family6947";
+        data->font_size = -1.0f;
+        data->default_font_size = (std::numeric_limits<float>::infinity)();
+        MockIFontManager fonts;
+        REQUIRE(fonts.register_font(std::make_unique<MockIFont>("Roboto-Regular_20px", "Roboto-Regular", 20.0f)));
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, &fonts, nullptr);
+        theme.apply(&gui);
+        CHECK(fonts.apply_calls == 1);
+    }
+
+    TEST_CASE("batch6947 absent font manager executes explicit no manager branch") {
+        Batch6947ThemeContext context;
+        Salix::ImGuiTheme theme("NoManager6947");
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        CHECK_NOTHROW(theme.apply(&gui));
+        CHECK(theme.get_data() != nullptr);
+    }
+
+    TEST_CASE("batch6947 save emits Up and Down direction enum branches") {
+        Batch1147ThemeTempFile temp;
+        Salix::ImGuiTheme theme("Direction6947");
+        auto* data = theme.get_data();
+        data->window_menu_button_position = ImGuiDir_Up;
+        data->color_button_position = ImGuiDir_Down;
+        REQUIRE(theme.save_to_yaml(temp.path.string()));
+        std::ifstream in(temp.path);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CHECK(text.find("ImGuiDir_Up") != std::string::npos);
+        CHECK(text.find("ImGuiDir_Down") != std::string::npos);
+    }
+
+    TEST_CASE("batch6947 save emits enum and hovered flag fallback strings") {
+        Batch1147ThemeTempFile temp;
+        Salix::ImGuiTheme theme("FallbackEnum6947");
+        auto* data = theme.get_data();
+        data->window_menu_button_position = static_cast<ImGuiDir>(6947);
+        data->color_button_position = static_cast<ImGuiDir>(6947);
+        data->hover_flags_for_tooltip_mouse = ImGuiHoveredFlags_None;
+        data->hover_flags_for_tooltip_nav = ImGuiHoveredFlags_None;
+        REQUIRE(theme.save_to_yaml(temp.path.string()));
+        std::ifstream in(temp.path);
+        const std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        CHECK(text.find("ImGuiDir_None") != std::string::npos);
+        CHECK(text.find("ImGuiHoveredFlags_None") != std::string::npos);
+    }
+}
