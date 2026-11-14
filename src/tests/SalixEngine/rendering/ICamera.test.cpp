@@ -101,3 +101,91 @@ TEST_SUITE("Salix::rendering::ICameraBatch1347") {
         CHECK(camera->get_projection_mode() == Salix::ProjectionMode::Orthographic);
     }
 }
+
+TEST_SUITE("Salix::rendering::ICameraBatch6347") {
+    TEST_CASE("batch6347 minimal camera begins in perspective projection") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        CHECK(interface.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6347 minimal camera projection setter dispatches through interface") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        CHECK(interface.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        CHECK(camera.mode == Salix::ProjectionMode::Orthographic);
+    }
+
+    TEST_CASE("batch6347 minimal camera orthographic size setter stores exact value") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_orthographic_size(-63.47f);
+        CHECK(camera.orthographic_size == doctest::Approx(-63.47f));
+    }
+
+    TEST_CASE("batch6347 default two dimensional hook is a safe no op") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        CHECK_NOTHROW(interface.set_2D_mode(true));
+        CHECK_NOTHROW(interface.set_2D_mode(false));
+        CHECK(interface.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6347 default active setter remains a no op") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_is_active(true);
+        CHECK_FALSE(interface.get_is_active());
+        interface.activate();
+        CHECK_FALSE(interface.get_is_active());
+    }
+
+    TEST_CASE("batch6347 minimal camera matrix references remain stable across repeated access") {
+        Batch1347MinimalCamera camera;
+        Salix::ICamera& interface = camera;
+        const auto* view = &interface.get_view_matrix();
+        const auto* projection = &interface.get_projection_matrix();
+        CHECK(&interface.get_view_matrix() == view);
+        CHECK(&interface.get_projection_matrix() == projection);
+    }
+
+    TEST_CASE("batch6347 mock camera two dimensional state roundtrips through interface") {
+        MockICamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_2D_mode(true);
+        REQUIRE(camera.get_mock_2d_mode());
+        interface.set_2D_mode(false);
+        CHECK_FALSE(camera.get_mock_2d_mode());
+    }
+
+    TEST_CASE("batch6347 mock camera projection transitions roundtrip through interface") {
+        MockICamera camera;
+        Salix::ICamera& interface = camera;
+        interface.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        REQUIRE(interface.get_projection_mode() == Salix::ProjectionMode::Orthographic);
+        interface.set_projection_mode(Salix::ProjectionMode::Perspective);
+        CHECK(interface.get_projection_mode() == Salix::ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("batch6347 mock camera active state follows helper transition sequence") {
+        MockICamera camera;
+        Salix::ICamera& interface = camera;
+        interface.activate();
+        REQUIRE(interface.get_is_active());
+        interface.deactivate();
+        REQUIRE_FALSE(interface.get_is_active());
+        interface.set_is_active(true);
+        CHECK(interface.get_is_active());
+    }
+
+    TEST_CASE("batch6347 polymorphic camera ownership preserves configured matrices") {
+        auto camera = std::make_unique<MockICamera>();
+        camera->set_mock_view_matrix(glm::mat4(2.0f));
+        camera->set_mock_projection_matrix(glm::mat4(3.0f));
+        std::unique_ptr<Salix::ICamera> interface = std::move(camera);
+        REQUIRE(interface != nullptr);
+        CHECK(interface->get_view_matrix()[0][0] == doctest::Approx(2.0f));
+        CHECK(interface->get_projection_matrix()[0][0] == doctest::Approx(3.0f));
+    }
+}
