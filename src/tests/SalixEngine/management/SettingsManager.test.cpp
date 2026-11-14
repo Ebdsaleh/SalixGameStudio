@@ -1549,3 +1549,183 @@ TEST_SUITE("Salix::management::SettingsManagerBatch5747") {
     }
 }
 
+namespace {
+void batch6947_write_bytes(const std::filesystem::path& path, const std::string& bytes) {
+    std::ofstream out(path, std::ios::binary | std::ios::trunc);
+    out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+}
+void batch6947_make_cache_newer(const std::filesystem::path& yaml, const std::filesystem::path& cache) {
+    const auto yaml_time = std::filesystem::last_write_time(yaml);
+    std::filesystem::last_write_time(cache, yaml_time + std::chrono::seconds(2));
+}
+std::string batch6947_fixed_cache_prefix(const Salix::ApplicationConfig& config) {
+    std::ostringstream bytes(std::ios::binary);
+    bytes.write(reinterpret_cast<const char*>(&config.window_config.width), sizeof(config.window_config.width));
+    bytes.write(reinterpret_cast<const char*>(&config.window_config.height), sizeof(config.window_config.height));
+    bytes.write(reinterpret_cast<const char*>(&config.renderer_type), sizeof(config.renderer_type));
+    bytes.write(reinterpret_cast<const char*>(&config.initial_state), sizeof(config.initial_state));
+    bytes.write(reinterpret_cast<const char*>(&config.gui_type), sizeof(config.gui_type));
+    bytes.write(reinterpret_cast<const char*>(&config.timer_type), sizeof(config.timer_type));
+    bytes.write(reinterpret_cast<const char*>(&config.target_fps), sizeof(config.target_fps));
+    bytes.write(reinterpret_cast<const char*>(&config.gui_settings), sizeof(config.gui_settings));
+    return bytes.str();
+}
+}
+
+TEST_SUITE("Salix::management::SettingsManagerBatch6947") {
+    TEST_CASE("batch6947 cache missing string length falls back to YAML safely") {
+        Batch3447SettingsFiles files("Batch6947_NoLength");
+        files.write_yaml("Engine:\n  target_fps: 947\n");
+        Salix::ApplicationConfig seed;
+        batch6947_write_bytes(files.cache, batch6947_fixed_cache_prefix(seed));
+        batch6947_make_cache_newer(files.yaml, files.cache);
+        Salix::ApplicationConfig loaded;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.target_fps == 947);
+    }
+
+    TEST_CASE("batch6947 cache oversized string length falls back to YAML safely") {
+        Batch3447SettingsFiles files("Batch6947_Oversize");
+        files.write_yaml("Window:\n  title: YAML6947\n");
+        Salix::ApplicationConfig seed;
+        std::string bytes = batch6947_fixed_cache_prefix(seed);
+        const std::size_t impossible = 6947;
+        bytes.append(reinterpret_cast<const char*>(&impossible), sizeof(impossible));
+        batch6947_write_bytes(files.cache, bytes);
+        batch6947_make_cache_newer(files.yaml, files.cache);
+        Salix::ApplicationConfig loaded;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.title == "YAML6947");
+    }
+
+    TEST_CASE("batch6947 cache one byte title payload shorter than declared falls back to YAML") {
+        Batch3447SettingsFiles files("Batch6947_ShortTitle");
+        files.write_yaml("Window:\n  title: Recovered6947\n");
+        Salix::ApplicationConfig seed;
+        std::string bytes = batch6947_fixed_cache_prefix(seed);
+        const std::size_t length = 4;
+        bytes.append(reinterpret_cast<const char*>(&length), sizeof(length));
+        bytes.push_back('X');
+        batch6947_write_bytes(files.cache, bytes);
+        batch6947_make_cache_newer(files.yaml, files.cache);
+        Salix::ApplicationConfig loaded;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.title == "Recovered6947");
+    }
+
+    TEST_CASE("batch6947 totally truncated cache falls back to YAML and replaces target fps") {
+        Batch3447SettingsFiles files("Batch6947_Truncated");
+        files.write_yaml("Engine:\n  target_fps: 694\n");
+        batch6947_write_bytes(files.cache, std::string(1, '\0'));
+        batch6947_make_cache_newer(files.yaml, files.cache);
+        Salix::ApplicationConfig loaded;
+        loaded.target_fps = 1;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.target_fps == 694);
+    }
+
+    TEST_CASE("batch6947 corrupt cache never partially overwrites caller before YAML recovery") {
+        Batch3447SettingsFiles files("Batch6947_NoPartial");
+        files.write_yaml("Window:\n  title: Final6947\n  width: 6947\n");
+        Salix::ApplicationConfig seed;
+        seed.window_config.width = -1234;
+        std::string bytes = batch6947_fixed_cache_prefix(seed);
+        batch6947_write_bytes(files.cache, bytes);
+        batch6947_make_cache_newer(files.yaml, files.cache);
+        Salix::ApplicationConfig loaded;
+        loaded.window_config.width = 77;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), loaded));
+        CHECK(loaded.window_config.width == 6947);
+        CHECK(loaded.window_config.title == "Final6947");
+    }
+
+    TEST_CASE("batch6947 valid cache with empty title loads empty string fast path") {
+        Batch3447SettingsFiles files("Batch6947_EmptyTitle");
+        files.write_yaml("Engine:\n  target_fps: 1\n");
+        Salix::ApplicationConfig source;
+        source.target_fps = 6947;
+        source.window_config.title.clear();
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        Salix::ApplicationConfig primed;
+        REQUIRE(manager.load_settings(files.yaml.string(), primed));
+        CHECK(primed.target_fps == 1);
+        // YAML load refreshed cache; now make YAML older and verify cache remains readable.
+        auto cache_time = std::filesystem::last_write_time(files.cache);
+        std::filesystem::last_write_time(files.yaml, cache_time - std::chrono::seconds(2));
+        Salix::ApplicationConfig cached;
+        REQUIRE(manager.load_settings(files.yaml.string(), cached));
+        CHECK(cached.target_fps == 1);
+    }
+
+    TEST_CASE("batch6947 unknown enum strings preserve caller enum values") {
+        Batch3447SettingsFiles files("Batch6947_UnknownEnums");
+        files.write_yaml(
+            "Engine:\n  initial_state: Unknown6947\n"
+            "Renderer:\n  type: Unknown6947\n"
+            "GUI:\n  type: Unknown6947\n"
+            "Timer:\n  type: Unknown6947\n");
+        Salix::ApplicationConfig config;
+        config.initial_state = Salix::AppStateType::Options;
+        config.renderer_type = Salix::RendererType::OpenGL;
+        config.gui_type = Salix::GuiType::None;
+        config.timer_type = Salix::TimerType::Chrono;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.initial_state == Salix::AppStateType::Options);
+        CHECK(config.renderer_type == Salix::RendererType::OpenGL);
+        CHECK(config.gui_type == Salix::GuiType::None);
+        CHECK(config.timer_type == Salix::TimerType::Chrono);
+    }
+
+    TEST_CASE("batch6947 partial GUI block updates one field while preserving peers") {
+        Batch3447SettingsFiles files("Batch6947_PartialGui");
+        files.write_yaml("GUI:\n  dialog_height_ratio: 0.6947\n");
+        Salix::ApplicationConfig config;
+        config.gui_settings.dialog_width_ratio = 0.47f;
+        config.gui_settings.font_scaling = 1.5f;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(), config));
+        CHECK(config.gui_settings.dialog_height_ratio == doctest::Approx(0.6947f));
+        CHECK(config.gui_settings.dialog_width_ratio == doctest::Approx(0.47f));
+        CHECK(config.gui_settings.font_scaling == doctest::Approx(1.5f));
+    }
+
+    TEST_CASE("batch6947 save default enum fallbacks serialize canonical defaults") {
+        Batch3447SettingsFiles files("Batch6947_DefaultEnums");
+        Salix::ApplicationConfig config;
+        config.initial_state = Salix::AppStateType::None;
+        config.renderer_type = Salix::RendererType::None;
+        config.gui_type = static_cast<Salix::GuiType>(6947);
+        config.timer_type = static_cast<Salix::TimerType>(6947);
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), config));
+        const auto text = Salix::FileManager::read_file_content(files.yaml.string());
+        CHECK(text.find("initial_state: Launch") != std::string::npos);
+        CHECK(text.find("type: SDL") != std::string::npos);
+        CHECK(text.find("type: ImGui") != std::string::npos);
+    }
+
+    TEST_CASE("batch6947 save and reload preserves all four GUI numeric values") {
+        Batch3447SettingsFiles files("Batch6947_GuiRoundtrip");
+        Salix::ApplicationConfig source;
+        source.gui_settings.dialog_width_ratio = 0.61f;
+        source.gui_settings.dialog_height_ratio = 0.62f;
+        source.gui_settings.font_scaling = 1.63f;
+        source.gui_settings.global_dpi_scaling = 1.64f;
+        Salix::SettingsManager manager;
+        REQUIRE(manager.save_settings(files.yaml.string(), source));
+        std::filesystem::remove(files.cache);
+        Salix::ApplicationConfig restored;
+        REQUIRE(manager.load_settings(files.yaml.string(), restored));
+        CHECK(restored.gui_settings.dialog_width_ratio == doctest::Approx(0.61f));
+        CHECK(restored.gui_settings.dialog_height_ratio == doctest::Approx(0.62f));
+        CHECK(restored.gui_settings.font_scaling == doctest::Approx(1.63f));
+        CHECK(restored.gui_settings.global_dpi_scaling == doctest::Approx(1.64f));
+    }
+}
