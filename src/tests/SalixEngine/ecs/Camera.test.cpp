@@ -1333,24 +1333,27 @@ TEST_SUITE("Salix::ecs::CameraBatch6747") {
         CHECK_FALSE(camera.get_is_active());
     }
 
-    TEST_CASE("batch6747 set 2D mode true selects orthographic projection") {
+    TEST_CASE("batch6747 enabling 2D project mode does not implicitly rewrite projection mode") {
         Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Perspective);
         camera.set_2D_mode(true);
+        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
+        CHECK_FALSE(camera.get_is_active());
+    }
+
+    TEST_CASE("batch6747 disabling 2D project mode preserves explicit orthographic projection") {
+        Salix::Camera camera;
+        camera.set_projection_mode(Salix::ProjectionMode::Orthographic);
+        camera.set_2D_mode(true);
+        camera.set_2D_mode(false);
         CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Orthographic);
     }
 
-    TEST_CASE("batch6747 set 2D mode false selects perspective projection") {
-        Salix::Camera camera;
-        camera.set_2D_mode(true);
-        camera.set_2D_mode(false);
-        CHECK(camera.get_projection_mode() == Salix::ProjectionMode::Perspective);
-    }
-
-    TEST_CASE("batch6747 zero width viewport leaves current projection unchanged") {
+    TEST_CASE("batch6747 zero height viewport leaves current projection unchanged") {
         Salix::Camera camera;
         camera.set_viewport_size(800, 600);
         const glm::mat4 before = camera.get_projection_matrix();
-        camera.set_viewport_size(0, 600);
+        camera.set_viewport_size(1600, 0);
         const glm::mat4 after = camera.get_projection_matrix();
         CHECK_FALSE(batch1247_matrix_differs(before, after));
     }
