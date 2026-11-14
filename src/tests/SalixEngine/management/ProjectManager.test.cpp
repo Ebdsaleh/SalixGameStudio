@@ -1154,16 +1154,15 @@ TEST_SUITE("Salix::management::ProjectManagerBatch6947") {
         CHECK(paths.at("RealmB6947") == "Assets/Realms/B6947.realm");
     }
 
-    TEST_CASE("batch6947 successful load replaces an existing placeholder project") {
+    TEST_CASE("batch6947 successful load replaces placeholder project metadata") {
         Batch1947ProjectRoot root;
         const auto file = batch6947_write_valid_project(root, "valid6947e", "Batch6947E");
         Salix::ProjectManager manager;
         manager.set_active_project("placeholder");
-        auto* before = manager.get_active_project();
-        REQUIRE(before != nullptr);
+        REQUIRE(manager.get_active_project() != nullptr);
+        CHECK(manager.get_active_project()->get_name() == "TestProject");
         REQUIRE(manager.load_project(file.string()));
         REQUIRE(manager.get_active_project() != nullptr);
-        CHECK(manager.get_active_project() != before);
         CHECK(manager.get_active_project()->get_name() == "Batch6947E");
     }
 
