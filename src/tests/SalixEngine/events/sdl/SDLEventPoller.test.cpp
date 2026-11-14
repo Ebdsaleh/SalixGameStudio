@@ -1096,3 +1096,134 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch6247") {
         CHECK(translated == 2);
     }
 }
+
+TEST_SUITE("Salix::events::SDLEventPollerBatch6947") {
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 text input remains raw only") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, translated = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event event{}; event.type = SDL_TEXTINPUT;
+        event.text.text[0] = 'A'; event.text.text[1] = '\0';
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++translated; });
+        CHECK(raw == 1);
+        CHECK(translated == 0);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 size changed window event translates exact dimensions") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{};
+        event.type = SDL_WINDOWEVENT;
+        event.window.event = SDL_WINDOWEVENT_SIZE_CHANGED;
+        event.window.data1 = 6947;
+        event.window.data2 = 7496;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        int calls = 0;
+        poller.poll_events([&](Salix::IEvent& translated) {
+            ++calls;
+            auto* resize = dynamic_cast<Salix::WindowResizeEvent*>(&translated);
+            REQUIRE(resize != nullptr);
+            CHECK(resize->get_width() == 6947u);
+            CHECK(resize->get_height() == 7496u);
+        });
+        CHECK(calls == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 quit event translates once after raw callback") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, translated = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event event{}; event.type = SDL_QUIT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& e) {
+            ++translated;
+            CHECK(e.get_event_type() == Salix::EventType::WindowClose);
+        });
+        CHECK(raw == 1);
+        CHECK(translated == 1);
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 keydown repeat translates repeat flag") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{}; event.type = SDL_KEYDOWN;
+        event.key.keysym.sym = SDLK_F2;
+        event.key.repeat = 1;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& e) {
+            auto* key = dynamic_cast<Salix::KeyPressedEvent*>(&e);
+            REQUIRE(key != nullptr);
+            CHECK(key->get_key_code() == SDLK_F2);
+            CHECK(key->was_repeated());
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 keyup translates exact negative compatible key code") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{}; event.type = SDL_KEYUP;
+        event.key.keysym.sym = SDLK_UNKNOWN;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& e) {
+            auto* key = dynamic_cast<Salix::KeyReleasedEvent*>(&e);
+            REQUIRE(key != nullptr);
+            CHECK(key->get_key_code() == SDLK_UNKNOWN);
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 mouse motion translates signed coordinates") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{}; event.type = SDL_MOUSEMOTION;
+        event.motion.x = -69; event.motion.y = 47;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& e) {
+            auto* moved = dynamic_cast<Salix::MouseMovedEvent*>(&e);
+            REQUIRE(moved != nullptr);
+            CHECK(moved->get_x() == doctest::Approx(-69.0f));
+            CHECK(moved->get_y() == doctest::Approx(47.0f));
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 mouse down translates right button") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{}; event.type = SDL_MOUSEBUTTONDOWN; event.button.button = SDL_BUTTON_RIGHT;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& e) {
+            auto* button = dynamic_cast<Salix::MouseButtonPressedEvent*>(&e);
+            REQUIRE(button != nullptr);
+            CHECK(button->get_mouse_button() == SDL_BUTTON_RIGHT);
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 mouse up translates middle button") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{}; event.type = SDL_MOUSEBUTTONUP; event.button.button = SDL_BUTTON_MIDDLE;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& e) {
+            auto* button = dynamic_cast<Salix::MouseButtonReleasedEvent*>(&e);
+            REQUIRE(button != nullptr);
+            CHECK(button->get_mouse_button() == SDL_BUTTON_MIDDLE);
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 mouse wheel translates both axes") {
+        Salix::SDLEventPoller poller;
+        SDL_Event event{}; event.type = SDL_MOUSEWHEEL; event.wheel.x = -69; event.wheel.y = 47;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent& e) {
+            auto* wheel = dynamic_cast<Salix::MouseScrolledEvent*>(&e);
+            REQUIRE(wheel != nullptr);
+            CHECK(wheel->get_x_offset() == doctest::Approx(-69.0f));
+            CHECK(wheel->get_y_offset() == doctest::Approx(47.0f));
+        });
+    }
+
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch6947 unknown user event invokes raw callbacks without translation") {
+        Salix::SDLEventPoller poller;
+        int raw = 0, translated = 0;
+        poller.register_raw_event_callback([&](void*) { ++raw; });
+        SDL_Event event{}; event.type = SDL_USEREVENT; event.user.code = 6947;
+        REQUIRE(SDL_PushEvent(&event) == 1);
+        poller.poll_events([&](Salix::IEvent&) { ++translated; });
+        CHECK(raw == 1);
+        CHECK(translated == 0);
+    }
+}
