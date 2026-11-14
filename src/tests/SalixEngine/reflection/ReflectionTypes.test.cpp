@@ -207,3 +207,85 @@ TEST_SUITE("Salix::reflection::ReflectionTypesBatch6347") {
         CHECK(std::get<glm::mat4>(value)[3][2] == doctest::Approx(63.47f));
     }
 }
+
+TEST_SUITE("Salix::reflection::ReflectionTypesBatch6847") {
+    TEST_CASE("batch6847 variant can transition through every primitive alternative") {
+        Salix::PropertyValue value = -68;
+        CHECK(value.index() == 0);
+        value = std::uint64_t{6847};
+        CHECK(value.index() == 1);
+        value = 6.847f;
+        CHECK(value.index() == 2);
+        value = false;
+        CHECK(value.index() == 3);
+        value = std::string("Batch6847");
+        CHECK(value.index() == 4);
+    }
+
+    TEST_CASE("batch6847 Vector2 mutation through active alternative remains local") {
+        Salix::PropertyValue first = Salix::Vector2{6.0f, 8.0f};
+        Salix::PropertyValue second = first;
+        std::get<Salix::Vector2>(first).y = 47.0f;
+        CHECK(std::get<Salix::Vector2>(first).y == doctest::Approx(47.0f));
+        CHECK(std::get<Salix::Vector2>(second).y == doctest::Approx(8.0f));
+    }
+
+    TEST_CASE("batch6847 Vector3 active alternative preserves signed zero component") {
+        Salix::PropertyValue value = Salix::Vector3{-6.847f, 0.0f, 68.47f};
+        REQUIRE(std::holds_alternative<Salix::Vector3>(value));
+        CHECK(std::get<Salix::Vector3>(value).x == doctest::Approx(-6.847f));
+        CHECK(std::get<Salix::Vector3>(value).y == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("batch6847 Color active alternative preserves out of range channels") {
+        Salix::PropertyValue value = Salix::Color{-6.847f, 2.0f, -4.0f, 7.0f};
+        REQUIRE(std::holds_alternative<Salix::Color>(value));
+        CHECK(std::get<Salix::Color>(value) == Salix::Color(-6.847f, 2.0f, -4.0f, 7.0f));
+    }
+
+    TEST_CASE("batch6847 Point active alternative preserves integer extrema") {
+        Salix::PropertyValue value = Salix::Point{
+            (std::numeric_limits<int>::min)(), (std::numeric_limits<int>::max)()};
+        REQUIRE(std::holds_alternative<Salix::Point>(value));
+        CHECK(std::get<Salix::Point>(value).x == (std::numeric_limits<int>::min)());
+        CHECK(std::get<Salix::Point>(value).y == (std::numeric_limits<int>::max)());
+    }
+
+    TEST_CASE("batch6847 Rect active alternative owns independent geometry") {
+        Salix::PropertyValue source = Salix::Rect{-68, 47, -6, 847};
+        Salix::PropertyValue copy = source;
+        std::get<Salix::Rect>(source).h = 999;
+        CHECK(std::get<Salix::Rect>(copy) == Salix::Rect(-68, 47, -6, 847));
+    }
+
+    TEST_CASE("batch6847 matrix alternative supports zero matrix distinctly from identity") {
+        Salix::PropertyValue zero = glm::mat4(0.0f);
+        Salix::PropertyValue identity = glm::mat4(1.0f);
+        REQUIRE(std::holds_alternative<glm::mat4>(zero));
+        CHECK(std::get<glm::mat4>(zero)[0][0] == doctest::Approx(0.0f));
+        CHECK(std::get<glm::mat4>(identity)[0][0] == doctest::Approx(1.0f));
+    }
+
+    TEST_CASE("batch6847 empty string remains string alternative rather than integer default") {
+        Salix::PropertyValue value = std::string{};
+        CHECK(value.index() == 4);
+        CHECK(std::holds_alternative<std::string>(value));
+        CHECK(std::get<std::string>(value).empty());
+    }
+
+    TEST_CASE("batch6847 assigning default constructed variant resets to integer zero") {
+        Salix::PropertyValue value = std::string("changed");
+        value = Salix::PropertyValue{};
+        CHECK(value.index() == 0);
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch6847 copying matrix variant isolates later source mutation") {
+        glm::mat4 matrix(1.0f);
+        matrix[2][3] = 68.47f;
+        Salix::PropertyValue source = matrix;
+        Salix::PropertyValue copy = source;
+        std::get<glm::mat4>(source)[2][3] = -68.47f;
+        CHECK(std::get<glm::mat4>(copy)[2][3] == doctest::Approx(68.47f));
+    }
+}
