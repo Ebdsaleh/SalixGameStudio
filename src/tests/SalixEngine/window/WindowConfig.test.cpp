@@ -245,3 +245,97 @@ TEST_SUITE("Salix::window::WindowConfigBatch2047") {
         CHECK(fresh.title == "SalixGameStudio"); CHECK(fresh.width == 1280); CHECK(fresh.height == 720);
     }
 }
+
+TEST_SUITE("Salix::window::WindowConfigBatch6347") {
+    TEST_CASE("batch6347 empty title preserves configured dimensions") {
+        Salix::WindowConfig config{"", 1920, 1080};
+        CHECK(config.title.empty());
+        CHECK(config.width == 1920);
+        CHECK(config.height == 1080);
+    }
+
+    TEST_CASE("batch6347 title preserves embedded null bytes") {
+        Salix::WindowConfig config;
+        config.title = std::string("A\0B", 3);
+        CHECK(config.title.size() == 3);
+        CHECK(config.title[0] == 'A');
+        CHECK(config.title[1] == '\0');
+        CHECK(config.title[2] == 'B');
+    }
+
+    TEST_CASE("batch6347 both dimensions may be zero simultaneously") {
+        Salix::WindowConfig config{"Zero", 0, 0};
+        CHECK(config.width == 0);
+        CHECK(config.height == 0);
+        CHECK(config.title == "Zero");
+    }
+
+    TEST_CASE("batch6347 negative dimensions are stored without normalization") {
+        Salix::WindowConfig config{"Negative", -6347, -7436};
+        CHECK(config.width == -6347);
+        CHECK(config.height == -7436);
+    }
+
+    TEST_CASE("batch6347 copy construction remains independent after source mutation") {
+        Salix::WindowConfig source{"Source6347", 1600, 900};
+        const Salix::WindowConfig copy = source;
+        source.title = "Changed";
+        source.width = 1;
+        source.height = 2;
+        CHECK(copy.title == "Source6347");
+        CHECK(copy.width == 1600);
+        CHECK(copy.height == 900);
+    }
+
+    TEST_CASE("batch6347 move construction transfers complete configured value") {
+        Salix::WindowConfig source{"Move6347", 2560, 1440};
+        Salix::WindowConfig moved = std::move(source);
+        CHECK(moved.title == "Move6347");
+        CHECK(moved.width == 2560);
+        CHECK(moved.height == 1440);
+    }
+
+    TEST_CASE("batch6347 swapping twice restores both complete configurations") {
+        Salix::WindowConfig a{"A6347", 1, 2};
+        Salix::WindowConfig b{"B6347", 3, 4};
+        std::swap(a, b);
+        std::swap(a, b);
+        CHECK(a.title == "A6347");
+        CHECK(a.width == 1);
+        CHECK(a.height == 2);
+        CHECK(b.title == "B6347");
+        CHECK(b.width == 3);
+        CHECK(b.height == 4);
+    }
+
+    TEST_CASE("batch6347 vector element mutation never aliases neighboring config") {
+        std::vector<Salix::WindowConfig> configs{
+            {"First6347", 1, 2},
+            {"Second6347", 3, 4}
+        };
+        configs[0].title = "Changed6347";
+        configs[0].width = 99;
+        CHECK(configs[1].title == "Second6347");
+        CHECK(configs[1].width == 3);
+        CHECK(configs[1].height == 4);
+    }
+
+    TEST_CASE("batch6347 self assignment preserves complete state") {
+        Salix::WindowConfig config{"Self6347", -6, 347};
+        config = config;
+        CHECK(config.title == "Self6347");
+        CHECK(config.width == -6);
+        CHECK(config.height == 347);
+    }
+
+    TEST_CASE("batch6347 retained dimension references mutate only owning fields") {
+        Salix::WindowConfig config{"Refs6347", 1280, 720};
+        int& width = config.width;
+        int& height = config.height;
+        width = 6347;
+        height = 7436;
+        CHECK(config.width == 6347);
+        CHECK(config.height == 7436);
+        CHECK(config.title == "Refs6347");
+    }
+}
