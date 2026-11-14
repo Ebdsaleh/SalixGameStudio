@@ -192,3 +192,174 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch6947") {
         CHECK(nested_value == 47);
     }
 }
+
+#include <Salix/reflection/PropertyHandleLive.h>
+#include <Salix/ecs/Element.h>
+#include <Salix/math/Rect.h>
+#include <cstdint>
+
+namespace {
+class Batch7047DrawerElement : public Salix::Element {
+public:
+    int integer = 7047;
+    std::uint64_t identifier = 7047;
+    float scalar = 70.47f;
+    bool flag = true;
+    std::string text = "Batch7047";
+    Salix::Vector2 vector2{7.0f, 47.0f};
+    Salix::Vector3 vector3{7.0f, 0.0f, 47.0f};
+    Salix::Color color{255.0f, 128.0f, 64.0f, 255.0f};
+    Salix::Point point{70, 47};
+    Salix::Rect rect{7, 0, 4, 7};
+    glm::mat4 matrix{1.0f};
+    const char* get_class_name() const override { return "Batch7047DrawerElement"; }
+};
+
+Salix::Property batch7047_drawer_property(
+    const char* name, Salix::PropertyType type,
+    Salix::getter_func getter, Salix::setter_func setter = {}) {
+    Salix::Property property;
+    property.name = name;
+    property.type = type;
+    property.get_data = std::move(getter);
+    property.set_data = std::move(setter);
+    return property;
+}
+}
+
+TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7047") {
+    TEST_CASE("batch7047 property handle integer branch executes in bare ImGui frame") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Int7047",Salix::PropertyType::Int,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->integer;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Int7047",&h));
+        CHECK(e.integer==7047);
+    }
+
+    TEST_CASE("batch7047 property handle float branch executes in bare ImGui frame") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Float7047",Salix::PropertyType::Float,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->scalar;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Float7047",h));
+        CHECK(e.scalar==doctest::Approx(70.47f));
+    }
+
+    TEST_CASE("batch7047 property handle bool branch executes in bare ImGui frame") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Bool7047",Salix::PropertyType::Bool,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->flag;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Bool7047",h));
+        CHECK(e.flag);
+    }
+
+    TEST_CASE("batch7047 property handle string branch executes in bare ImGui frame") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("String7047",Salix::PropertyType::String,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->text;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("String7047",h));
+        CHECK(e.text=="Batch7047");
+    }
+
+    TEST_CASE("batch7047 property handle Vector2 branch executes in bare ImGui frame") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Vector27047",Salix::PropertyType::Vector2,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->vector2;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Vector27047",h));
+        CHECK(e.vector2==Salix::Vector2(7.0f,47.0f));
+    }
+
+    TEST_CASE("batch7047 property handle Vector3 branch executes in bare ImGui frame") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Vector37047",Salix::PropertyType::Vector3,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->vector3;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Vector37047",h));
+        CHECK(e.vector3==Salix::Vector3(7.0f,0.0f,47.0f));
+    }
+
+    TEST_CASE("batch7047 property handle color branch executes in bare ImGui frame") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Color7047",Salix::PropertyType::Color,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->color;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Color7047",h));
+        CHECK(e.color==Salix::Color(255.0f,128.0f,64.0f,255.0f));
+    }
+
+    TEST_CASE("batch7047 property handle matrix branch executes read only display") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Matrix7047",Salix::PropertyType::GlmMat4,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->matrix;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Matrix7047",h));
+        CHECK(e.matrix==glm::mat4(1.0f));
+    }
+
+    TEST_CASE("batch7047 property handle UInt64 reaches unsupported UI fallback safely") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("UInt7047",Salix::PropertyType::UInt64,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->identifier;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("UInt7047",h));
+        CHECK(e.identifier==7047u);
+    }
+
+    TEST_CASE("batch7047 property handle Point reaches unsupported UI fallback safely") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Point7047",Salix::PropertyType::Point,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->point;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Point7047",h));
+        CHECK((e.point==Salix::Point{70,47}));
+    }
+
+    TEST_CASE("batch7047 property handle Rect reaches unsupported UI fallback safely") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Rect7047",Salix::PropertyType::Rect,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->rect;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Rect7047",h));
+        CHECK(e.rect==Salix::Rect(7,0,4,7));
+    }
+
+    TEST_CASE("batch7047 property handle Class reaches generic unimplemented display") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Class7047",Salix::PropertyType::Class,
+            [](void*)->void*{return nullptr;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Class7047",h));
+    }
+
+    TEST_CASE("batch7047 property handle Struct reaches generic unimplemented display") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("Struct7047",Salix::PropertyType::Struct,
+            [](void*)->void*{return nullptr;});
+        Salix::PropertyHandleLive h(p,&e);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("Struct7047",h));
+    }
+
+    TEST_CASE("batch7047 repeated integer draw remains non mutating without user input") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("RepeatInt7047",Salix::PropertyType::Int,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->integer;});
+        Salix::PropertyHandleLive h(p,&e);
+        Salix::TypeDrawerLive::draw_property("RepeatInt7047A",h);
+        Salix::TypeDrawerLive::draw_property("RepeatInt7047B",h);
+        CHECK(e.integer==7047);
+    }
+
+    TEST_CASE("batch7047 repeated vector draw remains non mutating without user input") {
+        Batch6947DrawerFrame frame; Batch7047DrawerElement e;
+        auto p=batch7047_drawer_property("RepeatVector7047",Salix::PropertyType::Vector3,
+            [](void* x){return &static_cast<Batch7047DrawerElement*>(x)->vector3;});
+        Salix::PropertyHandleLive h(p,&e);
+        Salix::TypeDrawerLive::draw_property("RepeatVector7047A",h);
+        Salix::TypeDrawerLive::draw_property("RepeatVector7047B",h);
+        CHECK(e.vector3==Salix::Vector3(7.0f,0.0f,47.0f));
+    }
+}
