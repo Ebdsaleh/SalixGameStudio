@@ -156,3 +156,81 @@ TEST_SUITE("Salix::input::InputCodesBatch2047") {
         CHECK(static_cast<Salix::MouseScroll>(static_cast<ScrollU>(Salix::MouseScroll::Forward)) == Salix::MouseScroll::Forward);
     }
 }
+
+TEST_SUITE("Salix::input::InputCodesBatch6347") {
+    TEST_CASE("batch6347 numeric key identifiers remain ten unique values") {
+        const std::array<Salix::KeyCode, 10> keys{
+            Salix::KeyCode::Alpha0, Salix::KeyCode::Alpha1, Salix::KeyCode::Alpha2,
+            Salix::KeyCode::Alpha3, Salix::KeyCode::Alpha4, Salix::KeyCode::Alpha5,
+            Salix::KeyCode::Alpha6, Salix::KeyCode::Alpha7, Salix::KeyCode::Alpha8,
+            Salix::KeyCode::Alpha9
+        };
+        CHECK(std::set<Salix::KeyCode>(keys.begin(), keys.end()).size() == 10);
+    }
+
+    TEST_CASE("batch6347 function key identifiers remain twelve unique values") {
+        const std::array<Salix::KeyCode, 12> keys{
+            Salix::KeyCode::F1, Salix::KeyCode::F2, Salix::KeyCode::F3, Salix::KeyCode::F4,
+            Salix::KeyCode::F5, Salix::KeyCode::F6, Salix::KeyCode::F7, Salix::KeyCode::F8,
+            Salix::KeyCode::F9, Salix::KeyCode::F10, Salix::KeyCode::F11, Salix::KeyCode::F12
+        };
+        CHECK(std::set<Salix::KeyCode>(keys.begin(), keys.end()).size() == 12);
+    }
+
+    TEST_CASE("batch6347 modifier key identifiers remain six unique values") {
+        const std::array<Salix::KeyCode, 6> keys{
+            Salix::KeyCode::LeftShift, Salix::KeyCode::LeftControl, Salix::KeyCode::LeftAlt,
+            Salix::KeyCode::RightShift, Salix::KeyCode::RightControl, Salix::KeyCode::RightAlt
+        };
+        CHECK(std::set<Salix::KeyCode>(keys.begin(), keys.end()).size() == 6);
+    }
+
+    TEST_CASE("batch6347 arrow key identifiers remain four unique values") {
+        const std::array<Salix::KeyCode, 4> keys{
+            Salix::KeyCode::Up, Salix::KeyCode::Down, Salix::KeyCode::Left, Salix::KeyCode::Right
+        };
+        CHECK(std::set<Salix::KeyCode>(keys.begin(), keys.end()).size() == 4);
+    }
+
+    TEST_CASE("batch6347 GUI and menu keys remain distinct") {
+        CHECK(Salix::KeyCode::LeftGui != Salix::KeyCode::RightGui);
+        CHECK(Salix::KeyCode::LeftGui != Salix::KeyCode::ContextMenu);
+        CHECK(Salix::KeyCode::ContextMenu != Salix::KeyCode::PrintScreen);
+    }
+
+    TEST_CASE("batch6347 mouse button underlying values remain zero through three") {
+        CHECK(static_cast<int>(Salix::MouseButton::None) == 0);
+        CHECK(static_cast<int>(Salix::MouseButton::Left) == 1);
+        CHECK(static_cast<int>(Salix::MouseButton::Middle) == 2);
+        CHECK(static_cast<int>(Salix::MouseButton::Right) == 3);
+    }
+
+    TEST_CASE("batch6347 mouse scroll underlying values remain zero through two") {
+        CHECK(static_cast<int>(Salix::MouseScroll::None) == 0);
+        CHECK(static_cast<int>(Salix::MouseScroll::Forward) == 1);
+        CHECK(static_cast<int>(Salix::MouseScroll::Backward) == 2);
+    }
+
+    TEST_CASE("batch6347 copied key array preserves exact ordering") {
+        const std::array<Salix::KeyCode, 4> original{
+            Salix::KeyCode::Escape, Salix::KeyCode::Enter, Salix::KeyCode::Space, Salix::KeyCode::Tab
+        };
+        const auto copy = original;
+        CHECK(copy == original);
+    }
+
+    TEST_CASE("batch6347 map replacement for one key leaves unrelated key untouched") {
+        std::map<Salix::KeyCode, std::string> labels;
+        labels[Salix::KeyCode::A] = "old";
+        labels[Salix::KeyCode::B] = "bee";
+        labels[Salix::KeyCode::A] = "aye";
+        CHECK(labels.at(Salix::KeyCode::A) == "aye");
+        CHECK(labels.at(Salix::KeyCode::B) == "bee");
+    }
+
+    TEST_CASE("batch6347 all input domains retain integral underlying representations") {
+        CHECK((std::is_integral_v<std::underlying_type_t<Salix::KeyCode>>));
+        CHECK((std::is_integral_v<std::underlying_type_t<Salix::MouseButton>>));
+        CHECK((std::is_integral_v<std::underlying_type_t<Salix::MouseScroll>>));
+    }
+}
