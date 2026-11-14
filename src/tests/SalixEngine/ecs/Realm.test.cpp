@@ -1509,7 +1509,7 @@ TEST_SUITE("Salix::ecs::RealmBatch7047") {
 
     TEST_CASE("batch7047 hidden entity is skipped by realm render dispatch") {
         Salix::Realm realm; auto* entity=realm.create_entity("Hidden7047"); REQUIRE(entity!=nullptr);
-        entity->set_visibility(false); CHECK_NOTHROW(realm.render(nullptr)); CHECK_FALSE(entity->is_visible());
+        entity->set_visible(false); CHECK_NOTHROW(realm.render(nullptr)); CHECK_FALSE(entity->is_visible());
     }
 
     TEST_CASE("batch7047 purged entity is skipped by realm render dispatch") {
@@ -1520,7 +1520,7 @@ TEST_SUITE("Salix::ecs::RealmBatch7047") {
     TEST_CASE("batch7047 mixed visible hidden and purged entities render safely") {
         Salix::Realm realm; auto* visible=realm.create_entity("V7047"); auto* hidden=realm.create_entity("H7047"); auto* purged=realm.create_entity("P7047");
         REQUIRE(visible!=nullptr); REQUIRE(hidden!=nullptr); REQUIRE(purged!=nullptr);
-        hidden->set_visibility(false); purged->purge(); CHECK_NOTHROW(realm.render(nullptr));
+        hidden->set_visible(false); purged->purge(); CHECK_NOTHROW(realm.render(nullptr));
         CHECK(realm.get_entities().size()==3);
     }
 
