@@ -846,3 +846,142 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch5647") {
     }
 }
 
+#include <Salix/input/ImGuiInputManager.h>
+#include <Salix/gui/imgui/ImGuiThemeData.h>
+#include <Tests/SalixEngine/mocking/gui/MockIGui.h>
+#include <Tests/SalixEngine/mocking/gui/MockIFontManager.h>
+#include <Tests/SalixEngine/mocking/gui/MockIIconManager.h>
+#include <imgui.h>
+
+namespace {
+struct Batch6947ThemeManagerContext {
+    ImGuiContext* previous_test = ImGui::GetCurrentContext();
+    ImGuiContext* previous_engine = Salix::ImGuiInputManager::get_context_for_testing();
+    ImGuiContext* owned = ImGui::CreateContext();
+    Batch6947ThemeManagerContext() {
+        ImGui::SetCurrentContext(owned);
+        Salix::ImGuiInputManager::set_context_for_testing(owned);
+    }
+    ~Batch6947ThemeManagerContext() {
+        Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
+        ImGui::DestroyContext(owned);
+        ImGui::SetCurrentContext(previous_test);
+    }
+};
+}
+
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch6947") {
+    TEST_CASE("batch6947 successful initialization captures GUI and icon manager") {
+        Batch6947ThemeManagerContext context;
+        MockIIconManager icons;
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, &icons);
+        Salix::ImGuiThemeManager manager;
+        CHECK(manager.initialize(&gui));
+        CHECK(manager.get_active_theme() == nullptr);
+    }
+
+    TEST_CASE("batch6947 positive style scale executes ImGui scaling path") {
+        Batch6947ThemeManagerContext context;
+        Salix::ImGuiThemeManager manager;
+        const float before = ImGui::GetStyle().WindowPadding.x;
+        manager.apply_style_scale(1.25f);
+        CHECK(ImGui::GetStyle().WindowPadding.x == doctest::Approx(before * 1.25f));
+        manager.apply_style_scale(1.0f);
+        CHECK(ImGui::GetStyle().WindowPadding.x == doctest::Approx(before));
+    }
+
+    TEST_CASE("batch6947 apply missing theme after initialization returns false") {
+        Batch6947ThemeManagerContext context;
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.initialize(&gui));
+        CHECK_FALSE(manager.apply_theme("Missing6947"));
+    }
+
+    TEST_CASE("batch6947 apply registered mock theme delegates and selects active theme") {
+        Batch6947ThemeManagerContext context;
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.initialize(&gui));
+        auto theme = std::make_unique<MockITheme>("MockApply6947");
+        MockITheme* raw = theme.get();
+        REQUIRE(manager.register_theme(std::move(theme)));
+        REQUIRE(manager.apply_theme("MockApply6947"));
+        CHECK(raw->apply_count == 1);
+        CHECK(manager.get_active_theme() == raw);
+    }
+
+    TEST_CASE("batch6947 actual ImGui theme apply propagates icon paths to icon manager") {
+        Batch6947ThemeManagerContext context;
+        MockIFontManager fonts;
+        MockIIconManager icons;
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, &fonts, &icons);
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.initialize(&gui));
+        auto theme = std::make_unique<Salix::ImGuiTheme>("IconApply6947");
+        theme->get_data()->icon_paths["Entity"] = "icons/entity6947.png";
+        REQUIRE(manager.register_theme(std::move(theme)));
+        REQUIRE(manager.apply_theme("IconApply6947"));
+        CHECK(icons.update_calls == 1);
+        CHECK(icons.last_update_name == "Entity");
+        CHECK(icons.last_update_path == "icons/entity6947.png");
+    }
+
+    TEST_CASE("batch6947 internal loader can apply valid loaded theme immediately") {
+        Batch6947ThemeManagerContext context;
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "apply6947.theme";
+        { std::ofstream out(file); out << "name: InternalApply6947\ngui_type: ImGui\n"; }
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.initialize(&gui));
+        REQUIRE(manager.load_internal_theme_from_file(file.string(), true));
+        REQUIRE(manager.get_active_theme() != nullptr);
+        CHECK(manager.get_active_theme()->get_name() == "InternalApply6947");
+    }
+
+    TEST_CASE("batch6947 named loader can apply valid loaded theme immediately") {
+        Batch6947ThemeManagerContext context;
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "named_apply6947.theme";
+        { std::ofstream out(file); out << "name: FileNameIgnored6947\ngui_type: ImGui\n"; }
+        MockIGui gui;
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.initialize(&gui));
+        REQUIRE(manager.load_theme_from_file("NamedApply6947", file.string(), true));
+        REQUIRE(manager.get_active_theme() != nullptr);
+        CHECK(manager.get_active_theme()->get_name() == "NamedApply6947");
+    }
+
+    TEST_CASE("batch6947 internal loader rejects existing malformed YAML") {
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "malformed_internal6947.theme";
+        { std::ofstream out(file); out << "Style: [unterminated\n"; }
+        Salix::ImGuiThemeManager manager;
+        CHECK_FALSE(manager.load_internal_theme_from_file(file.string(), false));
+        CHECK(manager.get_registered_themes().empty());
+    }
+
+    TEST_CASE("batch6947 named loader rejects existing malformed YAML") {
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "malformed_named6947.theme";
+        { std::ofstream out(file); out << "Colors: [unterminated\n"; }
+        Salix::ImGuiThemeManager manager;
+        CHECK_FALSE(manager.load_theme_from_file("Malformed6947", file.string(), false));
+        CHECK(manager.get_theme("Malformed6947") == nullptr);
+    }
+
+    TEST_CASE("batch6947 saving actual ImGui theme to directory path reports delegated failure") {
+        Batch1947ThemeDirectory directory;
+        Salix::ImGuiThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<Salix::ImGuiTheme>("SaveFail6947")));
+        CHECK_FALSE(manager.save_theme_to_file("SaveFail6947", directory.path.string()));
+        CHECK(manager.get_theme("SaveFail6947") != nullptr);
+    }
+}
