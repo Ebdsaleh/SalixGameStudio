@@ -96,3 +96,96 @@ TEST_SUITE("Salix::input::IInputBatch1347") {
         CHECK(input->is_up(Salix::InputType::Keycode));
     }
 }
+
+TEST_SUITE("Salix::input::IInputBatch6647") {
+    TEST_CASE("batch6647 each single input query records requested type") {
+        MockIInput input;
+        input.is_down(Salix::InputType::Button);
+        CHECK(input.last_single_input == Salix::InputType::Button);
+        input.is_held_down(Salix::InputType::Axis);
+        CHECK(input.last_single_input == Salix::InputType::Axis);
+        input.is_up(Salix::InputType::Point);
+        CHECK(input.last_single_input == Salix::InputType::Point);
+    }
+
+    TEST_CASE("batch6647 negative held duration is transported exactly") {
+        MockIInput input;
+        input.held_for_result = true;
+        CHECK(input.is_held_down_for(Salix::InputType::Keycode, -6647));
+        CHECK(input.last_duration == -6647);
+    }
+
+    TEST_CASE("batch6647 zero held duration is transported exactly") {
+        MockIInput input;
+        input.held_for_result = true;
+        CHECK(input.is_held_down_for(Salix::InputType::Button, 0));
+        CHECK(input.last_duration == 0);
+    }
+
+    TEST_CASE("batch6647 empty multiple down vector is forwarded unchanged") {
+        MockIInput input;
+        input.multiple_down_result = true;
+        CHECK(input.multiple_are_down({}));
+        CHECK(input.last_multiple_inputs.empty());
+    }
+
+    TEST_CASE("batch6647 multiple held vector preserves duplicate entries and order") {
+        MockIInput input;
+        input.multiple_held_result = true;
+        CHECK(input.multiple_are_held_down({
+            Salix::InputType::Axis, Salix::InputType::Axis, Salix::InputType::Button}));
+        REQUIRE(input.last_multiple_inputs.size() == 3);
+        CHECK(input.last_multiple_inputs[0] == Salix::InputType::Axis);
+        CHECK(input.last_multiple_inputs[1] == Salix::InputType::Axis);
+        CHECK(input.last_multiple_inputs[2] == Salix::InputType::Button);
+    }
+
+    TEST_CASE("batch6647 multiple held duration records vector and negative duration") {
+        MockIInput input;
+        input.multiple_held_for_result = true;
+        CHECK(input.multiple_are_held_down_for(
+            {Salix::InputType::Keycode, Salix::InputType::Point}, -47));
+        CHECK(input.last_duration == -47);
+        REQUIRE(input.last_multiple_inputs.size() == 2);
+    }
+
+    TEST_CASE("batch6647 multiple just released result is independent from released result") {
+        MockIInput input;
+        input.multiple_just_released_result = false;
+        input.multiple_released_result = true;
+        CHECK_FALSE(input.multiple_were_just_released({Salix::InputType::Button}));
+        CHECK(input.multiple_were_released({Salix::InputType::Button}));
+    }
+
+    TEST_CASE("batch6647 multiple up result can be controlled independently") {
+        MockIInput input;
+        input.multiple_up_result = false;
+        CHECK_FALSE(input.multiple_are_up({Salix::InputType::Keycode}));
+        input.multiple_up_result = true;
+        CHECK(input.multiple_are_up({Salix::InputType::Keycode}));
+    }
+
+    TEST_CASE("batch6647 single query results may all be configured true simultaneously") {
+        MockIInput input;
+        input.down_result = true;
+        input.held_result = true;
+        input.just_released_result = true;
+        input.released_result = true;
+        input.up_result = true;
+        CHECK(input.is_down(Salix::InputType::Keycode));
+        CHECK(input.is_held_down(Salix::InputType::Keycode));
+        CHECK(input.was_just_released(Salix::InputType::Keycode));
+        CHECK(input.was_released(Salix::InputType::Keycode));
+        CHECK(input.is_up(Salix::InputType::Keycode));
+    }
+
+    TEST_CASE("batch6647 polymorphic input reflects later mock result changes") {
+        auto concrete = std::make_unique<MockIInput>();
+        std::unique_ptr<Salix::IInput> input = std::move(concrete);
+        CHECK_FALSE(input->is_down(Salix::InputType::Keycode));
+        auto* mock = dynamic_cast<MockIInput*>(input.get());
+        REQUIRE(mock != nullptr);
+        mock->down_result = true;
+        CHECK(input->is_down(Salix::InputType::Keycode));
+    }
+}
