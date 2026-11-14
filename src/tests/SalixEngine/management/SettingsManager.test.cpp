@@ -3,6 +3,7 @@
 #include <doctest.h>
 #include <Salix/management/SettingsManager.h>
 #include <Salix/core/ApplicationConfig.h>
+#include <Salix/management/FileManager.h>
 #include <fstream>
 #include <filesystem>
 #include <iostream>
