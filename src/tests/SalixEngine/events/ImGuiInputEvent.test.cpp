@@ -160,3 +160,93 @@ TEST_SUITE("Salix::events::ImGuiInputEventBatch1847") {
         CHECK_FALSE(clone->should_block());
     }
 }
+
+TEST_SUITE("Salix::events::ImGuiInputEventBatch6547") {
+    TEST_CASE("batch6547 all four capture combinations preserve exact input category") {
+        const Salix::ImGuiInputEvent a(false, false);
+        const Salix::ImGuiInputEvent b(true, false);
+        const Salix::ImGuiInputEvent c(false, true);
+        const Salix::ImGuiInputEvent d(true, true);
+        CHECK(a.get_category_flags() == static_cast<int>(Salix::EventCategory::Input));
+        CHECK(b.get_category_flags() == static_cast<int>(Salix::EventCategory::Input));
+        CHECK(c.get_category_flags() == static_cast<int>(Salix::EventCategory::Input));
+        CHECK(d.get_category_flags() == static_cast<int>(Salix::EventCategory::Input));
+    }
+
+    TEST_CASE("batch6547 mouse only capture survives copy construction") {
+        const Salix::ImGuiInputEvent source(true, false);
+        const Salix::ImGuiInputEvent copy(source);
+        CHECK(copy.is_mouse_captured());
+        CHECK_FALSE(copy.is_keyboard_captured());
+    }
+
+    TEST_CASE("batch6547 keyboard only capture survives copy construction") {
+        const Salix::ImGuiInputEvent source(false, true);
+        const Salix::ImGuiInputEvent copy(source);
+        CHECK_FALSE(copy.is_mouse_captured());
+        CHECK(copy.is_keyboard_captured());
+    }
+
+    TEST_CASE("batch6547 copy assignment replaces capture flags and handled state") {
+        Salix::ImGuiInputEvent source(true, true);
+        source.handled = true;
+        Salix::ImGuiInputEvent destination(false, false);
+        destination = source;
+        CHECK(destination.is_mouse_captured());
+        CHECK(destination.is_keyboard_captured());
+        CHECK(destination.handled);
+    }
+
+    TEST_CASE("batch6547 self assignment preserves capture flags and handled state") {
+        Salix::ImGuiInputEvent event(true, false);
+        event.handled = true;
+        event = event;
+        CHECK(event.is_mouse_captured());
+        CHECK_FALSE(event.is_keyboard_captured());
+        CHECK(event.handled);
+    }
+
+    TEST_CASE("batch6547 clone type metadata remains ImGuiInput") {
+        Salix::ImGuiInputEvent source(false, true);
+        auto clone = source.clone();
+        REQUIRE(clone != nullptr);
+        CHECK(clone->get_event_type() == Salix::EventType::ImGuiInput);
+        CHECK(std::string(clone->get_name()) == "ImGuiInput");
+    }
+
+    TEST_CASE("batch6547 clone capture flags are independent from clone handled mutation") {
+        Salix::ImGuiInputEvent source(true, true);
+        auto clone = source.clone();
+        REQUIRE(clone != nullptr);
+        clone->handled = true;
+        auto* concrete = dynamic_cast<Salix::ImGuiInputEvent*>(clone.get());
+        REQUIRE(concrete != nullptr);
+        CHECK(concrete->is_mouse_captured());
+        CHECK(concrete->is_keyboard_captured());
+        CHECK_FALSE(source.handled);
+    }
+
+    TEST_CASE("batch6547 base interface classification remains input only") {
+        Salix::ImGuiInputEvent concrete(true, true);
+        Salix::IEvent& event = concrete;
+        CHECK(event.is_input_event());
+        CHECK_FALSE(event.is_application_event());
+        CHECK_FALSE(event.is_keyboard_event());
+        CHECK_FALSE(event.is_mouse_event());
+        CHECK_FALSE(event.is_mouse_button_event());
+    }
+
+    TEST_CASE("batch6547 native handle remains null for every capture combination") {
+        Salix::ImGuiInputEvent none(false, false);
+        Salix::ImGuiInputEvent both(true, true);
+        CHECK(none.get_native_handle() == nullptr);
+        CHECK(both.get_native_handle() == nullptr);
+    }
+
+    TEST_CASE("batch6547 handled mutation never changes string representation") {
+        Salix::ImGuiInputEvent event(true, false);
+        const auto before = event.to_string();
+        event.handled = true;
+        CHECK(event.to_string() == before);
+    }
+}
