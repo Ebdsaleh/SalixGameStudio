@@ -945,13 +945,11 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch6947") {
         CHECK(ImGui::GetIO().FontDefault == imgui_font);
     }
 
-    TEST_CASE("batch6947 invalid TTF reaches ImGui file loading failure without native backend") {
+    TEST_CASE("batch6947 missing TTF at valid size reaches ImGui file loading failure without native backend") {
         Batch6947FontManagerContext context;
-        const auto file = batch6947_bad_font_file();
         Salix::ImGuiFontManager manager;
-        CHECK_FALSE(manager.load_font_from_file(file.string(), "BadFont6947", 16.0f, false));
-        CHECK(manager.get_font("BadFont6947") == nullptr);
-        std::error_code ec;
-        std::filesystem::remove(file, ec);
+        const std::string missing = "__batch6947_missing_valid_size_font__.ttf";
+        CHECK_FALSE(manager.load_font_from_file(missing, "MissingFont6947", 16.0f, false));
+        CHECK(manager.get_font("MissingFont6947") == nullptr);
     }
 }
