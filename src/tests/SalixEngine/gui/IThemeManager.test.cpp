@@ -115,3 +115,94 @@ TEST_SUITE("Salix::gui::IThemeManagerBatch1447") {
         CHECK(manager.get_active_theme() == nullptr);
     }
 }
+
+TEST_SUITE("Salix::gui::IThemeManagerBatch6647") {
+    TEST_CASE("batch6647 null theme registration is rejected without changing registry") {
+        MockIThemeManager manager;
+        CHECK_FALSE(manager.register_theme(nullptr));
+        CHECK(manager.get_registered_themes().empty());
+    }
+
+    TEST_CASE("batch6647 missing unregister preserves all registered themes") {
+        MockIThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Keep6647")));
+        CHECK_FALSE(manager.unregister_theme("Missing6647"));
+        REQUIRE(manager.get_registered_themes().size() == 1);
+        CHECK(manager.get_theme("Keep6647") != nullptr);
+    }
+
+    TEST_CASE("batch6647 failed active selection preserves current active theme") {
+        MockIThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Active6647")));
+        REQUIRE(manager.set_active_theme("Active6647"));
+        Salix::ITheme* active = manager.get_active_theme();
+        REQUIRE(active != nullptr);
+        CHECK_FALSE(manager.set_active_theme("Missing6647"));
+        CHECK(manager.get_active_theme() == active);
+    }
+
+    TEST_CASE("batch6647 failed purge preserves current active theme") {
+        MockIThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Active6647")));
+        REQUIRE(manager.set_active_theme("Active6647"));
+        Salix::ITheme* active = manager.get_active_theme();
+        CHECK_FALSE(manager.purge_theme("Missing6647"));
+        CHECK(manager.get_active_theme() == active);
+    }
+
+    TEST_CASE("batch6647 duplicate theme registration preserves original object") {
+        MockIThemeManager manager;
+        auto original = std::make_unique<MockITheme>("Dup6647", "original6647.yaml");
+        MockITheme* raw = original.get();
+        REQUIRE(manager.register_theme(std::move(original)));
+        CHECK_FALSE(manager.register_theme(std::make_unique<MockITheme>("Dup6647", "replacement6647.yaml")));
+        CHECK(manager.get_theme("Dup6647") == raw);
+        CHECK(manager.get_theme("Dup6647")->get_file_path() == "original6647.yaml");
+    }
+
+    TEST_CASE("batch6647 controlled file load failure still records complete request") {
+        MockIThemeManager manager;
+        manager.load_file_result = false;
+        CHECK_FALSE(manager.load_theme_from_file("Theme6647", "missing6647.yaml", true));
+        CHECK(manager.load_file_calls == 1);
+        CHECK(manager.last_theme_name == "Theme6647");
+        CHECK(manager.last_theme_path == "missing6647.yaml");
+        CHECK(manager.last_apply_immediately);
+    }
+
+    TEST_CASE("batch6647 controlled directory load failure records directory") {
+        MockIThemeManager manager;
+        manager.load_directory_result = false;
+        CHECK_FALSE(manager.load_themes_from_directory("Themes/6647"));
+        CHECK(manager.load_directory_calls == 1);
+        CHECK(manager.last_directory == "Themes/6647");
+    }
+
+    TEST_CASE("batch6647 controlled save failure records theme and destination") {
+        MockIThemeManager manager;
+        manager.save_file_result = false;
+        CHECK_FALSE(manager.save_theme_to_file("Theme6647", "readonly6647.yaml"));
+        CHECK(manager.save_file_calls == 1);
+        CHECK(manager.last_save_theme_name == "Theme6647");
+        CHECK(manager.last_save_path == "readonly6647.yaml");
+    }
+
+    TEST_CASE("batch6647 repeated style scaling keeps latest value and count") {
+        MockIThemeManager manager;
+        manager.apply_style_scale(1.25f);
+        manager.apply_style_scale(-6.647f);
+        CHECK(manager.style_scale_calls == 2);
+        CHECK(manager.last_style_scale == doctest::Approx(-6.647f));
+    }
+
+    TEST_CASE("batch6647 repeated shutdown safely clears registry and active state") {
+        MockIThemeManager manager;
+        REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Disposable6647")));
+        REQUIRE(manager.set_active_theme("Disposable6647"));
+        manager.shutdown();
+        manager.shutdown();
+        CHECK(manager.shutdown_calls == 2);
+        CHECK(manager.get_registered_themes().empty());
+        CHECK(manager.get_active_theme() == nullptr);
+    }
+}
