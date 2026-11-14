@@ -1300,3 +1300,69 @@ TEST_SUITE("Salix::core::ValidationUtilsBatch6247") {
             (std::numeric_limits<std::uint64_t>::max)()));
     }
 }
+
+TEST_SUITE("Salix::core::ValidationUtilsBatch6847") {
+    TEST_CASE("batch6847 strict string validation accepts mixed whitespace with visible text") {
+        CHECK(Salix::ValidationUtils::is_valid_string(" \tBatch6847\n "));
+        CHECK(Salix::ValidationUtils::is_valid_string("0"));
+    }
+
+    TEST_CASE("batch6847 allow whitespace accepts every supported whitespace character") {
+        CHECK(Salix::ValidationUtils::is_valid_string(" \t\n\v\f\r", false, true));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_string(" \t\n\v\f\r", false, false));
+    }
+
+    TEST_CASE("batch6847 C string validator considers empty nonnull buffer valid") {
+        const char empty[] = "";
+        CHECK(Salix::ValidationUtils::is_valid_c_str(empty));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_c_str(nullptr));
+    }
+
+    TEST_CASE("batch6847 primary signed int policy rejects minimum maximum and negative one") {
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::min)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int((std::numeric_limits<int>::max)()));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int(-1));
+        CHECK(Salix::ValidationUtils::is_valid_int(0));
+    }
+
+    TEST_CASE("batch6847 least signed validators accept zero and reject negatives") {
+        CHECK(Salix::ValidationUtils::is_valid_intleast8_t(static_cast<int_least8_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast8_t(static_cast<int_least8_t>(-1)));
+        CHECK(Salix::ValidationUtils::is_valid_intleast32_t(static_cast<int_least32_t>(6847)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_intleast64_t(static_cast<int_least64_t>(-6847)));
+    }
+
+    TEST_CASE("batch6847 least unsigned validators reserve maximum sentinel") {
+        CHECK(Salix::ValidationUtils::is_valid_uint_least16_t(static_cast<uint_least16_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_least16_t(
+            (std::numeric_limits<uint_least16_t>::max)()));
+        CHECK(Salix::ValidationUtils::is_valid_uint_least64_t(
+            (std::numeric_limits<uint_least64_t>::max)() - 1));
+    }
+
+    TEST_CASE("batch6847 fast signed validators apply nonnegative policy") {
+        CHECK(Salix::ValidationUtils::is_valid_int_fast8_t(static_cast<int_fast8_t>(68)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_int_fast8_t(static_cast<int_fast8_t>(-1)));
+        CHECK(Salix::ValidationUtils::is_valid_int_fast64_t(static_cast<int_fast64_t>(6847)));
+    }
+
+    TEST_CASE("batch6847 fast unsigned validators accept zero but reserve maximum") {
+        CHECK(Salix::ValidationUtils::is_valid_uint_fast32_t(static_cast<uint_fast32_t>(0)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_uint_fast32_t(
+            (std::numeric_limits<uint_fast32_t>::max)()));
+    }
+
+    TEST_CASE("batch6847 named floating validators accept signed zero and denormals") {
+        CHECK(Salix::ValidationUtils::is_valid_float(-0.0f));
+        CHECK(Salix::ValidationUtils::is_valid_double((std::numeric_limits<double>::denorm_min)()));
+        CHECK(Salix::ValidationUtils::is_valid_long_double(
+            (std::numeric_limits<long double>::denorm_min)()));
+    }
+
+    TEST_CASE("batch6847 long double complex validator requires both finite channels") {
+        CHECK(Salix::ValidationUtils::is_valid_complex_long_double(
+            std::complex<long double>(6.847L, -7.486L)));
+        CHECK_FALSE(Salix::ValidationUtils::is_valid_complex_long_double(
+            std::complex<long double>((std::numeric_limits<long double>::infinity)(), 0.0L)));
+    }
+}
