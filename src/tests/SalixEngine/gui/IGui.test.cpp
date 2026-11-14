@@ -141,3 +141,102 @@ TEST_SUITE("Salix::gui::IGuiBatch1447") {
         CHECK(interface_ptr->get_context() == nullptr);
     }
 }
+
+TEST_SUITE("Salix::gui::IGuiBatch6647") {
+    TEST_CASE("batch6647 fresh GUI begins with all service pointers null") {
+        MockIGui gui;
+        CHECK(gui.get_window() == nullptr);
+        CHECK(gui.get_renderer() == nullptr);
+        CHECK(gui.get_theme_manager() == nullptr);
+        CHECK(gui.get_font_manager() == nullptr);
+        CHECK(gui.get_icon_manager() == nullptr);
+    }
+
+    TEST_CASE("batch6647 initialization with all null services remains observable") {
+        MockIGui gui;
+        CHECK(gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr));
+        CHECK(gui.initialize_calls == 1);
+        CHECK(gui.get_window() == nullptr);
+        CHECK(gui.get_renderer() == nullptr);
+    }
+
+    TEST_CASE("batch6647 repeated initialization replaces previously stored service pointers") {
+        MockIGui gui;
+        MockIWindow first_window;
+        MockIWindow second_window;
+        REQUIRE(gui.initialize(&first_window, nullptr, nullptr, nullptr, nullptr));
+        REQUIRE(gui.initialize(&second_window, nullptr, nullptr, nullptr, nullptr));
+        CHECK(gui.initialize_calls == 2);
+        CHECK(gui.get_window() == &second_window);
+    }
+
+    TEST_CASE("batch6647 cursor visibility toggles are counted independently") {
+        MockIGui gui;
+        gui.set_mouse_cursor_visible(false);
+        gui.set_mouse_cursor_visible(true);
+        CHECK(gui.mouse_cursor_visible);
+        CHECK(gui.mouse_cursor_calls == 2);
+    }
+
+    TEST_CASE("batch6647 empty layout paths are transported verbatim") {
+        MockIGui gui;
+        gui.save_layout("");
+        gui.load_layout("");
+        CHECK(gui.last_saved_layout.empty());
+        CHECK(gui.last_loaded_layout.empty());
+        CHECK(gui.save_layout_calls == 1);
+        CHECK(gui.load_layout_calls == 1);
+    }
+
+    TEST_CASE("batch6647 controlled save dialog failure still records all arguments") {
+        MockIGui gui;
+        gui.dialog_open_result = false;
+        CHECK_FALSE(gui.open_save_file_dialog(
+            "Save6647", "Save 6647", ".realm", "Root6647", "Main6647.realm"));
+        CHECK(gui.open_save_calls == 1);
+        CHECK(gui.last_dialog_key == "Save6647");
+        CHECK(gui.last_dialog_title == "Save 6647");
+        CHECK(gui.last_dialog_filters == ".realm");
+        CHECK(gui.last_dialog_path == "Root6647");
+        CHECK(gui.last_dialog_filename == "Main6647.realm");
+    }
+
+    TEST_CASE("batch6647 closed this frame query is keyed to last dialog identity") {
+        MockIGui gui;
+        gui.last_dialog_key = "Dialog6647";
+        gui.dialog_closed_this_frame = true;
+        CHECK(gui.is_dialog_closed_this_frame("Dialog6647"));
+        CHECK_FALSE(gui.is_dialog_closed_this_frame("Other6647"));
+    }
+
+    TEST_CASE("batch6647 populate result returns configured snapshot and records key") {
+        MockIGui gui;
+        gui.dialog_result.is_ok = true;
+        gui.dialog_result.file_name = "Picked6647.realm";
+        const auto result = gui.populate_dialog_result("Populate6647");
+        CHECK(gui.populate_result_calls == 1);
+        CHECK(gui.last_dialog_key == "Populate6647");
+        CHECK(result.is_ok);
+        CHECK(result.file_name == "Picked6647.realm");
+    }
+
+    TEST_CASE("batch6647 create dialog records type and overwrite request even when returning null") {
+        MockIGui gui;
+        std::string key = "Create6647";
+        std::string title = "Create Dialog 6647";
+        CHECK(gui.create_dialog(key, title, Salix::DialogType::Confirm, true) == nullptr);
+        CHECK(gui.create_dialog_calls == 1);
+        CHECK(gui.last_dialog_key == "Create6647");
+        CHECK(gui.last_dialog_title == "Create Dialog 6647");
+        CHECK(gui.last_dialog_type == Salix::DialogType::Confirm);
+        CHECK(gui.last_dialog_overwrite);
+    }
+
+    TEST_CASE("batch6647 null raw input is transported and controlled result is honored") {
+        MockIGui gui;
+        gui.raw_input_result = true;
+        CHECK(gui.process_raw_input_event(nullptr));
+        CHECK(gui.raw_input_calls == 1);
+        CHECK(gui.last_native_event == nullptr);
+    }
+}
