@@ -209,3 +209,93 @@ TEST_SUITE("Salix::serialization::YamlConvertersBatch1847") {
         CHECK(std::holds_alternative<int>(value)); CHECK(std::get<int>(value)==0);
     }
 }
+
+TEST_SUITE("Salix::serialization::YamlConvertersBatch6747") {
+    TEST_CASE("batch6747 Vector3 encode exposes exactly x y and z keys") {
+        const auto node = YAML::convert<Salix::Vector3>::encode(Salix::Vector3(-6.0f, 7.0f, 4.0f));
+        CHECK(node.IsMap());
+        CHECK(node.size() == 3);
+        CHECK(node["x"].as<float>() == doctest::Approx(-6.0f));
+        CHECK(node["y"].as<float>() == doctest::Approx(7.0f));
+        CHECK(node["z"].as<float>() == doctest::Approx(4.0f));
+    }
+
+    TEST_CASE("batch6747 Color decoder rejects non map without mutating destination") {
+        Salix::Color value(0.1f, 0.2f, 0.3f, 0.4f);
+        YAML::Node node(YAML::NodeType::Sequence);
+        node.push_back(1.0f);
+        CHECK_FALSE(YAML::convert<Salix::Color>::decode(node, value));
+        CHECK(value == Salix::Color(0.1f, 0.2f, 0.3f, 0.4f));
+    }
+
+    TEST_CASE("batch6747 Point decoder rejects extra map member without mutation") {
+        Salix::Point value{6, 7};
+        YAML::Node node;
+        node["x"] = 1;
+        node["y"] = 2;
+        node["extra"] = 3;
+        CHECK_FALSE(YAML::convert<Salix::Point>::decode(node, value));
+        CHECK((value == Salix::Point{6, 7}));
+    }
+
+    TEST_CASE("batch6747 Rect decoder rejects non map without mutation") {
+        Salix::Rect value(6, 7, 4, 7);
+        YAML::Node node(YAML::NodeType::Sequence);
+        node.push_back(1);
+        CHECK_FALSE(YAML::convert<Salix::Rect>::decode(node, value));
+        CHECK(value == Salix::Rect(6, 7, 4, 7));
+    }
+
+    TEST_CASE("batch6747 matrix decoder rejects wrong outer sequence length") {
+        YAML::Node node(YAML::NodeType::Sequence);
+        node.push_back(std::vector<float>{1, 0, 0, 0});
+        node.push_back(std::vector<float>{0, 1, 0, 0});
+        node.push_back(std::vector<float>{0, 0, 1, 0});
+        glm::mat4 value(1.0f);
+        CHECK_FALSE(YAML::convert<glm::mat4>::decode(node, value));
+    }
+
+    TEST_CASE("batch6747 property value conversion preserves empty string alternative") {
+        const Salix::PropertyValue value{std::string{}};
+        const YAML::Node node = YAML::property_value_to_node(value);
+        CHECK(node.IsScalar());
+        CHECK(node.as<std::string>().empty());
+    }
+
+    TEST_CASE("batch6747 node to property value restores Vector3 alternative") {
+        Salix::Property property;
+        property.type = Salix::PropertyType::Vector3;
+        YAML::Node node;
+        node["x"] = -6.747f;
+        node["y"] = 0.0f;
+        node["z"] = 67.47f;
+        const auto value = YAML::node_to_property_value(node, property);
+        REQUIRE(std::holds_alternative<Salix::Vector3>(value));
+        const auto restored = std::get<Salix::Vector3>(value);
+        CHECK(restored.x == doctest::Approx(-6.747f));
+        CHECK(restored.z == doctest::Approx(67.47f));
+    }
+
+    TEST_CASE("batch6747 node comparators treat two null nodes as equal") {
+        const YAML::Node first;
+        const YAML::Node second;
+        CHECK(YAML::nodes_are_equal(first, second));
+        CHECK(YAML::deep_compare_yaml(first, second));
+    }
+
+    TEST_CASE("batch6747 sequence ordering differences are detected") {
+        const YAML::Node first = YAML::Load("[1, 2, 3]");
+        const YAML::Node second = YAML::Load("[3, 2, 1]");
+        CHECK_FALSE(YAML::nodes_are_equal(first, second));
+        CHECK_FALSE(YAML::deep_compare_yaml(first, second));
+    }
+
+    TEST_CASE("batch6747 deep clone of scalar is independent scalar node") {
+        YAML::Node source("Batch6747");
+        YAML::Node clone = YAML::deep_clone_yaml(source);
+        REQUIRE(YAML::deep_compare_yaml(source, clone));
+        clone = "Changed6747";
+        CHECK(source.as<std::string>() == "Batch6747");
+        CHECK(clone.as<std::string>() == "Changed6747");
+    }
+}
