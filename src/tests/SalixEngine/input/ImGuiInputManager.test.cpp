@@ -1016,3 +1016,305 @@ TEST_SUITE("Salix::input::ImGuiInputManagerBatch7047") {
         CHECK(manager.multiple_are_up(std::vector<Salix::MouseButton>{}));
     }
 }
+
+namespace {
+struct Batch7147InputFrame {
+    ImGuiContext* previous_test = ImGui::GetCurrentContext();
+    ImGuiContext* previous_engine = Salix::ImGuiInputManager::get_context_for_testing();
+    ImGuiContext* owned = ImGui::CreateContext();
+    bool frame_open = false;
+
+    Batch7147InputFrame() {
+        ImGui::SetCurrentContext(owned);
+        Salix::ImGuiInputManager::set_context_for_testing(owned);
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = ImVec2(800.0f, 600.0f);
+        io.DeltaTime = 1.0f / 60.0f;
+        if (io.Fonts->Fonts.empty()) io.Fonts->AddFontDefault();
+        io.Fonts->Build();
+    }
+
+    ~Batch7147InputFrame() {
+        if (frame_open) ImGui::EndFrame();
+        Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
+        ImGui::DestroyContext(owned);
+        ImGui::SetCurrentContext(previous_test);
+    }
+
+    ImGuiIO& io() { return ImGui::GetIO(); }
+
+    void begin() {
+        ImGui::NewFrame();
+        frame_open = true;
+    }
+
+    void end() {
+        if (frame_open) {
+            ImGui::EndFrame();
+            frame_open = false;
+        }
+    }
+
+    void key_press(ImGuiKey key) {
+        io().AddKeyEvent(key, true);
+    }
+
+    void key_release(ImGuiKey key) {
+        io().AddKeyEvent(key, false);
+    }
+
+    void mouse_press(ImGuiMouseButton button) {
+        io().AddMouseButtonEvent(button, true);
+    }
+
+    void mouse_release(ImGuiMouseButton button) {
+        io().AddMouseButtonEvent(button, false);
+    }
+};
+}
+
+TEST_SUITE("Salix::input::ImGuiInputManagerBatch7147") {
+    TEST_CASE("batch7147 nonempty key combo all down reaches true aggregate return") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_A);
+        frame.key_press(ImGuiKey_B);
+        frame.begin();
+        CHECK(manager.multiple_are_down({Salix::KeyCode::A, Salix::KeyCode::B}));
+    }
+
+    TEST_CASE("batch7147 nonempty key combo all held reaches true aggregate return") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_C);
+        frame.key_press(ImGuiKey_D);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down({Salix::KeyCode::C, Salix::KeyCode::D}));
+    }
+
+    TEST_CASE("batch7147 nonempty key combo held for zero duration reaches true aggregate return") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_E);
+        frame.key_press(ImGuiKey_F);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down_for({Salix::KeyCode::E, Salix::KeyCode::F}, 0.0f));
+    }
+
+    TEST_CASE("batch7147 nonempty key combo all released reaches true aggregate return") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_G);
+        frame.key_press(ImGuiKey_H);
+        frame.begin();
+        frame.end();
+        frame.key_release(ImGuiKey_G);
+        frame.key_release(ImGuiKey_H);
+        frame.begin();
+        CHECK(manager.multiple_were_released({Salix::KeyCode::G, Salix::KeyCode::H}));
+    }
+
+    TEST_CASE("batch7147 key release search returns true for first released key") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_I);
+        frame.begin();
+        frame.end();
+        frame.key_release(ImGuiKey_I);
+        frame.begin();
+        CHECK(manager.any_of_combo_was_released({Salix::KeyCode::I, Salix::KeyCode::J}));
+    }
+
+    TEST_CASE("batch7147 key release search returns true for later released key") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_K);
+        frame.begin();
+        frame.end();
+        frame.key_release(ImGuiKey_K);
+        frame.begin();
+        CHECK(manager.any_of_combo_was_released({Salix::KeyCode::J, Salix::KeyCode::K}));
+    }
+
+    TEST_CASE("batch7147 single pressed key satisfies nonempty all down aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_L);
+        frame.begin();
+        CHECK(manager.multiple_are_down({Salix::KeyCode::L}));
+    }
+
+    TEST_CASE("batch7147 single held key satisfies nonempty all held aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_M);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down({Salix::KeyCode::M}));
+    }
+
+    TEST_CASE("batch7147 single held key satisfies zero duration aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_N);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down_for({Salix::KeyCode::N}, 0.0f));
+    }
+
+    TEST_CASE("batch7147 single released key satisfies nonempty all released aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_O);
+        frame.begin();
+        frame.end();
+        frame.key_release(ImGuiKey_O);
+        frame.begin();
+        CHECK(manager.multiple_were_released({Salix::KeyCode::O}));
+    }
+
+    TEST_CASE("batch7147 three pressed keys satisfy all down aggregate together") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_P);
+        frame.key_press(ImGuiKey_Q);
+        frame.key_press(ImGuiKey_R);
+        frame.begin();
+        CHECK(manager.multiple_are_down({Salix::KeyCode::P, Salix::KeyCode::Q, Salix::KeyCode::R}));
+    }
+
+    TEST_CASE("batch7147 three held keys satisfy all held aggregate together") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_S);
+        frame.key_press(ImGuiKey_T);
+        frame.key_press(ImGuiKey_U);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down({Salix::KeyCode::S, Salix::KeyCode::T, Salix::KeyCode::U}));
+    }
+
+    TEST_CASE("batch7147 left and right mouse press reaches true all down aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Left);
+        frame.mouse_press(ImGuiMouseButton_Right);
+        frame.begin();
+        CHECK(manager.multiple_are_down({Salix::MouseButton::Left, Salix::MouseButton::Right}));
+    }
+
+    TEST_CASE("batch7147 left and middle mouse hold reaches true all held aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Left);
+        frame.mouse_press(ImGuiMouseButton_Middle);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down({Salix::MouseButton::Left, Salix::MouseButton::Middle}));
+    }
+
+    TEST_CASE("batch7147 middle and right mouse hold for zero reaches true aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Middle);
+        frame.mouse_press(ImGuiMouseButton_Right);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down_for({Salix::MouseButton::Middle, Salix::MouseButton::Right}, 0.0f));
+    }
+
+    TEST_CASE("batch7147 left and right mouse release reaches true all released aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Left);
+        frame.mouse_press(ImGuiMouseButton_Right);
+        frame.begin();
+        frame.end();
+        frame.mouse_release(ImGuiMouseButton_Left);
+        frame.mouse_release(ImGuiMouseButton_Right);
+        frame.begin();
+        CHECK(manager.multiple_were_released({Salix::MouseButton::Left, Salix::MouseButton::Right}));
+    }
+
+    TEST_CASE("batch7147 mouse release search returns true for first released button") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Left);
+        frame.begin();
+        frame.end();
+        frame.mouse_release(ImGuiMouseButton_Left);
+        frame.begin();
+        CHECK(manager.any_of_combo_was_released({Salix::MouseButton::Left, Salix::MouseButton::Right}));
+    }
+
+    TEST_CASE("batch7147 mouse release search returns true for later released button") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Right);
+        frame.begin();
+        frame.end();
+        frame.mouse_release(ImGuiMouseButton_Right);
+        frame.begin();
+        CHECK(manager.any_of_combo_was_released({Salix::MouseButton::Left, Salix::MouseButton::Right}));
+    }
+
+    TEST_CASE("batch7147 single left mouse press satisfies nonempty all down aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Left);
+        frame.begin();
+        CHECK(manager.multiple_are_down({Salix::MouseButton::Left}));
+    }
+
+    TEST_CASE("batch7147 single middle mouse hold satisfies nonempty all held aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Middle);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down({Salix::MouseButton::Middle}));
+    }
+
+    TEST_CASE("batch7147 single right mouse hold satisfies zero duration aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Right);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down_for({Salix::MouseButton::Right}, 0.0f));
+    }
+
+    TEST_CASE("batch7147 single middle mouse release satisfies nonempty all released aggregate") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Middle);
+        frame.begin();
+        frame.end();
+        frame.mouse_release(ImGuiMouseButton_Middle);
+        frame.begin();
+        CHECK(manager.multiple_were_released({Salix::MouseButton::Middle}));
+    }
+
+    TEST_CASE("batch7147 key aggregate true paths preserve unrelated released query false") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_A);
+        frame.key_press(ImGuiKey_B);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down({Salix::KeyCode::A, Salix::KeyCode::B}));
+        CHECK_FALSE(manager.any_of_combo_was_released({Salix::KeyCode::A, Salix::KeyCode::B}));
+    }
+
+    TEST_CASE("batch7147 mouse aggregate true paths preserve unrelated released query false") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.mouse_press(ImGuiMouseButton_Left);
+        frame.mouse_press(ImGuiMouseButton_Right);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down({Salix::MouseButton::Left, Salix::MouseButton::Right}));
+        CHECK_FALSE(manager.any_of_combo_was_released({Salix::MouseButton::Left, Salix::MouseButton::Right}));
+    }
+
+    TEST_CASE("batch7147 simultaneous key and mouse aggregate true paths coexist in one frame") {
+        Batch7147InputFrame frame;
+        Salix::ImGuiInputManager manager;
+        frame.key_press(ImGuiKey_C);
+        frame.mouse_press(ImGuiMouseButton_Left);
+        frame.begin();
+        CHECK(manager.multiple_are_held_down({Salix::KeyCode::C}));
+        CHECK(manager.multiple_are_held_down({Salix::MouseButton::Left}));
+    }
+}
