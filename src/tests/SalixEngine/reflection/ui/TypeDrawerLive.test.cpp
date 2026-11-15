@@ -364,3 +364,297 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7047") {
         CHECK(e.vector3==Salix::Vector3(7.0f,0.0f,47.0f));
     }
 }
+
+#include <Salix/reflection/EnumRegistry.h>
+#include <Salix/ecs/Camera.h>
+
+namespace {
+const Salix::TypeInfo* batch7147_projection_type_info() {
+    Salix::ByteMirror::register_all_types();
+    Salix::EnumRegistry::register_all_enums();
+    return Salix::ByteMirror::get_type_info(typeid(Salix::ProjectionMode));
+}
+
+Salix::Property batch7147_enum_property(
+    const std::string& name,
+    Salix::PropertyType type,
+    int& value,
+    const Salix::TypeInfo* contained_type_info) {
+    Salix::Property property;
+    property.name = name;
+    property.type = type;
+    property.contained_type_info = contained_type_info;
+    property.get_data = [&value](void*) -> void* { return &value; };
+    property.set_data = [&value](void*, void* incoming) {
+        value = *static_cast<int*>(incoming);
+    };
+    return property;
+}
+}
+
+TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7147") {
+    TEST_CASE("batch7147 direct Enum drawer reaches registered enum metadata path") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = static_cast<int>(Salix::ProjectionMode::Perspective);
+        auto property = batch7147_enum_property("Enum7147A", Salix::PropertyType::Enum, value, info);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum)(property, nullptr));
+        CHECK(value == static_cast<int>(Salix::ProjectionMode::Perspective));
+    }
+
+    TEST_CASE("batch7147 direct EnumClass drawer reaches registered enum metadata path") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = static_cast<int>(Salix::ProjectionMode::Orthographic);
+        auto property = batch7147_enum_property("EnumClass7147B", Salix::PropertyType::EnumClass, value, info);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass)(property, nullptr));
+        CHECK(value == static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
+    TEST_CASE("batch7147 direct Enum drawer safely skips metadata branch when contained type is null") {
+        Batch6947DrawerFrame frame;
+        int value = 0;
+        auto property = batch7147_enum_property("Enum7147Null", Salix::PropertyType::Enum, value, nullptr);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum)(property, nullptr));
+        CHECK(value == 0);
+    }
+
+    TEST_CASE("batch7147 direct EnumClass drawer safely skips metadata branch when contained type is null") {
+        Batch6947DrawerFrame frame;
+        int value = 1;
+        auto property = batch7147_enum_property("EnumClass7147Null", Salix::PropertyType::EnumClass, value, nullptr);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass)(property, nullptr));
+        CHECK(value == 1);
+    }
+
+    TEST_CASE("batch7147 direct Enum drawer skips metadata branch when type index is absent") {
+        Batch6947DrawerFrame frame;
+        Salix::TypeInfo no_index;
+        no_index.name = "Batch7147NoIndex";
+        int value = 0;
+        auto property = batch7147_enum_property("Enum7147NoIndex", Salix::PropertyType::Enum, value, &no_index);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum)(property, nullptr));
+        CHECK(value == 0);
+    }
+
+    TEST_CASE("batch7147 direct EnumClass drawer skips metadata branch when type index is absent") {
+        Batch6947DrawerFrame frame;
+        Salix::TypeInfo no_index;
+        no_index.name = "Batch7147NoIndexClass";
+        int value = 1;
+        auto property = batch7147_enum_property("EnumClass7147NoIndex", Salix::PropertyType::EnumClass, value, &no_index);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass)(property, nullptr));
+        CHECK(value == 1);
+    }
+
+    TEST_CASE("batch7147 direct Enum drawer accepts orthographic integer value without mutation") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = static_cast<int>(Salix::ProjectionMode::Orthographic);
+        auto property = batch7147_enum_property("Enum7147Orthographic", Salix::PropertyType::Enum, value, info);
+        Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum)(property, nullptr);
+        CHECK(value == static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
+    TEST_CASE("batch7147 direct EnumClass drawer accepts perspective integer value without mutation") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = static_cast<int>(Salix::ProjectionMode::Perspective);
+        auto property = batch7147_enum_property("EnumClass7147Perspective", Salix::PropertyType::EnumClass, value, info);
+        Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass)(property, nullptr);
+        CHECK(value == static_cast<int>(Salix::ProjectionMode::Perspective));
+    }
+
+    TEST_CASE("batch7147 repeated direct Enum draws remain stable without interaction") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 0;
+        auto property = batch7147_enum_property("Enum7147Repeat", Salix::PropertyType::Enum, value, info);
+        auto drawer = Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum);
+        drawer(property, nullptr);
+        drawer(property, nullptr);
+        CHECK(value == 0);
+    }
+
+    TEST_CASE("batch7147 repeated direct EnumClass draws remain stable without interaction") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 1;
+        auto property = batch7147_enum_property("EnumClass7147Repeat", Salix::PropertyType::EnumClass, value, info);
+        auto drawer = Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass);
+        drawer(property, nullptr);
+        drawer(property, nullptr);
+        CHECK(value == 1);
+    }
+
+    TEST_CASE("batch7147 PropertyHandle Enum draw reaches enum combo metadata path") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 0;
+        auto property = batch7147_enum_property("HandleEnum7147A", Salix::PropertyType::Enum, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("HandleEnum7147A", handle));
+        CHECK(std::get<int>(handle.get_value()) == 0);
+    }
+
+    TEST_CASE("batch7147 PropertyHandle EnumClass draw reaches enum combo metadata path") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 1;
+        auto property = batch7147_enum_property("HandleEnumClass7147B", Salix::PropertyType::EnumClass, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("HandleEnumClass7147B", handle));
+        CHECK(std::get<int>(handle.get_value()) == 1);
+    }
+
+    TEST_CASE("batch7147 PropertyHandle Enum draw preserves perspective value") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = static_cast<int>(Salix::ProjectionMode::Perspective);
+        auto property = batch7147_enum_property("HandleEnum7147Perspective", Salix::PropertyType::Enum, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        Salix::TypeDrawerLive::draw_property("HandleEnum7147Perspective", handle);
+        CHECK(value == static_cast<int>(Salix::ProjectionMode::Perspective));
+    }
+
+    TEST_CASE("batch7147 PropertyHandle EnumClass draw preserves orthographic value") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = static_cast<int>(Salix::ProjectionMode::Orthographic);
+        auto property = batch7147_enum_property("HandleEnumClass7147Orthographic", Salix::PropertyType::EnumClass, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        Salix::TypeDrawerLive::draw_property("HandleEnumClass7147Orthographic", handle);
+        CHECK(value == static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
+    TEST_CASE("batch7147 repeated PropertyHandle Enum draws remain stable") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 0;
+        auto property = batch7147_enum_property("HandleEnum7147Repeat", Salix::PropertyType::Enum, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        Salix::TypeDrawerLive::draw_property("HandleEnum7147RepeatA", handle);
+        Salix::TypeDrawerLive::draw_property("HandleEnum7147RepeatB", handle);
+        CHECK(value == 0);
+    }
+
+    TEST_CASE("batch7147 repeated PropertyHandle EnumClass draws remain stable") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 1;
+        auto property = batch7147_enum_property("HandleEnumClass7147Repeat", Salix::PropertyType::EnumClass, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        Salix::TypeDrawerLive::draw_property("HandleEnumClass7147RepeatA", handle);
+        Salix::TypeDrawerLive::draw_property("HandleEnumClass7147RepeatB", handle);
+        CHECK(value == 1);
+    }
+
+    TEST_CASE("batch7147 direct Enum drawer accepts empty label") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 0;
+        auto property = batch7147_enum_property("", Salix::PropertyType::Enum, value, info);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum)(property, nullptr));
+    }
+
+    TEST_CASE("batch7147 direct EnumClass drawer accepts empty label") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 1;
+        auto property = batch7147_enum_property("", Salix::PropertyType::EnumClass, value, info);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass)(property, nullptr));
+    }
+
+    TEST_CASE("batch7147 PropertyHandle Enum draw accepts empty display label") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 0;
+        auto property = batch7147_enum_property("StoredEnum7147", Salix::PropertyType::Enum, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("", handle));
+    }
+
+    TEST_CASE("batch7147 PropertyHandle EnumClass draw accepts empty display label") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 1;
+        auto property = batch7147_enum_property("StoredEnumClass7147", Salix::PropertyType::EnumClass, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("", handle));
+    }
+
+    TEST_CASE("batch7147 direct Enum drawer tolerates large out of range integer") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 7147;
+        auto property = batch7147_enum_property("Enum7147Large", Salix::PropertyType::Enum, value, info);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum)(property, nullptr));
+        CHECK(value == 7147);
+    }
+
+    TEST_CASE("batch7147 direct EnumClass drawer tolerates negative out of range integer") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = -7147;
+        auto property = batch7147_enum_property("EnumClass7147Negative", Salix::PropertyType::EnumClass, value, info);
+        CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass)(property, nullptr));
+        CHECK(value == -7147);
+    }
+
+    TEST_CASE("batch7147 PropertyHandle Enum exposes integer variant after draw") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 0;
+        auto property = batch7147_enum_property("VariantEnum7147", Salix::PropertyType::Enum, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        Salix::TypeDrawerLive::draw_property("VariantEnum7147", handle);
+        CHECK(std::holds_alternative<int>(handle.get_value()));
+    }
+
+    TEST_CASE("batch7147 PropertyHandle EnumClass exposes integer variant after draw") {
+        Batch6947DrawerFrame frame;
+        Batch7047DrawerElement element;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        int value = 1;
+        auto property = batch7147_enum_property("VariantEnumClass7147", Salix::PropertyType::EnumClass, value, info);
+        Salix::PropertyHandleLive handle(property, &element);
+        Salix::TypeDrawerLive::draw_property("VariantEnumClass7147", handle);
+        CHECK(std::holds_alternative<int>(handle.get_value()));
+    }
+
+    TEST_CASE("batch7147 enum contained type info remains the registered ProjectionMode type") {
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+        REQUIRE(info->type_index.has_value());
+        CHECK(*info->type_index == std::type_index(typeid(Salix::ProjectionMode)));
+    }
+}
