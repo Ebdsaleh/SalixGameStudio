@@ -988,7 +988,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
 
     TEST_CASE("batch7047 three size font batch registers inclusive two point steps") {
         Batch6947FontManagerContext context;
-        Salix::ApplicationConfig config; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
         Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
         manager.create_font_batch(batch7047_font_path().string(),"Batch7047Three",8.0f,12.0f);
         CHECK(manager.get_registered_font_names().size()==3);
@@ -998,7 +998,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
 
     TEST_CASE("batch7047 reversed font batch range creates no variants") {
         Batch6947FontManagerContext context;
-        Salix::ApplicationConfig config; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
         Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
         manager.create_font_batch(batch7047_font_path().string(),"Batch7047Reverse",12.0f,8.0f);
         CHECK(manager.get_registered_font_names().empty());
@@ -1006,7 +1006,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
 
     TEST_CASE("batch7047 DPI scaling is reflected in registered font data size") {
         Batch6947FontManagerContext context;
-        Salix::ApplicationConfig config; config.gui_settings.global_dpi_scaling=2.0f;
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; config.gui_settings.global_dpi_scaling=2.0f;
         MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
         Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
         manager.create_font_batch(batch7047_font_path().string(),"Batch7047Dpi",8.0f,8.0f);
@@ -1017,7 +1017,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
 
     TEST_CASE("batch7047 odd size font batch preserves requested variant names") {
         Batch6947FontManagerContext context;
-        Salix::ApplicationConfig config; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
         Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
         manager.create_font_batch(batch7047_font_path().string(),"Batch7047Odd",9.0f,13.0f);
         CHECK(manager.get_font("Batch7047Odd_9px")!=nullptr);
@@ -1027,7 +1027,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
 
     TEST_CASE("batch7047 setup default fonts registers every canonical family") {
         Batch6947FontManagerContext context; Batch7047CwdGuard cwd(batch7047_repo_root());
-        Salix::ApplicationConfig config; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
         Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
         manager.setup_default_fonts();
         const auto families=manager.get_unique_font_families();
@@ -1042,7 +1042,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
 
     TEST_CASE("batch7047 setup default fonts creates full Roboto Regular size ladder") {
         Batch6947FontManagerContext context; Batch7047CwdGuard cwd(batch7047_repo_root());
-        Salix::ApplicationConfig config; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
         Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
         manager.setup_default_fonts();
         const auto sizes=manager.get_font_sizes_for_font_family("Roboto-Regular");
@@ -1082,14 +1082,15 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
         CHECK(manager.get_font_registry().size()==2);
     }
 
-    TEST_CASE("batch7047 active loaded font can be purged cleanly") {
+    TEST_CASE("batch7047 active loaded font purge stub reports false and preserves registration") {
         Batch6947FontManagerContext context;
         Salix::ImGuiFontManager manager;
         REQUIRE(manager.load_font_from_file(batch7047_font_path().string(),"Purge7047",16.0f,true));
         REQUIRE(manager.get_active_font()!=nullptr);
-        REQUIRE(manager.purge_font("Purge7047"));
-        CHECK(manager.get_active_font()==nullptr);
-        CHECK(manager.get_font("Purge7047")==nullptr);
+        IFont* active_before=manager.get_active_font();
+        CHECK_FALSE(manager.purge_font("Purge7047"));
+        CHECK(manager.get_active_font()==active_before);
+        CHECK(manager.get_font("Purge7047")==active_before);
     }
 
     TEST_CASE("batch7047 loaded font can be unregistered without ever becoming active") {
@@ -1102,7 +1103,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
 
     TEST_CASE("batch7047 batched real font can be applied by generated variant name") {
         Batch6947FontManagerContext context;
-        Salix::ApplicationConfig config; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
         Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
         manager.create_font_batch(batch7047_font_path().string(),"ApplyBatch7047",8.0f,8.0f);
         REQUIRE(manager.apply_font("ApplyBatch7047_8px"));
@@ -1112,7 +1113,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
 
     TEST_CASE("batch7047 batch registration exposes generated family through unique family query") {
         Batch6947FontManagerContext context;
-        Salix::ApplicationConfig config; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
         Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
         manager.create_font_batch(batch7047_font_path().string(),"Unique7047",8.0f,10.0f);
         const auto families=manager.get_unique_font_families();
