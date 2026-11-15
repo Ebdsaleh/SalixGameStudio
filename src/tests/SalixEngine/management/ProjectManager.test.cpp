@@ -1426,3 +1426,243 @@ TEST_SUITE("Salix::management::ProjectManagerBatch7047") {
         CHECK(config.project_data.project_file_name == name + ".salixproj");
     }
 }
+
+namespace {
+std::filesystem::path batch7147_write_raw_project(
+    Batch1947ProjectRoot& root,
+    const std::string& name,
+    const std::string& text) {
+    const auto path = root.path / name;
+    std::ofstream out(path, std::ios::out | std::ios::trunc);
+    out << text;
+    return path;
+}
+}
+
+TEST_SUITE("Salix::management::ProjectManagerBatch7147") {
+    TEST_CASE("batch7147 load_project existing directory reaches input stream open failure") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.load_project(root.path.string()));
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch7147 pointer loader existing directory reaches input stream open failure") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        CHECK(manager.load_project_from_file(root.path.string()) == nullptr);
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch7147 load_project directory path containing spaces remains controlled failure") {
+        Batch1947ProjectRoot root;
+        const auto dir = root.path / "Directory With Spaces 7147";
+        std::filesystem::create_directories(dir);
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.load_project(dir.string()));
+    }
+
+    TEST_CASE("batch7147 pointer loader directory path containing spaces remains controlled failure") {
+        Batch1947ProjectRoot root;
+        const auto dir = root.path / "Pointer Directory With Spaces 7147";
+        std::filesystem::create_directories(dir);
+        Salix::ProjectManager manager;
+        CHECK(manager.load_project_from_file(dir.string()) == nullptr);
+    }
+
+    TEST_CASE("batch7147 pointer loader open failure after placeholder active project preserves object identity") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        manager.set_active_project("Placeholder7147");
+        Salix::Project* before = manager.get_active_project();
+        REQUIRE(before != nullptr);
+        CHECK(manager.load_project_from_file(root.path.string()) == nullptr);
+        CHECK(manager.get_active_project() == before);
+    }
+
+    TEST_CASE("batch7147 repeated pointer loads shut down prior active project before replacement") {
+        Batch1947ProjectRoot root;
+        const auto first = batch6947_write_valid_project(root, "pointer7147a", "Pointer7147A");
+        const auto second = batch6947_write_valid_project(root, "pointer7147b", "Pointer7147B");
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project_from_file(first.string()) != nullptr);
+        REQUIRE(manager.load_project_from_file(second.string()) != nullptr);
+        CHECK(manager.get_active_project()->get_name() == "Pointer7147B");
+    }
+
+    TEST_CASE("batch7147 pointer directory failure after valid load retains prior project object") {
+        Batch1947ProjectRoot root;
+        const auto valid = batch6947_write_valid_project(root, "pointer7147c", "Pointer7147C");
+        Salix::ProjectManager manager;
+        Salix::Project* before = manager.load_project_from_file(valid.string());
+        REQUIRE(before != nullptr);
+        CHECK(manager.load_project_from_file(root.path.string()) == nullptr);
+        CHECK(manager.get_active_project() == before);
+        CHECK(before->get_name() == "Pointer7147C");
+    }
+
+    TEST_CASE("batch7147 pointer malformed file after valid load retains prior project object") {
+        Batch1947ProjectRoot root;
+        const auto valid = batch6947_write_valid_project(root, "pointer7147d", "Pointer7147D");
+        const auto malformed = batch7147_write_raw_project(root, "malformed7147d.salixproj", "{ malformed");
+        Salix::ProjectManager manager;
+        Salix::Project* before = manager.load_project_from_file(valid.string());
+        REQUIRE(before != nullptr);
+        CHECK(manager.load_project_from_file(malformed.string()) == nullptr);
+        CHECK(manager.get_active_project() == before);
+    }
+
+    TEST_CASE("batch7147 pointer missing file after valid load does not discard active project") {
+        Batch1947ProjectRoot root;
+        const auto valid = batch6947_write_valid_project(root, "pointer7147e", "Pointer7147E");
+        Salix::ProjectManager manager;
+        Salix::Project* before = manager.load_project_from_file(valid.string());
+        REQUIRE(before != nullptr);
+        CHECK(manager.load_project_from_file((root.path / "missing7147e.salixproj").string()) == nullptr);
+        CHECK(manager.get_active_project() == before);
+    }
+
+    TEST_CASE("batch7147 load_project directory failure after valid load retains prior project object") {
+        Batch1947ProjectRoot root;
+        const auto valid = batch6947_write_valid_project(root, "load7147f", "Load7147F");
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project(valid.string()));
+        Salix::Project* before = manager.get_active_project();
+        REQUIRE(before != nullptr);
+        CHECK_FALSE(manager.load_project(root.path.string()));
+        CHECK(manager.get_active_project() == before);
+    }
+
+    TEST_CASE("batch7147 missing external project template reaches missing regular file diagnostic branch") {
+        Batch7047ExternalProjectEnv env;
+        std::filesystem::remove(env.template_root() / "project.json");
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "MissingTemplate7147A"));
+    }
+
+    TEST_CASE("batch7147 missing external template still creates destination asset directories before parse failure") {
+        Batch7047ExternalProjectEnv env;
+        std::filesystem::remove(env.template_root() / "project.json");
+        Salix::ProjectManager manager;
+        REQUIRE_FALSE(manager.create_new_external_project(env.projects.string(), "MissingTemplate7147B"));
+        CHECK(std::filesystem::is_directory(env.projects / "MissingTemplate7147B" / "Assets" / "Realms"));
+        CHECK(std::filesystem::is_directory(env.projects / "MissingTemplate7147B" / "Assets" / "Scripts"));
+    }
+
+    TEST_CASE("batch7147 template path replaced by directory is rejected as non regular file") {
+        Batch7047ExternalProjectEnv env;
+        const auto template_path = env.template_root() / "project.json";
+        std::filesystem::remove(template_path);
+        std::filesystem::create_directories(template_path);
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "TemplateDirectory7147C"));
+    }
+
+    TEST_CASE("batch7147 empty project template is rejected by cereal parse") {
+        Batch7047ExternalProjectEnv env;
+        { std::ofstream out(env.template_root() / "project.json", std::ios::trunc); }
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "EmptyTemplate7147D"));
+    }
+
+    TEST_CASE("batch7147 whitespace only project template is rejected by cereal parse") {
+        Batch7047ExternalProjectEnv env;
+        { std::ofstream out(env.template_root() / "project.json", std::ios::trunc); out << "   \n\t  "; }
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "WhitespaceTemplate7147E"));
+    }
+
+    TEST_CASE("batch7147 scalar project template is rejected by cereal parse") {
+        Batch7047ExternalProjectEnv env;
+        { std::ofstream out(env.template_root() / "project.json", std::ios::trunc); out << "7147"; }
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "ScalarTemplate7147F"));
+    }
+
+    TEST_CASE("batch7147 array project template is rejected by expected named cereal fields") {
+        Batch7047ExternalProjectEnv env;
+        { std::ofstream out(env.template_root() / "project.json", std::ios::trunc); out << "[1,2,3]"; }
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "ArrayTemplate7147G"));
+    }
+
+    TEST_CASE("batch7147 missing template failure does not emit generated project file") {
+        Batch7047ExternalProjectEnv env;
+        std::filesystem::remove(env.template_root() / "project.json");
+        Salix::ProjectManager manager;
+        const std::string name = "MissingTemplate7147H";
+        REQUIRE_FALSE(manager.create_new_external_project(env.projects.string(), name));
+        CHECK_FALSE(std::filesystem::exists(env.projects / name / (name + ".salixproj")));
+    }
+
+    TEST_CASE("batch7147 existing destination project still returns true when template is absent") {
+        Batch7047ExternalProjectEnv env;
+        const std::string name = "Existing7147I";
+        std::filesystem::create_directories(env.projects / name);
+        std::filesystem::remove(env.template_root() / "project.json");
+        Salix::ProjectManager manager;
+        CHECK(manager.create_new_external_project(env.projects.string(), name));
+    }
+
+    TEST_CASE("batch7147 existing destination project preserves existing marker file") {
+        Batch7047ExternalProjectEnv env;
+        const std::string name = "Existing7147J";
+        const auto project = env.projects / name;
+        std::filesystem::create_directories(project);
+        { std::ofstream out(project / "marker.txt"); out << "7147"; }
+        Salix::ProjectManager manager;
+        REQUIRE(manager.create_new_external_project(env.projects.string(), name));
+        CHECK(Salix::FileManager::read_file_content((project / "marker.txt").string()) == "7147");
+    }
+
+    TEST_CASE("batch7147 three sequential pointer loads leave third project active") {
+        Batch1947ProjectRoot root;
+        const auto a = batch6947_write_valid_project(root, "seq7147a", "Seq7147A");
+        const auto b = batch6947_write_valid_project(root, "seq7147b", "Seq7147B");
+        const auto c = batch6947_write_valid_project(root, "seq7147c", "Seq7147C");
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project_from_file(a.string()) != nullptr);
+        REQUIRE(manager.load_project_from_file(b.string()) != nullptr);
+        REQUIRE(manager.load_project_from_file(c.string()) != nullptr);
+        CHECK(manager.get_active_project()->get_name() == "Seq7147C");
+    }
+
+    TEST_CASE("batch7147 pointer replacement copies realm metadata from latest project") {
+        Batch1947ProjectRoot root;
+        const std::vector<Salix::RealmInfo> first_realms{{"Old7147", "Old7147.realm"}};
+        const std::vector<Salix::RealmInfo> second_realms{{"New7147", "New7147.realm"}};
+        const auto first = batch6947_write_valid_project(root, "realm7147a", "Realm7147A", "Old7147", first_realms);
+        const auto second = batch6947_write_valid_project(root, "realm7147b", "Realm7147B", "New7147", second_realms);
+        Salix::ProjectManager manager;
+        REQUIRE(manager.load_project_from_file(first.string()) != nullptr);
+        REQUIRE(manager.load_project_from_file(second.string()) != nullptr);
+        CHECK(manager.get_active_project()->get_starting_realm() == "New7147");
+        CHECK(manager.get_active_project()->get_realm_paths().count("New7147") == 1);
+    }
+
+    TEST_CASE("batch7147 malformed load_project file fails without creating active project") {
+        Batch1947ProjectRoot root;
+        const auto malformed = batch7147_write_raw_project(root, "malformed7147k.salixproj", "{ invalid");
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.load_project(malformed.string()));
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch7147 malformed pointer project file fails without creating active project") {
+        Batch1947ProjectRoot root;
+        const auto malformed = batch7147_write_raw_project(root, "malformed7147l.salixproj", "{ invalid");
+        Salix::ProjectManager manager;
+        CHECK(manager.load_project_from_file(malformed.string()) == nullptr);
+        CHECK(manager.get_active_project() == nullptr);
+    }
+
+    TEST_CASE("batch7147 directory load failure preserves pending selection metadata") {
+        Batch1947ProjectRoot root;
+        Salix::ProjectManager manager;
+        manager.set_project_to_load("Pending7147.salixproj");
+        manager.set_loaded_project_directory("PendingRoot7147");
+        REQUIRE_FALSE(manager.load_project(root.path.string()));
+        CHECK(manager.get_project_to_load() == "Pending7147.salixproj");
+        CHECK(manager.get_loaded_project_directory() == "PendingRoot7147");
+    }
+}
