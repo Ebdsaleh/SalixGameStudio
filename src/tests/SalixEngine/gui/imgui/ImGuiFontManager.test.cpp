@@ -1087,7 +1087,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
         Salix::ImGuiFontManager manager;
         REQUIRE(manager.load_font_from_file(batch7047_font_path().string(),"Purge7047",16.0f,true));
         REQUIRE(manager.get_active_font()!=nullptr);
-        IFont* active_before=manager.get_active_font();
+        auto* active_before=manager.get_active_font();
         CHECK_FALSE(manager.purge_font("Purge7047"));
         CHECK(manager.get_active_font()==active_before);
         CHECK(manager.get_font("Purge7047")==active_before);
