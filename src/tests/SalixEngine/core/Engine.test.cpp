@@ -700,3 +700,243 @@ TEST_SUITE("Salix::core::EngineBatch5747") {
     }
 }
 
+#include <Salix/core/ApplicationConfig.h>
+#include <SDL.h>
+#include <cstdlib>
+#include <string>
+
+namespace {
+struct Batch7147InvalidRendererRun {
+    Salix::Engine engine;
+    Salix::ApplicationConfig config;
+    bool initialized = true;
+
+    explicit Batch7147InvalidRendererRun(Salix::RendererType type) {
+        config.renderer_type = type;
+        config.gui_type = Salix::GuiType::None;
+        initialized = engine.initialize(config);
+    }
+
+    ~Batch7147InvalidRendererRun() {
+        engine.shutdown();
+    }
+};
+
+struct Batch7147VideoDriverGuard {
+    bool had_old = false;
+    std::string old_value;
+
+    Batch7147VideoDriverGuard() {
+        if (const char* existing = SDL_getenv("SDL_VIDEODRIVER")) {
+            had_old = true;
+            old_value = existing;
+        }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "__batch7147_invalid_driver__", 1);
+    }
+
+    ~Batch7147VideoDriverGuard() {
+        SDL_Quit();
+        if (had_old) {
+            SDL_setenv("SDL_VIDEODRIVER", old_value.c_str(), 1);
+        } else {
+            _putenv_s("SDL_VIDEODRIVER", "");
+        }
+    }
+};
+}
+
+TEST_SUITE("Salix::core::EngineBatch7147") {
+    TEST_CASE("batch7147 renderer None reaches unsupported renderer initialization failure") {
+        Batch7147InvalidRendererRun run(Salix::RendererType::None);
+        CHECK_FALSE(run.initialized);
+        CHECK_FALSE(run.engine.is_running());
+    }
+
+    TEST_CASE("batch7147 Vulkan renderer reaches unsupported renderer initialization failure") {
+        Batch7147InvalidRendererRun run(Salix::RendererType::Vulkan);
+        CHECK_FALSE(run.initialized);
+        CHECK(run.engine.get_renderer() == nullptr);
+    }
+
+    TEST_CASE("batch7147 DirectX renderer reaches unsupported renderer initialization failure") {
+        Batch7147InvalidRendererRun run(Salix::RendererType::DirectX);
+        CHECK_FALSE(run.initialized);
+        CHECK(run.engine.get_asset_manager() == nullptr);
+    }
+
+    TEST_CASE("batch7147 arbitrary renderer value reaches unsupported renderer failure") {
+        Batch7147InvalidRendererRun run(static_cast<Salix::RendererType>(7147));
+        CHECK_FALSE(run.initialized);
+        CHECK(run.engine.get_event_manager() == nullptr);
+    }
+
+    TEST_CASE("batch7147 unsupported renderer never materializes the input manager") {
+        Batch7147InvalidRendererRun run(Salix::RendererType::None);
+        CHECK_FALSE(run.initialized);
+        CHECK(run.engine.get_input_manager() == nullptr);
+    }
+
+    TEST_CASE("batch7147 unsupported renderer leaves engine stopped after failed initialize") {
+        Batch7147InvalidRendererRun run(Salix::RendererType::Vulkan);
+        CHECK_FALSE(run.initialized);
+        CHECK_FALSE(run.engine.is_running());
+    }
+
+    TEST_CASE("batch7147 unsupported renderer preserves caller renderer selection") {
+        Batch7147InvalidRendererRun run(Salix::RendererType::DirectX);
+        CHECK(run.config.renderer_type == Salix::RendererType::DirectX);
+        CHECK_FALSE(run.initialized);
+    }
+
+    TEST_CASE("batch7147 failed unsupported renderer initialization supports explicit shutdown") {
+        Batch7147InvalidRendererRun run(Salix::RendererType::None);
+        REQUIRE_FALSE(run.initialized);
+        CHECK_NOTHROW(run.engine.shutdown());
+        CHECK(run.engine.get_renderer() == nullptr);
+    }
+
+    TEST_CASE("batch7147 failed unsupported renderer initialization preserves preconfigured time scale") {
+        Salix::Engine engine;
+        engine.set_time_scale(7.147f);
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        REQUIRE_FALSE(engine.initialize(config));
+        CHECK(engine.get_time_scale() == doctest::Approx(7.147f));
+        engine.shutdown();
+    }
+
+    TEST_CASE("batch7147 failed unsupported renderer initialization preserves preconfigured engine mode") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Debug);
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        REQUIRE_FALSE(engine.initialize(config));
+        CHECK(engine.get_mode() == Salix::EngineMode::Debug);
+        engine.shutdown();
+    }
+
+    TEST_CASE("batch7147 invalid SDL video driver reaches SDL initialization failure") {
+        Batch7147VideoDriverGuard driver;
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        CHECK_FALSE(engine.initialize(config));
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch7147 invalid SDL video driver leaves renderer null") {
+        Batch7147VideoDriverGuard driver;
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        REQUIRE_FALSE(engine.initialize(config));
+        CHECK(engine.get_renderer() == nullptr);
+    }
+
+    TEST_CASE("batch7147 invalid SDL video driver leaves asset manager null") {
+        Batch7147VideoDriverGuard driver;
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        REQUIRE_FALSE(engine.initialize(config));
+        CHECK(engine.get_asset_manager() == nullptr);
+    }
+
+    TEST_CASE("batch7147 invalid SDL video driver leaves event manager null") {
+        Batch7147VideoDriverGuard driver;
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        REQUIRE_FALSE(engine.initialize(config));
+        CHECK(engine.get_event_manager() == nullptr);
+    }
+
+    TEST_CASE("batch7147 invalid SDL video driver preserves scalar engine state") {
+        Batch7147VideoDriverGuard driver;
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Options);
+        engine.set_time_scale(-7.147f);
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
+        REQUIRE_FALSE(engine.initialize(config));
+        CHECK(engine.get_mode() == Salix::EngineMode::Options);
+        CHECK(engine.get_time_scale() == doctest::Approx(-7.147f));
+    }
+
+    TEST_CASE("batch7147 no factory switch with None state fails creation without changing mode") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Debug);
+        CHECK_NOTHROW(engine.switch_state(Salix::AppStateType::None));
+        CHECK(engine.get_mode() == Salix::EngineMode::Debug);
+    }
+
+    TEST_CASE("batch7147 no factory switch with Game state fails creation safely before initialization") {
+        Salix::Engine engine;
+        CHECK_NOTHROW(engine.switch_state(Salix::AppStateType::Game));
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch7147 arbitrary app state takes no factory default branch safely") {
+        Salix::Engine engine;
+        const auto invalid = static_cast<Salix::AppStateType>(7147);
+        CHECK_NOTHROW(engine.switch_state(invalid));
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+    }
+
+    TEST_CASE("batch7147 no factory state switch preserves configured time scale") {
+        Salix::Engine engine;
+        engine.set_time_scale(71.47f);
+        engine.switch_state(Salix::AppStateType::Game);
+        CHECK(engine.get_time_scale() == doctest::Approx(71.47f));
+    }
+
+    TEST_CASE("batch7147 repeated no factory state switches remain safe") {
+        Salix::Engine engine;
+        engine.switch_state(Salix::AppStateType::None);
+        engine.switch_state(Salix::AppStateType::Game);
+        engine.switch_state(static_cast<Salix::AppStateType>(-7147));
+        CHECK_FALSE(engine.is_running());
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+    }
+
+    TEST_CASE("batch7147 shutdown is safe before initialization") {
+        Salix::Engine engine;
+        CHECK_NOTHROW(engine.shutdown());
+        CHECK_FALSE(engine.is_running());
+    }
+
+    TEST_CASE("batch7147 repeated shutdown remains safe before initialization") {
+        Salix::Engine engine;
+        CHECK_NOTHROW(engine.shutdown());
+        CHECK_NOTHROW(engine.shutdown());
+        CHECK(engine.get_renderer() == nullptr);
+    }
+
+    TEST_CASE("batch7147 preinitialization shutdown preserves diagnostic mode and scale") {
+        Salix::Engine engine;
+        engine.set_mode(Salix::EngineMode::Debug);
+        engine.set_time_scale(0.7147f);
+        engine.shutdown();
+        CHECK(engine.get_mode() == Salix::EngineMode::Debug);
+        CHECK(engine.get_time_scale() == doctest::Approx(0.7147f));
+    }
+
+    TEST_CASE("batch7147 preinitialization shutdown leaves all exposed subsystems null") {
+        Salix::Engine engine;
+        engine.shutdown();
+        CHECK(engine.get_renderer() == nullptr);
+        CHECK(engine.get_asset_manager() == nullptr);
+        CHECK(engine.get_event_manager() == nullptr);
+        CHECK(engine.get_input_manager() == nullptr);
+    }
+
+    TEST_CASE("batch7147 no factory switch remains safe after preinitialization shutdown") {
+        Salix::Engine engine;
+        engine.shutdown();
+        CHECK_NOTHROW(engine.switch_state(Salix::AppStateType::Game));
+        CHECK(engine.get_mode() == Salix::EngineMode::None);
+        CHECK_FALSE(engine.is_running());
+    }
+}
