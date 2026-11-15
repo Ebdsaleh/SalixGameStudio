@@ -567,25 +567,25 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7147") {
         CHECK(value == 1);
     }
 
-    TEST_CASE("batch7147 direct Enum drawer accepts empty label") {
+    TEST_CASE("batch7147 direct Enum drawer accepts hidden label ID") {
         Batch6947DrawerFrame frame;
         const auto* info = batch7147_projection_type_info();
         REQUIRE(info != nullptr);
         int value = 0;
-        auto property = batch7147_enum_property("", Salix::PropertyType::Enum, value, info);
+        auto property = batch7147_enum_property("##Batch7147DirectEnumHidden", Salix::PropertyType::Enum, value, info);
         CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum)(property, nullptr));
     }
 
-    TEST_CASE("batch7147 direct EnumClass drawer accepts empty label") {
+    TEST_CASE("batch7147 direct EnumClass drawer accepts hidden label ID") {
         Batch6947DrawerFrame frame;
         const auto* info = batch7147_projection_type_info();
         REQUIRE(info != nullptr);
         int value = 1;
-        auto property = batch7147_enum_property("", Salix::PropertyType::EnumClass, value, info);
+        auto property = batch7147_enum_property("##Batch7147DirectEnumClassHidden", Salix::PropertyType::EnumClass, value, info);
         CHECK_NOTHROW(Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass)(property, nullptr));
     }
 
-    TEST_CASE("batch7147 PropertyHandle Enum draw accepts empty display label") {
+    TEST_CASE("batch7147 PropertyHandle Enum draw accepts hidden display label ID") {
         Batch6947DrawerFrame frame;
         Batch7047DrawerElement element;
         const auto* info = batch7147_projection_type_info();
@@ -593,10 +593,10 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7147") {
         int value = 0;
         auto property = batch7147_enum_property("StoredEnum7147", Salix::PropertyType::Enum, value, info);
         Salix::PropertyHandleLive handle(property, &element);
-        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("", handle));
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("##Batch7147HandleEnumHidden", handle));
     }
 
-    TEST_CASE("batch7147 PropertyHandle EnumClass draw accepts empty display label") {
+    TEST_CASE("batch7147 PropertyHandle EnumClass draw accepts hidden display label ID") {
         Batch6947DrawerFrame frame;
         Batch7047DrawerElement element;
         const auto* info = batch7147_projection_type_info();
@@ -604,7 +604,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7147") {
         int value = 1;
         auto property = batch7147_enum_property("StoredEnumClass7147", Salix::PropertyType::EnumClass, value, info);
         Salix::PropertyHandleLive handle(property, &element);
-        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("", handle));
+        CHECK_NOTHROW(Salix::TypeDrawerLive::draw_property("##Batch7147HandleEnumClassHidden", handle));
     }
 
     TEST_CASE("batch7147 direct Enum drawer tolerates large out of range integer") {
