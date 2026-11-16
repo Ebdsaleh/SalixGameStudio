@@ -8,11 +8,17 @@
 #include <Tests/SalixEngine/mocking/gui/MockIGui.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
 #include <imgui.h>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>
 
 namespace {
+
+struct Batch7247ProjectRootGuard {
+    std::filesystem::path previous = Salix::g_project_root_path;
+    ~Batch7247ProjectRootGuard() { Salix::g_project_root_path = previous; }
+};
 
 struct Batch7247ImGuiFrame {
     ImGuiContext* previous = ImGui::GetCurrentContext();
@@ -322,6 +328,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247") {
     }
 
     TEST_CASE("batch7247 accepted open project callback stores exact selection and switches editor") {
+        Batch7247ProjectRootGuard root_guard;
         Batch7247ImGuiFrame frame;
         MockEngineInterface engine;
         Batch7247LaunchGui gui;
@@ -638,6 +645,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
     }
 
     TEST_CASE("batch7247 accepted open project transition keeps engine running") {
+        Batch7247ProjectRootGuard root_guard;
         Batch7247ImGuiFrame frame;
         MockEngineInterface engine;
         Batch7247LaunchGui gui;
@@ -669,6 +677,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
     }
 
     TEST_CASE("batch7247 accepted open project preserves spaces in selection metadata") {
+        Batch7247ProjectRootGuard root_guard;
         Batch7247ImGuiFrame frame;
         MockEngineInterface engine;
         Batch7247LaunchGui gui;
@@ -686,6 +695,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
     }
 
     TEST_CASE("batch7247 accepted open project replaces prior pending selection") {
+        Batch7247ProjectRootGuard root_guard;
         Batch7247ImGuiFrame frame;
         MockEngineInterface engine;
         Batch7247LaunchGui gui;
