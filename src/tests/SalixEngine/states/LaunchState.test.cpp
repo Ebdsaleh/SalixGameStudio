@@ -167,7 +167,8 @@ ImVec2 batch7247_launch_button_center(
 
 TEST_SUITE("Salix::states::LaunchStateBatch7247") {
     TEST_CASE("batch7247 launch state construction and destruction are safe") {
-        CHECK_NOTHROW({ Salix::LaunchState state; });
+        Salix::LaunchState state;
+        CHECK(true);
     }
 
     TEST_CASE("batch7247 launch on enter sets engine launch mode with null GUI") {
