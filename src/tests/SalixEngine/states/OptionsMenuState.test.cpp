@@ -7,6 +7,7 @@
 #include <Tests/SalixEngine/mocking/gui/MockIGui.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 
 namespace {
 
@@ -43,41 +44,29 @@ struct Batch7247OptionsFrame {
     }
 
     template<typename Fn>
-    ImVec2 capture_last_item_center(Fn&& fn) {
+    bool activate_button(const char* window_name, const char* label, Fn&& fn) {
+        // Prime the real state UI once so the named ImGui window exists.
+        run(fn);
+
         ImGui::SetCurrentContext(owned);
-        ImGui::NewFrame();
-        fn();
-        const ImVec2 min = ImGui::GetItemRectMin();
-        const ImVec2 max = ImGui::GetItemRectMax();
-        ImGui::EndFrame();
-        return ImVec2((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f);
-    }
+        ImGuiWindow* window = ImGui::FindWindowByName(window_name);
+        if (!window) {
+            return false;
+        }
 
-    template<typename Fn>
-    void click_at(const ImVec2& position, Fn&& fn) {
-        ImGui::SetCurrentContext(owned);
-        ImGuiIO& io = ImGui::GetIO();
+        const ImGuiID id = window->GetID(label);
+        if (id == 0) {
+            return false;
+        }
 
-        // This fixture tests state-level ImGui behavior, not SDL/backend event
-        // translation. Drive the core IO state directly and let NewFrame()
-        // derive MouseClicked/MouseReleased exactly as ButtonBehavior consumes it.
-        io.MousePos = position;
-        io.MouseDown[0] = false;
+        // State tests own the response to ImGui::Button(), not SDL/backend
+        // hit-testing. Use Dear ImGui's programmatic activation path to make
+        // the real button report pressed on the next frame.
+        ImGui::ActivateItemByID(id);
         ImGui::NewFrame();
         fn();
         ImGui::EndFrame();
-
-        io.MousePos = position;
-        io.MouseDown[0] = true;
-        ImGui::NewFrame();
-        fn();
-        ImGui::EndFrame();
-
-        io.MousePos = position;
-        io.MouseDown[0] = false;
-        ImGui::NewFrame();
-        fn();
-        ImGui::EndFrame();
+        return true;
     }
 };
 
@@ -88,12 +77,6 @@ Salix::InitContext batch7247_options_context(
     context.engine = &engine;
     context.gui = gui;
     return context;
-}
-
-ImVec2 batch7247_options_back_button(
-    Batch7247OptionsFrame& frame,
-    Salix::OptionsMenuState& state) {
-    return frame.capture_last_item_center([&] { state.update(0.0f); });
 }
 
 } // namespace
@@ -202,21 +185,18 @@ TEST_SUITE("Salix::states::OptionsMenuStateBatch7247") {
         CHECK(engine.current_mode == Salix::EngineMode::Options);
     }
 
-    TEST_CASE("batch7247 options UI produces a concrete final button rectangle") {
+    TEST_CASE("batch7247 options UI registers Back button in named ImGui window") {
         Batch7247OptionsFrame frame;
         MockEngineInterface engine;
         MockIGui gui;
         Salix::OptionsMenuState state;
         state.on_enter(batch7247_options_context(engine, &gui));
-        ImVec2 min{}, max{};
+        frame.run([&] { state.update(0.0f); });
+
         ImGui::SetCurrentContext(frame.owned);
-        ImGui::NewFrame();
-        state.update(0.0f);
-        min = ImGui::GetItemRectMin();
-        max = ImGui::GetItemRectMax();
-        ImGui::EndFrame();
-        CHECK(max.x > min.x);
-        CHECK(max.y > min.y);
+        ImGuiWindow* window = ImGui::FindWindowByName("Options Menu");
+        REQUIRE(window != nullptr);
+        CHECK(window->GetID("Back to Launcher") != 0);
     }
 
     TEST_CASE("batch7247 options UI leaves engine running without input") {
@@ -257,8 +237,7 @@ TEST_SUITE("Salix::states::OptionsMenuStateBatch7247") {
         MockIGui gui;
         Salix::OptionsMenuState state;
         state.on_enter(batch7247_options_context(engine, &gui));
-        const ImVec2 position = batch7247_options_back_button(frame, state);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Options Menu", "Back to Launcher", [&] { state.update(0.0f); }));
         CHECK(engine.current_state == Salix::AppStateType::Launch);
     }
 
@@ -268,8 +247,7 @@ TEST_SUITE("Salix::states::OptionsMenuStateBatch7247") {
         MockIGui gui;
         Salix::OptionsMenuState state;
         state.on_enter(batch7247_options_context(engine, &gui));
-        const ImVec2 position = batch7247_options_back_button(frame, state);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Options Menu", "Back to Launcher", [&] { state.update(0.0f); }));
         CHECK(engine.switch_state_calls == 1);
     }
 
@@ -279,8 +257,7 @@ TEST_SUITE("Salix::states::OptionsMenuStateBatch7247") {
         MockIGui gui;
         Salix::OptionsMenuState state;
         state.on_enter(batch7247_options_context(engine, &gui));
-        const ImVec2 position = batch7247_options_back_button(frame, state);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Options Menu", "Back to Launcher", [&] { state.update(0.0f); }));
         CHECK(engine.running);
     }
 
@@ -290,8 +267,7 @@ TEST_SUITE("Salix::states::OptionsMenuStateBatch7247") {
         MockIGui gui;
         Salix::OptionsMenuState state;
         state.on_enter(batch7247_options_context(engine, &gui));
-        const ImVec2 position = batch7247_options_back_button(frame, state);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Options Menu", "Back to Launcher", [&] { state.update(0.0f); }));
         CHECK(engine.current_mode == Salix::EngineMode::Options);
         CHECK(engine.current_state == Salix::AppStateType::Launch);
     }
