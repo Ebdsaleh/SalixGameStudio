@@ -5,7 +5,7 @@
 
 namespace Salix {
 
-    class OptionsMenuState : public IAppState {
+    class SALIX_API OptionsMenuState : public IAppState {
         public:
             OptionsMenuState();
             virtual ~OptionsMenuState();
