@@ -58,22 +58,23 @@ struct Batch7247OptionsFrame {
         ImGui::SetCurrentContext(owned);
         ImGuiIO& io = ImGui::GetIO();
 
-        // Prime one hover-only frame before pressing. Dear ImGui's button
-        // interaction state is frame-oriented, so model a real pointer move
-        // rather than moving and pressing in the same incoming frame.
-        io.AddMousePosEvent(position.x, position.y);
+        // This fixture tests state-level ImGui behavior, not SDL/backend event
+        // translation. Drive the core IO state directly and let NewFrame()
+        // derive MouseClicked/MouseReleased exactly as ButtonBehavior consumes it.
+        io.MousePos = position;
+        io.MouseDown[0] = false;
         ImGui::NewFrame();
         fn();
         ImGui::EndFrame();
 
-        io.AddMousePosEvent(position.x, position.y);
-        io.AddMouseButtonEvent(0, true);
+        io.MousePos = position;
+        io.MouseDown[0] = true;
         ImGui::NewFrame();
         fn();
         ImGui::EndFrame();
 
-        io.AddMousePosEvent(position.x, position.y);
-        io.AddMouseButtonEvent(0, false);
+        io.MousePos = position;
+        io.MouseDown[0] = false;
         ImGui::NewFrame();
         fn();
         ImGui::EndFrame();
