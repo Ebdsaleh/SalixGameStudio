@@ -7,7 +7,7 @@ namespace Salix {
 
     struct InitContext;
     class IInputManager;
-    class LaunchState : public IAppState{
+    class SALIX_API LaunchState : public IAppState{
         public:
             LaunchState();
             virtual ~LaunchState();
