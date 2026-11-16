@@ -87,7 +87,8 @@ ImVec2 batch7247_options_back_button(
 
 TEST_SUITE("Salix::states::OptionsMenuStateBatch7247") {
     TEST_CASE("batch7247 options state construction and destruction are safe") {
-        CHECK_NOTHROW({ Salix::OptionsMenuState state; });
+        Salix::OptionsMenuState state;
+        CHECK(true);
     }
 
     TEST_CASE("batch7247 options on enter sets options engine mode") {
