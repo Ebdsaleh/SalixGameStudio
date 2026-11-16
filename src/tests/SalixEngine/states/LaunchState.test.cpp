@@ -9,6 +9,7 @@
 #include <Tests/SalixEngine/mocking/gui/MockIGui.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <filesystem>
 #include <memory>
 #include <string>
@@ -54,41 +55,29 @@ struct Batch7247ImGuiFrame {
     }
 
     template<typename Fn>
-    ImVec2 capture_last_item_center(Fn&& fn) {
+    bool activate_button(const char* window_name, const char* label, Fn&& fn) {
+        // Prime the real state UI once so the named ImGui window exists.
+        run(fn);
+
         ImGui::SetCurrentContext(owned);
-        ImGui::NewFrame();
-        fn();
-        const ImVec2 min = ImGui::GetItemRectMin();
-        const ImVec2 max = ImGui::GetItemRectMax();
-        ImGui::EndFrame();
-        return ImVec2((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f);
-    }
+        ImGuiWindow* window = ImGui::FindWindowByName(window_name);
+        if (!window) {
+            return false;
+        }
 
-    template<typename Fn>
-    void click_at(const ImVec2& position, Fn&& fn) {
-        ImGui::SetCurrentContext(owned);
-        ImGuiIO& io = ImGui::GetIO();
+        const ImGuiID id = window->GetID(label);
+        if (id == 0) {
+            return false;
+        }
 
-        // This fixture tests state-level ImGui behavior, not SDL/backend event
-        // translation. Drive the core IO state directly and let NewFrame()
-        // derive MouseClicked/MouseReleased exactly as ButtonBehavior consumes it.
-        io.MousePos = position;
-        io.MouseDown[0] = false;
+        // State tests own the response to ImGui::Button(), not SDL/backend
+        // hit-testing. Use Dear ImGui's programmatic activation path to make
+        // the real button report pressed on the next frame.
+        ImGui::ActivateItemByID(id);
         ImGui::NewFrame();
         fn();
         ImGui::EndFrame();
-
-        io.MousePos = position;
-        io.MouseDown[0] = true;
-        ImGui::NewFrame();
-        fn();
-        ImGui::EndFrame();
-
-        io.MousePos = position;
-        io.MouseDown[0] = false;
-        ImGui::NewFrame();
-        fn();
-        ImGui::EndFrame();
+        return true;
     }
 };
 
@@ -158,28 +147,6 @@ Salix::InitContext batch7247_launch_context(
     context.project_manager = project_manager;
     context.renderer = renderer;
     return context;
-}
-
-ImVec2 batch7247_launch_button_center(
-    Batch7247ImGuiFrame& frame,
-    Salix::LaunchState& state,
-    int buttons_above_quit) {
-    ImVec2 quit_center{};
-    float button_height = 0.0f;
-    float spacing = 0.0f;
-
-    ImGui::SetCurrentContext(frame.owned);
-    ImGui::NewFrame();
-    state.update(0.0f);
-    const ImVec2 min = ImGui::GetItemRectMin();
-    const ImVec2 max = ImGui::GetItemRectMax();
-    quit_center = ImVec2((min.x + max.x) * 0.5f, (min.y + max.y) * 0.5f);
-    button_height = max.y - min.y;
-    spacing = ImGui::GetStyle().ItemSpacing.y;
-    ImGui::EndFrame();
-
-    quit_center.y -= static_cast<float>(buttons_above_quit) * (button_height + spacing);
-    return quit_center;
 }
 
 } // namespace
@@ -413,8 +380,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 4);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "New Project", [&] { state.update(0.0f); }));
         CHECK(gui.show_dialog_calls == 1);
         CHECK(gui.last_dialog_key == "ChooseNewProjectLocation");
     }
@@ -425,8 +391,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 3);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Open Project", [&] { state.update(0.0f); }));
         CHECK(gui.show_dialog_calls == 1);
         CHECK(gui.last_dialog_key == "ChooseExistingProject");
     }
@@ -437,8 +402,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 2);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Run Project", [&] { state.update(0.0f); }));
         CHECK(gui.show_dialog_calls == 1);
         CHECK(gui.last_dialog_key == "ChooseExistingProjectToRun");
     }
@@ -449,8 +413,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 1);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Options", [&] { state.update(0.0f); }));
         CHECK(engine.current_state == Salix::AppStateType::Options);
         CHECK(engine.switch_state_calls == 1);
     }
@@ -461,8 +424,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 0);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Quit", [&] { state.update(0.0f); }));
         CHECK_FALSE(engine.running);
     }
 
@@ -581,8 +543,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 4);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "New Project", [&] { state.update(0.0f); }));
         CHECK(engine.switch_state_calls == 0);
     }
 
@@ -592,8 +553,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 3);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Open Project", [&] { state.update(0.0f); }));
         CHECK(engine.switch_state_calls == 0);
     }
 
@@ -603,8 +563,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 2);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Run Project", [&] { state.update(0.0f); }));
         CHECK(engine.switch_state_calls == 0);
     }
 
@@ -614,8 +573,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 1);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Options", [&] { state.update(0.0f); }));
         CHECK(engine.running);
         CHECK(engine.current_state == Salix::AppStateType::Options);
     }
@@ -626,8 +584,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 0);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Quit", [&] { state.update(0.0f); }));
         CHECK_FALSE(engine.running);
         CHECK(engine.switch_state_calls == 0);
     }
@@ -638,8 +595,7 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
         Batch7247LaunchGui gui;
         Salix::LaunchState state;
         state.on_enter(batch7247_launch_context(engine, &gui));
-        const ImVec2 position = batch7247_launch_button_center(frame, state, 0);
-        frame.click_at(position, [&] { state.update(0.0f); });
+        REQUIRE(frame.activate_button("Welcome to Salix Game Studio!", "Quit", [&] { state.update(0.0f); }));
         CHECK(engine.current_mode == Salix::EngineMode::Launch);
     }
 
