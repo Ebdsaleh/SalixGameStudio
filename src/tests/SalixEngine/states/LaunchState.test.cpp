@@ -1,3 +1,4 @@
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <doctest.h>
 #include <Salix/states/LaunchState.h>
 #include <Salix/core/InitContext.h>
