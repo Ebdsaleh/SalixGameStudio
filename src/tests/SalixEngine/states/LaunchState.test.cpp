@@ -4,6 +4,7 @@
 #include <Salix/core/EngineMode.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/management/ProjectManager.h>
+#include <Salix/input/ImGuiInputManager.h>
 #include <Tests/SalixEngine/mocking/core/MockEngineInterface.h>
 #include <Tests/SalixEngine/mocking/gui/MockIGui.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
@@ -22,10 +23,12 @@ struct Batch7247ProjectRootGuard {
 
 struct Batch7247ImGuiFrame {
     ImGuiContext* previous = ImGui::GetCurrentContext();
+    ImGuiContext* previous_engine = Salix::ImGuiInputManager::get_context_for_testing();
     ImGuiContext* owned = ImGui::CreateContext();
 
     Batch7247ImGuiFrame() {
         ImGui::SetCurrentContext(owned);
+        Salix::ImGuiInputManager::set_context_for_testing(owned);
         ImGuiIO& io = ImGui::GetIO();
         io.DisplaySize = ImVec2(1280.0f, 720.0f);
         io.DeltaTime = 1.0f / 60.0f;
@@ -37,6 +40,7 @@ struct Batch7247ImGuiFrame {
 
     ~Batch7247ImGuiFrame() {
         ImGui::SetCurrentContext(owned);
+        Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
         ImGui::DestroyContext(owned);
         ImGui::SetCurrentContext(previous);
     }
