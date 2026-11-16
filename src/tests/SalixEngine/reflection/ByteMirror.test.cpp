@@ -7,6 +7,8 @@
 #include <Salix/ecs/Camera.h>
 #include <Salix/ecs/BoxCollider.h>
 #include <Salix/ecs/CppScript.h>
+#include <Salix/math/Point.h>
+#include <Salix/math/Rect.h>
 #include <yaml-cpp/yaml.h>
 #include <algorithm>
 #include <memory>
@@ -1696,5 +1698,303 @@ TEST_SUITE("Salix::reflection::ByteMirrorBatch7047") {
         const auto fov=Salix::ByteMirror::get_property_value(&c,"field_of_view");
         REQUIRE(std::holds_alternative<bool>(active)); REQUIRE(std::holds_alternative<float>(fov));
         CHECK(std::get<bool>(active)); CHECK(std::get<float>(fov)==doctest::Approx(70.47f));
+    }
+}
+
+
+class Batch7247ValueElement : public Salix::Element {
+public:
+    const char* get_class_name() const override { return "Batch7247ValueElement"; }
+
+    Salix::Point point{72, 47};
+    Salix::Rect rect{7, 2, 4, 7};
+    int enum_value = 7247;
+    int unsupported_value = 247;
+};
+
+namespace Salix {
+template<>
+void ByteMirror::register_type<::Batch7247ValueElement>() {
+    TypeInfo type_info;
+    type_info.name = "Batch7247ValueElement";
+    type_info.ancestor = get_type_info(typeid(Element));
+    type_info.type_index = typeid(::Batch7247ValueElement);
+    type_info.properties = {
+        {
+            "point7247", PropertyType::Point, nullptr,
+            [](void* instance) -> void* { return &static_cast<::Batch7247ValueElement*>(instance)->point; },
+            [](void* instance, void* data) { static_cast<::Batch7247ValueElement*>(instance)->point = *static_cast<Point*>(data); }
+        },
+        {
+            "rect7247", PropertyType::Rect, nullptr,
+            [](void* instance) -> void* { return &static_cast<::Batch7247ValueElement*>(instance)->rect; },
+            [](void* instance, void* data) { static_cast<::Batch7247ValueElement*>(instance)->rect = *static_cast<Rect*>(data); }
+        },
+        {
+            "enum7247", PropertyType::Enum, nullptr,
+            [](void* instance) -> void* { return &static_cast<::Batch7247ValueElement*>(instance)->enum_value; },
+            [](void* instance, void* data) { static_cast<::Batch7247ValueElement*>(instance)->enum_value = *static_cast<int*>(data); }
+        },
+        {
+            "null7247", PropertyType::Int, nullptr,
+            [](void*) -> void* { return nullptr; },
+            [](void*, void*) {}
+        },
+        {
+            "unsupported7247", PropertyType::Struct, nullptr,
+            [](void* instance) -> void* { return &static_cast<::Batch7247ValueElement*>(instance)->unsupported_value; },
+            [](void*, void*) {}
+        }
+    };
+    type_registry[typeid(::Batch7247ValueElement)] = type_info;
+}
+} // namespace Salix
+
+namespace {
+void batch7247_register_value_element() {
+    Salix::ByteMirror::register_all_types();
+    Salix::ByteMirror::register_type<Batch7247ValueElement>();
+}
+
+std::optional<Salix::Property> batch7247_value_property(const std::string& name) {
+    const auto* info = Salix::ByteMirror::get_type_info(typeid(Batch7247ValueElement));
+    if (!info) return std::nullopt;
+    for (const auto& property : info->properties) {
+        if (property.name == name) return property;
+    }
+    return std::nullopt;
+}
+}
+
+TEST_SUITE("Salix::reflection::ByteMirrorBatch7247") {
+    TEST_CASE("batch7247 custom reflected value element registers by type") {
+        batch7247_register_value_element();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Batch7247ValueElement));
+        REQUIRE(info != nullptr);
+        CHECK(info->name == "Batch7247ValueElement");
+        CHECK(info->type_index.has_value());
+    }
+
+    TEST_CASE("batch7247 custom reflected value element registers by name") {
+        batch7247_register_value_element();
+        const auto* info = Salix::ByteMirror::get_type_info_by_name("Batch7247ValueElement");
+        REQUIRE(info != nullptr);
+        CHECK(info->type_index == std::type_index(typeid(Batch7247ValueElement)));
+    }
+
+    TEST_CASE("batch7247 custom reflected value element keeps Element ancestor") {
+        batch7247_register_value_element();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Batch7247ValueElement));
+        REQUIRE(info != nullptr);
+        REQUIRE(info->ancestor != nullptr);
+        CHECK(info->ancestor->name == "Element");
+    }
+
+    TEST_CASE("batch7247 custom reflected value element exposes five own properties") {
+        batch7247_register_value_element();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Batch7247ValueElement));
+        REQUIRE(info != nullptr);
+        CHECK(info->properties.size() == 5);
+    }
+
+    TEST_CASE("batch7247 get property value reaches Point variant branch") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        const auto value = Salix::ByteMirror::get_property_value(&element, "point7247");
+        REQUIRE(std::holds_alternative<Salix::Point>(value));
+        const auto point = std::get<Salix::Point>(value);
+        CHECK(point.x == 72);
+        CHECK(point.y == 47);
+    }
+
+    TEST_CASE("batch7247 get property value reaches Rect variant branch") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        const auto value = Salix::ByteMirror::get_property_value(&element, "rect7247");
+        REQUIRE(std::holds_alternative<Salix::Rect>(value));
+        const auto rect = std::get<Salix::Rect>(value);
+        CHECK(rect.x == 7);
+        CHECK(rect.y == 2);
+        CHECK(rect.w == 4);
+        CHECK(rect.h == 7);
+    }
+
+    TEST_CASE("batch7247 get property value reaches plain Enum integer branch") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        const auto value = Salix::ByteMirror::get_property_value(&element, "enum7247");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 7247);
+    }
+
+    TEST_CASE("batch7247 null reflected getter returns default property variant") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        const auto value = Salix::ByteMirror::get_property_value(&element, "null7247");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch7247 unsupported reflected type reaches default property conversion") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        const auto value = Salix::ByteMirror::get_property_value(&element, "unsupported7247");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch7247 missing custom property still returns default variant") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        const auto value = Salix::ByteMirror::get_property_value(&element, "missing7247");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch7247 Point branch preserves negative coordinates") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        element.point.x = -72;
+        element.point.y = -47;
+        const auto point = std::get<Salix::Point>(
+            Salix::ByteMirror::get_property_value(&element, "point7247"));
+        CHECK(point.x == -72);
+        CHECK(point.y == -47);
+    }
+
+    TEST_CASE("batch7247 Rect branch preserves signed geometry") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        element.rect = Salix::Rect(-7, -2, 40, 70);
+        const auto rect = std::get<Salix::Rect>(
+            Salix::ByteMirror::get_property_value(&element, "rect7247"));
+        CHECK(rect.x == -7);
+        CHECK(rect.y == -2);
+        CHECK(rect.w == 40);
+        CHECK(rect.h == 70);
+    }
+
+    TEST_CASE("batch7247 Enum branch preserves negative integer representation") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        element.enum_value = -7247;
+        const auto value = Salix::ByteMirror::get_property_value(&element, "enum7247");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == -7247);
+    }
+
+    TEST_CASE("batch7247 reflected Point setter feeds value lookup") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        auto property = batch7247_value_property("point7247");
+        REQUIRE(property.has_value());
+        Salix::Point replacement{-7, 247};
+        property->set_data(&element, &replacement);
+        const auto point = std::get<Salix::Point>(
+            Salix::ByteMirror::get_property_value(&element, "point7247"));
+        CHECK(point.x == -7);
+        CHECK(point.y == 247);
+    }
+
+    TEST_CASE("batch7247 reflected Rect setter feeds value lookup") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        auto property = batch7247_value_property("rect7247");
+        REQUIRE(property.has_value());
+        Salix::Rect replacement(72, 47, 24, 7);
+        property->set_data(&element, &replacement);
+        const auto rect = std::get<Salix::Rect>(
+            Salix::ByteMirror::get_property_value(&element, "rect7247"));
+        CHECK(rect == replacement);
+    }
+
+    TEST_CASE("batch7247 reflected Enum setter feeds value lookup") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        auto property = batch7247_value_property("enum7247");
+        REQUIRE(property.has_value());
+        int replacement = 247;
+        property->set_data(&element, &replacement);
+        CHECK(std::get<int>(
+            Salix::ByteMirror::get_property_value(&element, "enum7247")) == 247);
+    }
+
+    TEST_CASE("batch7247 live handles include custom and inherited properties") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        auto handles = Salix::ByteMirror::create_handles_for(&element);
+        CHECK(handles.size() == 8);
+    }
+
+    TEST_CASE("batch7247 live handles expose custom Point value") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        auto handles = Salix::ByteMirror::create_handles_for(&element);
+        const auto it = std::find_if(handles.begin(), handles.end(), [](const auto& handle) {
+            return handle->get_name() == "point7247";
+        });
+        REQUIRE(it != handles.end());
+        const auto value = (*it)->get_value();
+        REQUIRE(std::holds_alternative<Salix::Point>(value));
+        CHECK(std::get<Salix::Point>(value).x == 72);
+    }
+
+    TEST_CASE("batch7247 inherited visible property converts to Bool") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        element.set_visibility(false);
+        const auto value = Salix::ByteMirror::get_property_value(&element, "visible");
+        REQUIRE(std::holds_alternative<bool>(value));
+        CHECK_FALSE(std::get<bool>(value));
+    }
+
+    TEST_CASE("batch7247 inherited name property converts to String") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        element.set_name("ValueElement7247");
+        const auto value = Salix::ByteMirror::get_property_value(&element, "name");
+        REQUIRE(std::holds_alternative<std::string>(value));
+        CHECK(std::get<std::string>(value) == "ValueElement7247");
+    }
+
+    TEST_CASE("batch7247 inherited id property converts to UInt64") {
+        batch7247_register_value_element();
+        Batch7247ValueElement element;
+        const auto value = Salix::ByteMirror::get_property_value(&element, "id");
+        CHECK(std::holds_alternative<std::uint64_t>(value));
+    }
+
+    TEST_CASE("batch7247 null element property lookup remains default") {
+        batch7247_register_value_element();
+        const auto value = Salix::ByteMirror::get_property_value(nullptr, "point7247");
+        REQUIRE(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+
+    TEST_CASE("batch7247 repeated custom registration remains stable") {
+        batch7247_register_value_element();
+        Salix::ByteMirror::register_type<Batch7247ValueElement>();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Batch7247ValueElement));
+        REQUIRE(info != nullptr);
+        CHECK(info->properties.size() == 5);
+        CHECK(info->name == "Batch7247ValueElement");
+    }
+
+    TEST_CASE("batch7247 flattened custom properties precede inherited Element fields") {
+        batch7247_register_value_element();
+        const auto* info = Salix::ByteMirror::get_type_info(typeid(Batch7247ValueElement));
+        REQUIRE(info != nullptr);
+        const auto properties = Salix::ByteMirror::get_all_properties_for_type(info);
+        REQUIRE(properties.size() == 8);
+        CHECK(properties.front().name == "point7247");
+        CHECK(properties[5].name == "id");
+    }
+
+    TEST_CASE("batch7247 custom registration leaves canonical Transform reflection intact") {
+        batch7247_register_value_element();
+        const auto* transform = Salix::ByteMirror::get_type_info(typeid(Salix::Transform));
+        REQUIRE(transform != nullptr);
+        CHECK(transform->name == "Transform");
+        CHECK(batch1147_has_property(Salix::ByteMirror::get_all_properties_for_type(transform), "position"));
     }
 }
