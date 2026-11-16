@@ -456,3 +456,339 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247") {
         CHECK(engine.switch_state_calls == 0);
     }
 }
+
+
+TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
+    TEST_CASE("batch7247 all three launcher dialogs install callbacks") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        frame.run([&] { state.update(0.0f); });
+        REQUIRE(gui.get_dialog("ChooseNewProjectLocation") != nullptr);
+        REQUIRE(gui.get_dialog("ChooseExistingProject") != nullptr);
+        REQUIRE(gui.get_dialog("ChooseExistingProjectToRun") != nullptr);
+        CHECK(static_cast<bool>(gui.get_dialog("ChooseNewProjectLocation")->get_callback()));
+        CHECK(static_cast<bool>(gui.get_dialog("ChooseExistingProject")->get_callback()));
+        CHECK(static_cast<bool>(gui.get_dialog("ChooseExistingProjectToRun")->get_callback()));
+    }
+
+    TEST_CASE("batch7247 new project dialog requests overwrite confirmation") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        frame.run([&] { state.update(0.0f); });
+        auto* dialog = gui.get_dialog("ChooseNewProjectLocation");
+        REQUIRE(dialog != nullptr);
+        CHECK((dialog->get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) != 0);
+    }
+
+    TEST_CASE("batch7247 open project dialog does not request overwrite confirmation") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        frame.run([&] { state.update(0.0f); });
+        auto* dialog = gui.get_dialog("ChooseExistingProject");
+        REQUIRE(dialog != nullptr);
+        CHECK((dialog->get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+    }
+
+    TEST_CASE("batch7247 run project dialog does not request overwrite confirmation") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        frame.run([&] { state.update(0.0f); });
+        auto* dialog = gui.get_dialog("ChooseExistingProjectToRun");
+        REQUIRE(dialog != nullptr);
+        CHECK((dialog->get_config().flags & ImGuiFileDialogFlags_ConfirmOverwrite) == 0);
+    }
+
+    TEST_CASE("batch7247 launcher dialogs retain default dot path") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        frame.run([&] { state.update(0.0f); });
+        CHECK(gui.get_dialog("ChooseNewProjectLocation")->get_default_path() == ".");
+        CHECK(gui.get_dialog("ChooseExistingProject")->get_default_path() == ".");
+        CHECK(gui.get_dialog("ChooseExistingProjectToRun")->get_default_path() == ".");
+    }
+
+    TEST_CASE("batch7247 all launcher dialogs are file dialogs") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        frame.run([&] { state.update(0.0f); });
+        CHECK(gui.get_dialog("ChooseNewProjectLocation")->get_type() == Salix::DialogType::File);
+        CHECK(gui.get_dialog("ChooseExistingProject")->get_type() == Salix::DialogType::File);
+        CHECK(gui.get_dialog("ChooseExistingProjectToRun")->get_type() == Salix::DialogType::File);
+    }
+
+    TEST_CASE("batch7247 one idle launcher update displays dialogs exactly once") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        frame.run([&] { state.update(0.0f); });
+        CHECK(gui.display_dialog_calls == 1);
+    }
+
+    TEST_CASE("batch7247 idle launcher does not request any dialog to open") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        frame.run([&] { state.update(0.0f); });
+        CHECK(gui.show_dialog_calls == 0);
+    }
+
+    TEST_CASE("batch7247 new project button request alone does not switch app state") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        const ImVec2 position = batch7247_launch_button_center(frame, state, 4);
+        frame.click_at(position, [&] { state.update(0.0f); });
+        CHECK(engine.switch_state_calls == 0);
+    }
+
+    TEST_CASE("batch7247 open project button request alone does not switch app state") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        const ImVec2 position = batch7247_launch_button_center(frame, state, 3);
+        frame.click_at(position, [&] { state.update(0.0f); });
+        CHECK(engine.switch_state_calls == 0);
+    }
+
+    TEST_CASE("batch7247 run project button request alone does not switch app state") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        const ImVec2 position = batch7247_launch_button_center(frame, state, 2);
+        frame.click_at(position, [&] { state.update(0.0f); });
+        CHECK(engine.switch_state_calls == 0);
+    }
+
+    TEST_CASE("batch7247 options button transition keeps engine running") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        const ImVec2 position = batch7247_launch_button_center(frame, state, 1);
+        frame.click_at(position, [&] { state.update(0.0f); });
+        CHECK(engine.running);
+        CHECK(engine.current_state == Salix::AppStateType::Options);
+    }
+
+    TEST_CASE("batch7247 quit button stops engine without state switch") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        const ImVec2 position = batch7247_launch_button_center(frame, state, 0);
+        frame.click_at(position, [&] { state.update(0.0f); });
+        CHECK_FALSE(engine.running);
+        CHECK(engine.switch_state_calls == 0);
+    }
+
+    TEST_CASE("batch7247 quit button leaves launch mode unchanged") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        const ImVec2 position = batch7247_launch_button_center(frame, state, 0);
+        frame.click_at(position, [&] { state.update(0.0f); });
+        CHECK(engine.current_mode == Salix::EngineMode::Launch);
+    }
+
+    TEST_CASE("batch7247 accepted new project transition keeps engine running") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        Salix::FileDialogResult result{};
+        result.is_ok = true;
+        gui.queue_result("ChooseNewProjectLocation", result);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(engine.running);
+        CHECK(engine.current_state == Salix::AppStateType::Editor);
+    }
+
+    TEST_CASE("batch7247 accepted open project transition keeps engine running") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::ProjectManager projects;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui, &projects));
+        Salix::FileDialogResult result{};
+        result.is_ok = true;
+        result.file_path_name = "C:/Batch7247/Open.salixproj";
+        result.folder_path = "C:/Batch7247";
+        gui.queue_result("ChooseExistingProject", result);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(engine.running);
+        CHECK(engine.current_state == Salix::AppStateType::Editor);
+    }
+
+    TEST_CASE("batch7247 accepted run project transition keeps engine running") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        Salix::FileDialogResult result{};
+        result.is_ok = true;
+        gui.queue_result("ChooseExistingProjectToRun", result);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(engine.running);
+        CHECK(engine.current_state == Salix::AppStateType::Game);
+    }
+
+    TEST_CASE("batch7247 accepted open project preserves spaces in selection metadata") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::ProjectManager projects;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui, &projects));
+        Salix::FileDialogResult result{};
+        result.is_ok = true;
+        result.file_path_name = "C:/Batch 7247/My Game.salixproj";
+        result.folder_path = "C:/Batch 7247";
+        gui.queue_result("ChooseExistingProject", result);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(projects.get_project_to_load() == result.file_path_name);
+        CHECK(projects.get_loaded_project_directory() == result.folder_path);
+    }
+
+    TEST_CASE("batch7247 accepted open project replaces prior pending selection") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::ProjectManager projects;
+        projects.set_project_to_load("Old7247.salixproj");
+        projects.set_loaded_project_directory("Old7247");
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui, &projects));
+        Salix::FileDialogResult result{};
+        result.is_ok = true;
+        result.file_path_name = "New7247.salixproj";
+        result.folder_path = "NewRoot7247";
+        gui.queue_result("ChooseExistingProject", result);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(projects.get_project_to_load() == "New7247.salixproj");
+        CHECK(projects.get_loaded_project_directory() == "NewRoot7247");
+    }
+
+    TEST_CASE("batch7247 canceled open project preserves both prior selection fields") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::ProjectManager projects;
+        projects.set_project_to_load("Keep7247.salixproj");
+        projects.set_loaded_project_directory("KeepRoot7247");
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui, &projects));
+        gui.queue_result("ChooseExistingProject", Salix::FileDialogResult{});
+        frame.run([&] { state.update(0.0f); });
+        CHECK(projects.get_project_to_load() == "Keep7247.salixproj");
+        CHECK(projects.get_loaded_project_directory() == "KeepRoot7247");
+    }
+
+    TEST_CASE("batch7247 accepted new project callback does not mutate project manager selection") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::ProjectManager projects;
+        projects.set_project_to_load("KeepNew7247.salixproj");
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui, &projects));
+        Salix::FileDialogResult result{};
+        result.is_ok = true;
+        gui.queue_result("ChooseNewProjectLocation", result);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(projects.get_project_to_load() == "KeepNew7247.salixproj");
+    }
+
+    TEST_CASE("batch7247 accepted run project callback does not mutate project manager selection") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::ProjectManager projects;
+        projects.set_project_to_load("KeepRun7247.salixproj");
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui, &projects));
+        Salix::FileDialogResult result{};
+        result.is_ok = true;
+        gui.queue_result("ChooseExistingProjectToRun", result);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(projects.get_project_to_load() == "KeepRun7247.salixproj");
+    }
+
+    TEST_CASE("batch7247 canceled then accepted new project yields only accepted transition") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        gui.queue_result("ChooseNewProjectLocation", Salix::FileDialogResult{});
+        frame.run([&] { state.update(0.0f); });
+        Salix::FileDialogResult accepted{};
+        accepted.is_ok = true;
+        gui.queue_result("ChooseNewProjectLocation", accepted);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(engine.switch_state_calls == 1);
+        CHECK(engine.current_state == Salix::AppStateType::Editor);
+    }
+
+    TEST_CASE("batch7247 sequential accepted run and new callbacks each transition once") {
+        Batch7247ImGuiFrame frame;
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        Salix::FileDialogResult accepted{};
+        accepted.is_ok = true;
+        gui.queue_result("ChooseExistingProjectToRun", accepted);
+        frame.run([&] { state.update(0.0f); });
+        gui.queue_result("ChooseNewProjectLocation", accepted);
+        frame.run([&] { state.update(0.0f); });
+        CHECK(engine.switch_state_calls == 2);
+        CHECK(engine.current_state == Salix::AppStateType::Editor);
+    }
+
+    TEST_CASE("batch7247 repeated mock renderer renders delegate GUI phases each time") {
+        MockEngineInterface engine;
+        Batch7247LaunchGui gui;
+        MockIRenderer renderer;
+        Salix::LaunchState state;
+        state.on_enter(batch7247_launch_context(engine, &gui));
+        state.render(&renderer);
+        state.render(&renderer);
+        CHECK(gui.render_calls == 2);
+        CHECK(gui.platform_window_calls == 2);
+    }
+}
