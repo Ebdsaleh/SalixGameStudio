@@ -1,6 +1,8 @@
+#define IMGUI_DEFINE_MATH_OPERATORS
 #include <doctest.h>
 #include <Salix/reflection/ui/TypeDrawerLive.h>
 #include <Salix/reflection/ByteMirror.h>
+#include <Tests/SalixEngine/mocking/reflection/MockPropertyHandle.h>
 #include <stdexcept>
 
 TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch1247") {
@@ -67,6 +69,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch1247") {
 #include <Salix/math/Point.h>
 #include <glm/glm.hpp>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <string>
 
 namespace {
@@ -74,6 +77,8 @@ struct Batch6947DrawerFrame {
     ImGuiContext* previous_test = ImGui::GetCurrentContext();
     ImGuiContext* previous_engine = Salix::ImGuiInputManager::get_context_for_testing();
     ImGuiContext* owned = ImGui::CreateContext();
+    bool frame_open = false;
+
     Batch6947DrawerFrame() {
         ImGui::SetCurrentContext(owned);
         Salix::ImGuiInputManager::set_context_for_testing(owned);
@@ -82,16 +87,88 @@ struct Batch6947DrawerFrame {
         io.DeltaTime = 1.0f / 60.0f;
         if (io.Fonts->Fonts.empty()) io.Fonts->AddFontDefault();
         io.Fonts->Build();
-        ImGui::NewFrame();
-        ImGui::Begin("Batch6947DrawerWindow");
         Salix::TypeDrawerLive::register_all_type_drawers();
+        begin();
     }
+
     ~Batch6947DrawerFrame() {
-        ImGui::End();
-        ImGui::EndFrame();
+        end();
         Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
         ImGui::DestroyContext(owned);
         ImGui::SetCurrentContext(previous_test);
+    }
+
+    void begin() {
+        ImGui::SetCurrentContext(owned);
+        ImGui::NewFrame();
+        ImGui::Begin("Batch6947DrawerWindow");
+        frame_open = true;
+    }
+
+    void end() {
+        if (!frame_open) {
+            return;
+        }
+        ImGui::End();
+        ImGui::EndFrame();
+        frame_open = false;
+    }
+
+    ImGuiID item_id(const char* label) {
+        return ImGui::GetID(label);
+    }
+
+    ImGuiID component_id(const char* label, int component) {
+        ImGui::PushID(label);
+        ImGui::PushID(component);
+        const ImGuiID id = ImGui::GetID("");
+        ImGui::PopID();
+        ImGui::PopID();
+        return id;
+    }
+
+    ImGuiID matrix_component_id(const char* property_name, int column, int component) {
+        char column_label[16];
+        sprintf_s(column_label, "Col %d", column + 1);
+        ImGui::PushID(property_name);
+        ImGui::PushID(column_label);
+        ImGui::PushID(component);
+        const ImGuiID id = ImGui::GetID("");
+        ImGui::PopID();
+        ImGui::PopID();
+        ImGui::PopID();
+        return id;
+    }
+
+    ImGuiID step_button_id(const char* label, const char* symbol) {
+        ImGui::PushID(label);
+        const ImGuiID id = ImGui::GetID(symbol);
+        ImGui::PopID();
+        return id;
+    }
+
+    template<typename Fn>
+    void activate_once(ImGuiID id, Fn&& fn) {
+        fn();
+        end();
+        ImGui::ActivateItemByID(id);
+        begin();
+        fn();
+    }
+
+    template<typename Fn>
+    void activate_and_tweak(ImGuiID id, Fn&& fn, ImGuiKey key = ImGuiKey_RightArrow) {
+        fn();
+        end();
+
+        ImGui::ActivateItemByID(id);
+        begin();
+        fn();
+        end();
+
+        ImGui::GetIO().AddKeyEvent(key, true);
+        begin();
+        fn();
     }
 };
 template<typename T>
@@ -656,5 +733,191 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7147") {
         REQUIRE(info != nullptr);
         REQUIRE(info->type_index.has_value());
         CHECK(*info->type_index == std::type_index(typeid(Salix::ProjectionMode)));
+    }
+}
+
+
+namespace {
+template<typename T>
+Salix::Property batch7347_mutable_property(
+    const std::string& name,
+    Salix::PropertyType type,
+    T& value,
+    int& setter_calls) {
+    return Salix::Property{
+        name,
+        type,
+        nullptr,
+        [&value](void*) -> void* { return &value; },
+        [&value, &setter_calls](void*, void* incoming) {
+            ++setter_calls;
+            value = *static_cast<T*>(incoming);
+        }
+    };
+}
+
+Salix::Property batch7347_handle_property(const char* name, Salix::PropertyType type) {
+    Salix::Property property;
+    property.name = name;
+    property.type = type;
+    return property;
+}
+}
+
+TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
+    TEST_CASE("batch7347 direct integer drawer applies ImGui step button mutation through reflected setter") {
+        Batch6947DrawerFrame frame;
+        int value = 7347;
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property("Int7347", Salix::PropertyType::Int, value, setter_calls);
+        const ImGuiID plus_id = frame.step_button_id("Int7347", "+");
+
+        frame.activate_once(plus_id, [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Int)(property, nullptr);
+        });
+
+        CHECK(value == 7348);
+        CHECK(setter_calls == 1);
+    }
+
+    TEST_CASE("batch7347 direct boolean drawer propagates checkbox activation through reflected setter") {
+        Batch6947DrawerFrame frame;
+        bool value = true;
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property("Bool7347", Salix::PropertyType::Bool, value, setter_calls);
+        const ImGuiID id = frame.item_id("Bool7347");
+
+        frame.activate_once(id, [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Bool)(property, nullptr);
+        });
+
+        CHECK_FALSE(value);
+        CHECK(setter_calls == 1);
+    }
+
+    TEST_CASE("batch7347 direct Vector2 drawer propagates keyboard drag mutation through reflected setter") {
+        Batch6947DrawerFrame frame;
+        Salix::Vector2 value(7.0f, 347.0f);
+        const Salix::Vector2 before = value;
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property("Vector27347", Salix::PropertyType::Vector2, value, setter_calls);
+        const ImGuiID id = frame.component_id("Vector27347", 0);
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Vector2)(property, nullptr);
+        });
+
+        CHECK(value.x != doctest::Approx(before.x));
+        CHECK(value.y == doctest::Approx(before.y));
+        CHECK(setter_calls == 1);
+    }
+
+    TEST_CASE("batch7347 direct Vector3 drawer propagates selected component drag through reflected setter") {
+        Batch6947DrawerFrame frame;
+        Salix::Vector3 value(7.0f, 3.0f, 47.0f);
+        const Salix::Vector3 before = value;
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property("Vector37347", Salix::PropertyType::Vector3, value, setter_calls);
+        const ImGuiID id = frame.component_id("Vector37347", 1);
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Vector3)(property, nullptr);
+        });
+
+        CHECK(value.x == doctest::Approx(before.x));
+        CHECK(value.y != doctest::Approx(before.y));
+        CHECK(value.z == doctest::Approx(before.z));
+        CHECK(setter_calls == 1);
+    }
+
+    TEST_CASE("batch7347 direct matrix drawer writes keyboard drag mutation through reflected setter") {
+        Batch6947DrawerFrame frame;
+        glm::mat4 value(1.0f);
+        const float before = value[0][0];
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property("Matrix7347", Salix::PropertyType::GlmMat4, value, setter_calls);
+        const ImGuiID id = frame.matrix_component_id("Matrix7347", 0, 0);
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::GlmMat4)(property, nullptr);
+        });
+
+        CHECK(value[0][0] != doctest::Approx(before));
+        CHECK(setter_calls == 1);
+    }
+
+    TEST_CASE("batch7347 handle integer branch commits keyboard drag mutation through existing reflection mock") {
+        Batch6947DrawerFrame frame;
+        auto property = batch7347_handle_property("HandleInt7347", Salix::PropertyType::Int);
+        MockPropertyHandle handle(property, Salix::PropertyValue{7347});
+        const ImGuiID id = frame.item_id("HandleInt7347");
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::draw_property("HandleInt7347", handle);
+        });
+
+        CHECK(handle.set_calls == 1);
+        CHECK(std::get<int>(handle.get_value()) != 7347);
+    }
+
+    TEST_CASE("batch7347 handle float branch commits keyboard drag mutation through existing reflection mock") {
+        Batch6947DrawerFrame frame;
+        auto property = batch7347_handle_property("HandleFloat7347", Salix::PropertyType::Float);
+        MockPropertyHandle handle(property, Salix::PropertyValue{73.47f});
+        const ImGuiID id = frame.item_id("HandleFloat7347");
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::draw_property("HandleFloat7347", handle);
+        });
+
+        CHECK(handle.set_calls == 1);
+        CHECK(std::get<float>(handle.get_value()) != doctest::Approx(73.47f));
+    }
+
+    TEST_CASE("batch7347 handle boolean branch commits checkbox mutation through existing reflection mock") {
+        Batch6947DrawerFrame frame;
+        auto property = batch7347_handle_property("HandleBool7347", Salix::PropertyType::Bool);
+        MockPropertyHandle handle(property, Salix::PropertyValue{true});
+        const ImGuiID id = frame.item_id("HandleBool7347");
+
+        frame.activate_once(id, [&] {
+            Salix::TypeDrawerLive::draw_property("HandleBool7347", handle);
+        });
+
+        CHECK(handle.set_calls == 1);
+        CHECK_FALSE(std::get<bool>(handle.get_value()));
+    }
+
+    TEST_CASE("batch7347 handle Vector2 branch commits one component drag through existing reflection mock") {
+        Batch6947DrawerFrame frame;
+        auto property = batch7347_handle_property("HandleVector27347", Salix::PropertyType::Vector2);
+        MockPropertyHandle handle(property, Salix::PropertyValue{Salix::Vector2(7.0f, 347.0f)});
+        const ImGuiID id = frame.component_id("HandleVector27347", 0);
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::draw_property("HandleVector27347", handle);
+        });
+
+        const auto result = std::get<Salix::Vector2>(handle.get_value());
+        CHECK(handle.set_calls == 1);
+        CHECK(result.x != doctest::Approx(7.0f));
+        CHECK(result.y == doctest::Approx(347.0f));
+    }
+
+    TEST_CASE("batch7347 handle Vector3 branch commits selected component drag through existing reflection mock") {
+        Batch6947DrawerFrame frame;
+        auto property = batch7347_handle_property("HandleVector37347", Salix::PropertyType::Vector3);
+        MockPropertyHandle handle(property, Salix::PropertyValue{Salix::Vector3(7.0f, 3.0f, 47.0f)});
+        const ImGuiID id = frame.component_id("HandleVector37347", 2);
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::draw_property("HandleVector37347", handle);
+        });
+
+        const auto result = std::get<Salix::Vector3>(handle.get_value());
+        CHECK(handle.set_calls == 1);
+        CHECK(result.x == doctest::Approx(7.0f));
+        CHECK(result.y == doctest::Approx(3.0f));
+        CHECK(result.z != doctest::Approx(47.0f));
     }
 }
