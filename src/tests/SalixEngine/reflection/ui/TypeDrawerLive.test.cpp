@@ -1061,7 +1061,11 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
 
     TEST_CASE("batch7347 direct Color drawer commits real component drag through reflected setter") {
         Batch6947DrawerFrame frame;
-        Salix::Color value(0.25f, 0.50f, 0.75f, 1.0f);
+        // ColorEdit4 defaults to integer component editing and rewrites all
+        // channels through value/255. Start from exactly representable 8-bit
+        // channel values so untouched-channel assertions test Salix behavior,
+        // not ImGui quantization noise.
+        Salix::Color value = Salix::Color::from_rgba_int(64, 128, 192, 255);
         const Salix::Color before = value;
         int setter_calls = 0;
         auto property = batch7347_mutable_property(
@@ -1085,9 +1089,12 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
     TEST_CASE("batch7347 handle Color branch converts edited ImGui component and commits through existing reflection mock") {
         Batch6947DrawerFrame frame;
         auto property = batch7347_handle_property("HandleColor7347", Salix::PropertyType::Color);
+        // The handle path stores 0..255-style channel values, then normalizes
+        // them for ColorEdit4. Keep the edited red channel below 255 so a
+        // RightArrow tweak can produce a real bounded DragInt mutation.
         MockPropertyHandle handle(
             property,
-            Salix::PropertyValue{Salix::Color(255.0f, 128.0f, 64.0f, 255.0f)});
+            Salix::PropertyValue{Salix::Color(128.0f, 96.0f, 64.0f, 255.0f)});
         const ImGuiID id = frame.color_component_id("HandleColor7347", 0);
 
         frame.activate_and_tweak(id, [&] {
@@ -1096,8 +1103,8 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
 
         const auto result = std::get<Salix::Color>(handle.get_value());
         CHECK(handle.set_calls == 1);
-        CHECK_FALSE(result.r == doctest::Approx(255.0f));
-        CHECK(result.g == doctest::Approx(128.0f));
+        CHECK_FALSE(result.r == doctest::Approx(128.0f));
+        CHECK(result.g == doctest::Approx(96.0f));
         CHECK(result.b == doctest::Approx(64.0f));
         CHECK(result.a == doctest::Approx(255.0f));
     }
