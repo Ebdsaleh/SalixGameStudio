@@ -179,6 +179,28 @@ struct Batch6947DrawerFrame {
     }
 
     template<typename Fn>
+    void activate_and_replace_text(
+        ImGuiID id,
+        const char* replacement_text,
+        Fn&& fn) {
+        fn();
+        end();
+
+        // This helper models keyboard-nav editing explicitly. InputTextEx uses
+        // the keyboard activation source to select the current single-line
+        // contents before queued character input is applied on the next frame.
+        owned->NavInputSource = ImGuiInputSource_Keyboard;
+        ImGui::ActivateItemByID(id);
+        begin();
+        fn();
+        end();
+
+        ImGui::GetIO().AddInputCharactersUTF8(replacement_text);
+        begin();
+        fn();
+    }
+
+    template<typename Fn>
     bool activate_indexed_combo_item(
         ImGuiID combo_id,
         int item_index,
@@ -1107,6 +1129,83 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
         CHECK(result.g == doctest::Approx(96.0f));
         CHECK(result.b == doctest::Approx(64.0f));
         CHECK(result.a == doctest::Approx(255.0f));
+    }
+
+
+    TEST_CASE("batch7347 direct Float drawer replaces active scalar text and commits reflected setter") {
+        Batch6947DrawerFrame frame;
+        float value = 7.347f;
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property(
+            "Float7347",
+            Salix::PropertyType::Float,
+            value,
+            setter_calls);
+        const ImGuiID id = frame.item_id("Float7347");
+
+        frame.activate_and_replace_text(id, "73.47", [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Float)(property, nullptr);
+        });
+
+        CHECK(setter_calls == 1);
+        CHECK(value == doctest::Approx(73.47f));
+    }
+
+    TEST_CASE("batch7347 direct Point drawer replaces selected component text and commits reflected setter") {
+        Batch6947DrawerFrame frame;
+        Salix::Point value{73, 47};
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property(
+            "Point7347",
+            Salix::PropertyType::Point,
+            value,
+            setter_calls);
+        const ImGuiID id = frame.component_id("Point7347", 1);
+
+        frame.activate_and_replace_text(id, "-7347", [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Point)(property, nullptr);
+        });
+
+        CHECK(setter_calls == 1);
+        CHECK(value.x == 73);
+        CHECK(value.y == -7347);
+    }
+
+    TEST_CASE("batch7347 direct String drawer replaces active text and commits reflected setter") {
+        Batch6947DrawerFrame frame;
+        std::string value = "Before7347";
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property(
+            "String7347",
+            Salix::PropertyType::String,
+            value,
+            setter_calls);
+        const ImGuiID id = frame.item_id("String7347");
+
+        frame.activate_and_replace_text(id, "After7347", [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::String)(property, nullptr);
+        });
+
+        CHECK(setter_calls == 1);
+        CHECK(value == "After7347");
+    }
+
+    TEST_CASE("batch7347 handle String branch replaces active text through existing reflection mock") {
+        Batch6947DrawerFrame frame;
+        auto property = batch7347_handle_property(
+            "HandleString7347",
+            Salix::PropertyType::String);
+        MockPropertyHandle handle(
+            property,
+            Salix::PropertyValue{std::string("HandleBefore7347")});
+        const ImGuiID id = frame.item_id("HandleString7347");
+
+        frame.activate_and_replace_text(id, "HandleAfter7347", [&] {
+            Salix::TypeDrawerLive::draw_property("HandleString7347", handle);
+        });
+
+        CHECK(handle.set_calls == 1);
+        CHECK(std::get<std::string>(handle.get_value()) == "HandleAfter7347");
     }
 
 }
