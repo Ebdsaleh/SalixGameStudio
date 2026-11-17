@@ -8,6 +8,14 @@
 #include <Salix/core/InitContext.h>
 #include <filesystem>
 #include <fstream>
+#include <Salix/assets/AssetManager.h>
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/ScriptElement.h>
+#include <Salix/scripting/ScriptFactory.h>
+#include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
+#include <atomic>
+#include <system_error>
 
 TEST_SUITE("Salix::management::ProjectBatch1147") {
     TEST_CASE("default project derives stable development defaults") {
@@ -901,3 +909,118 @@ TEST_SUITE("Salix::management::ProjectBatch5747") {
     }
 }
 
+
+
+namespace {
+class Batch7372ProjectSandbox {
+public:
+    Batch7372ProjectSandbox() {
+        static std::atomic<unsigned long> counter{0};
+        std::error_code ec;
+
+        old_cwd = std::filesystem::current_path(ec);
+        if (ec) {
+            return;
+        }
+
+        root = std::filesystem::temp_directory_path(ec);
+        if (ec) {
+            return;
+        }
+
+        root /= "SalixGameStudio_Batch7372_Project_" + std::to_string(++counter);
+        std::filesystem::create_directories(root / "src" / "Sandbox" / "TestProject", ec);
+        if (ec) {
+            return;
+        }
+
+        std::filesystem::current_path(root, ec);
+        ready = !ec;
+    }
+
+    ~Batch7372ProjectSandbox() {
+        std::error_code ec;
+        if (!old_cwd.empty()) {
+            std::filesystem::current_path(old_cwd, ec);
+        }
+        ec.clear();
+        if (!root.empty()) {
+            std::filesystem::remove_all(root, ec);
+        }
+    }
+
+    std::filesystem::path saved_default_realm() const {
+        return root / "src" / "Sandbox" / "TestProject" / "Default.realm";
+    }
+
+    bool ready = false;
+    std::filesystem::path root;
+    std::filesystem::path old_cwd;
+};
+}
+
+TEST_SUITE("Salix::management::ProjectBatch7372") {
+    TEST_CASE("batch7372 default realm creation exits safely when initialized project has no Default shell") {
+        Batch7372ProjectSandbox sandbox;
+        REQUIRE(sandbox.ready);
+
+        Salix::Project project("Batch7372NoDefault", "Root7372");
+        Salix::InitContext context{};
+        project.initialize(context);
+
+        REQUIRE(project.get_realm_manager() != nullptr);
+        CHECK(project.get_realm_manager()->get_active_realm() == nullptr);
+
+        CHECK_NOTHROW(project.create_and_save_default_realm());
+
+        CHECK(project.get_realm_manager()->get_active_realm() == nullptr);
+        CHECK_FALSE(std::filesystem::exists(sandbox.saved_default_realm()));
+        project.shutdown();
+    }
+
+    TEST_CASE("batch7372 default realm creation materializes player content and saves inside isolated sandbox") {
+        Batch7372ProjectSandbox sandbox;
+        REQUIRE(sandbox.ready);
+
+        MockIRenderer renderer;
+        Salix::AssetManager asset_manager;
+        asset_manager.initialize(&renderer);
+
+        Salix::InitContext context{};
+        context.asset_manager = &asset_manager;
+        context.renderer = &renderer;
+
+        Salix::Project project("Batch7372Default", "Root7372");
+        project.add_realm_path("Default", "Default.realm");
+        project.initialize(context);
+
+        REQUIRE(project.get_realm_manager() != nullptr);
+        REQUIRE(project.get_realm_manager()->get_active_realm() == nullptr);
+
+        Salix::ScriptFactory::get().register_script(
+            "PlayerMovement",
+            [] { return std::make_unique<Salix::ScriptElement>(); });
+
+        project.create_and_save_default_realm();
+
+        Salix::Realm* realm = project.get_realm_manager()->get_active_realm();
+        REQUIRE(realm != nullptr);
+        CHECK(realm->get_name() == "Default");
+
+        Salix::Entity* player = realm->get_entity_by_name("Player");
+        REQUIRE(player != nullptr);
+        CHECK(player->get_transform() != nullptr);
+
+        Salix::Sprite2D* sprite = player->get_element<Salix::Sprite2D>();
+        REQUIRE(sprite != nullptr);
+        CHECK(sprite->get_texture_path() == "Assets/Images/test.png");
+        CHECK(sprite->get_texture() != nullptr);
+        CHECK(renderer.load_texture_calls == 1);
+
+        CHECK(player->get_element<Salix::ScriptElement>() != nullptr);
+        CHECK(std::filesystem::is_regular_file(sandbox.saved_default_realm()));
+
+        project.shutdown();
+        asset_manager.shutdown();
+    }
+}
