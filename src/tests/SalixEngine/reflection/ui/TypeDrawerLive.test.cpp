@@ -1062,7 +1062,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
     TEST_CASE("batch7347 direct Color drawer commits real component drag through reflected setter") {
         Batch6947DrawerFrame frame;
         // ColorEdit4 defaults to integer component editing and rewrites all
-        // channels through value/255. Start from exactly representable 8-bit
+        // channels through value/255. Start from canonical 8-bit-derived
         // channel values so untouched-channel assertions test Salix behavior,
         // not ImGui quantization noise.
         Salix::Color value = Salix::Color::from_rgba_int(64, 128, 192, 255);
