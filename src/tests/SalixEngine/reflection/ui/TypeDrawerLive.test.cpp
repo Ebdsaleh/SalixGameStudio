@@ -169,6 +169,60 @@ struct Batch6947DrawerFrame {
         begin();
         fn();
     }
+
+    template<typename Fn>
+    bool activate_indexed_combo_item(
+        ImGuiID combo_id,
+        int item_index,
+        const char* item_label,
+        Fn&& fn) {
+        fn();
+        end();
+
+        ImGui::ActivateItemByID(combo_id);
+        begin();
+        fn();
+
+        ImGuiWindow* popup = ImGui::FindWindowByName("##Combo_00");
+        if (!popup) {
+            return false;
+        }
+
+        const ImGuiID indexed_seed = popup->GetID(item_index);
+        const ImGuiID item_id = ImGui::GetIDWithSeed(item_label, nullptr, indexed_seed);
+
+        end();
+        ImGui::ActivateItemByID(item_id);
+        begin();
+        fn();
+        return true;
+    }
+
+    template<typename Fn>
+    bool activate_named_combo_item(
+        ImGuiID combo_id,
+        const char* item_label,
+        Fn&& fn) {
+        fn();
+        end();
+
+        ImGui::ActivateItemByID(combo_id);
+        begin();
+        fn();
+
+        ImGuiWindow* popup = ImGui::FindWindowByName("##Combo_00");
+        if (!popup) {
+            return false;
+        }
+
+        const ImGuiID item_id = popup->GetID(item_label);
+
+        end();
+        ImGui::ActivateItemByID(item_id);
+        begin();
+        fn();
+        return true;
+    }
 };
 template<typename T>
 Salix::Property batch6947_draw_property(const std::string& name, Salix::PropertyType type, T& value) {
@@ -919,4 +973,81 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
         CHECK(result.y == doctest::Approx(3.0f));
         CHECK_FALSE(result.z == doctest::Approx(47.0f));
     }
+
+    TEST_CASE("batch7347 direct Enum drawer commits alternate combo selection through reflected setter") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+
+        int value = static_cast<int>(Salix::ProjectionMode::Perspective);
+        int setter_calls = 0;
+        auto property = batch7147_enum_property("Enum7347", Salix::PropertyType::Enum, value, info);
+        property.set_data = [&value, &setter_calls](void*, void* incoming) {
+            ++setter_calls;
+            value = *static_cast<int*>(incoming);
+        };
+
+        const ImGuiID combo_id = frame.item_id("Enum7347");
+        REQUIRE(frame.activate_indexed_combo_item(
+            combo_id,
+            1,
+            "Orthographic",
+            [&] {
+                Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Enum)(property, nullptr);
+            }));
+
+        CHECK(value == static_cast<int>(Salix::ProjectionMode::Orthographic));
+        CHECK(setter_calls == 1);
+    }
+
+    TEST_CASE("batch7347 direct EnumClass drawer commits alternate combo selection through reflected setter") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+
+        int value = static_cast<int>(Salix::ProjectionMode::Orthographic);
+        int setter_calls = 0;
+        auto property = batch7147_enum_property("EnumClass7347", Salix::PropertyType::EnumClass, value, info);
+        property.set_data = [&value, &setter_calls](void*, void* incoming) {
+            ++setter_calls;
+            value = *static_cast<int*>(incoming);
+        };
+
+        const ImGuiID combo_id = frame.item_id("EnumClass7347");
+        REQUIRE(frame.activate_indexed_combo_item(
+            combo_id,
+            0,
+            "Perspective",
+            [&] {
+                Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::EnumClass)(property, nullptr);
+            }));
+
+        CHECK(value == static_cast<int>(Salix::ProjectionMode::Perspective));
+        CHECK(setter_calls == 1);
+    }
+
+    TEST_CASE("batch7347 handle EnumClass branch opens real combo and commits selected enum value through reflection mock") {
+        Batch6947DrawerFrame frame;
+        const auto* info = batch7147_projection_type_info();
+        REQUIRE(info != nullptr);
+
+        auto property = batch7347_handle_property("HandleEnumClass7347", Salix::PropertyType::EnumClass);
+        property.contained_type_info = info;
+        MockPropertyHandle handle(
+            property,
+            Salix::PropertyValue{static_cast<int>(Salix::ProjectionMode::Perspective)});
+
+        const ImGuiID combo_id = frame.item_id("HandleEnumClass7347");
+        REQUIRE(frame.activate_named_combo_item(
+            combo_id,
+            "Orthographic",
+            [&] {
+                Salix::TypeDrawerLive::draw_property("HandleEnumClass7347", handle);
+            }));
+
+        CHECK(handle.set_calls == 1);
+        CHECK(std::get<int>(handle.get_value()) ==
+              static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
 }
