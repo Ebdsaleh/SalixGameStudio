@@ -5,6 +5,10 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <filesystem>
+#include <fstream>
+#include <atomic>
+#include <system_error>
 
 TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch1647") {
     TEST_CASE("shader program is not default constructible without shader source paths") {
@@ -68,5 +72,133 @@ TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch1647") {
                 std::declval<const glm::vec3&>()));
         CHECK((std::is_same_v<Vec4Return, void>));
         CHECK((std::is_same_v<Vec3Return, void>));
+    }
+}
+
+
+namespace {
+class Batch7366ShaderFiles {
+public:
+    Batch7366ShaderFiles() {
+        static std::atomic<unsigned long> counter{0};
+        std::error_code ec;
+        const auto base = std::filesystem::temp_directory_path(ec);
+        if (ec) {
+            return;
+        }
+
+        root = base / ("SalixGameStudio_Batch7366_Shader_" + std::to_string(++counter));
+        std::filesystem::create_directories(root, ec);
+        ready = !ec;
+    }
+
+    ~Batch7366ShaderFiles() {
+        std::error_code ec;
+        if (!root.empty()) {
+            std::filesystem::remove_all(root, ec);
+        }
+    }
+
+    std::filesystem::path file(const std::string& name) const {
+        return root / name;
+    }
+
+    void write(const std::string& name, const std::string& contents) const {
+        std::ofstream stream(file(name), std::ios::out | std::ios::trunc);
+        stream << contents;
+    }
+
+    bool ready = false;
+    std::filesystem::path root;
+};
+
+const char* batch7366_shader_source =
+    "#version 450 core\n"
+    "void main() {}\n";
+}
+
+TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch7366") {
+    TEST_CASE("batch7366 two missing shader files produce inert program without GL dispatch") {
+        Batch7366ShaderFiles files;
+        REQUIRE(files.ready);
+
+        const auto vertex = files.file("missing.vert");
+        const auto fragment = files.file("missing.frag");
+        REQUIRE_FALSE(std::filesystem::exists(vertex));
+        REQUIRE_FALSE(std::filesystem::exists(fragment));
+
+        Salix::OpenGLShaderProgram program(vertex.string(), fragment.string());
+        CHECK(program.ID == 0);
+    }
+
+    TEST_CASE("batch7366 readable vertex with missing fragment still produces inert program") {
+        Batch7366ShaderFiles files;
+        REQUIRE(files.ready);
+        files.write("valid.vert", batch7366_shader_source);
+
+        const auto vertex = files.file("valid.vert");
+        const auto fragment = files.file("missing.frag");
+        REQUIRE(std::filesystem::exists(vertex));
+        REQUIRE_FALSE(std::filesystem::exists(fragment));
+
+        Salix::OpenGLShaderProgram program(vertex.string(), fragment.string());
+        CHECK(program.ID == 0);
+    }
+
+    TEST_CASE("batch7366 missing vertex with readable fragment still produces inert program") {
+        Batch7366ShaderFiles files;
+        REQUIRE(files.ready);
+        files.write("valid.frag", batch7366_shader_source);
+
+        const auto vertex = files.file("missing.vert");
+        const auto fragment = files.file("valid.frag");
+        REQUIRE_FALSE(std::filesystem::exists(vertex));
+        REQUIRE(std::filesystem::exists(fragment));
+
+        Salix::OpenGLShaderProgram program(vertex.string(), fragment.string());
+        CHECK(program.ID == 0);
+    }
+
+    TEST_CASE("batch7366 empty vertex file is rejected before any GL dispatch") {
+        Batch7366ShaderFiles files;
+        REQUIRE(files.ready);
+        files.write("empty.vert", "");
+        files.write("valid.frag", batch7366_shader_source);
+
+        Salix::OpenGLShaderProgram program(
+            files.file("empty.vert").string(),
+            files.file("valid.frag").string());
+
+        CHECK(program.ID == 0);
+    }
+
+    TEST_CASE("batch7366 empty fragment file is rejected before any GL dispatch") {
+        Batch7366ShaderFiles files;
+        REQUIRE(files.ready);
+        files.write("valid.vert", batch7366_shader_source);
+        files.write("empty.frag", "");
+
+        Salix::OpenGLShaderProgram program(
+            files.file("valid.vert").string(),
+            files.file("empty.frag").string());
+
+        CHECK(program.ID == 0);
+    }
+
+    TEST_CASE("batch7366 two readable but empty shader files remain inert and destruct safely") {
+        Batch7366ShaderFiles files;
+        REQUIRE(files.ready);
+        files.write("empty.vert", "");
+        files.write("empty.frag", "");
+
+        {
+            Salix::OpenGLShaderProgram program(
+                files.file("empty.vert").string(),
+                files.file("empty.frag").string());
+            CHECK(program.ID == 0);
+        }
+
+        CHECK(std::filesystem::exists(files.file("empty.vert")));
+        CHECK(std::filesystem::exists(files.file("empty.frag")));
     }
 }
