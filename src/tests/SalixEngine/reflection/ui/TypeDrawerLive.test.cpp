@@ -128,10 +128,9 @@ struct Batch6947DrawerFrame {
     }
 
     ImGuiID matrix_component_id(const char* property_name, int column, int component) {
-        char column_label[16];
-        sprintf_s(column_label, "Col %d", column + 1);
+        static const char* column_labels[] = {"Col 1", "Col 2", "Col 3", "Col 4"};
         ImGui::PushID(property_name);
-        ImGui::PushID(column_label);
+        ImGui::PushID(column_labels[column]);
         ImGui::PushID(component);
         const ImGuiID id = ImGui::GetID("");
         ImGui::PopID();
@@ -807,7 +806,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
             Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Vector2)(property, nullptr);
         });
 
-        CHECK(value.x != doctest::Approx(before.x));
+        CHECK_FALSE(value.x == doctest::Approx(before.x));
         CHECK(value.y == doctest::Approx(before.y));
         CHECK(setter_calls == 1);
     }
@@ -825,7 +824,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
         });
 
         CHECK(value.x == doctest::Approx(before.x));
-        CHECK(value.y != doctest::Approx(before.y));
+        CHECK_FALSE(value.y == doctest::Approx(before.y));
         CHECK(value.z == doctest::Approx(before.z));
         CHECK(setter_calls == 1);
     }
@@ -842,7 +841,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
             Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::GlmMat4)(property, nullptr);
         });
 
-        CHECK(value[0][0] != doctest::Approx(before));
+        CHECK_FALSE(value[0][0] == doctest::Approx(before));
         CHECK(setter_calls == 1);
     }
 
@@ -871,7 +870,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
         });
 
         CHECK(handle.set_calls == 1);
-        CHECK(std::get<float>(handle.get_value()) != doctest::Approx(73.47f));
+        CHECK_FALSE(std::get<float>(handle.get_value()) == doctest::Approx(73.47f));
     }
 
     TEST_CASE("batch7347 handle boolean branch commits checkbox mutation through existing reflection mock") {
@@ -900,7 +899,7 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
 
         const auto result = std::get<Salix::Vector2>(handle.get_value());
         CHECK(handle.set_calls == 1);
-        CHECK(result.x != doctest::Approx(7.0f));
+        CHECK_FALSE(result.x == doctest::Approx(7.0f));
         CHECK(result.y == doctest::Approx(347.0f));
     }
 
@@ -918,6 +917,6 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
         CHECK(handle.set_calls == 1);
         CHECK(result.x == doctest::Approx(7.0f));
         CHECK(result.y == doctest::Approx(3.0f));
-        CHECK(result.z != doctest::Approx(47.0f));
+        CHECK_FALSE(result.z == doctest::Approx(47.0f));
     }
 }
