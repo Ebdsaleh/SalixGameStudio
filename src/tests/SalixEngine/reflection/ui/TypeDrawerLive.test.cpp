@@ -139,6 +139,14 @@ struct Batch6947DrawerFrame {
         return id;
     }
 
+    ImGuiID color_component_id(const char* label, int component) {
+        static const char* component_ids[] = {"##X", "##Y", "##Z", "##W"};
+        ImGui::PushID(label);
+        const ImGuiID id = ImGui::GetID(component_ids[component]);
+        ImGui::PopID();
+        return id;
+    }
+
     ImGuiID step_button_id(const char* label, const char* symbol) {
         ImGui::PushID(label);
         const ImGuiID id = ImGui::GetID(symbol);
@@ -1048,6 +1056,50 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
         CHECK(handle.set_calls == 1);
         CHECK(std::get<int>(handle.get_value()) ==
               static_cast<int>(Salix::ProjectionMode::Orthographic));
+    }
+
+
+    TEST_CASE("batch7347 direct Color drawer commits real component drag through reflected setter") {
+        Batch6947DrawerFrame frame;
+        Salix::Color value(0.25f, 0.50f, 0.75f, 1.0f);
+        const Salix::Color before = value;
+        int setter_calls = 0;
+        auto property = batch7347_mutable_property(
+            "Color7347",
+            Salix::PropertyType::Color,
+            value,
+            setter_calls);
+        const ImGuiID id = frame.color_component_id("Color7347", 0);
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::get_drawer(Salix::PropertyType::Color)(property, nullptr);
+        });
+
+        CHECK(setter_calls == 1);
+        CHECK_FALSE(value.r == doctest::Approx(before.r));
+        CHECK(value.g == doctest::Approx(before.g));
+        CHECK(value.b == doctest::Approx(before.b));
+        CHECK(value.a == doctest::Approx(before.a));
+    }
+
+    TEST_CASE("batch7347 handle Color branch converts edited ImGui component and commits through existing reflection mock") {
+        Batch6947DrawerFrame frame;
+        auto property = batch7347_handle_property("HandleColor7347", Salix::PropertyType::Color);
+        MockPropertyHandle handle(
+            property,
+            Salix::PropertyValue{Salix::Color(255.0f, 128.0f, 64.0f, 255.0f)});
+        const ImGuiID id = frame.color_component_id("HandleColor7347", 0);
+
+        frame.activate_and_tweak(id, [&] {
+            Salix::TypeDrawerLive::draw_property("HandleColor7347", handle);
+        });
+
+        const auto result = std::get<Salix::Color>(handle.get_value());
+        CHECK(handle.set_calls == 1);
+        CHECK_FALSE(result.r == doctest::Approx(255.0f));
+        CHECK(result.g == doctest::Approx(128.0f));
+        CHECK(result.b == doctest::Approx(64.0f));
+        CHECK(result.a == doctest::Approx(255.0f));
     }
 
 }
