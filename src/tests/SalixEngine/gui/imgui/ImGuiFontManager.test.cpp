@@ -1140,16 +1140,19 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7374") {
         CHECK(manager.get_active_font() == nullptr);
     }
 
-    TEST_CASE("batch7374 missing font file reaches ImGui loader failure without backend initialization") {
-        Batch6947FontManagerContext context;
+    TEST_CASE("batch7374 OpenGL atlas rebuild rejects non OpenGL GUI without backend access") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::None;
 
-        std::error_code ec;
-        const auto missing = std::filesystem::temp_directory_path() /
-            "Salix_Batch7374_DefinitelyMissingFont.ttf";
-        std::filesystem::remove(missing, ec);
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
 
         Salix::ImGuiFontManager manager;
-        CHECK_FALSE(manager.load_font_from_file(missing.string(), "Missing7374", 16.0f, false));
+        REQUIRE(manager.initialize(&gui));
+
+        config.renderer_type = Salix::RendererType::OpenGL;
+        CHECK_FALSE(manager.rebuild_font_atlas_texture());
         CHECK(manager.get_font_registry().empty());
         CHECK(manager.get_active_font() == nullptr);
     }
