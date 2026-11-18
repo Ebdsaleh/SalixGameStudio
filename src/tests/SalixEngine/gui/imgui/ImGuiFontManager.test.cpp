@@ -813,6 +813,7 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch5647") {
 #include <Salix/core/ApplicationConfig.h>
 #include <Tests/SalixEngine/mocking/gui/MockIGui.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <imgui.h>
 #include <fstream>
 #include <filesystem>
@@ -1119,5 +1120,37 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7047") {
         const auto families=manager.get_unique_font_families();
         CHECK(families.size()==1);
         CHECK(families[0]=="Unique7047");
+    }
+}
+
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7374") {
+    TEST_CASE("batch7374 OpenGL initialization rejects non OpenGL GUI after renderer cast succeeds") {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::OpenGL;
+
+        Salix::OpenGLRenderer renderer;
+        MockIGui gui;
+        gui.set_app_config(&config);
+        gui.initialize(nullptr, &renderer, nullptr, nullptr, nullptr);
+
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.initialize(&gui));
+        CHECK(manager.get_font_registry().empty());
+        CHECK(manager.get_active_font() == nullptr);
+    }
+
+    TEST_CASE("batch7374 missing font file reaches ImGui loader failure without backend initialization") {
+        Batch6947FontManagerContext context;
+
+        std::error_code ec;
+        const auto missing = std::filesystem::temp_directory_path() /
+            "Salix_Batch7374_DefinitelyMissingFont.ttf";
+        std::filesystem::remove(missing, ec);
+
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file(missing.string(), "Missing7374", 16.0f, false));
+        CHECK(manager.get_font_registry().empty());
+        CHECK(manager.get_active_font() == nullptr);
     }
 }
