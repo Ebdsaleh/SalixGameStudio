@@ -13,6 +13,7 @@
 #include <Salix/ecs/Sprite2D.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/scripting/ScriptFactory.h>
+#include <Salix/scripting/ScriptLoader.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
 #include <atomic>
 #include <system_error>
@@ -1022,5 +1023,64 @@ TEST_SUITE("Salix::management::ProjectBatch7372") {
 
         project.shutdown();
         asset_manager.shutdown();
+    }
+}
+
+namespace {
+class Batch7377ProjectCwdGuard {
+public:
+    Batch7377ProjectCwdGuard() {
+        std::error_code ec;
+        old_cwd = std::filesystem::current_path(ec);
+        if (ec) {
+            return;
+        }
+
+        repo_root = std::filesystem::path(__FILE__);
+        for (int i = 0; i < 5; ++i) {
+            repo_root = repo_root.parent_path();
+        }
+
+        if (!std::filesystem::is_regular_file(repo_root / "CmakeLists.txt", ec)) {
+            return;
+        }
+
+        std::filesystem::current_path(repo_root, ec);
+        ready = !ec;
+    }
+
+    ~Batch7377ProjectCwdGuard() {
+        std::error_code ec;
+        if (!old_cwd.empty()) {
+            std::filesystem::current_path(old_cwd, ec);
+        }
+    }
+
+    bool ready = false;
+    std::filesystem::path old_cwd;
+    std::filesystem::path repo_root;
+};
+}
+
+TEST_SUITE("Salix::management::ProjectBatch7377") {
+    TEST_CASE("batch7377 project initialization reaches successful real plugin load branch") {
+        Batch7377ProjectCwdGuard cwd;
+        REQUIRE(cwd.ready);
+        REQUIRE(std::filesystem::is_regular_file(
+            cwd.repo_root / "build" / "Debug" / "Batch7376ScriptPlugin.dll"));
+
+        Salix::InitContext context{};
+        Salix::Project project("Debug/Batch7376ScriptPlugin", "Root7377");
+
+        project.initialize(context);
+
+        REQUIRE(project.get_realm_manager() != nullptr);
+        auto probe = Salix::ScriptFactory::get().create_script("Batch7376FixtureProbe");
+        REQUIRE(probe != nullptr);
+        CHECK(std::string(probe->get_class_name()) == "ScriptElement");
+
+        Salix::ScriptLoader loader;
+        CHECK_NOTHROW(loader.shutdown_plugin());
+        project.shutdown();
     }
 }

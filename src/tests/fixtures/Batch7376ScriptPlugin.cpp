@@ -1,11 +1,18 @@
 #include <Salix/core/IPlugin.h>
 #include <Salix/core/InitContext.h>
+#include <Salix/ecs/ScriptElement.h>
+#include <Salix/scripting/ScriptFactory.h>
+#include <memory>
 
 namespace {
 
 class Batch7376Plugin final : public Salix::IPlugin {
 public:
-    void on_register_types() override {}
+    void on_register_types() override {
+        Salix::ScriptFactory::get().register_script(
+            "Batch7376FixtureProbe",
+            [] { return std::make_unique<Salix::ScriptElement>(); });
+    }
 
     void on_startup(Salix::InitContext& context) override {
         context.dpi_scale = 73.76f;
