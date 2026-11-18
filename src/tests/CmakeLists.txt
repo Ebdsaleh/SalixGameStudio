@@ -70,3 +70,29 @@ if(MSVC AND ENABLE_COVERAGE)
         target_link_options(SalixEditor_tests PRIVATE $<$<CONFIG:Debug>:/PROFILE>)
     endif()
 endif()
+
+# Batch7376: real dynamic-library fixtures for ScriptLoader success/null-plugin coverage.
+# These are test-only DLLs and are built automatically whenever SalixEngine_tests is built.
+if(WIN32 AND TARGET SalixEngine_tests)
+    add_library(Batch7376ScriptPlugin SHARED
+        "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/Batch7376ScriptPlugin.cpp"
+    )
+    target_include_directories(Batch7376ScriptPlugin PRIVATE
+        "${CMAKE_SOURCE_DIR}/src"
+    )
+    target_link_libraries(Batch7376ScriptPlugin PRIVATE SalixEngine)
+
+    add_library(Batch7376NullScriptPlugin SHARED
+        "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/Batch7376ScriptPlugin.cpp"
+    )
+    target_include_directories(Batch7376NullScriptPlugin PRIVATE
+        "${CMAKE_SOURCE_DIR}/src"
+    )
+    target_link_libraries(Batch7376NullScriptPlugin PRIVATE SalixEngine)
+    target_compile_definitions(Batch7376NullScriptPlugin PRIVATE BATCH7376_NULL_PLUGIN)
+
+    add_dependencies(SalixEngine_tests
+        Batch7376ScriptPlugin
+        Batch7376NullScriptPlugin
+    )
+endif()

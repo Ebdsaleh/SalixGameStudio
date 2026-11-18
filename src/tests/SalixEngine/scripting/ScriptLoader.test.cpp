@@ -402,3 +402,29 @@ TEST_SUITE("Salix::scripting::ScriptLoaderBatch6247") {
         loader.shutdown_plugin();
     }
 }
+
+TEST_SUITE("Salix::scripting::ScriptLoaderBatch7376") {
+    TEST_CASE("batch7376 real test plugin reaches successful load and startup hook") {
+        Salix::InitContext context{};
+        context.dpi_scale = 1.0f;
+
+        Salix::ScriptLoader loader;
+        REQUIRE(Salix::ScriptLoader::load_script_library(
+            "Batch7376ScriptPlugin.dll", context));
+
+        CHECK(context.dpi_scale == doctest::Approx(73.76f));
+        CHECK_NOTHROW(loader.shutdown_plugin());
+    }
+
+    TEST_CASE("batch7376 loaded library returning null plugin is rejected safely") {
+        Salix::InitContext context{};
+        context.dpi_scale = 6.247f;
+
+        Salix::ScriptLoader loader;
+        CHECK_FALSE(Salix::ScriptLoader::load_script_library(
+            "Batch7376NullScriptPlugin.dll", context));
+
+        CHECK(context.dpi_scale == doctest::Approx(6.247f));
+        CHECK_NOTHROW(loader.shutdown_plugin());
+    }
+}
