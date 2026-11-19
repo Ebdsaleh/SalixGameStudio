@@ -1314,3 +1314,70 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch7678") {
     }
 }
 
+TEST_SUITE("Salix::events::SDLEventPollerBatch7878") {
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 text input reaches two raw callbacks and no translated event") {
+        Salix::SDLEventPoller poller; int first=0,second=0,translated=0;
+        poller.register_raw_event_callback([&](void*){++first;});
+        poller.register_raw_event_callback([&](void*){++second;});
+        SDL_Event e{};e.type=SDL_TEXTINPUT;e.text.text[0]='7';REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent&){++translated;});
+        CHECK(first==1);CHECK(second==1);CHECK(translated==0);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 text input skips empty raw callback but invokes live peer") {
+        Salix::SDLEventPoller poller;Salix::RawEventCallback empty{};int live=0,translated=0;
+        poller.register_raw_event_callback(empty);poller.register_raw_event_callback([&](void*){++live;});
+        SDL_Event e{};e.type=SDL_TEXTINPUT;e.text.text[0]='8';REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent&){++translated;});
+        CHECK(live==1);CHECK(translated==0);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 unregistering first raw callback preserves second callback delivery") {
+        Salix::SDLEventPoller poller;int first=0,second=0;
+        const auto h=poller.register_raw_event_callback([&](void*){++first;});
+        poller.register_raw_event_callback([&](void*){++second;});poller.unregister_raw_event_callback(h);
+        SDL_Event e{};e.type=SDL_USEREVENT;e.user.code=7878;REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([](Salix::IEvent&){});
+        CHECK(first==0);CHECK(second==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 non resize window event remains raw only") {
+        Salix::SDLEventPoller poller;int raw=0,translated=0;poller.register_raw_event_callback([&](void*){++raw;});
+        SDL_Event e{};e.type=SDL_WINDOWEVENT;e.window.event=SDL_WINDOWEVENT_FOCUS_GAINED;REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent&){++translated;});
+        CHECK(raw==1);CHECK(translated==0);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 zero sized window event translates exact zero dimensions") {
+        Salix::SDLEventPoller poller;int translated=0;
+        SDL_Event e{};e.type=SDL_WINDOWEVENT;e.window.event=SDL_WINDOWEVENT_SIZE_CHANGED;e.window.data1=0;e.window.data2=0;REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){++translated;auto* resize=dynamic_cast<Salix::WindowResizeEvent*>(&event);REQUIRE(resize!=nullptr);CHECK(resize->get_width()==0u);CHECK(resize->get_height()==0u);});
+        CHECK(translated==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 zero coordinate mouse motion translates exactly") {
+        Salix::SDLEventPoller poller;int translated=0;
+        SDL_Event e{};e.type=SDL_MOUSEMOTION;e.motion.x=0;e.motion.y=0;REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){++translated;auto* moved=dynamic_cast<Salix::MouseMovedEvent*>(&event);REQUIRE(moved!=nullptr);CHECK(moved->get_x()==doctest::Approx(0.0f));CHECK(moved->get_y()==doctest::Approx(0.0f));});
+        CHECK(translated==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 zero mouse wheel translates both zero axes") {
+        Salix::SDLEventPoller poller;int translated=0;
+        SDL_Event e{};e.type=SDL_MOUSEWHEEL;e.wheel.x=0;e.wheel.y=0;REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){++translated;auto* wheel=dynamic_cast<Salix::MouseScrolledEvent*>(&event);REQUIRE(wheel!=nullptr);CHECK(wheel->get_x_offset()==doctest::Approx(0.0f));CHECK(wheel->get_y_offset()==doctest::Approx(0.0f));});
+        CHECK(translated==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 F12 keydown translates nonrepeat flag") {
+        Salix::SDLEventPoller poller;
+        SDL_Event e{};e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_F12;e.key.repeat=0;REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){auto* key=dynamic_cast<Salix::KeyPressedEvent*>(&event);REQUIRE(key!=nullptr);CHECK(key->get_key_code()==SDLK_F12);CHECK_FALSE(key->was_repeated());});
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 F12 keydown translates repeat flag") {
+        Salix::SDLEventPoller poller;
+        SDL_Event e{};e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_F12;e.key.repeat=1;REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){auto* key=dynamic_cast<Salix::KeyPressedEvent*>(&event);REQUIRE(key!=nullptr);CHECK(key->get_key_code()==SDLK_F12);CHECK(key->was_repeated());});
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7878 mixed text motion and key queue preserves translated order") {
+        Salix::SDLEventPoller poller;std::vector<Salix::EventType> types;int raw=0;poller.register_raw_event_callback([&](void*){++raw;});
+        SDL_Event text{};text.type=SDL_TEXTINPUT;REQUIRE(SDL_PushEvent(&text)==1);
+        SDL_Event motion{};motion.type=SDL_MOUSEMOTION;motion.motion.x=7;motion.motion.y=8;REQUIRE(SDL_PushEvent(&motion)==1);
+        SDL_Event key{};key.type=SDL_KEYUP;key.key.keysym.sym=SDLK_F7;REQUIRE(SDL_PushEvent(&key)==1);
+        poller.poll_events([&](Salix::IEvent& e){types.push_back(e.get_event_type());});
+        REQUIRE(types.size()==2);CHECK(types[0]==Salix::EventType::MouseMoved);CHECK(types[1]==Salix::EventType::KeyReleased);CHECK(raw==3);
+    }
+}

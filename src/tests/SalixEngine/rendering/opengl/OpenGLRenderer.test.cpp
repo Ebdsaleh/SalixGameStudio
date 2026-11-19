@@ -10,6 +10,7 @@
 #include <Salix/ecs/Transform.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/rendering/IRenderer.h>
+#include <Salix/events/sdl/SDLEvent.h>
 #include <Tests/SalixEngine/mocking/rendering/MockICamera.h>
 #include <memory>
 
@@ -276,5 +277,5 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch7878") {
     TEST_CASE("batch7878 parented transform sprite composes parent world matrix") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto img=batch7878_write_pnm(true);std::unique_ptr<Salix::ITexture> t(f.renderer.load_texture(img.path.string().c_str()));REQUIRE(t!=nullptr);MockICamera camera;f.renderer.set_active_camera(&camera);Salix::Transform parent;Salix::Transform child;child.set_parent(&parent);CHECK_NOTHROW(f.renderer.draw_sprite(t.get(),&child,Salix::Color{},Salix::SpriteFlip::Both)); }
     TEST_CASE("batch7878 shutdown deletes framebuffer left owned by renderer") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto id=f.renderer.create_framebuffer(24,24);REQUIRE(id);CHECK_NOTHROW(f.renderer.shutdown());f.ready=false; }
     TEST_CASE("batch7878 nested render passes restore bindings in LIFO order") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto a=f.renderer.create_framebuffer(20,20),b=f.renderer.create_framebuffer(18,18);REQUIRE(a);REQUIRE(b);auto base=f.renderer.get_current_framebuffer_binding();f.renderer.begin_render_pass(a);f.renderer.begin_render_pass(b);f.renderer.end_render_pass();f.renderer.end_render_pass();CHECK(f.renderer.get_current_framebuffer_binding()==base);f.renderer.delete_framebuffer(a);f.renderer.delete_framebuffer(b); }
-    TEST_CASE("batch7878 initialized resize event reaches renderer event listener") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);SDL_Event native{};native.type=SDL_WINDOWEVENT;native.window.event=SDL_WINDOWEVENT_RESIZED;native.window.data1=88;native.window.data2=66;Salix::WindowResizeEvent e(88,66,native);CHECK_NOTHROW(f.renderer.on_event(e)); }
+    TEST_CASE("batch7878 initialized resize event reaches renderer event listener") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);SDL_Event native{};native.type=SDL_WINDOWEVENT;native.window.event=SDL_WINDOWEVENT_RESIZED;native.window.data1=88;native.window.data2=66;Salix::WindowResizeEvent e(88,66);CHECK_NOTHROW(f.renderer.on_event(e)); }
 }

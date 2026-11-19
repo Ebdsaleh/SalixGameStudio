@@ -1,6 +1,7 @@
 #include <doctest.h>
 #include <Salix/core/Engine.h>
 #include <Salix/core/ApplicationConfig.h>
+#include <Salix/rendering/IRenderer.h>
 #include <SDL.h>
 #include <filesystem>
 #include <cstdlib>
