@@ -514,6 +514,14 @@ namespace Salix {
             // Apply time_scale to delta_time.
             float scaled_delta_time = delta_time * pimpl->time_scale;
             process_input();
+
+            // process_input() may deliver a WindowCloseEvent and stop the engine.
+            // Do not update or render another frame after shutdown has been requested.
+            if (!pimpl->is_running) {
+                pimpl->timer->tick_end();
+                break;
+            }
+
             update(scaled_delta_time);
             render();
 
@@ -591,7 +599,10 @@ namespace Salix {
             }
         });
 
-       
+        // SDLEventPoller dispatches translated events into EventManager's queue.
+        // Deliver them here so application events such as SDL_QUIT are handled
+        // in every state, not only states that explicitly process the queue.
+        pimpl->event_manager->process_queue();
     }
 
     void Engine::switch_state(AppStateType new_state_type) {
