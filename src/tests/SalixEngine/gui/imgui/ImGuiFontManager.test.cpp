@@ -1,4 +1,6 @@
 #include <doctest.h>
+#include <Salix/gui/imgui/opengl/OpenGLImGui.h>
+#include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/gui/imgui/ImGuiFontManager.h>
 #include <Salix/gui/IFont.h>
 #include <Tests/SalixEngine/mocking/gui/MockIFont.h>
@@ -1157,3 +1159,111 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7374") {
         CHECK(manager.get_active_font() == nullptr);
     }
 }
+
+namespace {
+class Batch7578OpenGLGui final : public Salix::OpenGLImGui {
+public:
+    Batch7578OpenGLGui(Salix::ApplicationConfig* config, Salix::IRenderer* renderer)
+        : config_(config), renderer_(renderer) { set_app_config(config); }
+    Salix::IRenderer* get_renderer() override { return renderer_; }
+    Salix::ApplicationConfig* get_app_config() override { return config_; }
+private:
+    Salix::ApplicationConfig* config_;
+    Salix::IRenderer* renderer_;
+};
+
+class Batch7578SDLGui final : public Salix::SDLImGui {
+public:
+    Batch7578SDLGui(Salix::ApplicationConfig* config, Salix::IRenderer* renderer)
+        : config_(config), renderer_(renderer) { set_app_config(config); }
+    Salix::IRenderer* get_renderer() override { return renderer_; }
+    Salix::ApplicationConfig* get_app_config() override { return config_; }
+private:
+    Salix::ApplicationConfig* config_;
+    Salix::IRenderer* renderer_;
+};
+}
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7578") {
+    TEST_CASE("batch7578 OpenGL concrete GUI and renderer reach null context continuation") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::OpenGLRenderer renderer;
+        Batch7578OpenGLGui gui(&config, &renderer);
+        Salix::ImGuiFontManager manager;
+        CHECK(manager.initialize(&gui));
+        CHECK(manager.get_font_registry().empty());
+    }
+    TEST_CASE("batch7578 OpenGL concrete GUI rebuild reports success after backend early return") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::OpenGLRenderer renderer;
+        Batch7578OpenGLGui gui(&config, &renderer);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        CHECK(manager.rebuild_font_atlas_texture());
+    }
+    TEST_CASE("batch7578 OpenGL manager shutdown clears GUI reference after successful initialize") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::OpenGL;
+        Salix::OpenGLRenderer renderer;
+        Batch7578OpenGLGui gui(&config, &renderer);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        manager.shutdown();
+        CHECK_FALSE(manager.rebuild_font_atlas_texture());
+    }
+    TEST_CASE("batch7578 SDL concrete GUI accepts nonnull native renderer handle") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::SDL;
+        MockIRenderer renderer; renderer.native_handle = reinterpret_cast<void*>(static_cast<uintptr_t>(0x7578));
+        Batch7578SDLGui gui(&config, &renderer);
+        Salix::ImGuiFontManager manager;
+        CHECK(manager.initialize(&gui));
+    }
+    TEST_CASE("batch7578 SDL concrete GUI rebuild reports success after backend early return") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::SDL;
+        MockIRenderer renderer; renderer.native_handle = reinterpret_cast<void*>(static_cast<uintptr_t>(0x7578));
+        Batch7578SDLGui gui(&config, &renderer);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        CHECK(manager.rebuild_font_atlas_texture());
+    }
+    TEST_CASE("batch7578 SDL manager shutdown disables later rebuild") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::SDL;
+        MockIRenderer renderer; renderer.native_handle = reinterpret_cast<void*>(static_cast<uintptr_t>(0x7578));
+        Batch7578SDLGui gui(&config, &renderer);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        manager.shutdown();
+        CHECK_FALSE(manager.rebuild_font_atlas_texture());
+    }
+    TEST_CASE("batch7578 renderer None initializes without backend handles") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::None;
+        MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        CHECK(manager.initialize(&gui));
+    }
+    TEST_CASE("batch7578 renderer None rebuild remains rejected as unrecognized backend") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::None;
+        MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        CHECK_FALSE(manager.rebuild_font_atlas_texture());
+    }
+    TEST_CASE("batch7578 successful backend initialize still permits normal font registration") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::None;
+        MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Batch7578Font", "Batch7578", 12.0f)));
+        CHECK(manager.get_font("Batch7578Font") != nullptr);
+    }
+    TEST_CASE("batch7578 shutdown after registered font empties registry and active pointer") {
+        Salix::ApplicationConfig config; config.renderer_type = Salix::RendererType::None;
+        MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr, nullptr, nullptr, nullptr, nullptr);
+        Salix::ImGuiFontManager manager;
+        REQUIRE(manager.initialize(&gui));
+        REQUIRE(manager.register_font(std::make_unique<MockIFont>("Batch7578Shutdown", "Batch7578", 14.0f)));
+        manager.shutdown();
+        CHECK(manager.get_font_registry().empty());
+        CHECK(manager.get_active_font() == nullptr);
+    }
+}
+

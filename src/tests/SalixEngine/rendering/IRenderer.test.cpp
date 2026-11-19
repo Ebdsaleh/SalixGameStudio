@@ -1,4 +1,8 @@
 #include <doctest.h>
+#include <cstdlib>
+#include <SDL.h>
+#include <Salix/core/ApplicationConfig.h>
+#include <Salix/core/Engine.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Salix/window/WindowConfig.h>
 #include <Salix/ecs/Transform.h>
@@ -207,3 +211,85 @@ TEST_SUITE("Salix::rendering::IRendererBatch6647") {
         CHECK(renderer.last_dest_rect == destination);
     }
 }
+
+namespace {
+struct Batch7578RendererDriverGuard {
+    bool had_video = false;
+    bool had_render = false;
+    std::string old_video;
+    std::string old_render;
+    Batch7578RendererDriverGuard() {
+        if (const char* v = SDL_getenv("SDL_VIDEODRIVER")) { had_video = true; old_video = v; }
+        if (const char* v = SDL_getenv("SDL_RENDER_DRIVER")) { had_render = true; old_render = v; }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
+        SDL_setenv("SDL_RENDER_DRIVER", "software", 1);
+    }
+    ~Batch7578RendererDriverGuard() {
+        SDL_Quit();
+        if (had_video) SDL_setenv("SDL_VIDEODRIVER", old_video.c_str(), 1); else _putenv_s("SDL_VIDEODRIVER", "");
+        if (had_render) SDL_setenv("SDL_RENDER_DRIVER", old_render.c_str(), 1); else _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+};
+
+struct Batch7578SDLRendererProbe {
+    Batch7578RendererDriverGuard driver;
+    Salix::Engine engine;
+    bool initialized = true;
+    Batch7578SDLRendererProbe() {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = Salix::GuiType::None;
+        config.initial_state = Salix::AppStateType::None;
+        initialized = engine.initialize(config);
+    }
+    ~Batch7578SDLRendererProbe() { engine.shutdown(); }
+    Salix::IRenderer* renderer() { return engine.get_renderer(); }
+};
+}
+
+TEST_SUITE("Salix::rendering::IRendererBatch7578") {
+    TEST_CASE("batch7578 SDL concrete clear depth stub is safe through interface") {
+        Batch7578SDLRendererProbe run; REQUIRE_FALSE(run.initialized); REQUIRE(run.renderer() != nullptr);
+        CHECK_NOTHROW(run.renderer()->clear_depth_buffer());
+    }
+    TEST_CASE("batch7578 SDL concrete active camera setter remains no op") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr); MockICamera camera;
+        run.renderer()->set_active_camera(&camera); CHECK(run.renderer()->get_active_camera() == nullptr);
+    }
+    TEST_CASE("batch7578 SDL concrete framebuffer binding stub returns zero") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr);
+        CHECK(run.renderer()->get_current_framebuffer_binding() == 0);
+    }
+    TEST_CASE("batch7578 SDL concrete viewport stub accepts arbitrary rectangle") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr);
+        CHECK_NOTHROW(run.renderer()->set_viewport(-75, 78, 757, 578));
+    }
+    TEST_CASE("batch7578 SDL concrete restore framebuffer stub accepts arbitrary id") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr);
+        CHECK_NOTHROW(run.renderer()->restore_framebuffer_binding(7578));
+    }
+    TEST_CASE("batch7578 SDL concrete begin render pass stub accepts arbitrary id") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr);
+        CHECK_NOTHROW(run.renderer()->begin_render_pass(7578u));
+    }
+    TEST_CASE("batch7578 SDL concrete end render pass stub is safe") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr);
+        CHECK_NOTHROW(run.renderer()->end_render_pass());
+    }
+    TEST_CASE("batch7578 SDL concrete pixels per unit remains fixed one") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr);
+        run.renderer()->set_pixels_per_unit(75.78f); CHECK(run.renderer()->get_pixels_per_unit() == doctest::Approx(1.0f));
+    }
+    TEST_CASE("batch7578 SDL concrete framebuffer stubs return zero identifiers") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr);
+        CHECK(run.renderer()->create_framebuffer(757, 578) == 0u);
+        CHECK(run.renderer()->get_framebuffer_texture_id(7578u) == static_cast<ImTextureID>(0));
+    }
+    TEST_CASE("batch7578 SDL concrete debug drawing stubs remain backend free") {
+        Batch7578SDLRendererProbe run; REQUIRE(run.renderer() != nullptr);
+        CHECK_NOTHROW(run.renderer()->draw_wire_box(glm::mat4(1.0f), Salix::Color{}));
+        CHECK_NOTHROW(run.renderer()->draw_line(glm::vec3(0.0f), glm::vec3(1.0f), Salix::Color{}));
+    }
+}
+

@@ -998,3 +998,78 @@ TEST_SUITE("Salix::core::EngineBatch7478") {
     TEST_CASE("batch7478 OpenGL renderer attempt with empty title and uncapped fps remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::OpenGL,640,480,"",Salix::TimerType::Chrono,0); }
 }
 
+namespace {
+struct Batch7578EngineDummyRun {
+    Batch7478DummyVideoDriverGuard driver;
+    Salix::Engine engine;
+    bool initialized = true;
+
+    Batch7578EngineDummyRun(Salix::RendererType renderer_type, int width = 640, int height = 480) {
+        Salix::ApplicationConfig config;
+        config.renderer_type = renderer_type;
+        config.gui_type = Salix::GuiType::None;
+        config.initial_state = Salix::AppStateType::None;
+        config.window_config.width = width;
+        config.window_config.height = height;
+        config.window_config.title = "Batch7578";
+        initialized = engine.initialize(config);
+    }
+    ~Batch7578EngineDummyRun() { engine.shutdown(); }
+};
+}
+
+TEST_SUITE("Salix::core::EngineBatch7578") {
+    TEST_CASE("batch7578 failed SDL renderer exposes null owned window") {
+        Batch7578EngineDummyRun run(Salix::RendererType::SDL);
+        REQUIRE_FALSE(run.initialized); REQUIRE(run.engine.get_renderer() != nullptr);
+        CHECK(run.engine.get_renderer()->get_window() == nullptr);
+    }
+    TEST_CASE("batch7578 failed SDL renderer exposes null native handle") {
+        Batch7578EngineDummyRun run(Salix::RendererType::SDL);
+        REQUIRE(run.engine.get_renderer() != nullptr);
+        CHECK(run.engine.get_renderer()->get_native_handle() == nullptr);
+    }
+    TEST_CASE("batch7578 failed SDL renderer exposes null SDL GL context") {
+        Batch7578EngineDummyRun run(Salix::RendererType::SDL);
+        REQUIRE(run.engine.get_renderer() != nullptr);
+        CHECK(run.engine.get_renderer()->get_sdl_gl_context() == nullptr);
+    }
+    TEST_CASE("batch7578 failed SDL renderer exposes null SDL window") {
+        Batch7578EngineDummyRun run(Salix::RendererType::SDL);
+        REQUIRE(run.engine.get_renderer() != nullptr);
+        CHECK(run.engine.get_renderer()->get_sdl_window() == nullptr);
+    }
+    TEST_CASE("batch7578 failed SDL renderer clear color remains readable") {
+        Batch7578EngineDummyRun run(Salix::RendererType::SDL);
+        REQUIRE(run.engine.get_renderer() != nullptr);
+        const auto color = run.engine.get_renderer()->get_clear_color();
+        CHECK(std::isfinite(color.r));
+    }
+    TEST_CASE("batch7578 failed OpenGL renderer retains failed window wrapper") {
+        Batch7578EngineDummyRun run(Salix::RendererType::OpenGL, 757, 578);
+        REQUIRE_FALSE(run.initialized); REQUIRE(run.engine.get_renderer() != nullptr);
+        CHECK(run.engine.get_renderer()->get_window() != nullptr);
+    }
+    TEST_CASE("batch7578 failed OpenGL window retains requested width") {
+        Batch7578EngineDummyRun run(Salix::RendererType::OpenGL, 757, 578);
+        auto* window = run.engine.get_renderer()->get_window(); REQUIRE(window != nullptr);
+        CHECK(window->get_width() == 757);
+    }
+    TEST_CASE("batch7578 failed OpenGL window retains requested height") {
+        Batch7578EngineDummyRun run(Salix::RendererType::OpenGL, 757, 578);
+        auto* window = run.engine.get_renderer()->get_window(); REQUIRE(window != nullptr);
+        CHECK(window->get_height() == 578);
+    }
+    TEST_CASE("batch7578 failed OpenGL window query reports no native dimensions") {
+        Batch7578EngineDummyRun run(Salix::RendererType::OpenGL, 757, 578);
+        auto* window = run.engine.get_renderer()->get_window(); REQUIRE(window != nullptr);
+        int width = -1, height = -1; window->query_dimensions(width, height);
+        CHECK(width == 0); CHECK(height == 0);
+    }
+    TEST_CASE("batch7578 failed OpenGL window reports unit DPI scale") {
+        Batch7578EngineDummyRun run(Salix::RendererType::OpenGL, 757, 578);
+        auto* window = run.engine.get_renderer()->get_window(); REQUIRE(window != nullptr);
+        CHECK(window->get_dpi_scale() == doctest::Approx(1.0f));
+    }
+}
+

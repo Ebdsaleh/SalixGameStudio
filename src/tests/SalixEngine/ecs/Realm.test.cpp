@@ -1,6 +1,8 @@
 // Realm.test.cpp - Memory-only regression tests for engine realm ownership.
 // No user projects, scene files, or external assets are modified by these tests.
 #include <doctest.h>
+#include <Salix/events/IEventListener.h>
+#include <Salix/events/BeforeEntityPurgedEvent.h>
 #include <Salix/ecs/ScriptElement.h>
 #include <Salix/assets/AssetManager.h>
 #include <Salix/core/InitContext.h>
@@ -1557,5 +1559,83 @@ TEST_SUITE("Salix::ecs::RealmBatch7478") {
     TEST_CASE("batch7478 name and path setters replace realm metadata") { Salix::Realm realm("Before7478","before7478.realm"); realm.set_name("After7478"); realm.set_path("after7478.realm"); CHECK(realm.get_name()=="After7478"); CHECK(realm.get_path()=="after7478.realm"); }
     TEST_CASE("batch7478 maintain removes purged entity") { Salix::Realm realm("Maintain7478"); auto* entity=realm.create_entity("Purged7478"); REQUIRE(entity!=nullptr); entity->purge(); realm.maintain(); CHECK(realm.get_entity_by_name("Purged7478")==nullptr); }
     TEST_CASE("batch7478 active camera pointer accepts explicit null") { Salix::Realm realm("Camera7478"); realm.set_active_camera(nullptr); CHECK(realm.get_active_camera()==nullptr); }
+}
+
+namespace {
+class Batch7578PurgeListener final : public Salix::IEventListener {
+public:
+    void on_event(Salix::IEvent& event) override {
+        ++count;
+        last_type = event.get_event_type();
+        last_name = event.get_name();
+        last_flags = event.get_category_flags();
+        auto copy = event.clone();
+        clone_ok = copy && copy->get_event_type() == event.get_event_type()
+            && copy->get_category_flags() == event.get_category_flags();
+        if (auto* purge = dynamic_cast<Salix::BeforeEntityPurgedEvent*>(&event)) last_entity = purge->entity;
+        if (mark_handled) event.handled = true;
+    }
+    int count = 0;
+    Salix::EventType last_type = Salix::EventType::None;
+    std::string last_name;
+    int last_flags = 0;
+    Salix::Entity* last_entity = nullptr;
+    bool clone_ok = false;
+    bool mark_handled = false;
+};
+
+void batch7578_prepare_realm_purge(
+    Salix::Realm& realm, Salix::EventManager& events, Batch7578PurgeListener& listener) {
+    Salix::InitContext context{};
+    context.event_manager = &events;
+    realm.set_context(context);
+    events.subscribe(Salix::EventCategory::Editor, &listener);
+}
+}
+
+TEST_SUITE("Salix::ecs::RealmBatch7578") {
+    TEST_CASE("batch7578 purge event exposes type name category and clone") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        auto* entity=realm.create_entity("Purge7578A"); entity->simple_purge(); realm.maintain(); events.process_queue();
+        CHECK(listener.count==1); CHECK(listener.last_type==Salix::EventType::BeforeEntityPurged); CHECK(listener.last_name=="BeforeEntityPurged");
+        CHECK((listener.last_flags & static_cast<int>(Salix::EventCategory::Editor))!=0); CHECK(listener.clone_ok);
+    }
+    TEST_CASE("batch7578 purge event transports exact entity pointer identity") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        auto* entity=realm.create_entity("Purge7578B"); entity->simple_purge(); realm.maintain(); events.process_queue(); CHECK(listener.last_entity==entity);
+    }
+    TEST_CASE("batch7578 two purged entities dispatch two editor events") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        realm.create_entity("A7578")->simple_purge(); realm.create_entity("B7578")->simple_purge(); realm.maintain(); events.process_queue(); CHECK(listener.count==2);
+    }
+    TEST_CASE("batch7578 live entity beside purged entity generates only one purge event") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        realm.create_entity("Live7578"); realm.create_entity("Gone7578")->simple_purge(); realm.maintain(); events.process_queue(); CHECK(listener.count==1); CHECK(realm.get_entity_by_name("Live7578")!=nullptr);
+    }
+    TEST_CASE("batch7578 unsubscribed editor listener receives no purge event") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        events.unsubscribe(Salix::EventCategory::Editor,&listener); realm.create_entity("Gone7578C")->simple_purge(); realm.maintain(); events.process_queue(); CHECK(listener.count==0);
+    }
+    TEST_CASE("batch7578 nonpurged entity produces no queued purge event") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        realm.create_entity("Keep7578"); realm.maintain(); CHECK(events.is_queue_empty()); CHECK(listener.count==0);
+    }
+    TEST_CASE("batch7578 handled purge event stops later editor listener") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener first,second; batch7578_prepare_realm_purge(realm,events,first);
+        first.mark_handled=true; events.subscribe(Salix::EventCategory::Editor,&second); realm.create_entity("Handled7578")->simple_purge(); realm.maintain(); events.process_queue();
+        CHECK(first.count==1); CHECK(second.count==0);
+    }
+    TEST_CASE("batch7578 three purged entities preserve event count") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        for(int i=0;i<3;++i) realm.create_entity("Triple7578"+std::to_string(i))->simple_purge(); realm.maintain(); events.process_queue(); CHECK(listener.count==3);
+    }
+    TEST_CASE("batch7578 purge queue is nonempty before processing and empty afterward") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        realm.create_entity("Queue7578")->simple_purge(); realm.maintain(); REQUIRE_FALSE(events.is_queue_empty()); events.process_queue(); CHECK(events.is_queue_empty());
+    }
+    TEST_CASE("batch7578 direct purge also dispatches BeforeEntityPurged event") {
+        Salix::Realm realm; Salix::EventManager events; Batch7578PurgeListener listener; batch7578_prepare_realm_purge(realm,events,listener);
+        auto* entity=realm.create_entity("Direct7578"); entity->purge(); realm.maintain(); events.process_queue(); CHECK(listener.count==1); CHECK(listener.last_type==Salix::EventType::BeforeEntityPurged);
+    }
 }
 

@@ -1,4 +1,5 @@
 #include <doctest.h>
+#include <Salix/ecs/Transform.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/rendering/IRenderer.h>
 #include <Tests/SalixEngine/mocking/rendering/MockICamera.h>
@@ -69,3 +70,52 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch1647") {
         CHECK(renderer.get_native_handle() == nullptr);
     }
 }
+
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch7578") {
+    TEST_CASE("batch7578 missing texture path returns null before GL dispatch") {
+        Salix::OpenGLRenderer renderer;
+        CHECK(renderer.load_texture("__batch7578_missing_texture__.png") == nullptr);
+    }
+    TEST_CASE("batch7578 empty texture path returns null before GL dispatch") {
+        Salix::OpenGLRenderer renderer;
+        CHECK(renderer.load_texture("") == nullptr);
+    }
+    TEST_CASE("batch7578 purging null texture is a safe no op") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.purge_texture(nullptr));
+    }
+    TEST_CASE("batch7578 transform sprite draw rejects null texture before GL dispatch") {
+        Salix::OpenGLRenderer renderer;
+        Salix::Transform transform;
+        CHECK_NOTHROW(renderer.draw_sprite(nullptr, &transform, Salix::Color{}, Salix::SpriteFlip::None));
+    }
+    TEST_CASE("batch7578 matrix sprite draw rejects null texture before GL dispatch") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.draw_sprite(nullptr, glm::mat4(1.0f), Salix::Color{}));
+    }
+    TEST_CASE("batch7578 wire box with no active camera returns before shader access") {
+        Salix::OpenGLRenderer renderer;
+        CHECK(renderer.get_active_camera() == nullptr);
+        CHECK_NOTHROW(renderer.draw_wire_box(glm::mat4(1.0f), Salix::Color{}));
+    }
+    TEST_CASE("batch7578 line with no active camera returns before shader access") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.draw_line(glm::vec3(0.0f), glm::vec3(1.0f), Salix::Color{}));
+    }
+    TEST_CASE("batch7578 sphere with no active camera returns before shader access") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.draw_sphere(glm::vec3(0.0f), 7.578f, Salix::Color{}, 12));
+    }
+    TEST_CASE("batch7578 framebuffer cube with no active camera returns before GL query") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.draw_cube(7578u, 8757u, 0.0f));
+    }
+    TEST_CASE("batch7578 unknown framebuffer operations remain backend free") {
+        Salix::OpenGLRenderer renderer;
+        CHECK(renderer.get_framebuffer_texture_id(7578u) == static_cast<ImTextureID>(0));
+        CHECK_NOTHROW(renderer.bind_framebuffer(7578u));
+        CHECK_NOTHROW(renderer.delete_framebuffer(7578u));
+        CHECK_NOTHROW(renderer.end_render_pass());
+    }
+}
+

@@ -1691,3 +1691,25 @@ TEST_SUITE("Salix::management::ProjectManagerBatch7478") {
     TEST_CASE("batch7478 nested project name J reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478J/NestedJ"); }
 }
 
+namespace {
+void batch7578_expect_external_nested_project_file_failure(const std::string& name) {
+    Batch7047ExternalProjectEnv env;
+    Salix::ProjectManager manager;
+    CHECK_FALSE(manager.create_new_external_project(env.projects.string(), name));
+    CHECK(std::filesystem::is_directory(env.projects / std::filesystem::path(name) / "Assets" / "Realms"));
+}
+}
+
+TEST_SUITE("Salix::management::ProjectManagerBatch7578") {
+    TEST_CASE("batch7578 external nested project A reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578A/NestedA"); }
+    TEST_CASE("batch7578 external nested project B reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578B/NestedB"); }
+    TEST_CASE("batch7578 external nested project C reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578C/NestedC"); }
+    TEST_CASE("batch7578 external nested project D reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578D/NestedD"); }
+    TEST_CASE("batch7578 external nested project E reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578E/NestedE"); }
+    TEST_CASE("batch7578 external nested project F reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578F/NestedF"); }
+    TEST_CASE("batch7578 external nested project G reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578G/NestedG"); }
+    TEST_CASE("batch7578 external nested project H reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578H/NestedH"); }
+    TEST_CASE("batch7578 external nested project I reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578I/NestedI"); }
+    TEST_CASE("batch7578 external nested project J reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578J/NestedJ"); }
+}
+

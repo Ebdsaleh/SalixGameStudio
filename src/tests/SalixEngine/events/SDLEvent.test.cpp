@@ -1,4 +1,6 @@
 #include <doctest.h>
+#include <vector>
+#include <Salix/events/sdl/SDLEventPoller.h>
 #include <Salix/events/sdl/SDLEvent.h>
 #include <SDL.h>
 #include <memory>
@@ -192,3 +194,54 @@ TEST_SUITE("Salix::events::SDLEventBatch6547") {
         CHECK(clone->to_string() == source.to_string());
     }
 }
+
+namespace {
+struct Batch7578SDLEventQueue {
+    Batch7578SDLEventQueue() { SDL_InitSubSystem(SDL_INIT_EVENTS); SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT); }
+    ~Batch7578SDLEventQueue() { SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT); }
+};
+}
+
+TEST_SUITE("Salix::events::SDLEventBatch7578") {
+    TEST_CASE("batch7578 polled key press exercises string category clone and native handle") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_KEYDOWN; e.key.keysym.sym=SDLK_F7; e.key.repeat=1; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ CHECK(event.to_string().find("KeyPressedEvent")!=std::string::npos); CHECK(event.is_keyboard_event()); CHECK(event.is_input_event()); CHECK(event.get_native_handle()!=nullptr); auto copy=event.clone(); REQUIRE(copy!=nullptr); CHECK(copy->get_event_type()==event.get_event_type()); });
+    }
+    TEST_CASE("batch7578 polled key release exercises string clone and native handle") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_KEYUP; e.key.keysym.sym=SDLK_F8; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ CHECK(event.to_string().find("KeyReleasedEvent")!=std::string::npos); CHECK(event.get_native_handle()!=nullptr); CHECK(event.clone()!=nullptr); });
+    }
+    TEST_CASE("batch7578 polled mouse move exercises string axis category and native handle") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_MOUSEMOTION; e.motion.x=75; e.motion.y=-78; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ CHECK(event.to_string().find("MouseMovedEvent")!=std::string::npos); CHECK(event.is_mouse_event()); CHECK((event.get_category_flags()&static_cast<int>(Salix::EventCategory::MouseAxis))!=0); CHECK(event.get_native_handle()!=nullptr); });
+    }
+    TEST_CASE("batch7578 polled mouse wheel exercises offsets string clone and native handle") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_MOUSEWHEEL; e.wheel.x=7; e.wheel.y=-5; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ auto* wheel=dynamic_cast<Salix::MouseScrolledEvent*>(&event); REQUIRE(wheel!=nullptr); CHECK(wheel->get_x_offset()==doctest::Approx(7.0f)); CHECK(event.to_string().find("MouseScrolledEvent")!=std::string::npos); CHECK(event.clone()!=nullptr); CHECK(event.get_native_handle()!=nullptr); });
+    }
+    TEST_CASE("batch7578 polled mouse press exercises string button category and native handle") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ CHECK(event.to_string()=="MouseButtonPressedEvent: 1"); CHECK(event.is_mouse_button_event()); CHECK(event.clone()!=nullptr); CHECK(event.get_native_handle()!=nullptr); });
+    }
+    TEST_CASE("batch7578 polled mouse release exercises string button category and native handle") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_MOUSEBUTTONUP; e.button.button=SDL_BUTTON_RIGHT; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ CHECK(event.to_string().find("MouseButtonReleasedEvent")!=std::string::npos); CHECK(event.is_mouse_button_event()); CHECK(event.clone()!=nullptr); CHECK(event.get_native_handle()!=nullptr); });
+    }
+    TEST_CASE("batch7578 polled resize exercises dimensions string category and clone") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_WINDOWEVENT; e.window.event=SDL_WINDOWEVENT_RESIZED; e.window.data1=757; e.window.data2=578; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ auto* resize=dynamic_cast<Salix::WindowResizeEvent*>(&event); REQUIRE(resize!=nullptr); CHECK(resize->get_width()==757u); CHECK(resize->get_height()==578u); CHECK(event.to_string().find("WindowResizeEvent")!=std::string::npos); CHECK(event.clone()!=nullptr); CHECK(event.is_application_event()); });
+    }
+    TEST_CASE("batch7578 polled quit exercises close type category and clone") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_QUIT; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ CHECK(event.get_event_type()==Salix::EventType::WindowClose); CHECK(event.is_application_event()); CHECK(event.clone()!=nullptr); });
+    }
+    TEST_CASE("batch7578 mixed keyboard and mouse queue preserves category operators") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event key{}; key.type=SDL_KEYDOWN; key.key.keysym.sym=SDLK_a; SDL_Event mouse{}; mouse.type=SDL_MOUSEMOTION; REQUIRE(SDL_PushEvent(&key)==1); REQUIRE(SDL_PushEvent(&mouse)==1);
+        int calls=0; poller.poll_events([&](Salix::IEvent& event){ ++calls; CHECK(event.is_input_event()); CHECK(event.get_category_flags()!=0); }); CHECK(calls==2);
+    }
+    TEST_CASE("batch7578 clone inside callback preserves concrete event name") {
+        Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_KEYDOWN; e.key.keysym.sym=SDLK_RETURN; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){ auto copy=event.clone(); REQUIRE(copy!=nullptr); CHECK(std::string(copy->get_name())==std::string(event.get_name())); CHECK(copy->get_category_flags()==event.get_category_flags()); });
+    }
+}
+

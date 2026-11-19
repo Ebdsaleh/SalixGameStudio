@@ -1,4 +1,8 @@
 #include <doctest.h>
+#include <filesystem>
+#include <cstdlib>
+#include <SDL.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/window/IWindow.h>
 #include <Tests/SalixEngine/mocking/window/MockIWindow.h>
 #include <memory>
@@ -193,3 +197,77 @@ TEST_SUITE("Salix::window::IWindowBatch6447") {
         CHECK(window->get_height() == 7446);
     }
 }
+
+namespace {
+struct Batch7578WindowDriverGuard {
+    bool had_video = false;
+    std::string old_video;
+    Batch7578WindowDriverGuard() {
+        if (const char* v = SDL_getenv("SDL_VIDEODRIVER")) { had_video = true; old_video = v; }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
+        SDL_InitSubSystem(SDL_INIT_VIDEO);
+    }
+    ~Batch7578WindowDriverGuard() {
+        SDL_Quit();
+        std::error_code ec; std::filesystem::remove("gl_init.log", ec);
+        if (had_video) SDL_setenv("SDL_VIDEODRIVER", old_video.c_str(), 1); else _putenv_s("SDL_VIDEODRIVER", "");
+    }
+};
+
+struct Batch7578FailedOpenGLWindow {
+    Batch7578WindowDriverGuard driver;
+    Salix::OpenGLRenderer renderer;
+    bool initialized = true;
+    explicit Batch7578FailedOpenGLWindow(const Salix::WindowConfig& config) { initialized = renderer.initialize(config); }
+    Salix::IWindow* window() { return renderer.get_window(); }
+};
+}
+
+TEST_SUITE("Salix::window::IWindowBatch7578") {
+    TEST_CASE("batch7578 failed OpenGL initialization retains SDL window wrapper") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578A", 757, 578});
+        REQUIRE_FALSE(run.initialized); CHECK(run.window() != nullptr);
+    }
+    TEST_CASE("batch7578 failed wrapper native handle remains null") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578B", 757, 578});
+        auto* window = run.window(); REQUIRE(window != nullptr); CHECK(window->get_native_handle() == nullptr);
+    }
+    TEST_CASE("batch7578 failed wrapper retains requested width") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578C", 757, 578});
+        auto* window = run.window(); REQUIRE(window != nullptr); CHECK(window->get_width() == 757);
+    }
+    TEST_CASE("batch7578 failed wrapper retains requested height") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578D", 757, 578});
+        auto* window = run.window(); REQUIRE(window != nullptr); CHECK(window->get_height() == 578);
+    }
+    TEST_CASE("batch7578 failed wrapper query overwrites dimensions with zero") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578E", 757, 578});
+        auto* window = run.window(); REQUIRE(window != nullptr); int w=1,h=1; window->query_dimensions(w,h); CHECK(w==0); CHECK(h==0);
+    }
+    TEST_CASE("batch7578 failed wrapper returns unit DPI without native window") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578F", 757, 578});
+        auto* window = run.window(); REQUIRE(window != nullptr); CHECK(window->get_dpi_scale() == doctest::Approx(1.0f));
+    }
+    TEST_CASE("batch7578 failed wrapper preserves zero width config") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578G", 0, 578});
+        auto* window = run.window(); REQUIRE(window != nullptr); CHECK(window->get_width() == 0);
+    }
+    TEST_CASE("batch7578 failed wrapper preserves zero height config") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578H", 757, 0});
+        auto* window = run.window(); REQUIRE(window != nullptr); CHECK(window->get_height() == 0);
+    }
+    TEST_CASE("batch7578 failed wrapper preserves negative dimensions for diagnostics") {
+        Batch7578FailedOpenGLWindow run(Salix::WindowConfig{"Window7578I", -75, -78});
+        auto* window = run.window(); REQUIRE(window != nullptr); CHECK(window->get_width() == -75); CHECK(window->get_height() == -78);
+    }
+    TEST_CASE("batch7578 repeated failed initialization replaces stored window config") {
+        Batch7578WindowDriverGuard driver;
+        Salix::OpenGLRenderer renderer;
+        REQUIRE_FALSE(renderer.initialize(Salix::WindowConfig{"First7578", 100, 200}));
+        REQUIRE_FALSE(renderer.initialize(Salix::WindowConfig{"Second7578", 300, 400}));
+        auto* window = renderer.get_window(); REQUIRE(window != nullptr);
+        CHECK(window->get_width() == 300); CHECK(window->get_height() == 400);
+    }
+}
+
