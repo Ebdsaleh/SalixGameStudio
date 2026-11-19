@@ -1243,3 +1243,16 @@ TEST_SUITE("Salix::management::FileManagerBatch5747") {
     }
 }
 
+TEST_SUITE("Salix::management::FileManagerBatch7478") {
+    TEST_CASE("batch7478 create directory beneath regular file fails safely") { FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("blocker7478a","x"); CHECK_FALSE(Salix::FileManager::create_directory((temp.root/"blocker7478a"/"child").string())); }
+    TEST_CASE("batch7478 create directories beneath regular file fails safely") { FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("blocker7478b","x"); CHECK_FALSE(Salix::FileManager::create_directories((temp.root/"blocker7478b"/"a"/"b").string())); }
+    TEST_CASE("batch7478 copying file onto directory path fails safely") { FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("source7478.bin","payload7478"); const auto directory=temp.root/"destination7478"; REQUIRE(std::filesystem::create_directory(directory)); CHECK_FALSE(Salix::FileManager::copy_file(temp.file("source7478.bin"),directory.string())); }
+    TEST_CASE("batch7478 reading missing file returns empty content") { FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); CHECK(Salix::FileManager::read_file_content(temp.file("missing7478.bin")).empty()); }
+    TEST_CASE("batch7478 textual exact root conversion returns dot") { CHECK(Salix::FileManager::convert_to_relative("C:/Batch7478/Project","C:/Batch7478/Project")=="."); }
+    TEST_CASE("batch7478 textual child conversion removes root prefix") { CHECK(Salix::FileManager::convert_to_relative("C:/Batch7478/Project","C:/Batch7478/Project/Assets/file.bin")=="Assets/file.bin"); }
+    TEST_CASE("batch7478 textual sibling prefix remains unchanged") { const std::string sibling="C:/Batch7478/ProjectSibling/file.bin"; CHECK(Salix::FileManager::convert_to_relative("C:/Batch7478/Project",sibling)==sibling); }
+    TEST_CASE("batch7478 binary read preserves null and high byte") { FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); const std::string payload("\0\xffA",3); temp.write("binary7478.bin",payload); CHECK(Salix::FileManager::read_file_content(temp.file("binary7478.bin"))==payload); }
+    TEST_CASE("batch7478 hex dump preserves printable and nonprintable representation") { FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); temp.write("dump7478.bin",std::string{'A','\n','B'}); const auto dump=Salix::FileManager::generate_hex_dump(temp.file("dump7478.bin")); CHECK(dump.find("41 0a 42")!=std::string::npos); CHECK(dump.find("A.B")!=std::string::npos); }
+    TEST_CASE("batch7478 repeated nested directory creation remains idempotent") { FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); const auto nested=temp.root/"a7478"/"b7478"/"c7478"; REQUIRE(Salix::FileManager::create_directories(nested.string())); CHECK(Salix::FileManager::create_directories(nested.string())); CHECK(std::filesystem::is_directory(nested)); }
+}
+

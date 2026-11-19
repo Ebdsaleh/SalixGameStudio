@@ -1736,3 +1736,59 @@ TEST_SUITE("Salix::management::SettingsManagerBatch6947") {
         CHECK(restored.gui_settings.global_dpi_scaling == doctest::Approx(1.64f));
     }
 }
+
+TEST_SUITE("Salix::management::SettingsManagerBatch7478") {
+    TEST_CASE("batch7478 cache without string length falls back to YAML") {
+        Batch3447SettingsFiles files("Batch7478_NoLength"); files.write_yaml("Engine:\n  target_fps: 748\n");
+        Salix::ApplicationConfig seed; batch6947_write_bytes(files.cache,batch6947_fixed_cache_prefix(seed)); batch6947_make_cache_newer(files.yaml,files.cache);
+        Salix::ApplicationConfig loaded; Salix::SettingsManager manager; REQUIRE(manager.load_settings(files.yaml.string(),loaded)); CHECK(loaded.target_fps==748);
+    }
+    TEST_CASE("batch7478 cache oversized title length falls back to YAML") {
+        Batch3447SettingsFiles files("Batch7478_Oversize"); files.write_yaml("Window:\n  title: Recovered7478\n");
+        Salix::ApplicationConfig seed; std::string bytes=batch6947_fixed_cache_prefix(seed); const std::size_t length=7478;
+        bytes.append(reinterpret_cast<const char*>(&length),sizeof(length)); batch6947_write_bytes(files.cache,bytes); batch6947_make_cache_newer(files.yaml,files.cache);
+        Salix::ApplicationConfig loaded; Salix::SettingsManager manager; REQUIRE(manager.load_settings(files.yaml.string(),loaded)); CHECK(loaded.window_config.title=="Recovered7478");
+    }
+    TEST_CASE("batch7478 cache declared one byte title without payload falls back to YAML") {
+        Batch3447SettingsFiles files("Batch7478_NoPayload"); files.write_yaml("Window:\n  title: Payload7478\n");
+        Salix::ApplicationConfig seed; std::string bytes=batch6947_fixed_cache_prefix(seed); const std::size_t length=1;
+        bytes.append(reinterpret_cast<const char*>(&length),sizeof(length)); batch6947_write_bytes(files.cache,bytes); batch6947_make_cache_newer(files.yaml,files.cache);
+        Salix::ApplicationConfig loaded; Salix::SettingsManager manager; REQUIRE(manager.load_settings(files.yaml.string(),loaded)); CHECK(loaded.window_config.title=="Payload7478");
+    }
+    TEST_CASE("batch7478 empty cache falls back to YAML target fps") {
+        Batch3447SettingsFiles files("Batch7478_EmptyCache"); files.write_yaml("Engine:\n  target_fps: 478\n");
+        batch6947_write_bytes(files.cache,""); batch6947_make_cache_newer(files.yaml,files.cache);
+        Salix::ApplicationConfig loaded; Salix::SettingsManager manager; REQUIRE(manager.load_settings(files.yaml.string(),loaded)); CHECK(loaded.target_fps==478);
+    }
+    TEST_CASE("batch7478 one byte cache falls back to YAML dimensions") {
+        Batch3447SettingsFiles files("Batch7478_OneByte"); files.write_yaml("Window:\n  width: 7478\n  height: 4787\n");
+        batch6947_write_bytes(files.cache,std::string(1,'\0')); batch6947_make_cache_newer(files.yaml,files.cache);
+        Salix::ApplicationConfig loaded; Salix::SettingsManager manager; REQUIRE(manager.load_settings(files.yaml.string(),loaded));
+        CHECK(loaded.window_config.width==7478); CHECK(loaded.window_config.height==4787);
+    }
+    TEST_CASE("batch7478 malformed YAML remains a controlled false result") {
+        Batch3447SettingsFiles files("Batch7478_Malformed"); files.write_yaml("Window: [unterminated\n");
+        Salix::ApplicationConfig loaded; Salix::SettingsManager manager; CHECK_FALSE(manager.load_settings(files.yaml.string(),loaded));
+    }
+    TEST_CASE("batch7478 save and load preserve negative target fps") {
+        Batch3447SettingsFiles files("Batch7478_NegativeFps"); Salix::ApplicationConfig source; source.target_fps=-7478;
+        Salix::SettingsManager manager; REQUIRE(manager.save_settings(files.yaml.string(),source)); std::filesystem::remove(files.cache);
+        Salix::ApplicationConfig loaded; REQUIRE(manager.load_settings(files.yaml.string(),loaded)); CHECK(loaded.target_fps==-7478);
+    }
+    TEST_CASE("batch7478 save and load preserve empty window title") {
+        Batch3447SettingsFiles files("Batch7478_EmptyTitle"); Salix::ApplicationConfig source; source.window_config.title.clear();
+        Salix::SettingsManager manager; REQUIRE(manager.save_settings(files.yaml.string(),source)); std::filesystem::remove(files.cache);
+        Salix::ApplicationConfig loaded; REQUIRE(manager.load_settings(files.yaml.string(),loaded)); CHECK(loaded.window_config.title.empty());
+    }
+    TEST_CASE("batch7478 unknown renderer token preserves caller renderer") {
+        Batch3447SettingsFiles files("Batch7478_UnknownRenderer"); files.write_yaml("Renderer:\n  type: Future7478\n");
+        Salix::ApplicationConfig loaded; loaded.renderer_type=Salix::RendererType::OpenGL; Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(),loaded)); CHECK(loaded.renderer_type==Salix::RendererType::OpenGL);
+    }
+    TEST_CASE("batch7478 missing YAML preserves caller values without cache") {
+        Batch3447SettingsFiles files("Batch7478_MissingYaml"); std::filesystem::remove(files.yaml);
+        Salix::ApplicationConfig loaded; loaded.target_fps=7478; loaded.window_config.title="Keep7478"; Salix::SettingsManager manager;
+        REQUIRE(manager.load_settings(files.yaml.string(),loaded)); CHECK(loaded.target_fps==7478); CHECK(loaded.window_config.title=="Keep7478"); CHECK_FALSE(std::filesystem::exists(files.cache));
+    }
+}
+

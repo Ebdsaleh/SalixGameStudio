@@ -1075,3 +1075,17 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch7047") {
         CHECK(dynamic_cast<Salix::ImGuiTheme*>(manager.get_theme("Repeat7047J"))!=nullptr);
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch7478") {
+    TEST_CASE("batch7478 fresh manager remains empty") { Salix::ImGuiThemeManager manager; CHECK(manager.get_registered_themes().empty()); CHECK(manager.get_active_theme()==nullptr); }
+    TEST_CASE("batch7478 null registration is rejected") { Salix::ImGuiThemeManager manager; std::unique_ptr<Salix::ITheme> empty; CHECK_FALSE(manager.register_theme(std::move(empty))); CHECK(manager.get_registered_themes().empty()); }
+    TEST_CASE("batch7478 duplicate registration preserves original theme") { Salix::ImGuiThemeManager manager; auto first=std::make_unique<MockITheme>("Duplicate7478","first7478.theme"); MockITheme* raw=first.get(); REQUIRE(manager.register_theme(std::move(first))); CHECK_FALSE(manager.register_theme(std::make_unique<MockITheme>("Duplicate7478","second7478.theme"))); CHECK(manager.get_theme("Duplicate7478")==raw); }
+    TEST_CASE("batch7478 missing active selection preserves current active theme") { Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Active7478"))); REQUIRE(manager.set_active_theme("Active7478")); Salix::ITheme* before=manager.get_active_theme(); CHECK_FALSE(manager.set_active_theme("Missing7478")); CHECK(manager.get_active_theme()==before); }
+    TEST_CASE("batch7478 unregistering active theme clears active pointer") { Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Unregister7478"))); REQUIRE(manager.set_active_theme("Unregister7478")); REQUIRE(manager.unregister_theme("Unregister7478")); CHECK(manager.get_active_theme()==nullptr); }
+    TEST_CASE("batch7478 purging active theme clears registry and active pointer") { Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("Purge7478"))); REQUIRE(manager.set_active_theme("Purge7478")); REQUIRE(manager.purge_theme("Purge7478")); CHECK(manager.get_theme("Purge7478")==nullptr); CHECK(manager.get_active_theme()==nullptr); }
+    TEST_CASE("batch7478 malformed internal theme file is rejected") { Batch1947ThemeDirectory directory; const auto file=directory.path/"malformed7478a.theme"; {std::ofstream out(file);out<<"Style: [unterminated\n";} Salix::ImGuiThemeManager manager; CHECK_FALSE(manager.load_internal_theme_from_file(file.string(),false)); }
+    TEST_CASE("batch7478 malformed named theme file is rejected") { Batch1947ThemeDirectory directory; const auto file=directory.path/"malformed7478b.theme"; {std::ofstream out(file);out<<"Colors: [unterminated\n";} Salix::ImGuiThemeManager manager; CHECK_FALSE(manager.load_theme_from_file("Malformed7478",file.string(),false)); CHECK(manager.get_theme("Malformed7478")==nullptr); }
+    TEST_CASE("batch7478 saving missing theme is rejected") { Batch1947ThemeDirectory directory; Salix::ImGuiThemeManager manager; CHECK_FALSE(manager.save_theme_to_file("Missing7478",(directory.path/"missing7478.theme").string())); }
+    TEST_CASE("batch7478 shutdown clears multiple registered themes") { Salix::ImGuiThemeManager manager; REQUIRE(manager.register_theme(std::make_unique<MockITheme>("A7478"))); REQUIRE(manager.register_theme(std::make_unique<MockITheme>("B7478"))); REQUIRE(manager.set_active_theme("B7478")); manager.shutdown(); CHECK(manager.get_registered_themes().empty()); CHECK(manager.get_active_theme()==nullptr); }
+}
+

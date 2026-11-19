@@ -966,3 +966,16 @@ TEST_SUITE("Salix::core::ChronoTimerBatch5447") {
     }
 }
 
+TEST_SUITE("Salix::core::ChronoTimerBatch7478") {
+    TEST_CASE("batch7478 fresh timer begins with zero delta") { Salix::ChronoTimer timer; CHECK(timer.get_delta_time()==doctest::Approx(0.0f)); }
+    TEST_CASE("batch7478 zero fps produces zero sleep budget") { Salix::ChronoTimer timer; timer.set_target_fps(0); timer.tick_start(); CHECK(timer.calculate_sleep_duration().count()==doctest::Approx(0.0f)); }
+    TEST_CASE("batch7478 negative fps produces zero sleep budget") { Salix::ChronoTimer timer; timer.set_target_fps(-7478); timer.tick_start(); CHECK(timer.calculate_sleep_duration().count()==doctest::Approx(0.0f)); }
+    TEST_CASE("batch7478 one fps produces a large immediate sleep budget") { Salix::ChronoTimer timer; timer.set_target_fps(1); timer.tick_start(); CHECK(timer.calculate_sleep_duration().count()>900.0f); }
+    TEST_CASE("batch7478 sixty fps produces nonnegative immediate sleep budget") { Salix::ChronoTimer timer; timer.set_target_fps(60); timer.tick_start(); CHECK(timer.calculate_sleep_duration().count()>=0.0f); }
+    TEST_CASE("batch7478 switching capped timer to zero disables sleep") { Salix::ChronoTimer timer; timer.set_target_fps(1); timer.tick_start(); REQUIRE(timer.calculate_sleep_duration().count()>0.0f); timer.set_target_fps(0); CHECK(timer.calculate_sleep_duration().count()==doctest::Approx(0.0f)); }
+    TEST_CASE("batch7478 capped tick end invokes injected delay") { int calls=0; Salix::ChronoTimer timer([&](std::chrono::milliseconds){++calls;}); timer.set_target_fps(1); timer.tick_start(); timer.tick_end(); CHECK(calls==1); }
+    TEST_CASE("batch7478 uncapped tick end bypasses injected delay") { int calls=0; Salix::ChronoTimer timer([&](std::chrono::milliseconds){++calls;}); timer.set_target_fps(0); timer.tick_start(); timer.tick_end(); CHECK(calls==0); }
+    TEST_CASE("batch7478 zero static delay preserves monotonic ticks") { const auto before=Salix::ChronoTimer::get_ticks_ms(); Salix::ChronoTimer::delay_for(0u); const auto after=Salix::ChronoTimer::get_ticks_ms(); CHECK(after>=before); }
+    TEST_CASE("batch7478 ITimer virtual dispatch retains finite measured delta") { Salix::ChronoTimer concrete; Salix::ITimer& timer=concrete; timer.set_target_fps(0); timer.tick_start(); CHECK(std::isfinite(timer.get_delta_time())); CHECK(timer.get_delta_time()>=0.0f); }
+}
+

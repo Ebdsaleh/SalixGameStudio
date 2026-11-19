@@ -1224,3 +1224,17 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch7047") {
         CHECK_FALSE(theme.load_from_yaml(file.path.string())); CHECK(theme.get_name()=="Malformed7047");
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeBatch7478") {
+    TEST_CASE("batch7478 default theme keeps owned data") { Salix::ImGuiTheme theme; REQUIRE(theme.get_data()!=nullptr); CHECK(theme.get_name()=="Default ImGui Theme"); }
+    TEST_CASE("batch7478 explicit theme keeps requested name and source path") { Salix::ImGuiTheme theme("Named7478","Themes/Named7478.yaml"); CHECK(theme.get_name()=="Named7478"); CHECK(theme.get_file_path()=="Themes/Named7478.yaml"); }
+    TEST_CASE("batch7478 missing YAML load fails without replacing explicit identity") { Salix::ImGuiTheme theme("Keep7478"); CHECK_FALSE(theme.load_from_yaml("__batch7478_missing_theme__.yaml")); CHECK(theme.get_name()=="Keep7478"); }
+    TEST_CASE("batch7478 malformed YAML load remains controlled") { Batch1147ThemeTempFile file; file.write("Style: [unterminated\n"); Salix::ImGuiTheme theme("Malformed7478"); CHECK_FALSE(theme.load_from_yaml(file.path.string())); CHECK(theme.get_name()=="Malformed7478"); }
+    TEST_CASE("batch7478 default theme adopts YAML supplied identity") { Batch1147ThemeTempFile file; file.write("name: Loaded7478\ngui_type: ImGui\n"); Salix::ImGuiTheme theme; REQUIRE(theme.load_from_yaml(file.path.string())); CHECK(theme.get_name()=="Loaded7478"); }
+    TEST_CASE("batch7478 explicit theme retains caller identity while loading YAML") { Batch1147ThemeTempFile file; file.write("name: Ignored7478\ngui_type: ImGui\n"); Salix::ImGuiTheme theme("Explicit7478"); REQUIRE(theme.load_from_yaml(file.path.string())); CHECK(theme.get_name()=="Explicit7478"); }
+    TEST_CASE("batch7478 saving to empty path remains rejected") { Salix::ImGuiTheme theme("NoPath7478"); CHECK_FALSE(theme.save_to_yaml("")); }
+    TEST_CASE("batch7478 saving valid theme produces a regular YAML file") { Batch1147ThemeTempFile file; Salix::ImGuiTheme theme("Saved7478"); REQUIRE(theme.save_to_yaml(file.path.string())); CHECK(std::filesystem::is_regular_file(file.path)); }
+    TEST_CASE("batch7478 save load roundtrip preserves alpha") { Batch1147ThemeTempFile file; Salix::ImGuiTheme source("Roundtrip7478"); source.get_data()->alpha=.7478f; REQUIRE(source.save_to_yaml(file.path.string())); Salix::ImGuiTheme restored; REQUIRE(restored.load_from_yaml(file.path.string())); CHECK(restored.get_data()->alpha==doctest::Approx(.7478f)); }
+    TEST_CASE("batch7478 apply copies alpha into active ImGui style") { Batch6947ThemeContext context; Salix::ImGuiTheme theme("Apply7478"); theme.get_data()->alpha=.7478f; MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr); CHECK_NOTHROW(theme.apply(&gui)); CHECK(ImGui::GetStyle().Alpha==doctest::Approx(.7478f)); }
+}
+

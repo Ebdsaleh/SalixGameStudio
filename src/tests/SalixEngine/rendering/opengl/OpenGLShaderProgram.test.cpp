@@ -202,3 +202,17 @@ TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch7366") {
         CHECK(std::filesystem::exists(files.file("empty.frag")));
     }
 }
+
+TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch7478") {
+    TEST_CASE("batch7478 two nested missing shader paths stay inert") { Batch7366ShaderFiles files; REQUIRE(files.ready); Salix::OpenGLShaderProgram program(files.file("missing/a.vert").string(),files.file("missing/b.frag").string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 directory vertex and missing fragment stay inert") { Batch7366ShaderFiles files; REQUIRE(files.ready); Salix::OpenGLShaderProgram program(files.root.string(),files.file("missing.frag").string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 missing vertex and directory fragment stay inert") { Batch7366ShaderFiles files; REQUIRE(files.ready); Salix::OpenGLShaderProgram program(files.file("missing.vert").string(),files.root.string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 two directory shader paths stay inert") { Batch7366ShaderFiles files; REQUIRE(files.ready); Salix::OpenGLShaderProgram program(files.root.string(),files.root.string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 empty vertex and missing fragment stay inert") { Batch7366ShaderFiles files; REQUIRE(files.ready); files.write("empty.vert",""); Salix::OpenGLShaderProgram program(files.file("empty.vert").string(),files.file("missing.frag").string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 missing vertex and empty fragment stay inert") { Batch7366ShaderFiles files; REQUIRE(files.ready); files.write("empty.frag",""); Salix::OpenGLShaderProgram program(files.file("missing.vert").string(),files.file("empty.frag").string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 empty vertex and directory fragment stay inert") { Batch7366ShaderFiles files; REQUIRE(files.ready); files.write("empty.vert",""); Salix::OpenGLShaderProgram program(files.file("empty.vert").string(),files.root.string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 directory vertex and empty fragment stay inert") { Batch7366ShaderFiles files; REQUIRE(files.ready); files.write("empty.frag",""); Salix::OpenGLShaderProgram program(files.root.string(),files.file("empty.frag").string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 valid vertex and nested missing fragment stop before GL dispatch") { Batch7366ShaderFiles files; REQUIRE(files.ready); files.write("valid.vert",batch7366_shader_source); Salix::OpenGLShaderProgram program(files.file("valid.vert").string(),files.file("missing/deep.frag").string()); CHECK(program.ID==0); }
+    TEST_CASE("batch7478 nested missing vertex and valid fragment stop before GL dispatch") { Batch7366ShaderFiles files; REQUIRE(files.ready); files.write("valid.frag",batch7366_shader_source); Salix::OpenGLShaderProgram program(files.file("missing/deep.vert").string(),files.file("valid.frag").string()); CHECK(program.ID==0); }
+}
+

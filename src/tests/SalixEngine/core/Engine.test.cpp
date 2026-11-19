@@ -940,3 +940,61 @@ TEST_SUITE("Salix::core::EngineBatch7147") {
         CHECK_FALSE(engine.is_running());
     }
 }
+
+namespace {
+struct Batch7478DummyVideoDriverGuard {
+    bool had_video = false;
+    bool had_render = false;
+    std::string old_video;
+    std::string old_render;
+
+    Batch7478DummyVideoDriverGuard() {
+        if (const char* value = SDL_getenv("SDL_VIDEODRIVER")) { had_video = true; old_video = value; }
+        if (const char* value = SDL_getenv("SDL_RENDER_DRIVER")) { had_render = true; old_render = value; }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
+        SDL_setenv("SDL_RENDER_DRIVER", "software", 1);
+    }
+
+    ~Batch7478DummyVideoDriverGuard() {
+        SDL_Quit();
+        if (had_video) SDL_setenv("SDL_VIDEODRIVER", old_video.c_str(), 1); else _putenv_s("SDL_VIDEODRIVER", "");
+        if (had_render) SDL_setenv("SDL_RENDER_DRIVER", old_render.c_str(), 1); else _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+};
+
+void batch7478_engine_renderer_attempt(
+    Salix::RendererType renderer, int width, int height,
+    const std::string& title, Salix::TimerType timer, int target_fps) {
+    Batch7478DummyVideoDriverGuard driver;
+    Salix::Engine engine;
+    Salix::ApplicationConfig config;
+    config.renderer_type = renderer;
+    config.gui_type = Salix::GuiType::None;
+    config.initial_state = Salix::AppStateType::None;
+    config.timer_type = timer;
+    config.target_fps = target_fps;
+    config.window_config.width = width;
+    config.window_config.height = height;
+    config.window_config.title = title;
+    const bool initialized = engine.initialize(config);
+    CHECK_FALSE(initialized);
+    CHECK(engine.get_renderer() != nullptr);
+    CHECK_FALSE(engine.is_running());
+    CHECK_NOTHROW(engine.shutdown());
+}
+}
+
+TEST_SUITE("Salix::core::EngineBatch7478") {
+    TEST_CASE("batch7478 SDL renderer attempt with default sized dummy window remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::SDL,1280,720,"Batch7478 SDL A",Salix::TimerType::SDL,60); }
+    TEST_CASE("batch7478 SDL renderer attempt with tiny dummy window remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::SDL,1,1,"Batch7478 SDL B",Salix::TimerType::SDL,60); }
+    TEST_CASE("batch7478 SDL renderer attempt with zero sized dummy window remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::SDL,0,0,"Batch7478 SDL C",Salix::TimerType::SDL,0); }
+    TEST_CASE("batch7478 SDL renderer attempt with empty title remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::SDL,640,480,"",Salix::TimerType::Chrono,30); }
+    TEST_CASE("batch7478 SDL renderer attempt preserves negative target fps failure safety") { batch7478_engine_renderer_attempt(Salix::RendererType::SDL,320,240,"Batch7478 SDL E",Salix::TimerType::Chrono,-1); }
+    TEST_CASE("batch7478 OpenGL renderer attempt with default sized dummy window remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::OpenGL,1280,720,"Batch7478 GL A",Salix::TimerType::SDL,60); }
+    TEST_CASE("batch7478 OpenGL renderer attempt with tiny dummy window remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::OpenGL,1,1,"Batch7478 GL B",Salix::TimerType::Chrono,120); }
+    TEST_CASE("batch7478 OpenGL renderer attempt with zero width remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::OpenGL,0,480,"Batch7478 GL C",Salix::TimerType::SDL,60); }
+    TEST_CASE("batch7478 OpenGL renderer attempt with zero height remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::OpenGL,640,0,"Batch7478 GL D",Salix::TimerType::Chrono,60); }
+    TEST_CASE("batch7478 OpenGL renderer attempt with empty title and uncapped fps remains controlled") { batch7478_engine_renderer_attempt(Salix::RendererType::OpenGL,640,480,"",Salix::TimerType::Chrono,0); }
+}
+

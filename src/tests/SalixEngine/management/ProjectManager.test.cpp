@@ -1666,3 +1666,28 @@ TEST_SUITE("Salix::management::ProjectManagerBatch7147") {
         CHECK(manager.get_loaded_project_directory() == "PendingRoot7147");
     }
 }
+
+namespace {
+void batch7478_expect_nested_project_filename_failure(const std::string& name) {
+    Batch1947ProjectRoot root;
+    Salix::ProjectManager manager;
+    CHECK_FALSE(manager.create_new_project(root.path.string(), name));
+    const std::filesystem::path project_root = root.path / std::filesystem::path(name);
+    CHECK(std::filesystem::is_directory(project_root / "Assets" / "Realms"));
+    CHECK(std::filesystem::is_directory(project_root / "Assets" / "Scripts"));
+}
+}
+
+TEST_SUITE("Salix::management::ProjectManagerBatch7478") {
+    TEST_CASE("batch7478 nested project name A reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478A/NestedA"); }
+    TEST_CASE("batch7478 nested project name B reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478B/NestedB"); }
+    TEST_CASE("batch7478 nested project name C reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478C/NestedC"); }
+    TEST_CASE("batch7478 nested project name D reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478D/NestedD"); }
+    TEST_CASE("batch7478 nested project name E reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478E/NestedE"); }
+    TEST_CASE("batch7478 nested project name F reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478F/NestedF"); }
+    TEST_CASE("batch7478 nested project name G reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478G/NestedG"); }
+    TEST_CASE("batch7478 nested project name H reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478H/NestedH"); }
+    TEST_CASE("batch7478 nested project name I reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478I/NestedI"); }
+    TEST_CASE("batch7478 nested project name J reaches project file open failure") { batch7478_expect_nested_project_filename_failure("Batch7478J/NestedJ"); }
+}
+

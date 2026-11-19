@@ -1,6 +1,7 @@
 // Realm.test.cpp - Memory-only regression tests for engine realm ownership.
 // No user projects, scene files, or external assets are modified by these tests.
 #include <doctest.h>
+#include <Salix/ecs/ScriptElement.h>
 #include <Salix/assets/AssetManager.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/core/SimpleGuid.h>
@@ -1532,3 +1533,29 @@ TEST_SUITE("Salix::ecs::RealmBatch7047") {
         REQUIRE(loaded->get_entities().size()==1); CHECK(loaded->get_entity_by_name("Entity7047")!=nullptr);
     }
 }
+
+namespace {
+class Batch7478UnregisteredScript final : public Salix::ScriptElement {
+public:
+    const char* get_class_name() const override { return "Batch7478UnregisteredScript"; }
+};
+void batch7478_expect_realm_polymorphic_save_failure(const std::string& stem,const std::string& realm_name,const std::string& entity_name) {
+    Batch7047RealmFile file(stem); const auto path=file.root/(stem+".realm"); Salix::Realm realm(realm_name,path.string());
+    Salix::Entity* entity=realm.create_entity(entity_name); REQUIRE(entity!=nullptr);
+    entity->add_element(std::make_unique<Batch7478UnregisteredScript>()); CHECK_FALSE(realm.save_to_file(path.string()));
+}
+}
+
+TEST_SUITE("Salix::ecs::RealmBatch7478") {
+    TEST_CASE("batch7478 unregistered script A reaches realm serialization catch") { batch7478_expect_realm_polymorphic_save_failure("UnregisteredA7478","RealmA7478","EntityA7478"); }
+    TEST_CASE("batch7478 unregistered script B reaches realm serialization catch") { batch7478_expect_realm_polymorphic_save_failure("UnregisteredB7478","RealmB7478","EntityB7478"); }
+    TEST_CASE("batch7478 unregistered script C reaches realm serialization catch") { batch7478_expect_realm_polymorphic_save_failure("UnregisteredC7478","RealmC7478","EntityC7478"); }
+    TEST_CASE("batch7478 unregistered script D reaches realm serialization catch") { batch7478_expect_realm_polymorphic_save_failure("UnregisteredD7478","RealmD7478","EntityD7478"); }
+    TEST_CASE("batch7478 unregistered script E reaches realm serialization catch") { batch7478_expect_realm_polymorphic_save_failure("UnregisteredE7478","RealmE7478","EntityE7478"); }
+    TEST_CASE("batch7478 empty realm saves and loads metadata") { Batch7047RealmFile file("Empty7478"); const auto path=file.root/"empty7478.realm"; Salix::Realm source("EmptyRealm7478",path.string()); REQUIRE(source.save_to_file(path.string())); Salix::InitContext context{}; auto loaded=Salix::Realm::load_from_file(path.string(),context); REQUIRE(loaded!=nullptr); CHECK(loaded->get_name()=="EmptyRealm7478"); }
+    TEST_CASE("batch7478 clear all entities leaves realm empty") { Salix::Realm realm("Clear7478"); REQUIRE(realm.create_entity("A7478")!=nullptr); REQUIRE(realm.create_entity("B7478")!=nullptr); realm.clear_all_entities(); CHECK(realm.get_entities().empty()); }
+    TEST_CASE("batch7478 name and path setters replace realm metadata") { Salix::Realm realm("Before7478","before7478.realm"); realm.set_name("After7478"); realm.set_path("after7478.realm"); CHECK(realm.get_name()=="After7478"); CHECK(realm.get_path()=="after7478.realm"); }
+    TEST_CASE("batch7478 maintain removes purged entity") { Salix::Realm realm("Maintain7478"); auto* entity=realm.create_entity("Purged7478"); REQUIRE(entity!=nullptr); entity->purge(); realm.maintain(); CHECK(realm.get_entity_by_name("Purged7478")==nullptr); }
+    TEST_CASE("batch7478 active camera pointer accepts explicit null") { Salix::Realm realm("Camera7478"); realm.set_active_camera(nullptr); CHECK(realm.get_active_camera()==nullptr); }
+}
+
