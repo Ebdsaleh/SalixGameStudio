@@ -1256,3 +1256,23 @@ TEST_SUITE("Salix::management::FileManagerBatch7478") {
     TEST_CASE("batch7478 repeated nested directory creation remains idempotent") { FileManagerOwnedTemp20261019 temp; REQUIRE(temp.owned); const auto nested=temp.root/"a7478"/"b7478"/"c7478"; REQUIRE(Salix::FileManager::create_directories(nested.string())); CHECK(Salix::FileManager::create_directories(nested.string())); CHECK(std::filesystem::is_directory(nested)); }
 }
 
+namespace {
+void batch7978_expect_cross_drive_fallback(const std::string& root, const std::string& absolute_path) {
+    const auto result=Salix::FileManager::convert_to_relative_path(root,absolute_path);
+    CHECK(result==absolute_path);
+}
+}
+
+TEST_SUITE("Salix::management::FileManagerBatch7978") {
+    TEST_CASE("batch7978 C to D drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("C:/Batch7978Root","D:/Batch7978Target/file.txt"); }
+    TEST_CASE("batch7978 C to Z drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("C:/Batch7978Root","Z:/Batch7978Target/file.txt"); }
+    TEST_CASE("batch7978 D to C drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("D:/Batch7978Root","C:/Batch7978Target/file.txt"); }
+    TEST_CASE("batch7978 E to F drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("E:/Batch7978Root","F:/Batch7978Target/nested/file.txt"); }
+    TEST_CASE("batch7978 G to H drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("G:/Batch7978Root","H:/Batch7978Target"); }
+    TEST_CASE("batch7978 I to J drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("I:/Batch7978Root/a","J:/Batch7978Target/b"); }
+    TEST_CASE("batch7978 K to L drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("K:/Batch7978Root","L:/Batch7978Target/file.bin"); }
+    TEST_CASE("batch7978 M to N drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("M:/Batch7978Root","N:/Batch7978Target/file.yaml"); }
+    TEST_CASE("batch7978 O to P drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("O:/Batch7978Root","P:/Batch7978Target/file.realm"); }
+    TEST_CASE("batch7978 Q to R drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("Q:/Batch7978Root","R:/Batch7978Target/file.salixproj"); }
+}
+

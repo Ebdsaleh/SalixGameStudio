@@ -344,3 +344,54 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7878") {
     TEST_CASE("batch7878 SDL save dialog display executes configured filename path") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);REQUIRE(f.gui.open_save_file_dialog("SDLSaveDisplay7878","Save",".txt",".","batch7878.txt"));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render(); }
     TEST_CASE("batch7878 SDL explicit shutdown unregisters backend and callback safely") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);Salix::EventManager events;f.gui.setup_event_polling(&f.poller,&events);REQUIRE(f.poller.raw_callback_count()==1u);CHECK_NOTHROW(f.gui.shutdown());f.ready=false;CHECK(f.poller.raw_callback_count()==0u); }
 }
+
+TEST_SUITE("Salix::gui::SDLImGuiBatch7978") {
+    TEST_CASE("batch7978 SDL GUI rejects interfaces whose native handles are both null") {
+        Salix::SDLImGui gui; MockIWindow window; MockIRenderer renderer;
+        CHECK_FALSE(gui.initialize(&window,&renderer,nullptr,nullptr,nullptr));
+    }
+    TEST_CASE("batch7978 SDL GUI rejects null renderer native handle beside nonnull window handle") {
+        Salix::SDLImGui gui; MockIWindow window; MockIRenderer renderer;
+        window.native_handle=reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x7978));
+        CHECK_FALSE(gui.initialize(&window,&renderer,nullptr,nullptr,nullptr));
+    }
+    TEST_CASE("batch7978 SDL GUI rejects null window native handle beside nonnull renderer handle") {
+        Salix::SDLImGui gui; MockIWindow window; MockIRenderer renderer;
+        renderer.native_handle=reinterpret_cast<void*>(static_cast<std::uintptr_t>(0x7978));
+        CHECK_FALSE(gui.initialize(&window,&renderer,nullptr,nullptr,nullptr));
+    }
+    TEST_CASE("batch7978 SDL GUI platform windows update remains safe after completed frame") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.new_frame(); f.gui.render();
+        CHECK_NOTHROW(f.gui.update_and_render_platform_windows());
+    }
+    TEST_CASE("batch7978 SDL GUI theme reload handshake remains explicit") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); CHECK_FALSE(f.gui.is_theme_reload_requested());
+        f.gui.request_theme_reload(); CHECK(f.gui.is_theme_reload_requested()); f.gui.clear_theme_reload_request();
+        CHECK_FALSE(f.gui.is_theme_reload_requested());
+    }
+    TEST_CASE("batch7978 SDL GUI direct dialog registration preserves two distinct keys") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready);
+        REQUIRE(f.gui.register_dialog(std::make_unique<Salix::DialogBox>("SDLRegister7978A","A",Salix::DialogType::File,false)));
+        REQUIRE(f.gui.register_dialog(std::make_unique<Salix::DialogBox>("SDLRegister7978B","B",Salix::DialogType::Folder,false)));
+        CHECK(f.gui.get_dialog("SDLRegister7978A")!=nullptr); CHECK(f.gui.get_dialog("SDLRegister7978B")!=nullptr);
+    }
+    TEST_CASE("batch7978 SDL GUI orphan active key is removed by display pass") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); std::string key="SDLOrphan7978";
+        f.gui.show_dialog_by_key(key); REQUIRE(f.gui.is_dialog_open(key)); CHECK_NOTHROW(f.gui.display_dialogs()); CHECK_FALSE(f.gui.is_dialog_open(key));
+    }
+    TEST_CASE("batch7978 SDL GUI common dialog geometry accepts cleared application config") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.set_app_config(nullptr);
+        f.gui.new_frame(); CHECK_NOTHROW(f.gui.set_common_dialog_properties()); f.gui.render(); CHECK(f.gui.get_app_config()==nullptr);
+    }
+    TEST_CASE("batch7978 SDL GUI cursor policy toggles after completed frame") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.new_frame(); f.gui.render();
+        CHECK_NOTHROW(f.gui.set_mouse_cursor_visible(false)); CHECK_NOTHROW(f.gui.set_mouse_cursor_visible(true));
+    }
+    TEST_CASE("batch7978 SDL GUI layout roundtrip remains safe with live context") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready);
+        const auto path=std::filesystem::temp_directory_path()/"batch7978_sdl_layout.ini";
+        f.gui.save_layout(path.string()); REQUIRE(std::filesystem::exists(path)); CHECK_NOTHROW(f.gui.load_layout(path.string()));
+        std::error_code ec; std::filesystem::remove(path,ec);
+    }
+}
+

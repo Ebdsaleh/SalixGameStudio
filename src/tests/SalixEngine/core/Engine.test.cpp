@@ -1345,3 +1345,86 @@ TEST_SUITE("Salix::core::EngineBatch7878") {
         Batch7778OpenGLEngine run; REQUIRE(run.initialized); run.engine.is_running(false); CHECK_NOTHROW(run.engine.run()); CHECK_FALSE(run.engine.is_running());
     }
 }
+
+namespace {
+Uint32 SDLCALL batch7978_engine_quit_timer(Uint32, void*) {
+    SDL_Event event{};
+    event.type = SDL_QUIT;
+    SDL_PushEvent(&event);
+    return 0;
+}
+void batch7978_run_until_delayed_quit(Salix::Engine& engine) {
+    const SDL_TimerID timer = SDL_AddTimer(80, batch7978_engine_quit_timer, nullptr);
+    REQUIRE(timer != 0);
+    engine.run();
+}
+}
+
+TEST_SUITE("Salix::core::EngineBatch7978") {
+    TEST_CASE("batch7978 SDL launch executes live frames before delayed quit") {
+        Batch7678NativeEngineRun run; REQUIRE(run.initialized);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7978 SDL options executes live frames before delayed quit") {
+        Batch7678NativeEngineRun run(Salix::AppStateType::Options); REQUIRE(run.initialized);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7978 SDL chrono launch executes live frames before delayed quit") {
+        Batch7678NativeEngineRun run(Salix::AppStateType::Launch, Salix::TimerType::Chrono); REQUIRE(run.initialized);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7978 SDL delayed run preserves fractional time scale") {
+        Batch7678NativeEngineRun run; REQUIRE(run.initialized);
+        run.engine.set_time_scale(0.25f);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK(run.engine.get_time_scale() == doctest::Approx(0.25f));
+    }
+    TEST_CASE("batch7978 OpenGL launch executes live frames before delayed quit") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7978 OpenGL options executes live frames before delayed quit") {
+        Batch7778OpenGLEngine run(Salix::AppStateType::Options); REQUIRE(run.initialized);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7978 OpenGL chrono launch executes live frames before delayed quit") {
+        Batch7778OpenGLEngine run(Salix::AppStateType::Launch, Salix::TimerType::Chrono); REQUIRE(run.initialized);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7978 OpenGL delayed run preserves nonunit time scale") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized);
+        run.engine.set_time_scale(1.75f);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK(run.engine.get_time_scale() == doctest::Approx(1.75f));
+    }
+    TEST_CASE("batch7978 SDL launch options transition still renders before delayed quit") {
+        Batch7678NativeEngineRun run; REQUIRE(run.initialized);
+        run.engine.switch_state(Salix::AppStateType::Options);
+        REQUIRE(run.engine.get_mode() == Salix::EngineMode::Options);
+        batch7978_run_until_delayed_quit(run.engine);
+        CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7978 initialized SDL engine destructor performs implicit lifecycle cleanup") {
+        Batch7678WindowsVideoGuard driver;
+        {
+            Salix::Engine engine;
+            Salix::ApplicationConfig config;
+            config.renderer_type = Salix::RendererType::SDL;
+            config.gui_type = Salix::GuiType::None;
+            config.initial_state = Salix::AppStateType::Launch;
+            config.window_config.title = "Batch7978 Destructor";
+            config.window_config.width = 96;
+            config.window_config.height = 64;
+            REQUIRE(engine.initialize(config));
+            CHECK(engine.is_running());
+        }
+        CHECK(SDL_WasInit(SDL_INIT_VIDEO) == 0u);
+    }
+}
+

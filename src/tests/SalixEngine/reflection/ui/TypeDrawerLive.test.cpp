@@ -1209,3 +1209,31 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7347") {
     }
 
 }
+
+namespace {
+void batch7978_open_enumclass_current_item(const char* label, int value) {
+    Batch6947DrawerFrame frame;
+    const auto* info=batch7147_projection_type_info(); REQUIRE(info!=nullptr);
+    auto property=batch7347_handle_property(label,Salix::PropertyType::EnumClass);
+    property.contained_type_info=info;
+    MockPropertyHandle handle(property,Salix::PropertyValue{value});
+    const ImGuiID combo_id=frame.item_id(label);
+    frame.activate_once(combo_id,[&]{Salix::TypeDrawerLive::draw_property(label,handle);});
+    CHECK(handle.set_calls==0);
+    CHECK(std::get<int>(handle.get_value())==value);
+}
+}
+
+TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch7978") {
+    TEST_CASE("batch7978 EnumClass Perspective current item receives default focus A") { batch7978_open_enumclass_current_item("EnumFocus7978A",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch7978 EnumClass Orthographic current item receives default focus B") { batch7978_open_enumclass_current_item("EnumFocus7978B",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+    TEST_CASE("batch7978 EnumClass Perspective current item receives default focus C") { batch7978_open_enumclass_current_item("EnumFocus7978C",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch7978 EnumClass Orthographic current item receives default focus D") { batch7978_open_enumclass_current_item("EnumFocus7978D",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+    TEST_CASE("batch7978 EnumClass Perspective current item receives default focus E") { batch7978_open_enumclass_current_item("EnumFocus7978E",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch7978 EnumClass Orthographic current item receives default focus F") { batch7978_open_enumclass_current_item("EnumFocus7978F",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+    TEST_CASE("batch7978 EnumClass Perspective current item receives default focus G") { batch7978_open_enumclass_current_item("EnumFocus7978G",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch7978 EnumClass Orthographic current item receives default focus H") { batch7978_open_enumclass_current_item("EnumFocus7978H",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+    TEST_CASE("batch7978 EnumClass Perspective current item receives default focus I") { batch7978_open_enumclass_current_item("EnumFocus7978I",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch7978 EnumClass Orthographic current item receives default focus J") { batch7978_open_enumclass_current_item("EnumFocus7978J",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+}
+

@@ -1411,3 +1411,60 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7778") {
     TEST_CASE("batch7778 too small font remains rejected before ImGui load") { Batch7778FontGLFixture f; REQUIRE(f.manager_ready); CHECK_FALSE(f.manager.load_font_from_file("__missing_small7778__.ttf","Small7778",5.0f,false)); }
     TEST_CASE("batch7778 empty font path remains rejected with live OpenGL context") { Batch7778FontGLFixture f; REQUIRE(f.manager_ready); CHECK_FALSE(f.manager.load_font_from_file("","Empty7778",12.0f,false)); }
 }
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7978") {
+    TEST_CASE("batch7978 load and register accepts repository font at minimum practical size") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager; ImFontConfig cfg;
+        REQUIRE(manager.load_and_register_font(batch7047_font_path().string(),"LoadRegister7978A","Family7978",8.0f,cfg));
+        CHECK(manager.get_font("LoadRegister7978A")!=nullptr);
+    }
+    TEST_CASE("batch7978 duplicate load and register name preserves first registry entry") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager; ImFontConfig cfg;
+        REQUIRE(manager.load_and_register_font(batch7047_font_path().string(),"LoadRegister7978B","First7978",10.0f,cfg));
+        CHECK_FALSE(manager.load_and_register_font(batch7047_font_path().string(),"LoadRegister7978B","Second7978",12.0f,cfg));
+        REQUIRE(manager.get_font("LoadRegister7978B")!=nullptr); CHECK(manager.get_font("LoadRegister7978B")->get_family()=="First7978");
+    }
+    TEST_CASE("batch7978 file loader accepts exact six pixel lower boundary") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager;
+        REQUIRE(manager.load_font_from_file(batch7047_font_path().string(),"Boundary7978",6.0f,false));
+        CHECK(manager.get_font("Boundary7978")!=nullptr);
+    }
+    TEST_CASE("batch7978 file loader rejects value below six pixel lower boundary") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file(batch7047_font_path().string(),"TooSmall7978",5.99f,false));
+        CHECK(manager.get_font("TooSmall7978")==nullptr);
+    }
+    TEST_CASE("batch7978 file loader rejects empty path before touching atlas") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file("","EmptyPath7978",16.0f,false));
+        CHECK(manager.get_font_registry().empty());
+    }
+    TEST_CASE("batch7978 loaded repository font can be immediately applied") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager;
+        REQUIRE(manager.load_font_from_file(batch7047_font_path().string(),"Apply7978",14.0f,true));
+        REQUIRE(manager.get_active_font()!=nullptr); CHECK(manager.get_active_font()->get_name()=="Apply7978");
+    }
+    TEST_CASE("batch7978 loaded passive font can be unregistered cleanly") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager;
+        REQUIRE(manager.load_font_from_file(batch7047_font_path().string(),"Remove7978",18.0f,false));
+        REQUIRE(manager.unregister_font("Remove7978")); CHECK(manager.get_font("Remove7978")==nullptr);
+    }
+    TEST_CASE("batch7978 renderer none initialize keeps atlas rebuild explicitly unsupported") {
+        Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; MockIGui gui;
+        gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+        Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui)); CHECK_FALSE(manager.rebuild_font_atlas_texture());
+    }
+    TEST_CASE("batch7978 two real sizes remain sorted within one family") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager; ImFontConfig cfg;
+        REQUIRE(manager.load_and_register_font(batch7047_font_path().string(),"Size7978A","Sizes7978",20.0f,cfg));
+        REQUIRE(manager.load_and_register_font(batch7047_font_path().string(),"Size7978B","Sizes7978",10.0f,cfg));
+        const auto sizes=manager.get_font_sizes_for_font_family("Sizes7978"); REQUIRE(sizes.size()==2);
+        CHECK(sizes[0]==doctest::Approx(10.0f)); CHECK(sizes[1]==doctest::Approx(20.0f));
+    }
+    TEST_CASE("batch7978 shutdown clears a real loaded active font") {
+        Batch6947FontManagerContext context; Salix::ImGuiFontManager manager;
+        REQUIRE(manager.load_font_from_file(batch7047_font_path().string(),"Shutdown7978",16.0f,true));
+        manager.shutdown(); CHECK(manager.get_active_font()==nullptr); CHECK(manager.get_font_registry().empty());
+    }
+}
+

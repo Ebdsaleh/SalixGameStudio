@@ -1713,3 +1713,27 @@ TEST_SUITE("Salix::management::ProjectManagerBatch7578") {
     TEST_CASE("batch7578 external nested project J reaches generated file open failure") { batch7578_expect_external_nested_project_file_failure("Batch7578J/NestedJ"); }
 }
 
+namespace {
+void batch7978_expect_malformed_project_load(const std::string& suffix, const std::string& bytes, bool pointer_api) {
+    Batch1947ProjectRoot root;
+    const auto path=batch7147_write_raw_project(root,"batch7978_"+suffix+".salixproj",bytes);
+    Salix::ProjectManager manager;
+    if(pointer_api) CHECK(manager.load_project_from_file(path.string())==nullptr);
+    else CHECK_FALSE(manager.load_project(path.string()));
+    CHECK(manager.get_active_project()==nullptr);
+}
+}
+
+TEST_SUITE("Salix::management::ProjectManagerBatch7978") {
+    TEST_CASE("batch7978 truncated object fails bool project loader") { batch7978_expect_malformed_project_load("a","{",false); }
+    TEST_CASE("batch7978 truncated array fails pointer project loader") { batch7978_expect_malformed_project_load("b","[",true); }
+    TEST_CASE("batch7978 unterminated string fails bool project loader") { batch7978_expect_malformed_project_load("c","\"unterminated",false); }
+    TEST_CASE("batch7978 invalid object token fails pointer project loader") { batch7978_expect_malformed_project_load("d","{ invalid",true); }
+    TEST_CASE("batch7978 truncated project data array fails bool loader") { batch7978_expect_malformed_project_load("e","{\"project_data\":[",false); }
+    TEST_CASE("batch7978 truncated build settings object fails pointer loader") { batch7978_expect_malformed_project_load("f","{\"build_settings\":",true); }
+    TEST_CASE("batch7978 plain text fails bool project loader") { batch7978_expect_malformed_project_load("g","not-json-7978",false); }
+    TEST_CASE("batch7978 malformed null token fails pointer project loader") { batch7978_expect_malformed_project_load("h","null trailing",true); }
+    TEST_CASE("batch7978 missing member value fails bool project loader") { batch7978_expect_malformed_project_load("i","{\"x\":",false); }
+    TEST_CASE("batch7978 truncated numeric array fails pointer project loader") { batch7978_expect_malformed_project_load("j","[1,",true); }
+}
+

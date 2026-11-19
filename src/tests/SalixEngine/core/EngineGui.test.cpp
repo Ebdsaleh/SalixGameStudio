@@ -49,3 +49,80 @@ TEST_SUITE("Salix::core::EngineGuiBatch7878") {
     TEST_CASE("batch7878 SDL ImGui engine switches to game input path") { Batch7878GuiEngine f(Salix::RendererType::SDL); REQUIRE(f.ready); auto* gui=f.engine.get_input_manager(); f.engine.switch_state(Salix::AppStateType::Game); CHECK(f.engine.get_mode()==Salix::EngineMode::Game); CHECK(f.engine.get_input_manager()!=nullptr); CHECK(f.engine.get_input_manager()!=gui); }
     TEST_CASE("batch7878 OpenGL ImGui chrono engine survives one quit frame") { Batch7878GuiEngine f(Salix::RendererType::OpenGL,Salix::AppStateType::Launch,Salix::TimerType::Chrono); REQUIRE(f.ready); f.quit_and_run(); CHECK_FALSE(f.engine.is_running()); }
 }
+
+#include <Salix/core/InitContext.h>
+#include <Salix/gui/IGui.h>
+
+namespace {
+Uint32 SDLCALL batch7978_gui_quit_timer(Uint32, void*) {
+    SDL_Event event{};
+    event.type = SDL_QUIT;
+    SDL_PushEvent(&event);
+    return 0;
+}
+void batch7978_gui_run_until_delayed_quit(Salix::Engine& engine) {
+    const SDL_TimerID timer = SDL_AddTimer(80, batch7978_gui_quit_timer, nullptr);
+    REQUIRE(timer != 0);
+    engine.run();
+}
+}
+
+TEST_SUITE("Salix::core::EngineGuiBatch7978") {
+    TEST_CASE("batch7978 SDL ImGui launch renders before delayed quit") {
+        Batch7878GuiEngine f(Salix::RendererType::SDL); REQUIRE(f.ready);
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK_FALSE(f.engine.is_running());
+    }
+    TEST_CASE("batch7978 OpenGL ImGui launch renders before delayed quit") {
+        Batch7878GuiEngine f(Salix::RendererType::OpenGL); REQUIRE(f.ready);
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK_FALSE(f.engine.is_running());
+    }
+    TEST_CASE("batch7978 SDL ImGui options renders before delayed quit") {
+        Batch7878GuiEngine f(Salix::RendererType::SDL, Salix::AppStateType::Options); REQUIRE(f.ready);
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK_FALSE(f.engine.is_running());
+    }
+    TEST_CASE("batch7978 OpenGL ImGui options renders before delayed quit") {
+        Batch7878GuiEngine f(Salix::RendererType::OpenGL, Salix::AppStateType::Options); REQUIRE(f.ready);
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK_FALSE(f.engine.is_running());
+    }
+    TEST_CASE("batch7978 SDL ImGui chrono launch renders before delayed quit") {
+        Batch7878GuiEngine f(Salix::RendererType::SDL, Salix::AppStateType::Launch, Salix::TimerType::Chrono); REQUIRE(f.ready);
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK_FALSE(f.engine.is_running());
+    }
+    TEST_CASE("batch7978 OpenGL ImGui chrono launch renders before delayed quit") {
+        Batch7878GuiEngine f(Salix::RendererType::OpenGL, Salix::AppStateType::Launch, Salix::TimerType::Chrono); REQUIRE(f.ready);
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK_FALSE(f.engine.is_running());
+    }
+    TEST_CASE("batch7978 SDL ImGui theme reload request is consumed during live frame") {
+        Batch7878GuiEngine f(Salix::RendererType::SDL); REQUIRE(f.ready);
+        auto context = f.engine.make_context(); REQUIRE(context.gui != nullptr);
+        context.gui->request_theme_reload(); REQUIRE(context.gui->is_theme_reload_requested());
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK_FALSE(context.gui->is_theme_reload_requested());
+    }
+    TEST_CASE("batch7978 OpenGL ImGui theme reload request is consumed during live frame") {
+        Batch7878GuiEngine f(Salix::RendererType::OpenGL); REQUIRE(f.ready);
+        auto context = f.engine.make_context(); REQUIRE(context.gui != nullptr);
+        context.gui->request_theme_reload(); REQUIRE(context.gui->is_theme_reload_requested());
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK_FALSE(context.gui->is_theme_reload_requested());
+    }
+    TEST_CASE("batch7978 SDL ImGui delayed run preserves scaled time") {
+        Batch7878GuiEngine f(Salix::RendererType::SDL); REQUIRE(f.ready);
+        f.engine.set_time_scale(0.5f);
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK(f.engine.get_time_scale() == doctest::Approx(0.5f));
+    }
+    TEST_CASE("batch7978 OpenGL ImGui delayed run preserves scaled time") {
+        Batch7878GuiEngine f(Salix::RendererType::OpenGL); REQUIRE(f.ready);
+        f.engine.set_time_scale(2.0f);
+        batch7978_gui_run_until_delayed_quit(f.engine);
+        CHECK(f.engine.get_time_scale() == doctest::Approx(2.0f));
+    }
+}
+

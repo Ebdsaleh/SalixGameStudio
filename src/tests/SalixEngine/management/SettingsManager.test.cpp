@@ -1792,3 +1792,33 @@ TEST_SUITE("Salix::management::SettingsManagerBatch7478") {
     }
 }
 
+namespace {
+void batch7978_expect_corrupt_title_cache_fallback(const std::string& suffix, std::size_t declared, const std::string& payload) {
+    Batch3447SettingsFiles files("Batch7978_"+suffix);
+    const std::string expected="Recovered7978_"+suffix;
+    files.write_yaml("Window:\n  title: "+expected+"\n");
+    Salix::ApplicationConfig seed;
+    std::string bytes=batch6947_fixed_cache_prefix(seed);
+    bytes.append(reinterpret_cast<const char*>(&declared),sizeof(declared));
+    bytes.append(payload);
+    batch6947_write_bytes(files.cache,bytes);
+    batch6947_make_cache_newer(files.yaml,files.cache);
+    Salix::ApplicationConfig loaded; loaded.window_config.title="Before7978";
+    Salix::SettingsManager manager; REQUIRE(manager.load_settings(files.yaml.string(),loaded));
+    CHECK(loaded.window_config.title==expected);
+}
+}
+
+TEST_SUITE("Salix::management::SettingsManagerBatch7978") {
+    TEST_CASE("batch7978 declared two byte title with zero payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("A",2,""); }
+    TEST_CASE("batch7978 declared three byte title with one byte payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("B",3,"X"); }
+    TEST_CASE("batch7978 declared four byte title with two byte payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("C",4,"XY"); }
+    TEST_CASE("batch7978 declared five byte title with three byte payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("D",5,"XYZ"); }
+    TEST_CASE("batch7978 declared eight byte title with one byte payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("E",8,"Q"); }
+    TEST_CASE("batch7978 declared sixteen byte title with four byte payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("F",16,"ABCD"); }
+    TEST_CASE("batch7978 declared thirty two byte title with empty payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("G",32,""); }
+    TEST_CASE("batch7978 declared sixty four byte title with short payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("H",64,"7978"); }
+    TEST_CASE("batch7978 declared 255 byte title with short payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("I",255,"short"); }
+    TEST_CASE("batch7978 declared 7978 byte title with short payload falls back to YAML") { batch7978_expect_corrupt_title_cache_fallback("J",7978,"tiny"); }
+}
+

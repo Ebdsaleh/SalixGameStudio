@@ -360,3 +360,59 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7878") {
     TEST_CASE("batch7878 OpenGL save dialog display executes configured filename path") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.open_save_file_dialog("GLSaveDisplay7878","Save",".txt",".","batch7878.txt"));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render(); }
     TEST_CASE("batch7878 OpenGL explicit shutdown destroys live backend context") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);CHECK_NOTHROW(f.gui.shutdown());f.gui_ready=false;CHECK(f.gui.get_context()!=nullptr); }
 }
+
+TEST_SUITE("Salix::gui::OpenGLImGuiBatch7978") {
+    TEST_CASE("batch7978 OpenGL GUI theme reload handshake remains explicit") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        CHECK_FALSE(f.gui.is_theme_reload_requested()); f.gui.request_theme_reload();
+        CHECK(f.gui.is_theme_reload_requested()); f.gui.clear_theme_reload_request();
+        CHECK_FALSE(f.gui.is_theme_reload_requested());
+    }
+    TEST_CASE("batch7978 OpenGL GUI platform update remains safe on second completed frame") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        f.gui.new_frame(); f.gui.render(); f.gui.update_and_render_platform_windows();
+        f.gui.new_frame(); f.gui.render(); CHECK_NOTHROW(f.gui.update_and_render_platform_windows());
+    }
+    TEST_CASE("batch7978 OpenGL GUI direct dialog registration preserves pointer identity") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        auto dialog = std::make_unique<Salix::DialogBox>("GLRegister7978", "Register", Salix::DialogType::File, false);
+        auto* raw = dialog.get(); REQUIRE(f.gui.register_dialog(std::move(dialog)));
+        CHECK(f.gui.get_dialog("GLRegister7978") == raw);
+    }
+    TEST_CASE("batch7978 OpenGL GUI duplicate direct dialog registration is rejected") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        REQUIRE(f.gui.register_dialog(std::make_unique<Salix::DialogBox>("GLDuplicate7978", "One", Salix::DialogType::File, false)));
+        CHECK_FALSE(f.gui.register_dialog(std::make_unique<Salix::DialogBox>("GLDuplicate7978", "Two", Salix::DialogType::File, true)));
+    }
+    TEST_CASE("batch7978 OpenGL GUI orphan active key is removed by display pass") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        std::string key = "GLOrphan7978"; f.gui.show_dialog_by_key(key); REQUIRE(f.gui.is_dialog_open(key));
+        CHECK_NOTHROW(f.gui.display_dialogs()); CHECK_FALSE(f.gui.is_dialog_open(key));
+    }
+    TEST_CASE("batch7978 OpenGL GUI registered overwrite dialog opens through display") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        std::string key="GLOverwrite7978", title="Overwrite";
+        REQUIRE(f.gui.create_dialog(key,title,Salix::DialogType::File,true)!=nullptr); f.gui.show_dialog_by_key(key);
+        f.gui.new_frame(); CHECK_NOTHROW(f.gui.display_dialogs()); f.gui.render(); CHECK(f.gui.is_dialog_open(key));
+    }
+    TEST_CASE("batch7978 OpenGL GUI missing result remains default after registry activity") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        std::string key="GLRegistry7978", title="Registry"; REQUIRE(f.gui.create_dialog(key,title,Salix::DialogType::File,false)!=nullptr);
+        const auto result=f.gui.get_dialog_result("GLNoResult7978"); CHECK_FALSE(result.is_ok); CHECK(result.file_name.empty());
+    }
+    TEST_CASE("batch7978 OpenGL GUI cursor policy toggles after completed frame") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        f.gui.new_frame(); f.gui.render(); CHECK_NOTHROW(f.gui.set_mouse_cursor_visible(false)); CHECK_NOTHROW(f.gui.set_mouse_cursor_visible(true));
+    }
+    TEST_CASE("batch7978 OpenGL GUI null config replacement preserves configured pointer") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        auto* before=f.gui.get_app_config(); REQUIRE(before!=nullptr); f.gui.set_app_config(nullptr); CHECK(f.gui.get_app_config()==before);
+    }
+    TEST_CASE("batch7978 OpenGL GUI layout roundtrip remains safe with live context") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready);
+        const auto path=std::filesystem::temp_directory_path()/"batch7978_gl_layout.ini";
+        f.gui.save_layout(path.string()); REQUIRE(std::filesystem::exists(path)); CHECK_NOTHROW(f.gui.load_layout(path.string()));
+        std::error_code ec; std::filesystem::remove(path,ec);
+    }
+}
+

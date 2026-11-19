@@ -281,3 +281,84 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch7878") {
     TEST_CASE("batch7878 nested render passes restore bindings in LIFO order") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto a=f.renderer.create_framebuffer(20,20),b=f.renderer.create_framebuffer(18,18);REQUIRE(a);REQUIRE(b);auto base=f.renderer.get_current_framebuffer_binding();f.renderer.begin_render_pass(a);f.renderer.begin_render_pass(b);f.renderer.end_render_pass();f.renderer.end_render_pass();CHECK(f.renderer.get_current_framebuffer_binding()==base);f.renderer.delete_framebuffer(a);f.renderer.delete_framebuffer(b); }
     TEST_CASE("batch7878 initialized resize event reaches renderer event listener") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);SDL_Event native{};native.type=SDL_WINDOWEVENT;native.window.event=SDL_WINDOWEVENT_RESIZED;native.window.data1=88;native.window.data2=66;Salix::WindowResizeEvent e(88,66);CHECK_NOTHROW(f.renderer.on_event(e)); }
 }
+
+namespace {
+struct Batch7978BlockedGLLog {
+    std::filesystem::path previous = std::filesystem::current_path();
+    std::filesystem::path root;
+    bool ready = false;
+    Batch7978BlockedGLLog() {
+        static std::atomic<unsigned> seq{0};
+        std::error_code ec;
+        root = std::filesystem::temp_directory_path() / ("Salix_Batch7978_GLLog_" + std::to_string(++seq));
+        std::filesystem::create_directories(root / "gl_init.log", ec);
+        if (ec) return;
+        std::filesystem::current_path(root, ec);
+        ready = !ec;
+    }
+    ~Batch7978BlockedGLLog() {
+        std::error_code ec;
+        std::filesystem::current_path(previous, ec);
+        ec.clear();
+        if (!root.empty()) std::filesystem::remove_all(root, ec);
+    }
+};
+uint32_t batch7978_create_probe_framebuffer(Salix::OpenGLRenderer& renderer, int width, int height) {
+    uint32_t id = static_cast<uint32_t>(-1);
+    CHECK_NOTHROW(id = renderer.create_framebuffer(width, height));
+    if (id != 0u && id != static_cast<uint32_t>(-1)) renderer.delete_framebuffer(id);
+    return id;
+}
+}
+
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch7978") {
+    TEST_CASE("batch7978 blocked gl init log path returns controlled initialization failure") {
+        Batch7978BlockedGLLog cwd; REQUIRE(cwd.ready);
+        Salix::OpenGLRenderer renderer; Salix::WindowConfig config;
+        config.title = "Batch7978 blocked log"; config.width = 64; config.height = 64;
+        CHECK_FALSE(renderer.initialize(config));
+        CHECK(renderer.get_window() == nullptr);
+    }
+    TEST_CASE("batch7978 fresh sphere with active camera reaches missing shader guard") {
+        Salix::OpenGLRenderer renderer; MockICamera camera; renderer.set_active_camera(&camera);
+        CHECK_NOTHROW(renderer.draw_sphere(glm::vec3(0.0f), 1.0f, Salix::Color{}, 8));
+    }
+    TEST_CASE("batch7978 fresh zero radius sphere reaches missing shader guard") {
+        Salix::OpenGLRenderer renderer; MockICamera camera; renderer.set_active_camera(&camera);
+        CHECK_NOTHROW(renderer.draw_sphere(glm::vec3(1.0f), 0.0f, Salix::Color{}, 0));
+    }
+    TEST_CASE("batch7978 fresh framebuffer cube first phase reaches missing shader guard") {
+        Salix::OpenGLRenderer renderer; MockICamera camera; renderer.set_active_camera(&camera);
+        CHECK_NOTHROW(renderer.draw_cube(7978u, 8797u, 0.0f));
+    }
+    TEST_CASE("batch7978 fresh framebuffer cube second phase reaches missing shader guard") {
+        Salix::OpenGLRenderer renderer; MockICamera camera; renderer.set_active_camera(&camera);
+        CHECK_NOTHROW(renderer.draw_cube(7978u, 8797u, 0.75f));
+    }
+    TEST_CASE("batch7978 real OpenGL zero width framebuffer creation is controlled") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready);
+        const auto id = batch7978_create_probe_framebuffer(f.renderer, 0, 32);
+        CHECK(id != static_cast<uint32_t>(-1));
+    }
+    TEST_CASE("batch7978 real OpenGL zero height framebuffer creation is controlled") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready);
+        const auto id = batch7978_create_probe_framebuffer(f.renderer, 32, 0);
+        CHECK(id != static_cast<uint32_t>(-1));
+    }
+    TEST_CASE("batch7978 real OpenGL zero extent framebuffer creation is controlled") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready);
+        const auto id = batch7978_create_probe_framebuffer(f.renderer, 0, 0);
+        CHECK(id != static_cast<uint32_t>(-1));
+    }
+    TEST_CASE("batch7978 real OpenGL one pixel framebuffer remains valid lifecycle") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready);
+        const auto id = f.renderer.create_framebuffer(1, 1); REQUIRE(id != 0u);
+        CHECK(f.renderer.get_framebuffer_texture_id(id) != static_cast<ImTextureID>(0));
+        f.renderer.delete_framebuffer(id);
+    }
+    TEST_CASE("batch7978 real OpenGL sphere accepts negative radius with live shader") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); MockICamera camera; f.renderer.set_active_camera(&camera);
+        CHECK_NOTHROW(f.renderer.draw_sphere(glm::vec3(2.0f, -1.0f, 0.0f), -1.0f, Salix::Color{}, 3));
+    }
+}
+
