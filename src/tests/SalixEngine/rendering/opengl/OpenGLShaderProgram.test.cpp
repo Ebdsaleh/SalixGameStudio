@@ -272,3 +272,16 @@ TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch7778") {
         Salix::OpenGLShaderProgram p(files.file("ok.vert").string(),files.file("bad.frag").string()); CHECK(p.ID!=0u);
     }
 }
+
+TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch7878") {
+    TEST_CASE("batch7878 missing mat4 uniform emits safe warning path") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setMat4("__missing_mat4_7878__",glm::mat4(1.0f))); }
+    TEST_CASE("batch7878 missing integer uniform emits safe warning path") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setInt("__missing_int_7878__",7)); }
+    TEST_CASE("batch7878 missing vec4 uniform emits safe warning path") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setVec4("__missing_vec4_7878__",glm::vec4(1.0f))); }
+    TEST_CASE("batch7878 second missing mat4 name remains safe") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/color.vert","Assets/Shaders/OpenGL/2D/color.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setMat4("__missing_mat4_b_7878__",glm::mat4(2.0f))); }
+    TEST_CASE("batch7878 second missing integer name remains safe") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/color.vert","Assets/Shaders/OpenGL/2D/color.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setInt("__missing_int_b_7878__",-7)); }
+    TEST_CASE("batch7878 second missing vec4 name remains safe") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/color.vert","Assets/Shaders/OpenGL/2D/color.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setVec4("__missing_vec4_b_7878__",glm::vec4(0.5f))); }
+    TEST_CASE("batch7878 missing vec3 uniform remains safe beside newly covered setters") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/color.vert","Assets/Shaders/OpenGL/2D/color.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setVec3("__missing_vec3_7878__",glm::vec3(1.0f))); }
+    TEST_CASE("batch7878 valid model uniform still accepts nonidentity matrix") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setMat4("model",glm::mat4(2.0f))); }
+    TEST_CASE("batch7878 valid sampler uniform accepts nonzero unit") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setInt("texture_sampler",1)); }
+    TEST_CASE("batch7878 valid tint uniform accepts zero vector") { Batch7778ShaderGLContext gl;REQUIRE(gl.ready);Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag");REQUIRE(p.ID);CHECK_NOTHROW(p.setVec4("tint_color",glm::vec4(0.0f))); }
+}

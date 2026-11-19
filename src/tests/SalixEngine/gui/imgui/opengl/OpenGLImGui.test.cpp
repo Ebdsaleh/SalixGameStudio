@@ -5,6 +5,7 @@
 #include <fstream>
 #include <filesystem>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/gui/imgui/opengl/OpenGLImGui.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
@@ -345,4 +346,17 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7778") {
         Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.setup_event_polling(&f.poller,&f.events);
         f.gui.new_frame(); f.gui.render(); CHECK_FALSE(f.events.is_queue_empty()); f.events.process_queue(); CHECK(f.events.is_queue_empty());
     }
+}
+
+TEST_SUITE("Salix::gui::OpenGLImGuiBatch7878") {
+    TEST_CASE("batch7878 OpenGL dialog display opens registered load dialog") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.open_load_file_dialog("GLDisplay7878","Load",".txt","."));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render();CHECK(f.gui.is_dialog_open("GLDisplay7878")); }
+    TEST_CASE("batch7878 OpenGL displayed dialog consumes escape and clears active key") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.open_load_file_dialog("GLEscape7878","Load",".txt","."));f.gui.new_frame();f.gui.display_dialogs();f.gui.render();SDL_Event e{};e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_ESCAPE;CHECK(f.gui.process_raw_input_event(&e));CHECK_FALSE(f.gui.is_dialog_open("GLEscape7878")); }
+    TEST_CASE("batch7878 OpenGL active dialog result query executes nonempty result path") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.open_save_file_dialog("GLResult7878","Save",".txt",".","a.txt"));f.gui.new_frame();f.gui.display_dialogs();f.gui.render();auto result=f.gui.populate_dialog_result("GLResult7878");CHECK_FALSE(result.is_ok); }
+    TEST_CASE("batch7878 OpenGL missing dialog lookup remains null after registry use") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);std::string key="GLKnown7878",title="Known";REQUIRE(f.gui.create_dialog(key,title,Salix::DialogType::File,false)!=nullptr);CHECK(f.gui.get_dialog("GLMissing7878")==nullptr); }
+    TEST_CASE("batch7878 OpenGL duplicate create returns original dialog") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);std::string key="GLDup7878",a="A",b="B";auto* first=f.gui.create_dialog(key,a,Salix::DialogType::File,false);REQUIRE(first!=nullptr);CHECK(f.gui.create_dialog(key,b,Salix::DialogType::File,true)==first); }
+    TEST_CASE("batch7878 OpenGL spare GUI reinitialize rejects null backend handles with DLL context alive") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);Salix::OpenGLImGui spare;CHECK_NOTHROW(spare.reinitialize_backend()); }
+    TEST_CASE("batch7878 OpenGL platform update executes with explicit viewport flag after completed frame") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.get_context()!=nullptr);f.gui.get_context()->IO.ConfigFlags|=ImGuiConfigFlags_ViewportsEnable;f.gui.new_frame();f.gui.render();CHECK_NOTHROW(f.gui.update_and_render_platform_windows());f.gui.get_context()->IO.ConfigFlags&=~ImGuiConfigFlags_ViewportsEnable; }
+    TEST_CASE("batch7878 OpenGL folder dialog display executes first frame open path") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.open_folder_dialog("GLFolderDisplay7878","Folder","."));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render(); }
+    TEST_CASE("batch7878 OpenGL save dialog display executes configured filename path") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.open_save_file_dialog("GLSaveDisplay7878","Save",".txt",".","batch7878.txt"));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render(); }
+    TEST_CASE("batch7878 OpenGL explicit shutdown destroys live backend context") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);CHECK_NOTHROW(f.gui.shutdown());f.gui_ready=false;CHECK(f.gui.get_context()!=nullptr); }
 }

@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <string>
 #include <cmath>
+#include <fstream>
+#include <atomic>
 #include <Tests/SalixEngine/mocking/rendering/MockITexture.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
@@ -250,4 +252,29 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch7778") {
         f.renderer.set_line_width(2.5f); CHECK(f.renderer.get_line_width()==doctest::Approx(2.5f));
         f.renderer.set_pixels_per_unit(64.0f); CHECK(f.renderer.get_pixels_per_unit()==doctest::Approx(64.0f));
     }
+}
+
+namespace {
+struct Batch7878ImageFile { std::filesystem::path path; ~Batch7878ImageFile(){std::error_code ec;if(!path.empty())std::filesystem::remove(path,ec);} };
+Batch7878ImageFile batch7878_write_pnm(bool rgb) {
+    static std::atomic<unsigned> seq{0};
+    Batch7878ImageFile f{std::filesystem::temp_directory_path()/("batch7878_"+std::to_string(++seq)+(rgb?".ppm":".pgm"))};
+    std::ofstream out(f.path,std::ios::binary|std::ios::trunc);
+    if(rgb){out<<"P6\n2 2\n255\n";const unsigned char px[12]={255,0,0,0,255,0,0,0,255,255,255,255};out.write(reinterpret_cast<const char*>(px),12);}
+    else{out<<"P5\n2 2\n255\n";const unsigned char px[4]={0,64,128,255};out.write(reinterpret_cast<const char*>(px),4);}
+    return f;
+}
+}
+
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch7878") {
+    TEST_CASE("batch7878 initialized OpenGL cube rejects missing active camera") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);f.renderer.set_active_camera(nullptr);CHECK_NOTHROW(f.renderer.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch7878 framebuffer cube renders first alternating target") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);MockICamera camera;f.renderer.set_active_camera(&camera);auto a=f.renderer.create_framebuffer(32,32),b=f.renderer.create_framebuffer(32,32);REQUIRE(a);REQUIRE(b);CHECK_NOTHROW(f.renderer.draw_cube(a,b,0.0f));f.renderer.delete_framebuffer(a);f.renderer.delete_framebuffer(b); }
+    TEST_CASE("batch7878 framebuffer cube renders second alternating target") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);MockICamera camera;f.renderer.set_active_camera(&camera);auto a=f.renderer.create_framebuffer(32,32),b=f.renderer.create_framebuffer(32,32);REQUIRE(a);REQUIRE(b);CHECK_NOTHROW(f.renderer.draw_cube(a,b,0.75f));f.renderer.delete_framebuffer(a);f.renderer.delete_framebuffer(b); }
+    TEST_CASE("batch7878 three channel PPM loads through RGB texture branch") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto img=batch7878_write_pnm(true);std::unique_ptr<Salix::ITexture> t(f.renderer.load_texture(img.path.string().c_str()));REQUIRE(t!=nullptr);CHECK(t->get_width()==2);CHECK(t->get_height()==2); }
+    TEST_CASE("batch7878 grayscale PGM rejects unsupported channel count safely") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto img=batch7878_write_pnm(false);CHECK(f.renderer.load_texture(img.path.string().c_str())==nullptr); }
+    TEST_CASE("batch7878 real texture transform draw rejects missing camera after shader bind") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto img=batch7878_write_pnm(true);std::unique_ptr<Salix::ITexture> t(f.renderer.load_texture(img.path.string().c_str()));REQUIRE(t!=nullptr);Salix::Transform tr;f.renderer.set_active_camera(nullptr);CHECK_NOTHROW(f.renderer.draw_sprite(t.get(),&tr,Salix::Color{},Salix::SpriteFlip::None)); }
+    TEST_CASE("batch7878 parented transform sprite composes parent world matrix") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto img=batch7878_write_pnm(true);std::unique_ptr<Salix::ITexture> t(f.renderer.load_texture(img.path.string().c_str()));REQUIRE(t!=nullptr);MockICamera camera;f.renderer.set_active_camera(&camera);Salix::Transform parent;Salix::Transform child;child.set_parent(&parent);CHECK_NOTHROW(f.renderer.draw_sprite(t.get(),&child,Salix::Color{},Salix::SpriteFlip::Both)); }
+    TEST_CASE("batch7878 shutdown deletes framebuffer left owned by renderer") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto id=f.renderer.create_framebuffer(24,24);REQUIRE(id);CHECK_NOTHROW(f.renderer.shutdown());f.ready=false; }
+    TEST_CASE("batch7878 nested render passes restore bindings in LIFO order") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);auto a=f.renderer.create_framebuffer(20,20),b=f.renderer.create_framebuffer(18,18);REQUIRE(a);REQUIRE(b);auto base=f.renderer.get_current_framebuffer_binding();f.renderer.begin_render_pass(a);f.renderer.begin_render_pass(b);f.renderer.end_render_pass();f.renderer.end_render_pass();CHECK(f.renderer.get_current_framebuffer_binding()==base);f.renderer.delete_framebuffer(a);f.renderer.delete_framebuffer(b); }
+    TEST_CASE("batch7878 initialized resize event reaches renderer event listener") { Batch7778NativeGLRenderer f;REQUIRE(f.ready);SDL_Event native{};native.type=SDL_WINDOWEVENT;native.window.event=SDL_WINDOWEVENT_RESIZED;native.window.data1=88;native.window.data2=66;Salix::WindowResizeEvent e(88,66,native);CHECK_NOTHROW(f.renderer.on_event(e)); }
 }

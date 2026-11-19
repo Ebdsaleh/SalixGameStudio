@@ -403,3 +403,16 @@ TEST_SUITE("Salix::rendering::IRendererBatch7778") {
     TEST_CASE("batch7778 native SDL renderer texture survives framebuffer noops") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(2,2)};std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);run.renderer()->bind_framebuffer(7778);run.renderer()->unbind_framebuffer();CHECK_NOTHROW(run.renderer()->draw_texture(t.get(),Salix::Rect{0,0,2,2})); }
     TEST_CASE("batch7778 native SDL renderer texture deletion occurs before engine teardown") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(1,1)};auto* t=run.renderer()->load_texture(f.path.string().c_str());REQUIRE(t!=nullptr);CHECK_NOTHROW(delete t); }
 }
+
+TEST_SUITE("Salix::rendering::IRendererBatch7878") {
+    TEST_CASE("batch7878 DLL SDL renderer base OpenGL cast default is null") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK(run.renderer()->as_opengl_renderer()==nullptr); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited matrix sprite default accepts null texture") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK_NOTHROW(run.renderer()->draw_sprite(nullptr,glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited matrix sprite default accepts mock texture") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);MockITexture t;CHECK_NOTHROW(run.renderer()->draw_sprite(&t,glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited line width default is one") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK(run.renderer()->get_line_width()==doctest::Approx(1.0f)); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited sphere default accepts canonical segments") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK_NOTHROW(run.renderer()->draw_sphere(glm::vec3(0.0f),1.0f,Salix::Color{})); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited sphere default accepts explicit segments") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK_NOTHROW(run.renderer()->draw_sphere(glm::vec3(1.0f),2.0f,Salix::Color{},7)); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited line width setter is no op") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);run.renderer()->set_line_width(7.878f);CHECK(run.renderer()->get_line_width()==doctest::Approx(1.0f)); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited line width setter accepts zero") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK_NOTHROW(run.renderer()->set_line_width(0.0f));CHECK(run.renderer()->get_line_width()==doctest::Approx(1.0f)); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited sphere default accepts negative radius without backend work") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK_NOTHROW(run.renderer()->draw_sphere(glm::vec3(-1.0f),-7.878f,Salix::Color{},3)); }
+    TEST_CASE("batch7878 DLL SDL renderer inherited matrix sprite default accepts transformed matrix") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);glm::mat4 model(2.0f);CHECK_NOTHROW(run.renderer()->draw_sprite(nullptr,model,Salix::Color{})); }
+}

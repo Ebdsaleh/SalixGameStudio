@@ -1302,3 +1302,42 @@ TEST_SUITE("Salix::core::EngineBatch7778") {
         const auto id=r->create_framebuffer(32,24); REQUIRE(id!=0u); CHECK(r->get_framebuffer_texture_id(id)!=static_cast<ImTextureID>(0)); r->delete_framebuffer(id);
     }
 }
+
+namespace {
+void batch7878_push_quit() {
+    SDL_Event event{}; event.type = SDL_QUIT; REQUIRE(SDL_PushEvent(&event) == 1);
+}
+}
+
+TEST_SUITE("Salix::core::EngineBatch7878") {
+    TEST_CASE("batch7878 OpenGL launch run consumes queued quit and stops") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); batch7878_push_quit(); run.engine.run(); CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7878 OpenGL options run consumes queued quit and stops") {
+        Batch7778OpenGLEngine run(Salix::AppStateType::Options); REQUIRE(run.initialized); batch7878_push_quit(); run.engine.run(); CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7878 OpenGL chrono run consumes queued quit and stops") {
+        Batch7778OpenGLEngine run(Salix::AppStateType::Launch,Salix::TimerType::Chrono); REQUIRE(run.initialized); batch7878_push_quit(); run.engine.run(); CHECK_FALSE(run.engine.is_running());
+    }
+    TEST_CASE("batch7878 OpenGL scaled run preserves configured time scale after quit") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); run.engine.set_time_scale(0.5f); batch7878_push_quit(); run.engine.run(); CHECK(run.engine.get_time_scale()==doctest::Approx(0.5f));
+    }
+    TEST_CASE("batch7878 OpenGL engine switches to editor factory state") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); run.engine.switch_state(Salix::AppStateType::Editor); CHECK(run.engine.get_mode()==Salix::EngineMode::Editor); CHECK(run.engine.is_running());
+    }
+    TEST_CASE("batch7878 OpenGL engine switches to game factory state") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); run.engine.switch_state(Salix::AppStateType::Game); CHECK(run.engine.get_mode()==Salix::EngineMode::Game); CHECK(run.engine.is_running());
+    }
+    TEST_CASE("batch7878 game mode selects game input manager") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); auto* before=run.engine.get_input_manager(); run.engine.switch_state(Salix::AppStateType::Game); auto* after=run.engine.get_input_manager(); CHECK(after!=nullptr); CHECK(after!=before);
+    }
+    TEST_CASE("batch7878 editor mode can transition back to launch") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); run.engine.switch_state(Salix::AppStateType::Editor); REQUIRE(run.engine.get_mode()==Salix::EngineMode::Editor); run.engine.switch_state(Salix::AppStateType::Launch); CHECK(run.engine.get_mode()==Salix::EngineMode::Launch);
+    }
+    TEST_CASE("batch7878 explicit shutdown clears renderer after initialized OpenGL engine") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); run.engine.shutdown(); run.initialized=false; CHECK(run.engine.get_renderer()==nullptr); CHECK(run.engine.get_event_manager()==nullptr);
+    }
+    TEST_CASE("batch7878 stopped engine run returns without changing stopped state") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); run.engine.is_running(false); CHECK_NOTHROW(run.engine.run()); CHECK_FALSE(run.engine.is_running());
+    }
+}

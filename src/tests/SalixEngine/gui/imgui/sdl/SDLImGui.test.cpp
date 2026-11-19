@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <fstream>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <Salix/events/IEventListener.h>
 #include <Salix/events/ImGuiInputEvent.h>
 #include <Salix/events/EventManager.h>
@@ -329,4 +330,17 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7778") {
         Batch7678SDLImGuiBackend f; REQUIRE(f.ready); Salix::EventManager events; f.gui.setup_event_polling(&f.poller,&events); REQUIRE(f.poller.raw_callback_count()==1u);
         f.gui.shutdown(); f.ready=false; CHECK(f.poller.raw_callback_count()==0u);
     }
+}
+
+TEST_SUITE("Salix::gui::SDLImGuiBatch7878") {
+    TEST_CASE("batch7878 SDL dialog display opens registered load dialog") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);REQUIRE(f.gui.open_load_file_dialog("SDLDisplay7878","Load",".txt","."));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render();CHECK(f.gui.is_dialog_open("SDLDisplay7878")); }
+    TEST_CASE("batch7878 SDL displayed dialog consumes escape and clears active key") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);REQUIRE(f.gui.open_load_file_dialog("SDLEscape7878","Load",".txt","."));f.gui.new_frame();f.gui.display_dialogs();f.gui.render();SDL_Event e{};e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_ESCAPE;CHECK(f.gui.process_raw_input_event(&e));CHECK_FALSE(f.gui.is_dialog_open("SDLEscape7878")); }
+    TEST_CASE("batch7878 SDL active dialog result query executes nonempty result path") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);REQUIRE(f.gui.open_save_file_dialog("SDLResult7878","Save",".txt",".","a.txt"));f.gui.new_frame();f.gui.display_dialogs();f.gui.render();auto result=f.gui.populate_dialog_result("SDLResult7878");CHECK_FALSE(result.is_ok); }
+    TEST_CASE("batch7878 SDL missing dialog lookup remains null after registry use") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);std::string key="SDLKnown7878",title="Known";REQUIRE(f.gui.create_dialog(key,title,Salix::DialogType::File,false)!=nullptr);CHECK(f.gui.get_dialog("SDLMissing7878")==nullptr); }
+    TEST_CASE("batch7878 SDL duplicate create returns original dialog") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);std::string key="SDLDup7878",a="A",b="B";auto* first=f.gui.create_dialog(key,a,Salix::DialogType::File,false);REQUIRE(first!=nullptr);CHECK(f.gui.create_dialog(key,b,Salix::DialogType::File,true)==first); }
+    TEST_CASE("batch7878 SDL spare GUI reinitialize rejects null backend handles with DLL context alive") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);Salix::SDLImGui spare;CHECK_NOTHROW(spare.reinitialize_backend()); }
+    TEST_CASE("batch7878 SDL platform update executes with explicit viewport flag after completed frame") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);REQUIRE(f.gui.get_context()!=nullptr);f.gui.get_context()->IO.ConfigFlags|=ImGuiConfigFlags_ViewportsEnable;f.gui.new_frame();f.gui.render();CHECK_NOTHROW(f.gui.update_and_render_platform_windows());f.gui.get_context()->IO.ConfigFlags&=~ImGuiConfigFlags_ViewportsEnable; }
+    TEST_CASE("batch7878 SDL folder dialog display executes first frame open path") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);REQUIRE(f.gui.open_folder_dialog("SDLFolderDisplay7878","Folder","."));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render(); }
+    TEST_CASE("batch7878 SDL save dialog display executes configured filename path") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);REQUIRE(f.gui.open_save_file_dialog("SDLSaveDisplay7878","Save",".txt",".","batch7878.txt"));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render(); }
+    TEST_CASE("batch7878 SDL explicit shutdown unregisters backend and callback safely") { Batch7678SDLImGuiBackend f;REQUIRE(f.ready);Salix::EventManager events;f.gui.setup_event_polling(&f.poller,&events);REQUIRE(f.poller.raw_callback_count()==1u);CHECK_NOTHROW(f.gui.shutdown());f.ready=false;CHECK(f.poller.raw_callback_count()==0u); }
 }
