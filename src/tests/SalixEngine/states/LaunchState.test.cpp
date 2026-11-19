@@ -9,6 +9,10 @@
 #include <Tests/SalixEngine/mocking/core/MockEngineInterface.h>
 #include <Tests/SalixEngine/mocking/gui/MockIGui.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
+#include <Tests/SalixEngine/mocking/rendering/MockICamera.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <SDL.h>
+#include <cstdlib>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <filesystem>
@@ -772,4 +776,31 @@ TEST_SUITE("Salix::states::LaunchStateBatch7247Additional") {
         CHECK(gui.render_calls == 2);
         CHECK(gui.platform_window_calls == 2);
     }
+}
+
+namespace {
+struct Batch7778LaunchGL {
+    std::filesystem::path previous=std::filesystem::current_path();bool had=false;std::string old;bool sdl_ready=false;
+    Salix::OpenGLRenderer renderer;MockICamera camera;bool ready=false;
+    Batch7778LaunchGL(){
+        auto p=std::filesystem::absolute(std::filesystem::path(__FILE__)).parent_path();while(p.has_parent_path()&&!std::filesystem::exists(p/"Assets"/"Shaders"))p=p.parent_path();
+        if(std::filesystem::exists(p/"Assets"/"Shaders"))std::filesystem::current_path(p);
+        if(const char* v=SDL_getenv("SDL_VIDEODRIVER")){had=true;old=v;}SDL_Quit();SDL_setenv("SDL_VIDEODRIVER","windows",1);sdl_ready=SDL_Init(SDL_INIT_VIDEO)==0;if(!sdl_ready)return;
+        Salix::WindowConfig wc;wc.title="Batch7778 Launch";wc.width=96;wc.height=64;ready=renderer.initialize(wc);if(ready)renderer.set_active_camera(&camera);
+    }
+    ~Batch7778LaunchGL(){renderer.shutdown();SDL_Quit();if(had)SDL_setenv("SDL_VIDEODRIVER",old.c_str(),1);else _putenv_s("SDL_VIDEODRIVER","");std::error_code ec;std::filesystem::current_path(previous,ec);}
+};
+}
+
+TEST_SUITE("Salix::states::LaunchStateBatch7778") {
+    TEST_CASE("batch7778 launch render executes real OpenGL cube path") { Batch7778LaunchGL gl;REQUIRE(gl.ready);MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));CHECK_NOTHROW(state.render(&gl.renderer)); }
+    TEST_CASE("batch7778 launch render with mock GUI delegates real OpenGL and GUI phases") { Batch7778LaunchGL gl;REQUIRE(gl.ready);MockEngineInterface engine;Batch7247LaunchGui gui;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,&gui,nullptr,&gl.renderer));state.render(&gl.renderer);CHECK(gui.render_calls==1);CHECK(gui.platform_window_calls==1); }
+    TEST_CASE("batch7778 repeated real OpenGL launch render remains stable") { Batch7778LaunchGL gl;REQUIRE(gl.ready);MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));state.render(&gl.renderer);CHECK_NOTHROW(state.render(&gl.renderer)); }
+    TEST_CASE("batch7778 launch render remains stable after OpenGL resize") { Batch7778LaunchGL gl;REQUIRE(gl.ready);gl.renderer.on_window_resize(80,50);MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));CHECK_NOTHROW(state.render(&gl.renderer)); }
+    TEST_CASE("batch7778 launch render remains stable after line width change") { Batch7778LaunchGL gl;REQUIRE(gl.ready);gl.renderer.set_line_width(3.0f);MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));CHECK_NOTHROW(state.render(&gl.renderer)); }
+    TEST_CASE("batch7778 launch render preserves launch mode with real OpenGL") { Batch7778LaunchGL gl;REQUIRE(gl.ready);MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));state.render(&gl.renderer);CHECK(engine.current_mode==Salix::EngineMode::Launch); }
+    TEST_CASE("batch7778 launch real OpenGL render followed by exit is safe") { Batch7778LaunchGL gl;REQUIRE(gl.ready);MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));state.render(&gl.renderer);CHECK_NOTHROW(state.on_exit()); }
+    TEST_CASE("batch7778 launch real OpenGL render keeps engine running") { Batch7778LaunchGL gl;REQUIRE(gl.ready);MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));state.render(&gl.renderer);CHECK(engine.running); }
+    TEST_CASE("batch7778 launch real OpenGL render after framebuffer lifecycle remains safe") { Batch7778LaunchGL gl;REQUIRE(gl.ready);auto id=gl.renderer.create_framebuffer(24,24);REQUIRE(id!=0u);gl.renderer.delete_framebuffer(id);MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));CHECK_NOTHROW(state.render(&gl.renderer)); }
+    TEST_CASE("batch7778 launch real OpenGL render after frame begin remains safe") { Batch7778LaunchGL gl;REQUIRE(gl.ready);gl.renderer.begin_frame();MockEngineInterface engine;Salix::LaunchState state;state.on_enter(batch7247_launch_context(engine,nullptr,nullptr,&gl.renderer));state.render(&gl.renderer);CHECK_NOTHROW(gl.renderer.end_frame()); }
 }

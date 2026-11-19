@@ -11,6 +11,8 @@
 #include <Tests/SalixEngine/mocking/rendering/MockICamera.h>
 #include <memory>
 #include <string>
+#include <filesystem>
+#include <atomic>
 
 TEST_SUITE("Salix::rendering::IRendererBatch1347") {
     TEST_CASE("renderer interface initialization captures requested window configuration") {
@@ -380,3 +382,24 @@ TEST_SUITE("Salix::rendering::IRendererBatch7678") {
     }
 }
 
+namespace {
+std::filesystem::path batch7778_make_sdl_bmp(int w,int h){
+    static std::atomic<unsigned> seq{0};auto path=std::filesystem::temp_directory_path()/("batch7778_renderer_"+std::to_string(++seq)+".bmp");
+    SDL_Surface* s=SDL_CreateRGBSurfaceWithFormat(0,w,h,32,SDL_PIXELFORMAT_RGBA32);if(!s)return {};
+    SDL_FillRect(s,nullptr,SDL_MapRGBA(s->format,40,80,120,255));if(SDL_SaveBMP(s,path.string().c_str())!=0)path.clear();SDL_FreeSurface(s);return path;
+}
+struct Batch7778TempFile{std::filesystem::path path;~Batch7778TempFile(){std::error_code ec;if(!path.empty())std::filesystem::remove(path,ec);}};
+}
+
+TEST_SUITE("Salix::rendering::IRendererBatch7778") {
+    TEST_CASE("batch7778 native SDL renderer loads real BMP texture") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(3,2)};REQUIRE(!f.path.empty());std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);CHECK(t->get_width()==3);CHECK(t->get_height()==2); }
+    TEST_CASE("batch7778 native SDL renderer loaded texture exposes ImGui id") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(2,2)};std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);CHECK(t->get_imgui_texture_id()!=static_cast<ImTextureID>(0)); }
+    TEST_CASE("batch7778 native SDL renderer draws loaded texture") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(4,3)};std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);CHECK_NOTHROW(run.renderer()->draw_texture(t.get(),Salix::Rect{0,0,16,12})); }
+    TEST_CASE("batch7778 native SDL renderer draws same texture twice") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(5,4)};std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);run.renderer()->draw_texture(t.get(),Salix::Rect{1,2,20,16});CHECK_NOTHROW(run.renderer()->draw_texture(t.get(),Salix::Rect{3,4,10,8})); }
+    TEST_CASE("batch7778 native SDL renderer clear then texture draw remains safe") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(2,3)};std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);run.renderer()->clear();CHECK_NOTHROW(run.renderer()->draw_texture(t.get(),Salix::Rect{0,0,8,12})); }
+    TEST_CASE("batch7778 native SDL renderer begin frame then texture draw remains safe") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(3,3)};std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);run.renderer()->begin_frame();run.renderer()->draw_texture(t.get(),Salix::Rect{0,0,9,9});CHECK_NOTHROW(run.renderer()->end_frame()); }
+    TEST_CASE("batch7778 native SDL renderer preserves loaded texture dimensions after resize") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(6,2)};std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);run.renderer()->on_window_resize(80,60);CHECK(t->get_width()==6);CHECK(t->get_height()==2); }
+    TEST_CASE("batch7778 native SDL renderer loads two independent textures") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile a{batch7778_make_sdl_bmp(2,4)},b{batch7778_make_sdl_bmp(4,2)};std::unique_ptr<Salix::ITexture> ta(run.renderer()->load_texture(a.path.string().c_str())),tb(run.renderer()->load_texture(b.path.string().c_str()));REQUIRE(ta!=nullptr);REQUIRE(tb!=nullptr);CHECK(ta->get_imgui_texture_id()!=tb->get_imgui_texture_id()); }
+    TEST_CASE("batch7778 native SDL renderer texture survives framebuffer noops") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(2,2)};std::unique_ptr<Salix::ITexture> t(run.renderer()->load_texture(f.path.string().c_str()));REQUIRE(t!=nullptr);run.renderer()->bind_framebuffer(7778);run.renderer()->unbind_framebuffer();CHECK_NOTHROW(run.renderer()->draw_texture(t.get(),Salix::Rect{0,0,2,2})); }
+    TEST_CASE("batch7778 native SDL renderer texture deletion occurs before engine teardown") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);Batch7778TempFile f{batch7778_make_sdl_bmp(1,1)};auto* t=run.renderer()->load_texture(f.path.string().c_str());REQUIRE(t!=nullptr);CHECK_NOTHROW(delete t); }
+}

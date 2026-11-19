@@ -6,6 +6,9 @@
 #include <Salix/gui/imgui/opengl/OpenGLImGui.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/gui/imgui/ImGuiFontManager.h>
+#include <Tests/SalixEngine/mocking/gui/MockIGui.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <filesystem>
 #include <Salix/gui/IFont.h>
 #include <Tests/SalixEngine/mocking/gui/MockIFont.h>
 #include <algorithm>
@@ -1375,3 +1378,36 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7678") {
     }
 }
 
+namespace {
+struct Batch7778FontGLFixture {
+    std::filesystem::path previous=std::filesystem::current_path();bool had=false;std::string old;bool sdl_ready=false;
+    Salix::OpenGLRenderer renderer;Salix::OpenGLImGui gui;Salix::ImGuiFontManager manager;Salix::ApplicationConfig config;
+    bool renderer_ready=false,gui_ready=false,manager_ready=false;
+    Batch7778FontGLFixture(){
+        auto p=std::filesystem::absolute(std::filesystem::path(__FILE__)).parent_path();while(p.has_parent_path()&&!std::filesystem::exists(p/"Assets"/"Shaders"))p=p.parent_path();
+        if(std::filesystem::exists(p/"Assets"/"Shaders"))std::filesystem::current_path(p);
+        if(const char* v=SDL_getenv("SDL_VIDEODRIVER")){had=true;old=v;}SDL_Quit();SDL_setenv("SDL_VIDEODRIVER","windows",1);sdl_ready=SDL_Init(SDL_INIT_VIDEO)==0;if(!sdl_ready)return;
+        Salix::WindowConfig wc;wc.title="Batch7778 Font GL";wc.width=96;wc.height=64;renderer_ready=renderer.initialize(wc);if(!renderer_ready)return;
+        config.renderer_type=Salix::RendererType::OpenGL;gui.set_app_config(&config);gui_ready=gui.initialize(renderer.get_window(),&renderer,nullptr,&manager,nullptr);if(!gui_ready)return;
+        manager_ready=manager.initialize(&gui);
+    }
+    ~Batch7778FontGLFixture(){manager.shutdown();if(gui_ready)gui.shutdown();renderer.shutdown();SDL_Quit();if(had)SDL_setenv("SDL_VIDEODRIVER",old.c_str(),1);else _putenv_s("SDL_VIDEODRIVER","");std::error_code ec;std::filesystem::current_path(previous,ec);}
+};
+bool batch7778_mutated_rebuild(Salix::RendererType type){
+    Salix::ApplicationConfig config;config.renderer_type=Salix::RendererType::None;MockIGui gui;gui.set_app_config(&config);gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+    Salix::ImGuiFontManager manager; if(!manager.initialize(&gui))return true;config.renderer_type=type;return manager.rebuild_font_atlas_texture();
+}
+}
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7778") {
+    TEST_CASE("batch7778 real OpenGL font manager initializes") { Batch7778FontGLFixture f; REQUIRE(f.renderer_ready);REQUIRE(f.gui_ready);CHECK(f.manager_ready); }
+    TEST_CASE("batch7778 real OpenGL font manager rebuilds atlas backend") { Batch7778FontGLFixture f; REQUIRE(f.manager_ready); CHECK(f.manager.rebuild_font_atlas_texture()); }
+    TEST_CASE("batch7778 missing font file reaches ImGui load failure") { Batch7778FontGLFixture f; REQUIRE(f.manager_ready); CHECK_FALSE(f.manager.load_font_from_file("__missing7778__.ttf","Missing7778",12.0f,false)); }
+    TEST_CASE("batch7778 second missing font file also remains rejected") { Batch7778FontGLFixture f; REQUIRE(f.manager_ready); CHECK_FALSE(f.manager.load_font_from_file("__missing7778_b__.ttf","MissingB7778",18.0f,false)); }
+    TEST_CASE("batch7778 missing font with apply request remains rejected") { Batch7778FontGLFixture f; REQUIRE(f.manager_ready); CHECK_FALSE(f.manager.load_font_from_file("__missing7778_c__.ttf","MissingC7778",24.0f,true)); }
+    TEST_CASE("batch7778 mutated SDL type on generic GUI reaches cast rejection") { CHECK_FALSE(batch7778_mutated_rebuild(Salix::RendererType::SDL)); }
+    TEST_CASE("batch7778 mutated OpenGL type on generic GUI reaches cast rejection") { CHECK_FALSE(batch7778_mutated_rebuild(Salix::RendererType::OpenGL)); }
+    TEST_CASE("batch7778 mutated unsupported type reaches rebuild fallback") { CHECK_FALSE(batch7778_mutated_rebuild(static_cast<Salix::RendererType>(7778))); }
+    TEST_CASE("batch7778 too small font remains rejected before ImGui load") { Batch7778FontGLFixture f; REQUIRE(f.manager_ready); CHECK_FALSE(f.manager.load_font_from_file("__missing_small7778__.ttf","Small7778",5.0f,false)); }
+    TEST_CASE("batch7778 empty font path remains rejected with live OpenGL context") { Batch7778FontGLFixture f; REQUIRE(f.manager_ready); CHECK_FALSE(f.manager.load_font_from_file("","Empty7778",12.0f,false)); }
+}

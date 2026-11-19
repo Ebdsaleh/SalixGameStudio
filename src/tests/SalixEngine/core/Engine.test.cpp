@@ -1,4 +1,11 @@
 #include <doctest.h>
+#include <Salix/core/ApplicationConfig.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <Tests/SalixEngine/mocking/rendering/MockICamera.h>
+#include <SDL.h>
+#include <filesystem>
+#include <cstdlib>
+#include <string>
 #include <Salix/core/InitContext.h>
 #include <Salix/core/Engine.h>
 #include <Salix/core/EngineMode.h>
@@ -1213,3 +1220,85 @@ TEST_SUITE("Salix::core::EngineBatch7678") {
     }
 }
 
+namespace {
+struct Batch7778EngineRepoGuard {
+    std::filesystem::path previous = std::filesystem::current_path();
+    std::filesystem::path root;
+    Batch7778EngineRepoGuard() {
+        auto probe = std::filesystem::absolute(std::filesystem::path(__FILE__)).parent_path();
+        while (probe.has_parent_path() && !std::filesystem::exists(probe / "Assets" / "Shaders")) probe = probe.parent_path();
+        root = probe;
+        if (std::filesystem::exists(root / "Assets" / "Shaders")) std::filesystem::current_path(root);
+    }
+    ~Batch7778EngineRepoGuard() { std::error_code ec; std::filesystem::current_path(previous, ec); }
+};
+struct Batch7778EngineVideoGuard {
+    bool had_video=false; std::string old_video;
+    Batch7778EngineVideoGuard() {
+        if(const char* v=SDL_getenv("SDL_VIDEODRIVER")){had_video=true;old_video=v;}
+        SDL_Quit(); SDL_setenv("SDL_VIDEODRIVER","windows",1);
+    }
+    ~Batch7778EngineVideoGuard() {
+        SDL_Quit();
+        if(had_video) SDL_setenv("SDL_VIDEODRIVER",old_video.c_str(),1); else _putenv_s("SDL_VIDEODRIVER","");
+    }
+};
+struct Batch7778OpenGLEngine {
+    Batch7778EngineRepoGuard cwd;
+    Batch7778EngineVideoGuard video;
+    Salix::Engine engine;
+    bool initialized=false;
+    explicit Batch7778OpenGLEngine(Salix::AppStateType state=Salix::AppStateType::Launch, Salix::TimerType timer=Salix::TimerType::SDL) {
+        Salix::ApplicationConfig config;
+        config.renderer_type=Salix::RendererType::OpenGL;
+        config.gui_type=Salix::GuiType::None;
+        config.initial_state=state;
+        config.timer_type=timer;
+        config.window_config.title="Batch7778 OpenGL Engine";
+        config.window_config.width=128;
+        config.window_config.height=96;
+        initialized=engine.initialize(config);
+    }
+    ~Batch7778OpenGLEngine(){ engine.shutdown(); }
+};
+}
+
+TEST_SUITE("Salix::core::EngineBatch7778") {
+    TEST_CASE("batch7778 native OpenGL engine initializes launch state") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); CHECK(run.engine.is_running()); CHECK(run.engine.get_mode()==Salix::EngineMode::Launch);
+    }
+    TEST_CASE("batch7778 native OpenGL engine exposes real OpenGL renderer") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); REQUIRE(run.engine.get_renderer()!=nullptr);
+        CHECK(run.engine.get_renderer()->as_opengl_renderer()!=nullptr); CHECK(run.engine.get_renderer()->get_native_handle()!=nullptr);
+    }
+    TEST_CASE("batch7778 native OpenGL engine exposes window and GL context") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); auto* r=run.engine.get_renderer(); REQUIRE(r!=nullptr);
+        CHECK(r->get_window()!=nullptr); CHECK(r->get_sdl_window()!=nullptr); CHECK(r->get_sdl_gl_context()!=nullptr);
+    }
+    TEST_CASE("batch7778 native OpenGL chrono engine initializes") {
+        Batch7778OpenGLEngine run(Salix::AppStateType::Launch,Salix::TimerType::Chrono); REQUIRE(run.initialized); CHECK(run.engine.is_running());
+    }
+    TEST_CASE("batch7778 native OpenGL options engine enters options mode") {
+        Batch7778OpenGLEngine run(Salix::AppStateType::Options); REQUIRE(run.initialized); CHECK(run.engine.get_mode()==Salix::EngineMode::Options);
+    }
+    TEST_CASE("batch7778 native OpenGL context exposes renderer through make context") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); auto context=run.engine.make_context();
+        CHECK(context.engine==&run.engine); CHECK(context.renderer==run.engine.get_renderer()); CHECK(context.window==run.engine.get_renderer()->get_window());
+    }
+    TEST_CASE("batch7778 native OpenGL renderer can begin and end frame through engine") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); auto* r=run.engine.get_renderer(); REQUIRE(r!=nullptr);
+        CHECK_NOTHROW(r->begin_frame()); CHECK_NOTHROW(r->end_frame());
+    }
+    TEST_CASE("batch7778 native OpenGL renderer accepts active camera through engine") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); MockICamera camera; auto* r=run.engine.get_renderer(); REQUIRE(r!=nullptr);
+        r->set_active_camera(&camera); CHECK(r->get_active_camera()==&camera);
+    }
+    TEST_CASE("batch7778 native OpenGL engine switches launch to options") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); run.engine.switch_state(Salix::AppStateType::Options);
+        CHECK(run.engine.get_mode()==Salix::EngineMode::Options); CHECK(run.engine.is_running());
+    }
+    TEST_CASE("batch7778 native OpenGL engine creates and deletes framebuffer through renderer") {
+        Batch7778OpenGLEngine run; REQUIRE(run.initialized); auto* r=run.engine.get_renderer(); REQUIRE(r!=nullptr);
+        const auto id=r->create_framebuffer(32,24); REQUIRE(id!=0u); CHECK(r->get_framebuffer_texture_id(id)!=static_cast<ImTextureID>(0)); r->delete_framebuffer(id);
+    }
+}

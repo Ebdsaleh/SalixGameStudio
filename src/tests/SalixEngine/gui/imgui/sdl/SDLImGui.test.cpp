@@ -291,3 +291,42 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7678") {
     }
 }
 
+TEST_SUITE("Salix::gui::SDLImGuiBatch7778") {
+    TEST_CASE("batch7778 SDL ImGui raw mouse event flows through registered mock poller") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); Salix::EventManager events; f.gui.setup_event_polling(&f.poller,&events);
+        SDL_Event e{};e.type=SDL_MOUSEMOTION;e.motion.x=77;e.motion.y=78;CHECK_NOTHROW(f.poller.emit_raw(&e));
+    }
+    TEST_CASE("batch7778 SDL ImGui raw nonescape key event remains safe") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); Salix::EventManager events; f.gui.setup_event_polling(&f.poller,&events);
+        SDL_Event e{};e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_a;CHECK_NOTHROW(f.poller.emit_raw(&e));
+    }
+    TEST_CASE("batch7778 SDL ImGui load dialog opens and tracks key") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); REQUIRE(f.gui.open_load_file_dialog("Load7778","Load",".txt",".")); CHECK(f.gui.is_dialog_open("Load7778"));
+    }
+    TEST_CASE("batch7778 SDL ImGui escape closes active file dialog") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); REQUIRE(f.gui.open_load_file_dialog("Escape7778","Load",".txt","."));
+        SDL_Event e{};e.type=SDL_KEYDOWN;e.key.keysym.sym=SDLK_ESCAPE;CHECK(f.gui.process_raw_input_event(&e)); CHECK_FALSE(f.gui.is_dialog_open("Escape7778"));
+    }
+    TEST_CASE("batch7778 SDL ImGui creates overwrite dialog with exact registry identity") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); std::string key="Create7778";std::string title="Create";
+        auto* d=f.gui.create_dialog(key,title,Salix::DialogType::File,true); REQUIRE(d!=nullptr); CHECK(f.gui.get_dialog(key)==d);
+    }
+    TEST_CASE("batch7778 SDL ImGui creates folder dialog wrapper") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); std::string key="FolderCreate7778";std::string title="Folder";
+        auto* d=f.gui.create_dialog(key,title,Salix::DialogType::Folder,false); REQUIRE(d!=nullptr); CHECK(f.gui.get_dialog(key)==d);
+    }
+    TEST_CASE("batch7778 SDL ImGui show key marks created dialog active") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); std::string key="Show7778";std::string title="Show";REQUIRE(f.gui.create_dialog(key,title,Salix::DialogType::File,false)!=nullptr);
+        f.gui.show_dialog_by_key(key); CHECK(f.gui.is_dialog_open(key));
+    }
+    TEST_CASE("batch7778 SDL ImGui nonempty missing result remains default") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto result=f.gui.populate_dialog_result("Missing7778"); CHECK_FALSE(result.is_ok);
+    }
+    TEST_CASE("batch7778 SDL ImGui platform windows update is safe with default flags") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); CHECK_NOTHROW(f.gui.update_and_render_platform_windows());
+    }
+    TEST_CASE("batch7778 SDL ImGui shutdown unregisters mock raw callback") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); Salix::EventManager events; f.gui.setup_event_polling(&f.poller,&events); REQUIRE(f.poller.raw_callback_count()==1u);
+        f.gui.shutdown(); f.ready=false; CHECK(f.poller.raw_callback_count()==0u);
+    }
+}

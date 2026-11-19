@@ -1,5 +1,8 @@
 #include <doctest.h>
 #include <Salix/rendering/opengl/OpenGLShaderProgram.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <SDL.h>
+#include <cstdlib>
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <string>
@@ -216,3 +219,56 @@ TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch7478") {
     TEST_CASE("batch7478 nested missing vertex and valid fragment stop before GL dispatch") { Batch7366ShaderFiles files; REQUIRE(files.ready); files.write("valid.frag",batch7366_shader_source); Salix::OpenGLShaderProgram program(files.file("missing/deep.vert").string(),files.file("valid.frag").string()); CHECK(program.ID==0); }
 }
 
+namespace {
+struct Batch7778ShaderGLContext {
+    std::filesystem::path previous=std::filesystem::current_path();
+    bool had=false;std::string old;bool sdl_ready=false;
+    Salix::OpenGLRenderer renderer; bool ready=false;
+    Batch7778ShaderGLContext(){
+        auto p=std::filesystem::absolute(std::filesystem::path(__FILE__)).parent_path();
+        while(p.has_parent_path()&&!std::filesystem::exists(p/"Assets"/"Shaders"))p=p.parent_path();
+        if(std::filesystem::exists(p/"Assets"/"Shaders"))std::filesystem::current_path(p);
+        if(const char* v=SDL_getenv("SDL_VIDEODRIVER")){had=true;old=v;}
+        SDL_Quit();SDL_setenv("SDL_VIDEODRIVER","windows",1);sdl_ready=SDL_Init(SDL_INIT_VIDEO)==0;
+        if(sdl_ready){Salix::WindowConfig cfg;cfg.title="Batch7778 Shader";cfg.width=96;cfg.height=64;ready=renderer.initialize(cfg);}
+    }
+    ~Batch7778ShaderGLContext(){renderer.shutdown();SDL_Quit();if(had)SDL_setenv("SDL_VIDEODRIVER",old.c_str(),1);else _putenv_s("SDL_VIDEODRIVER","");std::error_code ec;std::filesystem::current_path(previous,ec);}
+};
+}
+
+TEST_SUITE("Salix::rendering::OpenGLShaderProgramBatch7778") {
+    TEST_CASE("batch7778 textured shader compiles and links in real DLL GL context") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag"); CHECK(p.ID!=0u);
+    }
+    TEST_CASE("batch7778 color shader compiles and links in real DLL GL context") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/color.vert","Assets/Shaders/OpenGL/2D/color.frag"); CHECK(p.ID!=0u);
+    }
+    TEST_CASE("batch7778 simple 3D shader compiles and links in real DLL GL context") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/3D/simple.vert","Assets/Shaders/OpenGL/3D/color_only.frag"); CHECK(p.ID!=0u);
+    }
+    TEST_CASE("batch7778 valid shader use executes GL program binding") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag"); REQUIRE(p.ID!=0u); CHECK_NOTHROW(p.use());
+    }
+    TEST_CASE("batch7778 valid shader sets sampler integer uniform") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag"); REQUIRE(p.ID!=0u); CHECK_NOTHROW(p.setInt("texture_sampler",0));
+    }
+    TEST_CASE("batch7778 valid shader sets model matrix uniform") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag"); REQUIRE(p.ID!=0u); CHECK_NOTHROW(p.setMat4("model",glm::mat4(1.0f)));
+    }
+    TEST_CASE("batch7778 valid shader sets tint vec4 uniform") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag"); REQUIRE(p.ID!=0u); CHECK_NOTHROW(p.setVec4("tint_color",glm::vec4(1.0f)));
+    }
+    TEST_CASE("batch7778 missing vec3 uniform warning path remains safe") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Salix::OpenGLShaderProgram p("Assets/Shaders/OpenGL/2D/textured.vert","Assets/Shaders/OpenGL/2D/textured.frag"); REQUIRE(p.ID!=0u); CHECK_NOTHROW(p.setVec3("batch7778_missing_vec3",glm::vec3(1.0f)));
+    }
+    TEST_CASE("batch7778 invalid vertex source reaches compile and link diagnostics") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Batch7366ShaderFiles files; REQUIRE(files.ready);
+        files.write("bad.vert","#version 450 core\nthis is not valid glsl\n"); files.write("ok.frag","#version 450 core\nout vec4 c; void main(){c=vec4(1.0);}\n");
+        Salix::OpenGLShaderProgram p(files.file("bad.vert").string(),files.file("ok.frag").string()); CHECK(p.ID!=0u);
+    }
+    TEST_CASE("batch7778 invalid fragment source reaches compile and link diagnostics") {
+        Batch7778ShaderGLContext gl; REQUIRE(gl.ready); Batch7366ShaderFiles files; REQUIRE(files.ready);
+        files.write("ok.vert","#version 450 core\nlayout(location=0) in vec3 p; void main(){gl_Position=vec4(p,1.0);}\n"); files.write("bad.frag","#version 450 core\nthis is not valid glsl\n");
+        Salix::OpenGLShaderProgram p(files.file("ok.vert").string(),files.file("bad.frag").string()); CHECK(p.ID!=0u);
+    }
+}

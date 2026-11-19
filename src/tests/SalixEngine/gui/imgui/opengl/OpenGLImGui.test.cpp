@@ -7,6 +7,8 @@
 #include <imgui.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/gui/imgui/opengl/OpenGLImGui.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <Salix/events/EventManager.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/core/ApplicationConfig.h>
 #include <Tests/SalixEngine/mocking/window/MockIWindow.h>
@@ -276,5 +278,71 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7678") {
         Salix::OpenGLImGui gui;
         REQUIRE(gui.open_load_file_dialog("Load7678", "Load", ".txt", "."));
         CHECK(gui.is_dialog_open("Load7678"));
+    }
+}
+
+namespace {
+struct Batch7778OpenGLImGuiFixture {
+    std::filesystem::path previous=std::filesystem::current_path();
+    bool had=false;std::string old;bool sdl_ready=false;
+    Salix::OpenGLRenderer renderer;
+    Salix::OpenGLImGui gui;
+    Salix::ApplicationConfig config;
+    MockIEventPoller poller;
+    Salix::EventManager events;
+    bool renderer_ready=false;
+    bool gui_ready=false;
+    Batch7778OpenGLImGuiFixture(){
+        auto p=std::filesystem::absolute(std::filesystem::path(__FILE__)).parent_path();
+        while(p.has_parent_path()&&!std::filesystem::exists(p/"Assets"/"Shaders"))p=p.parent_path();
+        if(std::filesystem::exists(p/"Assets"/"Shaders"))std::filesystem::current_path(p);
+        if(const char* v=SDL_getenv("SDL_VIDEODRIVER")){had=true;old=v;}
+        SDL_Quit();SDL_setenv("SDL_VIDEODRIVER","windows",1);sdl_ready=SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS)==0;
+        if(!sdl_ready)return;
+        Salix::WindowConfig wc;wc.title="Batch7778 OpenGLImGui";wc.width=128;wc.height=96;
+        renderer_ready=renderer.initialize(wc); if(!renderer_ready)return;
+        config.renderer_type=Salix::RendererType::OpenGL;config.window_config=wc;gui.set_app_config(&config);
+        gui_ready=gui.initialize(renderer.get_window(),&renderer,nullptr,nullptr,nullptr);
+    }
+    ~Batch7778OpenGLImGuiFixture(){
+        if(gui_ready)gui.shutdown(); renderer.shutdown(); SDL_Quit();
+        if(had)SDL_setenv("SDL_VIDEODRIVER",old.c_str(),1);else _putenv_s("SDL_VIDEODRIVER","");
+        std::error_code ec;std::filesystem::current_path(previous,ec);
+    }
+};
+}
+
+TEST_SUITE("Salix::gui::OpenGLImGuiBatch7778") {
+    TEST_CASE("batch7778 real OpenGL ImGui initializes backend and context") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.renderer_ready); REQUIRE(f.gui_ready); CHECK(f.gui.get_context()!=nullptr);
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui retains renderer and window interfaces") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); CHECK(f.gui.get_renderer()==&f.renderer); CHECK(f.gui.get_window()==f.renderer.get_window());
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui new frame and render execute") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); CHECK_NOTHROW(f.gui.new_frame()); CHECK_NOTHROW(f.gui.render());
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui registers raw event polling") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.setup_event_polling(&f.poller,&f.events); CHECK(f.poller.raw_callback_count()==1u);
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui raw SDL event reaches backend callback") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.setup_event_polling(&f.poller,&f.events);
+        SDL_Event e{};e.type=SDL_MOUSEMOTION;e.motion.x=7;e.motion.y=8;CHECK_NOTHROW(f.poller.emit_raw(&e));
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui reinitializes backend") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); CHECK_NOTHROW(f.gui.reinitialize_backend());
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui platform window update is safe with default flags") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); CHECK_NOTHROW(f.gui.update_and_render_platform_windows());
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui opens save dialog") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); REQUIRE(f.gui.open_save_file_dialog("GLSave7778","Save",".txt",".","a.txt")); CHECK(f.gui.is_dialog_open("GLSave7778"));
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui opens folder dialog") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); REQUIRE(f.gui.open_folder_dialog("GLFolder7778","Folder",".")); CHECK(f.gui.is_dialog_open("GLFolder7778"));
+    }
+    TEST_CASE("batch7778 real OpenGL ImGui dispatches input event during frame") {
+        Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.setup_event_polling(&f.poller,&f.events);
+        f.gui.new_frame(); f.gui.render(); CHECK_FALSE(f.events.is_queue_empty()); f.events.process_queue(); CHECK(f.events.is_queue_empty());
     }
 }

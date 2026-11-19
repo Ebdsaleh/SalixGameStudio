@@ -1,4 +1,9 @@
 #include <doctest.h>
+#include <SDL.h>
+#include <filesystem>
+#include <cstdlib>
+#include <string>
+#include <cmath>
 #include <Tests/SalixEngine/mocking/rendering/MockITexture.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
@@ -169,3 +174,80 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch7678") {
     }
 }
 
+namespace {
+struct Batch7778RendererCwd {
+    std::filesystem::path previous=std::filesystem::current_path();
+    Batch7778RendererCwd(){
+        auto p=std::filesystem::absolute(std::filesystem::path(__FILE__)).parent_path();
+        while(p.has_parent_path() && !std::filesystem::exists(p/"Assets"/"Shaders")) p=p.parent_path();
+        if(std::filesystem::exists(p/"Assets"/"Shaders")) std::filesystem::current_path(p);
+    }
+    ~Batch7778RendererCwd(){std::error_code ec;std::filesystem::current_path(previous,ec);}
+};
+struct Batch7778RendererSDL {
+    bool had=false; std::string old; bool ready=false;
+    Batch7778RendererSDL(){
+        if(const char* v=SDL_getenv("SDL_VIDEODRIVER")){had=true;old=v;}
+        SDL_Quit();SDL_setenv("SDL_VIDEODRIVER","windows",1);
+        ready=SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER)==0;
+    }
+    ~Batch7778RendererSDL(){SDL_Quit();if(had)SDL_setenv("SDL_VIDEODRIVER",old.c_str(),1);else _putenv_s("SDL_VIDEODRIVER","");}
+};
+struct Batch7778NativeGLRenderer {
+    Batch7778RendererCwd cwd;
+    Batch7778RendererSDL sdl;
+    Salix::OpenGLRenderer renderer;
+    bool ready=false;
+    Batch7778NativeGLRenderer(){
+        if(!sdl.ready)return;
+        Salix::WindowConfig cfg;cfg.title="Batch7778 OpenGLRenderer";cfg.width=128;cfg.height=96;
+        ready=renderer.initialize(cfg);
+    }
+};
+}
+
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch7778") {
+    TEST_CASE("batch7778 real OpenGL renderer initializes geometry shaders and context") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); CHECK(f.renderer.get_window()!=nullptr); CHECK(f.renderer.get_sdl_gl_context()!=nullptr);
+    }
+    TEST_CASE("batch7778 real OpenGL renderer frame lifecycle executes") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); CHECK_NOTHROW(f.renderer.begin_frame()); CHECK_NOTHROW(f.renderer.clear_depth_buffer()); CHECK_NOTHROW(f.renderer.end_frame());
+    }
+    TEST_CASE("batch7778 real OpenGL clear color roundtrips finite values") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); f.renderer.set_clear_color(Salix::Color{64.0f,128.0f,192.0f,255.0f});
+        auto c=f.renderer.get_clear_color(); CHECK(std::isfinite(c.r)); CHECK(std::isfinite(c.g)); CHECK(std::isfinite(c.b)); CHECK(std::isfinite(c.a));
+    }
+    TEST_CASE("batch7778 real OpenGL framebuffer lifecycle returns texture id") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); auto id=f.renderer.create_framebuffer(40,30); REQUIRE(id!=0u);
+        CHECK(f.renderer.get_framebuffer_texture_id(id)!=static_cast<ImTextureID>(0)); f.renderer.bind_framebuffer(id); f.renderer.unbind_framebuffer(); f.renderer.delete_framebuffer(id);
+    }
+    TEST_CASE("batch7778 real OpenGL render pass saves and restores framebuffer") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); auto id=f.renderer.create_framebuffer(32,32); REQUIRE(id!=0u);
+        auto before=f.renderer.get_current_framebuffer_binding(); f.renderer.begin_render_pass(id); f.renderer.end_render_pass();
+        CHECK(f.renderer.get_current_framebuffer_binding()==before); f.renderer.delete_framebuffer(id);
+    }
+    TEST_CASE("batch7778 real OpenGL viewport and framebuffer restore execute") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); auto before=f.renderer.get_current_framebuffer_binding();
+        CHECK_NOTHROW(f.renderer.set_viewport(0,0,64,48)); CHECK_NOTHROW(f.renderer.restore_framebuffer_binding(before));
+    }
+    TEST_CASE("batch7778 real OpenGL debug primitives render with mock camera") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); MockICamera camera; f.renderer.set_active_camera(&camera);
+        CHECK_NOTHROW(f.renderer.draw_wire_box(glm::mat4(1.0f),Salix::Color{}));
+        CHECK_NOTHROW(f.renderer.draw_line(glm::vec3(0.0f),glm::vec3(1.0f),Salix::Color{}));
+        CHECK_NOTHROW(f.renderer.draw_sphere(glm::vec3(0.0f),1.0f,Salix::Color{},8));
+    }
+    TEST_CASE("batch7778 real OpenGL cube renders with mock camera") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); MockICamera camera; f.renderer.set_active_camera(&camera);
+        CHECK_NOTHROW(f.renderer.draw_cube(glm::mat4(1.0f),Salix::Color{}));
+    }
+    TEST_CASE("batch7778 real OpenGL rectangle executes filled and outline paths") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready);
+        CHECK_NOTHROW(f.renderer.draw_rectangle(Salix::Rect{4,5,20,12},Salix::Color{},true));
+        CHECK_NOTHROW(f.renderer.draw_rectangle(Salix::Rect{4,5,20,12},Salix::Color{},false));
+    }
+    TEST_CASE("batch7778 real OpenGL resize line width and pixels per unit remain usable") {
+        Batch7778NativeGLRenderer f; REQUIRE(f.ready); CHECK_NOTHROW(f.renderer.on_window_resize(96,72));
+        f.renderer.set_line_width(2.5f); CHECK(f.renderer.get_line_width()==doctest::Approx(2.5f));
+        f.renderer.set_pixels_per_unit(64.0f); CHECK(f.renderer.get_pixels_per_unit()==doctest::Approx(64.0f));
+    }
+}
