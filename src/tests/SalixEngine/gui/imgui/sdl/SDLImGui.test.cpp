@@ -322,8 +322,8 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7778") {
     TEST_CASE("batch7778 SDL ImGui nonempty missing result remains default") {
         Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto result=f.gui.populate_dialog_result("Missing7778"); CHECK_FALSE(result.is_ok);
     }
-    TEST_CASE("batch7778 SDL ImGui platform windows update is safe with default flags") {
-        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); CHECK_NOTHROW(f.gui.update_and_render_platform_windows());
+    TEST_CASE("batch7778 SDL ImGui platform windows update follows completed frame") {
+        Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.new_frame(); f.gui.render(); CHECK_NOTHROW(f.gui.update_and_render_platform_windows());
     }
     TEST_CASE("batch7778 SDL ImGui shutdown unregisters mock raw callback") {
         Batch7678SDLImGuiBackend f; REQUIRE(f.ready); Salix::EventManager events; f.gui.setup_event_polling(&f.poller,&events); REQUIRE(f.poller.raw_callback_count()==1u);
