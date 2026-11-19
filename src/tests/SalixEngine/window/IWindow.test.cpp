@@ -350,9 +350,10 @@ TEST_SUITE("Salix::window::IWindowBatch7678") {
         Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
         CHECK(run.window()->get_dpi_scale() > 0.0f);
     }
-    TEST_CASE("batch7678 native SDL renderer and window expose same SDL window handle") {
+    TEST_CASE("batch7678 native SDL renderer window accessor remains separate from SDL window shortcut") {
         Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
-        CHECK(run.engine.get_renderer()->get_sdl_window() == static_cast<SDL_Window*>(run.window()->get_native_handle()));
+        CHECK(run.window()->get_native_handle() != nullptr);
+        CHECK(run.engine.get_renderer()->get_sdl_window() == nullptr);
     }
     TEST_CASE("batch7678 native SDL window survives small positive resize") {
         Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);

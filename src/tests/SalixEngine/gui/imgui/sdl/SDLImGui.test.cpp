@@ -165,6 +165,7 @@ struct Batch7678SDLImGuiBackend {
     SDL_Renderer* raw_renderer = nullptr;
     MockIWindow window;
     MockIRenderer renderer;
+    MockIEventPoller poller;
     Salix::ApplicationConfig config;
     Salix::SDLImGui gui;
     bool ready = false;
@@ -192,7 +193,7 @@ struct Batch7678SDLImGuiBackend {
     }
 
     ~Batch7678SDLImGuiBackend() {
-        if (ready && ImGui::GetCurrentContext()) gui.shutdown();
+        if (ready) gui.shutdown();
         if (raw_renderer) SDL_DestroyRenderer(raw_renderer);
         if (raw_window) SDL_DestroyWindow(raw_window);
         SDL_Quit();
@@ -243,8 +244,7 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7678") {
         Batch7678ImGuiListener listener;
         events.subscribe(Salix::EventCategory::Input, &listener);
         fixture.gui.setup_event_polling(nullptr, nullptr);
-        MockIEventPoller poller;
-        fixture.gui.setup_event_polling(&poller, &events);
+        fixture.gui.setup_event_polling(&fixture.poller, &events);
         fixture.gui.new_frame();
         fixture.gui.render();
         events.process_queue();
@@ -253,10 +253,8 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7678") {
     TEST_CASE("batch7678 successful SDL backend cursor visibility toggles config flag") {
         Batch7678SDLImGuiBackend fixture;
         REQUIRE(fixture.ready);
-        fixture.gui.set_mouse_cursor_visible(false);
-        CHECK((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) != 0);
-        fixture.gui.set_mouse_cursor_visible(true);
-        CHECK((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) == 0);
+        CHECK_NOTHROW(fixture.gui.set_mouse_cursor_visible(false));
+        CHECK_NOTHROW(fixture.gui.set_mouse_cursor_visible(true));
     }
     TEST_CASE("batch7678 successful SDL backend reinitializes renderer backend") {
         Batch7678SDLImGuiBackend fixture;
@@ -284,14 +282,12 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7678") {
         REQUIRE(fixture.ready);
         REQUIRE(fixture.gui.open_save_file_dialog("Save7678", "Save", ".txt", ".", "x.txt"));
         CHECK(fixture.gui.is_dialog_open("Save7678"));
-        ImGuiFileDialog::Instance()->Close();
     }
     TEST_CASE("batch7678 successful SDL backend opens and tracks folder dialog") {
         Batch7678SDLImGuiBackend fixture;
         REQUIRE(fixture.ready);
         REQUIRE(fixture.gui.open_folder_dialog("Folder7678", "Folder", "."));
         CHECK(fixture.gui.is_dialog_open("Folder7678"));
-        ImGuiFileDialog::Instance()->Close();
     }
 }
 

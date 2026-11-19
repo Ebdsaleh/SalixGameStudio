@@ -1301,7 +1301,7 @@ struct Batch7678FontSDLBackend {
 
     ~Batch7678FontSDLBackend() {
         manager.shutdown();
-        if (ImGui::GetCurrentContext()) gui.shutdown();
+        gui.shutdown();
         if (raw_renderer) SDL_DestroyRenderer(raw_renderer);
         if (raw_window) SDL_DestroyWindow(raw_window);
         SDL_Quit();

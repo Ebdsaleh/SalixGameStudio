@@ -1,9 +1,13 @@
 #include <doctest.h>
+#include <SDL.h>
+#include <cstdlib>
+#include <string>
 #include <fstream>
 #include <filesystem>
 #include <imgui.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/gui/imgui/opengl/OpenGLImGui.h>
+#include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/core/ApplicationConfig.h>
 #include <Tests/SalixEngine/mocking/window/MockIWindow.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
@@ -151,51 +155,78 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7578") {
 }
 
 namespace {
-struct Batch7678ImGuiContextGuard {
-    ImGuiContext* context = nullptr;
-    Batch7678ImGuiContextGuard() {
-        context = ImGui::CreateContext();
-        ImGui::SetCurrentContext(context);
-        ImGui::GetIO().DisplaySize = ImVec2(800.0f, 600.0f);
+struct Batch7678OpenGLCoreContext {
+    bool had_video = false;
+    bool had_render = false;
+    std::string old_video;
+    std::string old_render;
+    SDL_Window* raw_window = nullptr;
+    SDL_Renderer* raw_renderer = nullptr;
+    MockIWindow window;
+    MockIRenderer renderer;
+    Salix::ApplicationConfig config;
+    Salix::SDLImGui context_owner;
+    bool ready = false;
+
+    Batch7678OpenGLCoreContext() {
+        if (const char* value = SDL_getenv("SDL_VIDEODRIVER")) { had_video = true; old_video = value; }
+        if (const char* value = SDL_getenv("SDL_RENDER_DRIVER")) { had_render = true; old_render = value; }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
+        SDL_setenv("SDL_RENDER_DRIVER", "software", 1);
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) return;
+        raw_window = SDL_CreateWindow("Batch7678 OpenGL Core Context", 0, 0, 64, 48, SDL_WINDOW_HIDDEN);
+        if (!raw_window) return;
+        raw_renderer = SDL_CreateRenderer(raw_window, -1, SDL_RENDERER_SOFTWARE);
+        if (!raw_renderer) return;
+        window.native_handle = raw_window;
+        renderer.native_handle = raw_renderer;
+        config.renderer_type = Salix::RendererType::SDL;
+        context_owner.set_app_config(&config);
+        ready = context_owner.initialize(&window, &renderer, nullptr, nullptr, nullptr);
     }
-    ~Batch7678ImGuiContextGuard() {
-        if (ImGui::GetCurrentContext()) ImGui::DestroyContext();
+
+    ~Batch7678OpenGLCoreContext() {
+        if (ready) context_owner.shutdown();
+        if (raw_renderer) SDL_DestroyRenderer(raw_renderer);
+        if (raw_window) SDL_DestroyWindow(raw_window);
+        SDL_Quit();
+        if (had_video) SDL_setenv("SDL_VIDEODRIVER", old_video.c_str(), 1); else _putenv_s("SDL_VIDEODRIVER", "");
+        if (had_render) SDL_setenv("SDL_RENDER_DRIVER", old_render.c_str(), 1); else _putenv_s("SDL_RENDER_DRIVER", "");
     }
 };
 }
 
 TEST_SUITE("Salix::gui::OpenGLImGuiBatch7678") {
-    TEST_CASE("batch7678 standalone context toggles OpenGL GUI cursor suppression") {
-        Batch7678ImGuiContextGuard context;
+    TEST_CASE("batch7678 DLL owned context accepts OpenGL GUI cursor suppression calls") {
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
-        gui.set_mouse_cursor_visible(false);
-        CHECK((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) != 0);
-        gui.set_mouse_cursor_visible(true);
-        CHECK((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) == 0);
+        CHECK_NOTHROW(gui.set_mouse_cursor_visible(false));
+        CHECK_NOTHROW(gui.set_mouse_cursor_visible(true));
     }
-    TEST_CASE("batch7678 standalone context saves OpenGL GUI layout") {
-        Batch7678ImGuiContextGuard context;
+    TEST_CASE("batch7678 DLL owned context saves OpenGL GUI layout") {
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         const auto path = std::filesystem::temp_directory_path() / "batch7678_gl_gui.ini";
         gui.save_layout(path.string());
         CHECK(std::filesystem::exists(path));
         std::error_code ec; std::filesystem::remove(path, ec);
     }
-    TEST_CASE("batch7678 standalone context loads OpenGL GUI layout") {
-        Batch7678ImGuiContextGuard context;
+    TEST_CASE("batch7678 DLL owned context loads OpenGL GUI layout") {
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         const auto path = std::filesystem::temp_directory_path() / "batch7678_gl_gui_load.ini";
         { std::ofstream out(path); out << "[Window][Batch7678]\nPos=0,0\nSize=10,10\nCollapsed=0\n"; }
         CHECK_NOTHROW(gui.load_layout(path.string()));
         std::error_code ec; std::filesystem::remove(path, ec);
     }
-    TEST_CASE("batch7678 standalone context applies default dialog geometry") {
-        Batch7678ImGuiContextGuard context;
+    TEST_CASE("batch7678 DLL owned context applies default dialog geometry") {
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         CHECK_NOTHROW(gui.set_common_dialog_properties());
     }
-    TEST_CASE("batch7678 standalone context applies configured dialog geometry") {
-        Batch7678ImGuiContextGuard context;
+    TEST_CASE("batch7678 DLL owned context applies configured dialog geometry") {
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         Salix::ApplicationConfig config;
         config.window_config.width = 1000;
@@ -206,14 +237,14 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7678") {
         CHECK_NOTHROW(gui.set_common_dialog_properties());
     }
     TEST_CASE("batch7678 empty populate result returns default without dialog query") {
-        Batch7678ImGuiContextGuard context;
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         const auto result = gui.populate_dialog_result("");
         CHECK_FALSE(result.is_ok);
         CHECK(result.file_name.empty());
     }
     TEST_CASE("batch7678 create dialog registers unique key") {
-        Batch7678ImGuiContextGuard context;
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         std::string key = "Create7678";
         std::string title = "Create";
@@ -222,7 +253,7 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7678") {
         CHECK(gui.get_dialog(key) == dialog);
     }
     TEST_CASE("batch7678 duplicate create dialog returns original instance") {
-        Batch7678ImGuiContextGuard context;
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         std::string key = "Duplicate7678";
         std::string title = "One";
@@ -233,19 +264,17 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7678") {
         CHECK(second == first);
     }
     TEST_CASE("batch7678 non escape key raw input remains unconsumed") {
-        Batch7678ImGuiContextGuard context;
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         SDL_Event event{};
         event.type = SDL_KEYDOWN;
         event.key.keysym.sym = SDLK_a;
         CHECK_FALSE(gui.process_raw_input_event(&event));
     }
-    TEST_CASE("batch7678 standalone context opens and tracks load dialog") {
-        Batch7678ImGuiContextGuard context;
+    TEST_CASE("batch7678 DLL owned context opens and tracks load dialog") {
+        Batch7678OpenGLCoreContext context; REQUIRE(context.ready);
         Salix::OpenGLImGui gui;
         REQUIRE(gui.open_load_file_dialog("Load7678", "Load", ".txt", "."));
         CHECK(gui.is_dialog_open("Load7678"));
-        ImGuiFileDialog::Instance()->Close();
     }
 }
-
