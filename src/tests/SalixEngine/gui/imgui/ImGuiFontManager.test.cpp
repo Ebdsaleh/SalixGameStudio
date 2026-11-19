@@ -1,4 +1,8 @@
 #include <doctest.h>
+#include <cstdlib>
+#include <SDL.h>
+#include <Tests/SalixEngine/mocking/window/MockIWindow.h>
+#include <Salix/events/EventManager.h>
 #include <Salix/gui/imgui/opengl/OpenGLImGui.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/gui/imgui/ImGuiFontManager.h>
@@ -1264,6 +1268,110 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7578") {
         manager.shutdown();
         CHECK(manager.get_font_registry().empty());
         CHECK(manager.get_active_font() == nullptr);
+    }
+}
+
+namespace {
+struct Batch7678FontSDLBackend {
+    SDL_Window* raw_window = nullptr;
+    SDL_Renderer* raw_renderer = nullptr;
+    MockIWindow window;
+    MockIRenderer renderer;
+    Salix::ApplicationConfig config;
+    Salix::SDLImGui gui;
+    Salix::ImGuiFontManager manager;
+    bool ready = false;
+
+    Batch7678FontSDLBackend() {
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
+        SDL_setenv("SDL_RENDER_DRIVER", "software", 1);
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) return;
+        raw_window = SDL_CreateWindow("Batch7678 Font", 0, 0, 64, 48, SDL_WINDOW_HIDDEN);
+        if (!raw_window) return;
+        raw_renderer = SDL_CreateRenderer(raw_window, -1, SDL_RENDERER_SOFTWARE);
+        if (!raw_renderer) return;
+        window.native_handle = raw_window;
+        renderer.native_handle = raw_renderer;
+        config.renderer_type = Salix::RendererType::SDL;
+        gui.set_app_config(&config);
+        if (!gui.initialize(&window, &renderer, nullptr, &manager, nullptr)) return;
+        ready = manager.initialize(&gui);
+    }
+
+    ~Batch7678FontSDLBackend() {
+        manager.shutdown();
+        if (ImGui::GetCurrentContext()) gui.shutdown();
+        if (raw_renderer) SDL_DestroyRenderer(raw_renderer);
+        if (raw_window) SDL_DestroyWindow(raw_window);
+        SDL_Quit();
+        _putenv_s("SDL_VIDEODRIVER", "");
+        _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+};
+}
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7678") {
+    TEST_CASE("batch7678 real SDL GUI initializes font manager with native renderer") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        CHECK(fixture.manager.get_font_registry().empty());
+    }
+    TEST_CASE("batch7678 real SDL GUI rebuilds font atlas backend") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        CHECK(fixture.manager.rebuild_font_atlas_texture());
+    }
+    TEST_CASE("batch7678 real SDL GUI supports repeated atlas rebuild") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        REQUIRE(fixture.manager.rebuild_font_atlas_texture());
+        CHECK(fixture.manager.rebuild_font_atlas_texture());
+    }
+    TEST_CASE("batch7678 real SDL font manager still rejects missing registered font apply") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        CHECK_FALSE(fixture.manager.apply_font("Missing7678"));
+    }
+    TEST_CASE("batch7678 real SDL font manager registers mock font normally") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        REQUIRE(fixture.manager.register_font(std::make_unique<MockIFont>("RealSDL7678", "RealSDL", 16.0f)));
+        CHECK(fixture.manager.get_font("RealSDL7678") != nullptr);
+    }
+    TEST_CASE("batch7678 real SDL font manager unregisters registered font") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        REQUIRE(fixture.manager.register_font(std::make_unique<MockIFont>("Remove7678", "RealSDL", 16.0f)));
+        CHECK(fixture.manager.unregister_font("Remove7678"));
+        CHECK(fixture.manager.get_font("Remove7678") == nullptr);
+    }
+    TEST_CASE("batch7678 real SDL font manager reports unique family") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        REQUIRE(fixture.manager.register_font(std::make_unique<MockIFont>("Family7678", "Family7678", 18.0f)));
+        const auto families = fixture.manager.get_unique_font_families();
+        CHECK(std::find(families.begin(), families.end(), "Family7678") != families.end());
+    }
+    TEST_CASE("batch7678 real SDL font manager reports family size") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        REQUIRE(fixture.manager.register_font(std::make_unique<MockIFont>("Size7678", "Family7678", 20.0f)));
+        const auto sizes = fixture.manager.get_font_sizes_for_font_family("Family7678");
+        REQUIRE(sizes.size()==1);
+        CHECK(sizes[0]==doctest::Approx(20.0f));
+    }
+    TEST_CASE("batch7678 real SDL font manager missing batch path remains safe") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        CHECK_NOTHROW(fixture.manager.create_font_batch("__batch7678_missing_font__.ttf", "Missing7678", 8.0f, 12.0f));
+        CHECK(fixture.manager.get_font_registry().empty());
+    }
+    TEST_CASE("batch7678 real SDL font manager shutdown disables future rebuild") {
+        Batch7678FontSDLBackend fixture;
+        REQUIRE(fixture.ready);
+        fixture.manager.shutdown();
+        CHECK_FALSE(fixture.manager.rebuild_font_atlas_texture());
     }
 }
 

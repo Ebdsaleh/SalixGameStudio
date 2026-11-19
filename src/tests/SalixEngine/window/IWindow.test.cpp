@@ -1,4 +1,6 @@
 #include <doctest.h>
+#include <Salix/core/ApplicationConfig.h>
+#include <Salix/core/Engine.h>
 #include <filesystem>
 #include <cstdlib>
 #include <SDL.h>
@@ -268,6 +270,103 @@ TEST_SUITE("Salix::window::IWindowBatch7578") {
         REQUIRE_FALSE(renderer.initialize(Salix::WindowConfig{"Second7578", 300, 400}));
         auto* window = renderer.get_window(); REQUIRE(window != nullptr);
         CHECK(window->get_width() == 300); CHECK(window->get_height() == 400);
+    }
+}
+
+namespace {
+struct Batch7678WindowNativeGuard {
+    bool had_video = false;
+    std::string old_video;
+    Batch7678WindowNativeGuard() {
+        if (const char* value = SDL_getenv("SDL_VIDEODRIVER")) { had_video = true; old_video = value; }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "windows", 1);
+        _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+    ~Batch7678WindowNativeGuard() {
+        SDL_Quit();
+        if (had_video) SDL_setenv("SDL_VIDEODRIVER", old_video.c_str(), 1); else _putenv_s("SDL_VIDEODRIVER", "");
+    }
+};
+
+struct Batch7678NativeWindow {
+    Batch7678WindowNativeGuard driver;
+    Salix::Engine engine;
+    bool initialized = false;
+    Batch7678NativeWindow() {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = Salix::GuiType::None;
+        config.initial_state = Salix::AppStateType::Launch;
+        config.window_config.title = "Batch7678 IWindow";
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+        initialized = engine.initialize(config);
+    }
+    ~Batch7678NativeWindow() { engine.shutdown(); }
+    Salix::IWindow* window() { return engine.get_renderer() ? engine.get_renderer()->get_window() : nullptr; }
+};
+}
+
+TEST_SUITE("Salix::window::IWindowBatch7678") {
+    TEST_CASE("batch7678 native SDL window exposes nonnull native handle") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        CHECK(run.window()->get_native_handle() != nullptr);
+    }
+    TEST_CASE("batch7678 native SDL window retains initial configured dimensions") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        CHECK(run.window()->get_width() == 96);
+        CHECK(run.window()->get_height() == 64);
+    }
+    TEST_CASE("batch7678 native SDL window query returns live dimensions") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        int width = 0, height = 0;
+        run.window()->query_dimensions(width, height);
+        CHECK(width > 0);
+        CHECK(height > 0);
+    }
+    TEST_CASE("batch7678 native SDL window set size updates stored dimensions") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        run.window()->set_size(80, 48);
+        CHECK(run.window()->get_width() == 80);
+        CHECK(run.window()->get_height() == 48);
+    }
+    TEST_CASE("batch7678 native SDL window repeated set size keeps latest dimensions") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        run.window()->set_size(70, 50);
+        run.window()->set_size(90, 60);
+        CHECK(run.window()->get_width() == 90);
+        CHECK(run.window()->get_height() == 60);
+    }
+    TEST_CASE("batch7678 native SDL window query reflects resize request") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        run.window()->set_size(88, 58);
+        int width = 0, height = 0;
+        run.window()->query_dimensions(width, height);
+        CHECK(width > 0);
+        CHECK(height > 0);
+    }
+    TEST_CASE("batch7678 native SDL window DPI scale is positive") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        CHECK(run.window()->get_dpi_scale() > 0.0f);
+    }
+    TEST_CASE("batch7678 native SDL renderer and window expose same SDL window handle") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        CHECK(run.engine.get_renderer()->get_sdl_window() == static_cast<SDL_Window*>(run.window()->get_native_handle()));
+    }
+    TEST_CASE("batch7678 native SDL window survives small positive resize") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        CHECK_NOTHROW(run.window()->set_size(16, 16));
+        CHECK(run.window()->get_width() == 16);
+        CHECK(run.window()->get_height() == 16);
+    }
+    TEST_CASE("batch7678 native SDL window remains usable after renderer logical resize") {
+        Batch7678NativeWindow run; REQUIRE(run.initialized); REQUIRE(run.window() != nullptr);
+        run.engine.get_renderer()->on_window_resize(72, 54);
+        int width = 0, height = 0;
+        run.window()->query_dimensions(width, height);
+        CHECK(width > 0);
+        CHECK(height > 0);
     }
 }
 

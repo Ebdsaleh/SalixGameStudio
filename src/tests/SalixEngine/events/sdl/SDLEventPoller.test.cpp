@@ -1241,3 +1241,76 @@ TEST_SUITE("Salix::events::SDLEventPollerBatch7478") {
     TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7478 user event remains raw only") { Salix::SDLEventPoller poller; int raw=0,translated=0; poller.register_raw_event_callback([&](void*){++raw;}); SDL_Event event{}; event.type=SDL_USEREVENT; event.user.code=7478; REQUIRE(SDL_PushEvent(&event)==1); poller.poll_events([&](Salix::IEvent&){++translated;}); CHECK(raw==1); CHECK(translated==0); }
 }
 
+TEST_SUITE("Salix::events::SDLEventPollerBatch7678") {
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 two raw callbacks both observe one user event") {
+        Salix::SDLEventPoller poller; int a=0,b=0;
+        poller.register_raw_event_callback([&](void*){++a;}); poller.register_raw_event_callback([&](void*){++b;});
+        SDL_Event e{}; e.type=SDL_USEREVENT; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([](Salix::IEvent&){});
+        CHECK(a==1); CHECK(b==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 unregister one callback leaves second active") {
+        Salix::SDLEventPoller poller; int a=0,b=0;
+        auto ha=poller.register_raw_event_callback([&](void*){++a;}); poller.register_raw_event_callback([&](void*){++b;});
+        poller.unregister_raw_event_callback(ha);
+        SDL_Event e{}; e.type=SDL_USEREVENT; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([](Salix::IEvent&){});
+        CHECK(a==0); CHECK(b==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 unregister unknown callback preserves registered callback") {
+        Salix::SDLEventPoller poller; int calls=0;
+        poller.register_raw_event_callback([&](void*){++calls;}); poller.unregister_raw_event_callback(7678u);
+        SDL_Event e{}; e.type=SDL_USEREVENT; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([](Salix::IEvent&){});
+        CHECK(calls==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 empty callback and live callback coexist safely") {
+        Salix::SDLEventPoller poller; int calls=0;
+        poller.register_raw_event_callback({}); poller.register_raw_event_callback([&](void*){++calls;});
+        SDL_Event e{}; e.type=SDL_USEREVENT; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([](Salix::IEvent&){});
+        CHECK(calls==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 text input invokes raw callbacks but no translated event") {
+        Salix::SDLEventPoller poller; int raw=0,translated=0;
+        poller.register_raw_event_callback([&](void*){++raw;});
+        SDL_Event e{}; e.type=SDL_TEXTINPUT; e.text.text[0]='X'; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent&){++translated;});
+        CHECK(raw==1); CHECK(translated==0);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 non resize window event remains untranslated") {
+        Salix::SDLEventPoller poller; int translated=0;
+        SDL_Event e{}; e.type=SDL_WINDOWEVENT; e.window.event=SDL_WINDOWEVENT_MOVED; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent&){++translated;});
+        CHECK(translated==0);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 size changed window event translates resize") {
+        Salix::SDLEventPoller poller; int translated=0;
+        SDL_Event e{}; e.type=SDL_WINDOWEVENT; e.window.event=SDL_WINDOWEVENT_SIZE_CHANGED; e.window.data1=76; e.window.data2=78; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent& event){++translated; CHECK(event.get_event_type()==Salix::EventType::WindowResize);});
+        CHECK(translated==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 three user events invoke raw callback three times") {
+        Salix::SDLEventPoller poller; int raw=0;
+        poller.register_raw_event_callback([&](void*){++raw;});
+        for(int i=0;i<3;++i){ SDL_Event e{}; e.type=SDL_USEREVENT; e.user.code=i; REQUIRE(SDL_PushEvent(&e)==1); }
+        poller.poll_events([](Salix::IEvent&){});
+        CHECK(raw==3);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 mixed translated and untranslated events preserve translated count") {
+        Salix::SDLEventPoller poller; int translated=0;
+        SDL_Event text{}; text.type=SDL_TEXTINPUT; REQUIRE(SDL_PushEvent(&text)==1);
+        SDL_Event key{}; key.type=SDL_KEYDOWN; key.key.keysym.sym=SDLK_a; REQUIRE(SDL_PushEvent(&key)==1);
+        SDL_Event user{}; user.type=SDL_USEREVENT; REQUIRE(SDL_PushEvent(&user)==1);
+        poller.poll_events([&](Salix::IEvent&){++translated;});
+        CHECK(translated==1);
+    }
+    TEST_CASE_FIXTURE(Batch3447SDLEventQueueFixture, "batch7678 repeated empty polls remain safe after queue drain") {
+        Salix::SDLEventPoller poller; int translated=0;
+        SDL_Event e{}; e.type=SDL_KEYUP; e.key.keysym.sym=SDLK_b; REQUIRE(SDL_PushEvent(&e)==1);
+        poller.poll_events([&](Salix::IEvent&){++translated;});
+        poller.poll_events([&](Salix::IEvent&){++translated;});
+        CHECK(translated==1);
+    }
+}
+

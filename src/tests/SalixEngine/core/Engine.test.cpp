@@ -1,4 +1,5 @@
 #include <doctest.h>
+#include <Salix/core/InitContext.h>
 #include <Salix/core/Engine.h>
 #include <Salix/core/EngineMode.h>
 #include <memory>
@@ -1070,6 +1071,145 @@ TEST_SUITE("Salix::core::EngineBatch7578") {
         Batch7578EngineDummyRun run(Salix::RendererType::OpenGL, 757, 578);
         auto* window = run.engine.get_renderer()->get_window(); REQUIRE(window != nullptr);
         CHECK(window->get_dpi_scale() == doctest::Approx(1.0f));
+    }
+}
+
+namespace {
+struct Batch7678WindowsVideoGuard {
+    bool had_video = false;
+    bool had_render = false;
+    std::string old_video;
+    std::string old_render;
+
+    Batch7678WindowsVideoGuard() {
+        if (const char* value = SDL_getenv("SDL_VIDEODRIVER")) { had_video = true; old_video = value; }
+        if (const char* value = SDL_getenv("SDL_RENDER_DRIVER")) { had_render = true; old_render = value; }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "windows", 1);
+        _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+
+    ~Batch7678WindowsVideoGuard() {
+        SDL_Quit();
+        if (had_video) SDL_setenv("SDL_VIDEODRIVER", old_video.c_str(), 1); else _putenv_s("SDL_VIDEODRIVER", "");
+        if (had_render) SDL_setenv("SDL_RENDER_DRIVER", old_render.c_str(), 1); else _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+};
+
+struct Batch7678NativeEngineRun {
+    Batch7678WindowsVideoGuard driver;
+    Salix::Engine engine;
+    Salix::ApplicationConfig config;
+    bool initialized = false;
+
+    Batch7678NativeEngineRun(
+        Salix::AppStateType state = Salix::AppStateType::Launch,
+        Salix::TimerType timer = Salix::TimerType::SDL,
+        Salix::GuiType gui = Salix::GuiType::None) {
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = gui;
+        config.initial_state = state;
+        config.timer_type = timer;
+        config.target_fps = 60;
+        config.window_config.title = "Batch7678 Native SDL";
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+        initialized = engine.initialize(config);
+    }
+
+    ~Batch7678NativeEngineRun() { engine.shutdown(); }
+};
+}
+
+TEST_SUITE("Salix::core::EngineBatch7678") {
+    TEST_CASE("batch7678 native SDL launch initialization reaches running engine") {
+        Batch7678NativeEngineRun run;
+        REQUIRE(run.initialized);
+        CHECK(run.engine.is_running());
+        CHECK(run.engine.get_mode() == Salix::EngineMode::Launch);
+    }
+    TEST_CASE("batch7678 native SDL initialization materializes core subsystems") {
+        Batch7678NativeEngineRun run;
+        REQUIRE(run.initialized);
+        CHECK(run.engine.get_renderer() != nullptr);
+        CHECK(run.engine.get_asset_manager() != nullptr);
+        CHECK(run.engine.get_event_manager() != nullptr);
+        CHECK(run.engine.get_input_manager() != nullptr);
+    }
+    TEST_CASE("batch7678 native SDL chrono timer initialization reaches launch state") {
+        Batch7678NativeEngineRun run(Salix::AppStateType::Launch, Salix::TimerType::Chrono);
+        REQUIRE(run.initialized);
+        CHECK(run.engine.get_mode() == Salix::EngineMode::Launch);
+    }
+    TEST_CASE("batch7678 native SDL options initialization reaches options mode") {
+        Batch7678NativeEngineRun run(Salix::AppStateType::Options, Salix::TimerType::SDL);
+        REQUIRE(run.initialized);
+        CHECK(run.engine.get_mode() == Salix::EngineMode::Options);
+    }
+    TEST_CASE("batch7678 native SDL make context exposes initialized renderer and window") {
+        Batch7678NativeEngineRun run;
+        REQUIRE(run.initialized);
+        const Salix::InitContext context = run.engine.make_context();
+        CHECK(context.engine == &run.engine);
+        CHECK(context.renderer != nullptr);
+        CHECK(context.window != nullptr);
+        CHECK(context.event_manager != nullptr);
+        CHECK(context.project_manager != nullptr);
+    }
+    TEST_CASE("batch7678 native SDL state switch from launch to options remains live") {
+        Batch7678NativeEngineRun run;
+        REQUIRE(run.initialized);
+        run.engine.switch_state(Salix::AppStateType::Options);
+        CHECK(run.engine.get_mode() == Salix::EngineMode::Options);
+        CHECK(run.engine.is_running());
+    }
+    TEST_CASE("batch7678 native SDL state switch back to launch remains live") {
+        Batch7678NativeEngineRun run(Salix::AppStateType::Options);
+        REQUIRE(run.initialized);
+        run.engine.switch_state(Salix::AppStateType::Launch);
+        CHECK(run.engine.get_mode() == Salix::EngineMode::Launch);
+        CHECK(run.engine.is_running());
+    }
+    TEST_CASE("batch7678 native SDL invalid timer reaches post renderer timer rejection") {
+        Batch7678WindowsVideoGuard driver;
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = Salix::GuiType::None;
+        config.initial_state = Salix::AppStateType::Launch;
+        config.timer_type = static_cast<Salix::TimerType>(7678);
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+        CHECK_FALSE(engine.initialize(config));
+        CHECK(engine.get_renderer() != nullptr);
+        engine.shutdown();
+    }
+    TEST_CASE("batch7678 native SDL unsupported GUI reaches post DLL GUI rejection") {
+        Batch7678WindowsVideoGuard driver;
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = static_cast<Salix::GuiType>(7678);
+        config.initial_state = Salix::AppStateType::Launch;
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+        CHECK_FALSE(engine.initialize(config));
+        CHECK(engine.get_renderer() != nullptr);
+        engine.shutdown();
+    }
+    TEST_CASE("batch7678 native SDL None initial state reaches final state creation rejection") {
+        Batch7678WindowsVideoGuard driver;
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = Salix::GuiType::None;
+        config.initial_state = Salix::AppStateType::None;
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+        CHECK_FALSE(engine.initialize(config));
+        CHECK_FALSE(engine.is_running());
+        CHECK(engine.get_renderer() != nullptr);
+        engine.shutdown();
     }
 }
 

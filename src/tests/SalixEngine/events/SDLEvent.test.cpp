@@ -1,4 +1,6 @@
 #include <doctest.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <Salix/events/EventManager.h>
 #include <vector>
 #include <Salix/events/sdl/SDLEventPoller.h>
 #include <Salix/events/sdl/SDLEvent.h>
@@ -242,6 +244,81 @@ TEST_SUITE("Salix::events::SDLEventBatch7578") {
     TEST_CASE("batch7578 clone inside callback preserves concrete event name") {
         Batch7578SDLEventQueue queue; Salix::SDLEventPoller poller; SDL_Event e{}; e.type=SDL_KEYDOWN; e.key.keysym.sym=SDLK_RETURN; REQUIRE(SDL_PushEvent(&e)==1);
         poller.poll_events([&](Salix::IEvent& event){ auto copy=event.clone(); REQUIRE(copy!=nullptr); CHECK(std::string(copy->get_name())==std::string(event.get_name())); CHECK(copy->get_category_flags()==event.get_category_flags()); });
+    }
+}
+
+namespace {
+void batch7678_dispatch_polled_event_through_dll(
+    SDL_Event event,
+    Salix::EventCategory category,
+    Salix::OpenGLRenderer& renderer,
+    Salix::EventManager& manager) {
+    Salix::SDLEventPoller poller;
+    manager.subscribe(category, &renderer);
+    REQUIRE(SDL_PushEvent(&event) == 1);
+    poller.poll_events([&](Salix::IEvent& translated) {
+        manager.dispatch(translated);
+    });
+    manager.process_queue();
+    CHECK(manager.is_queue_empty());
+}
+}
+
+TEST_SUITE("Salix::events::SDLEventBatch7678") {
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 mouse moved virtuals execute through DLL listener") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_MOUSEMOTION; e.motion.x=76; e.motion.y=78;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Mouse, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 mouse scrolled virtuals execute through DLL listener") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_MOUSEWHEEL; e.wheel.x=7; e.wheel.y=8;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Mouse, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 mouse pressed virtuals execute through DLL listener") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Mouse, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 mouse released virtuals execute through DLL listener") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_MOUSEBUTTONUP; e.button.button=SDL_BUTTON_RIGHT;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Mouse, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 zero width resize virtuals execute without GL viewport") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_WINDOWEVENT; e.window.event=SDL_WINDOWEVENT_RESIZED; e.window.data1=0; e.window.data2=78;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Application, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 zero height resize virtuals execute without GL viewport") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_WINDOWEVENT; e.window.event=SDL_WINDOWEVENT_SIZE_CHANGED; e.window.data1=76; e.window.data2=0;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Application, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 negative resize converts to unsigned and avoids viewport through zero height") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_WINDOWEVENT; e.window.event=SDL_WINDOWEVENT_RESIZED; e.window.data1=-1; e.window.data2=0;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Application, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 mouse moved clone path supports negative coordinates") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_MOUSEMOTION; e.motion.x=-76; e.motion.y=-78;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Input, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 mouse wheel clone path supports negative offsets") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager;
+        SDL_Event e{}; e.type=SDL_MOUSEWHEEL; e.wheel.x=-7; e.wheel.y=-8;
+        batch7678_dispatch_polled_event_through_dll(e, Salix::EventCategory::Input, renderer, manager);
+    }
+    TEST_CASE_FIXTURE(Batch7578SDLEventQueue, "batch7678 mixed mouse category dispatch remains queue clean") {
+        Salix::OpenGLRenderer renderer; Salix::EventManager manager; Salix::SDLEventPoller poller;
+        manager.subscribe(Salix::EventCategory::Mouse, &renderer);
+        SDL_Event a{}; a.type=SDL_MOUSEBUTTONDOWN; a.button.button=SDL_BUTTON_MIDDLE;
+        SDL_Event b{}; b.type=SDL_MOUSEMOTION; b.motion.x=1; b.motion.y=2;
+        REQUIRE(SDL_PushEvent(&a)==1); REQUIRE(SDL_PushEvent(&b)==1);
+        poller.poll_events([&](Salix::IEvent& event){ manager.dispatch(event); });
+        manager.process_queue();
+        CHECK(manager.is_queue_empty());
     }
 }
 

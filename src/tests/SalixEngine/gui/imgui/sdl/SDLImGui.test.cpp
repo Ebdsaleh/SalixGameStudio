@@ -1,4 +1,10 @@
 #include <doctest.h>
+#include <cstdlib>
+#include <filesystem>
+#include <imgui.h>
+#include <Salix/events/IEventListener.h>
+#include <Salix/events/ImGuiInputEvent.h>
+#include <Salix/events/EventManager.h>
 #include <Salix/gui/DialogBox.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/core/ApplicationConfig.h>
@@ -145,6 +151,146 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7578") {
         REQUIRE(gui.is_dialog_open(key));
         CHECK_NOTHROW(gui.display_dialogs());
         CHECK_FALSE(gui.is_dialog_open(key));
+    }
+}
+
+namespace {
+struct Batch7678SDLImGuiBackend {
+    bool had_video = false;
+    bool had_render = false;
+    std::string old_video;
+    std::string old_render;
+    SDL_Window* raw_window = nullptr;
+    SDL_Renderer* raw_renderer = nullptr;
+    MockIWindow window;
+    MockIRenderer renderer;
+    Salix::ApplicationConfig config;
+    Salix::SDLImGui gui;
+    bool ready = false;
+
+    Batch7678SDLImGuiBackend() {
+        if (const char* value = SDL_getenv("SDL_VIDEODRIVER")) { had_video = true; old_video = value; }
+        if (const char* value = SDL_getenv("SDL_RENDER_DRIVER")) { had_render = true; old_render = value; }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
+        SDL_setenv("SDL_RENDER_DRIVER", "software", 1);
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) return;
+        raw_window = SDL_CreateWindow("Batch7678 SDLImGui", 0, 0, 96, 64, SDL_WINDOW_HIDDEN);
+        if (!raw_window) return;
+        raw_renderer = SDL_CreateRenderer(raw_window, -1, SDL_RENDERER_SOFTWARE);
+        if (!raw_renderer) return;
+        window.native_handle = raw_window;
+        window.width = 96;
+        window.height = 64;
+        renderer.native_handle = raw_renderer;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+        gui.set_app_config(&config);
+        ready = gui.initialize(&window, &renderer, nullptr, nullptr, nullptr);
+    }
+
+    ~Batch7678SDLImGuiBackend() {
+        if (ready && ImGui::GetCurrentContext()) gui.shutdown();
+        if (raw_renderer) SDL_DestroyRenderer(raw_renderer);
+        if (raw_window) SDL_DestroyWindow(raw_window);
+        SDL_Quit();
+        if (had_video) SDL_setenv("SDL_VIDEODRIVER", old_video.c_str(), 1); else _putenv_s("SDL_VIDEODRIVER", "");
+        if (had_render) SDL_setenv("SDL_RENDER_DRIVER", old_render.c_str(), 1); else _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+};
+
+class Batch7678ImGuiListener final : public Salix::IEventListener {
+public:
+    void on_event(Salix::IEvent& event) override {
+        if (auto* input = dynamic_cast<Salix::ImGuiInputEvent*>(&event)) {
+            ++count;
+            mouse = input->is_mouse_captured();
+            keyboard = input->is_keyboard_captured();
+            text = input->to_string();
+        }
+    }
+    int count = 0;
+    bool mouse = false;
+    bool keyboard = false;
+    std::string text;
+};
+}
+
+TEST_SUITE("Salix::gui::SDLImGuiBatch7678") {
+    TEST_CASE("batch7678 real dummy SDL backend initializes successfully") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        CHECK(fixture.gui.get_context() != nullptr);
+    }
+    TEST_CASE("batch7678 successful SDL backend retains wired window and renderer interfaces") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        CHECK(fixture.gui.get_window() == &fixture.window);
+        CHECK(fixture.gui.get_renderer() == &fixture.renderer);
+    }
+    TEST_CASE("batch7678 successful SDL backend new frame and render complete") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        CHECK_NOTHROW(fixture.gui.new_frame());
+        CHECK_NOTHROW(fixture.gui.render());
+    }
+    TEST_CASE("batch7678 successful SDL backend dispatches ImGui input event") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        Salix::EventManager events;
+        Batch7678ImGuiListener listener;
+        events.subscribe(Salix::EventCategory::Input, &listener);
+        fixture.gui.setup_event_polling(nullptr, nullptr);
+        MockIEventPoller poller;
+        fixture.gui.setup_event_polling(&poller, &events);
+        fixture.gui.new_frame();
+        fixture.gui.render();
+        events.process_queue();
+        CHECK(listener.count == 1);
+    }
+    TEST_CASE("batch7678 successful SDL backend cursor visibility toggles config flag") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        fixture.gui.set_mouse_cursor_visible(false);
+        CHECK((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) != 0);
+        fixture.gui.set_mouse_cursor_visible(true);
+        CHECK((ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_NoMouseCursorChange) == 0);
+    }
+    TEST_CASE("batch7678 successful SDL backend reinitializes renderer backend") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        CHECK_NOTHROW(fixture.gui.reinitialize_backend());
+    }
+    TEST_CASE("batch7678 successful SDL backend saves layout file") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        const auto path = std::filesystem::temp_directory_path() / "batch7678_sdl_imgui.ini";
+        fixture.gui.save_layout(path.string());
+        CHECK(std::filesystem::exists(path));
+        std::error_code ec; std::filesystem::remove(path, ec);
+    }
+    TEST_CASE("batch7678 successful SDL backend loads layout file") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        const auto path = std::filesystem::temp_directory_path() / "batch7678_sdl_imgui_load.ini";
+        { std::ofstream out(path); out << "[Window][Batch7678]\nPos=0,0\nSize=96,64\nCollapsed=0\n"; }
+        CHECK_NOTHROW(fixture.gui.load_layout(path.string()));
+        std::error_code ec; std::filesystem::remove(path, ec);
+    }
+    TEST_CASE("batch7678 successful SDL backend opens and tracks save dialog") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        REQUIRE(fixture.gui.open_save_file_dialog("Save7678", "Save", ".txt", ".", "x.txt"));
+        CHECK(fixture.gui.is_dialog_open("Save7678"));
+        ImGuiFileDialog::Instance()->Close();
+    }
+    TEST_CASE("batch7678 successful SDL backend opens and tracks folder dialog") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+        REQUIRE(fixture.gui.open_folder_dialog("Folder7678", "Folder", "."));
+        CHECK(fixture.gui.is_dialog_open("Folder7678"));
+        ImGuiFileDialog::Instance()->Close();
     }
 }
 

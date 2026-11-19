@@ -1,4 +1,11 @@
 #include <doctest.h>
+#include <cstdlib>
+#include <SDL.h>
+#include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
+#include <Tests/SalixEngine/mocking/window/MockIWindow.h>
+#include <Salix/events/IEventListener.h>
+#include <Salix/events/EventManager.h>
+#include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/events/ImGuiInputEvent.h>
 #include <Salix/events/IEvent.h>
 #include <memory>
@@ -250,3 +257,137 @@ TEST_SUITE("Salix::events::ImGuiInputEventBatch6547") {
         CHECK(event.to_string() == before);
     }
 }
+
+namespace {
+struct Batch7678ImGuiEventBackend {
+    SDL_Window* raw_window = nullptr;
+    SDL_Renderer* raw_renderer = nullptr;
+    MockIWindow window;
+    MockIRenderer renderer;
+    Salix::ApplicationConfig config;
+    Salix::SDLImGui gui;
+    Salix::EventManager events;
+    bool ready = false;
+
+    Batch7678ImGuiEventBackend() {
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "dummy", 1);
+        SDL_setenv("SDL_RENDER_DRIVER", "software", 1);
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) != 0) return;
+        raw_window = SDL_CreateWindow("Batch7678 ImGui Event", 0, 0, 64, 48, SDL_WINDOW_HIDDEN);
+        if (!raw_window) return;
+        raw_renderer = SDL_CreateRenderer(raw_window, -1, SDL_RENDERER_SOFTWARE);
+        if (!raw_renderer) return;
+        window.native_handle = raw_window;
+        renderer.native_handle = raw_renderer;
+        config.renderer_type = Salix::RendererType::SDL;
+        gui.set_app_config(&config);
+        ready = gui.initialize(&window, &renderer, nullptr, nullptr, nullptr);
+        if (ready) {
+            static MockIEventPoller poller;
+            gui.setup_event_polling(&poller, &events);
+        }
+    }
+
+    ~Batch7678ImGuiEventBackend() {
+        if (ready && ImGui::GetCurrentContext()) gui.shutdown();
+        if (raw_renderer) SDL_DestroyRenderer(raw_renderer);
+        if (raw_window) SDL_DestroyWindow(raw_window);
+        SDL_Quit();
+        _putenv_s("SDL_VIDEODRIVER", "");
+        _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+};
+
+class Batch7678CaptureInspector final : public Salix::IEventListener {
+public:
+    void on_event(Salix::IEvent& event) override {
+        auto* input = dynamic_cast<Salix::ImGuiInputEvent*>(&event);
+        if (!input) return;
+        ++count;
+        mouse = input->is_mouse_captured();
+        keyboard = input->is_keyboard_captured();
+        text = input->to_string();
+        type = input->get_event_type();
+        name = input->get_name();
+        flags = input->get_category_flags();
+        clone = input->clone();
+    }
+    int count = 0;
+    bool mouse = false;
+    bool keyboard = false;
+    std::string text;
+    Salix::EventType type = Salix::EventType::None;
+    std::string name;
+    int flags = 0;
+    std::unique_ptr<Salix::IEvent> clone;
+};
+
+void batch7678_emit_imgui_input(
+    Batch7678ImGuiEventBackend& fixture,
+    Batch7678CaptureInspector& inspector,
+    bool mouse,
+    bool keyboard) {
+    fixture.events.subscribe(Salix::EventCategory::Input, &inspector);
+    ImGui::GetIO().WantCaptureMouse = mouse;
+    ImGui::GetIO().WantCaptureKeyboard = keyboard;
+    fixture.gui.new_frame();
+    fixture.gui.render();
+    fixture.events.process_queue();
+}
+}
+
+TEST_SUITE("Salix::events::ImGuiInputEventBatch7678") {
+    TEST_CASE("batch7678 DLL generated ImGui event reports no capture") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, false, false);
+        CHECK(inspector.count==1); CHECK_FALSE(inspector.mouse); CHECK_FALSE(inspector.keyboard);
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event reports mouse capture") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, true, false);
+        CHECK(inspector.mouse); CHECK_FALSE(inspector.keyboard);
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event reports keyboard capture") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, false, true);
+        CHECK_FALSE(inspector.mouse); CHECK(inspector.keyboard);
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event reports both captures") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, true, true);
+        CHECK(inspector.mouse); CHECK(inspector.keyboard);
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event exposes expected type") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, true, false);
+        CHECK(inspector.type==Salix::EventType::ImGuiInput);
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event exposes expected name") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, false, true);
+        CHECK(inspector.name=="ImGuiInput");
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event exposes input category") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, false, false);
+        CHECK(inspector.flags==static_cast<int>(Salix::EventCategory::Input));
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event string contains mouse state") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, true, false);
+        CHECK(inspector.text.find("Mouse Captured = 1")!=std::string::npos);
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event string contains keyboard state") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, false, true);
+        CHECK(inspector.text.find("Keyboard Captured = 1")!=std::string::npos);
+    }
+    TEST_CASE("batch7678 DLL generated ImGui event clone preserves type") {
+        Batch7678ImGuiEventBackend fixture; REQUIRE(fixture.ready); Batch7678CaptureInspector inspector;
+        batch7678_emit_imgui_input(fixture, inspector, true, true);
+        REQUIRE(inspector.clone!=nullptr);
+        CHECK(inspector.clone->get_event_type()==Salix::EventType::ImGuiInput);
+    }
+}
+

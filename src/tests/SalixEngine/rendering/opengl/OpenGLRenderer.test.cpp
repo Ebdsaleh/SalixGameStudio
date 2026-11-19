@@ -1,4 +1,5 @@
 #include <doctest.h>
+#include <Tests/SalixEngine/mocking/rendering/MockITexture.h>
 #include <Salix/ecs/Transform.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Salix/rendering/IRenderer.h>
@@ -116,6 +117,55 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch7578") {
         CHECK_NOTHROW(renderer.bind_framebuffer(7578u));
         CHECK_NOTHROW(renderer.delete_framebuffer(7578u));
         CHECK_NOTHROW(renderer.end_render_pass());
+    }
+}
+
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch7678") {
+    TEST_CASE("batch7678 null texture draw rectangle path returns safely") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.draw_texture(nullptr, Salix::Rect{0, 0, 32, 16}));
+    }
+    TEST_CASE("batch7678 null texture draw path accepts negative rectangle") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.draw_texture(nullptr, Salix::Rect{-7, -6, 5, 4}));
+    }
+    TEST_CASE("batch7678 null texture draw path accepts zero extent") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.draw_texture(nullptr, Salix::Rect{7, 6, 0, 0}));
+    }
+    TEST_CASE("batch7678 transform sprite rejects non OpenGL texture before GL state") {
+        Salix::OpenGLRenderer renderer;
+        MockITexture texture;
+        Salix::Transform transform;
+        CHECK_NOTHROW(renderer.draw_sprite(&texture, &transform, Salix::Color{}, Salix::SpriteFlip::None));
+    }
+    TEST_CASE("batch7678 transform sprite rejects non OpenGL texture with horizontal flip") {
+        Salix::OpenGLRenderer renderer;
+        MockITexture texture;
+        Salix::Transform transform;
+        CHECK_NOTHROW(renderer.draw_sprite(&texture, &transform, Salix::Color{}, Salix::SpriteFlip::Horizontal));
+    }
+    TEST_CASE("batch7678 matrix sprite rejects non OpenGL texture before camera access") {
+        Salix::OpenGLRenderer renderer;
+        MockITexture texture;
+        CHECK_NOTHROW(renderer.draw_sprite(&texture, glm::mat4(1.0f), Salix::Color{}));
+    }
+    TEST_CASE("batch7678 purge nonnull generic texture deletes through interface") {
+        Salix::OpenGLRenderer renderer;
+        auto* texture = new MockITexture();
+        CHECK_NOTHROW(renderer.purge_texture(texture));
+    }
+    TEST_CASE("batch7678 zero width resize avoids GL viewport") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.on_window_resize(0, 7678));
+    }
+    TEST_CASE("batch7678 zero height resize avoids GL viewport") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.on_window_resize(7678, 0));
+    }
+    TEST_CASE("batch7678 negative resize avoids GL viewport") {
+        Salix::OpenGLRenderer renderer;
+        CHECK_NOTHROW(renderer.on_window_resize(-76, -78));
     }
 }
 

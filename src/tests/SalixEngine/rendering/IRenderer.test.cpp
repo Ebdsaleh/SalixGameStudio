@@ -293,3 +293,88 @@ TEST_SUITE("Salix::rendering::IRendererBatch7578") {
     }
 }
 
+namespace {
+struct Batch7678RendererNativeGuard {
+    bool had_video = false;
+    std::string old_video;
+    Batch7678RendererNativeGuard() {
+        if (const char* value = SDL_getenv("SDL_VIDEODRIVER")) { had_video = true; old_video = value; }
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER", "windows", 1);
+        _putenv_s("SDL_RENDER_DRIVER", "");
+    }
+    ~Batch7678RendererNativeGuard() {
+        SDL_Quit();
+        if (had_video) SDL_setenv("SDL_VIDEODRIVER", old_video.c_str(), 1); else _putenv_s("SDL_VIDEODRIVER", "");
+    }
+};
+
+struct Batch7678NativeSDLRenderer {
+    Batch7678RendererNativeGuard driver;
+    Salix::Engine engine;
+    bool initialized = false;
+    Batch7678NativeSDLRenderer() {
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = Salix::GuiType::None;
+        config.initial_state = Salix::AppStateType::Launch;
+        config.window_config.title = "Batch7678 IRenderer";
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+        initialized = engine.initialize(config);
+    }
+    ~Batch7678NativeSDLRenderer() { engine.shutdown(); }
+    Salix::IRenderer* renderer() { return engine.get_renderer(); }
+};
+}
+
+TEST_SUITE("Salix::rendering::IRendererBatch7678") {
+    TEST_CASE("batch7678 native SDL renderer exposes nonnull native handles") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized); REQUIRE(run.renderer() != nullptr);
+        CHECK(run.renderer()->get_native_handle() != nullptr);
+        CHECK(run.renderer()->get_sdl_window() != nullptr);
+    }
+    TEST_CASE("batch7678 native SDL renderer clear executes against live backend") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        CHECK_NOTHROW(run.renderer()->clear());
+    }
+    TEST_CASE("batch7678 native SDL renderer begin and end frame execute") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        CHECK_NOTHROW(run.renderer()->begin_frame());
+        CHECK_NOTHROW(run.renderer()->end_frame());
+    }
+    TEST_CASE("batch7678 native SDL renderer missing texture returns null") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        CHECK(run.renderer()->load_texture("__batch7678_missing_texture__.png") == nullptr);
+    }
+    TEST_CASE("batch7678 native SDL renderer null draw texture remains safe") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        CHECK_NOTHROW(run.renderer()->draw_texture(nullptr, Salix::Rect{0,0,32,32}));
+    }
+    TEST_CASE("batch7678 native SDL renderer sprite stub remains safe") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        Salix::Transform transform;
+        CHECK_NOTHROW(run.renderer()->draw_sprite(nullptr, &transform, Salix::Color{}, Salix::SpriteFlip::Both));
+    }
+    TEST_CASE("batch7678 native SDL renderer positive resize updates logical backend") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        CHECK_NOTHROW(run.renderer()->on_window_resize(80, 48));
+    }
+    TEST_CASE("batch7678 native SDL renderer framebuffer bind unbind delete stubs remain safe") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        CHECK_NOTHROW(run.renderer()->bind_framebuffer(7678u));
+        CHECK_NOTHROW(run.renderer()->unbind_framebuffer());
+        CHECK_NOTHROW(run.renderer()->delete_framebuffer(7678u));
+    }
+    TEST_CASE("batch7678 native SDL renderer framebuffer creation remains unsupported zero") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        CHECK(run.renderer()->create_framebuffer(80, 48) == 0u);
+        CHECK(run.renderer()->get_framebuffer_texture_id(7678u) == static_cast<ImTextureID>(0));
+    }
+    TEST_CASE("batch7678 native SDL renderer fixed pixels per unit survives setter") {
+        Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
+        run.renderer()->set_pixels_per_unit(76.78f);
+        CHECK(run.renderer()->get_pixels_per_unit() == doctest::Approx(1.0f));
+    }
+}
+
