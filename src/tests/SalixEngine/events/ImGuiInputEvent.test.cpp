@@ -1,4 +1,5 @@
 #include <doctest.h>
+#include <Tests/SalixEngine/mocking/events/MockIEventPoller.h>
 #include <cstdlib>
 #include <SDL.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>

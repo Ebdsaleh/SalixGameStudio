@@ -1,6 +1,7 @@
 #include <doctest.h>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
 #include <imgui.h>
 #include <Salix/events/IEventListener.h>
 #include <Salix/events/ImGuiInputEvent.h>
