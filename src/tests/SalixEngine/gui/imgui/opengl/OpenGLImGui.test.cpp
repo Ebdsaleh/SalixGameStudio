@@ -12,6 +12,7 @@
 #include <Salix/events/EventManager.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/core/ApplicationConfig.h>
+#include <Salix/input/ImGuiInputManager.h>
 #include <Tests/SalixEngine/mocking/window/MockIWindow.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
 #include <Tests/SalixEngine/mocking/events/MockIEventPoller.h>
@@ -456,31 +457,41 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch8278") {
 }
 
 namespace {
-struct Batch8378OpenGLTwoContexts {
+struct Batch8378OpenGLForeignContext {
     Batch7778OpenGLImGuiFixture primary;
-    Salix::OpenGLImGui secondary;
-    bool secondary_ready=false;
-    Batch8378OpenGLTwoContexts() {
-        if(!primary.gui_ready)return;
-        secondary.set_app_config(&primary.config);
-        secondary_ready=secondary.initialize(primary.renderer.get_window(),&primary.renderer,nullptr,nullptr,nullptr);
+    ImGuiContext* previous_test=ImGui::GetCurrentContext();
+    ImGuiContext* previous_engine=nullptr;
+    ImGuiContext* foreign=nullptr;
+
+    Batch8378OpenGLForeignContext() {
+        previous_engine=Salix::ImGuiInputManager::get_context_for_testing();
+        foreign=ImGui::CreateContext();
     }
-    void shutdown_primary(){ primary.gui.shutdown(); primary.gui_ready=false; }
-    void shutdown_secondary(){ secondary.shutdown(); secondary_ready=false; }
-    ~Batch8378OpenGLTwoContexts(){ if(secondary_ready)secondary.shutdown(); }
+    void activate_foreign() {
+        ImGui::SetCurrentContext(foreign);
+        Salix::ImGuiInputManager::set_context_for_testing(foreign);
+    }
+    void shutdown_primary() {
+        primary.gui.shutdown();
+        primary.gui_ready=false;
+    }
+    ~Batch8378OpenGLForeignContext() {
+        Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
+        ImGui::DestroyContext(foreign);
+        ImGui::SetCurrentContext(previous_test);
+    }
 };
 }
 
 TEST_SUITE("Salix::gui::OpenGLImGuiBatch8378") {
-    TEST_CASE("batch8378 OpenGL shutdown switches from a different current context to owned context") { Batch8378OpenGLTwoContexts f; REQUIRE(f.primary.gui_ready); REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.get_context()!=f.secondary.get_context()); f.shutdown_primary(); CHECK(f.primary.gui.get_context()==nullptr); }
-    TEST_CASE("batch8378 OpenGL shutdown restores second live context ownership") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); auto* second=f.secondary.get_context(); REQUIRE(second); f.shutdown_primary(); CHECK(f.secondary.get_context()==second); }
-    TEST_CASE("batch8378 OpenGL second context remains frame capable after first shutdown") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK_NOTHROW(f.secondary.new_frame()); CHECK_NOTHROW(f.secondary.render()); }
-    TEST_CASE("batch8378 OpenGL first shutdown with registered callback preserves second context") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.primary.gui.setup_event_polling(&f.primary.poller,&f.primary.events); REQUIRE(f.primary.poller.raw_callback_count()==1u); f.shutdown_primary(); CHECK(f.primary.poller.raw_callback_count()==0u); CHECK(f.secondary.get_context()!=nullptr); }
-    TEST_CASE("batch8378 OpenGL first shutdown with dialog registry preserves second context") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.register_dialog(std::make_unique<Salix::DialogBox>("GL8378","G",Salix::DialogType::File,false))); f.shutdown_primary(); CHECK(f.secondary.get_context()!=nullptr); }
-    TEST_CASE("batch8378 OpenGL repeated shutdown reaches already cleared context guard") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK_NOTHROW(f.primary.gui.shutdown()); CHECK(f.primary.gui.get_context()==nullptr); }
-    TEST_CASE("batch8378 OpenGL second context can shut down after first context") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); f.shutdown_secondary(); CHECK(f.secondary.get_context()==nullptr); }
-    TEST_CASE("batch8378 OpenGL first shutdown preserves shared renderer window") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK(f.primary.renderer.get_window()!=nullptr); CHECK(f.secondary.get_window()==f.primary.renderer.get_window()); }
-    TEST_CASE("batch8378 OpenGL first shutdown after theme reload request preserves second") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.primary.gui.request_theme_reload(); f.shutdown_primary(); CHECK(f.secondary.get_context()!=nullptr); }
-    TEST_CASE("batch8378 OpenGL both distinct contexts finish cleanly") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.get_context()!=f.secondary.get_context()); f.shutdown_primary(); f.shutdown_secondary(); CHECK(f.primary.gui.get_context()==nullptr); CHECK(f.secondary.get_context()==nullptr); }
+    TEST_CASE("batch8378 OpenGL shutdown switches from foreign current context to owned context") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); auto* owned=f.primary.gui.get_context(); REQUIRE(owned); REQUIRE(f.foreign!=owned); f.activate_foreign(); REQUIRE(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); f.shutdown_primary(); CHECK(f.primary.gui.get_context()==nullptr); }
+    TEST_CASE("batch8378 OpenGL shutdown restores foreign current context") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 OpenGL renderer window survives foreign-context shutdown") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); f.activate_foreign(); f.shutdown_primary(); CHECK(f.primary.renderer.get_window()!=nullptr); }
+    TEST_CASE("batch8378 OpenGL foreign-context shutdown unregisters callback") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); f.primary.gui.setup_event_polling(&f.primary.poller,&f.primary.events); REQUIRE(f.primary.poller.raw_callback_count()==1u); f.activate_foreign(); f.shutdown_primary(); CHECK(f.primary.poller.raw_callback_count()==0u); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 OpenGL foreign-context shutdown after dialog registry is controlled") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); REQUIRE(f.primary.gui.register_dialog(std::make_unique<Salix::DialogBox>("GL8378","G",Salix::DialogType::File,false))); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 OpenGL repeated shutdown preserves foreign current context") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); f.activate_foreign(); f.shutdown_primary(); CHECK_NOTHROW(f.primary.gui.shutdown()); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 OpenGL foreign-context shutdown after theme reload remains controlled") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); f.primary.gui.request_theme_reload(); REQUIRE(f.primary.gui.is_theme_reload_requested()); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 OpenGL foreign-context shutdown after cursor toggle remains controlled") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); f.primary.gui.set_mouse_cursor_visible(false); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 OpenGL foreign-context shutdown after layout save remains controlled") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); auto p=std::filesystem::temp_directory_path()/"batch8378_gl_foreign.ini"; f.primary.gui.save_layout(p.string()); REQUIRE(std::filesystem::exists(p)); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); std::error_code ec;std::filesystem::remove(p,ec); }
+    TEST_CASE("batch8378 OpenGL foreign context remains independently destroyable after GUI shutdown") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); auto* foreign=f.foreign; f.activate_foreign(); f.shutdown_primary(); REQUIRE(Salix::ImGuiInputManager::get_context_for_testing()==foreign); CHECK(f.primary.gui.get_context()==nullptr); }
 }
-
