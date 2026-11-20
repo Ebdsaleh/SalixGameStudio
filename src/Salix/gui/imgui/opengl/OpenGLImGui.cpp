@@ -123,10 +123,11 @@ namespace Salix {
         // 4. Then platform (SDL)
         ImGui_ImplSDL2_Shutdown();  // Now fully protected
 
-        // 5. Finally core context
-        if (ImGui::GetCurrentContext())
-            ImGui::DestroyContext();
-        pimpl->context = nullptr;
+        // 5. Finally destroy the context owned by this GUI instance.
+        if (pimpl->context) {
+            ImGui::DestroyContext(pimpl->context);
+            pimpl->context = nullptr;
+        }
     }
 
 
