@@ -1121,3 +1121,16 @@ TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch5747") {
     }
 }
 
+
+TEST_SUITE("Salix::reflection::PropertyHandleYamlBatch8478") {
+    TEST_CASE("batch8478 invalid property type read reaches YAML fallback") {
+        YAML::Node node;
+        node["Invalid8478"] = 8478;
+        const auto invalid_type = static_cast<Salix::PropertyType>(8478);
+        Salix::PropertyHandleYaml handle(batch1047_yaml_property("Invalid8478", invalid_type), &node);
+        const auto value = handle.get_value();
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+        CHECK(node["Invalid8478"].as<int>() == 8478);
+    }
+}
