@@ -1750,3 +1750,16 @@ TEST_SUITE("Salix::management::ProjectManagerBatch8178") {
     TEST_CASE("batch8178 empty shutdown leaves active project null") { Salix::ProjectManager m;m.shutdown();CHECK(m.get_active_project()==nullptr); }
 }
 
+TEST_SUITE("Salix::management::ProjectManagerBatch8278") {
+    TEST_CASE("batch8278 missing bool project remains false") { Salix::ProjectManager m;CHECK_FALSE(m.load_project("__missing8278a__.salixproj")); }
+    TEST_CASE("batch8278 missing pointer project remains null") { Salix::ProjectManager m;CHECK(m.load_project_from_file("__missing8278b__.salixproj")==nullptr); }
+    TEST_CASE("batch8278 scalar JSON bool project remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"a8278.salixproj","8278");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8278 scalar JSON pointer project remains null") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"b8278.salixproj","-8278");Salix::ProjectManager m;CHECK(m.load_project_from_file(p.string())==nullptr); }
+    TEST_CASE("batch8278 quoted JSON bool project remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"c8278.salixproj","\"8278\"");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8278 quoted JSON pointer project remains null") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"d8278.salixproj","\"project\"");Salix::ProjectManager m;CHECK(m.load_project_from_file(p.string())==nullptr); }
+    TEST_CASE("batch8278 null JSON bool project remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"e8278.salixproj","null");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8278 null JSON pointer project remains null") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"f8278.salixproj","null");Salix::ProjectManager m;CHECK(m.load_project_from_file(p.string())==nullptr); }
+    TEST_CASE("batch8278 pending metadata remains independent") { Salix::ProjectManager m;m.set_project_to_load("P8278");m.set_loaded_project_directory("D8278");CHECK(m.get_project_to_load()=="P8278");CHECK(m.get_loaded_project_directory()=="D8278"); }
+    TEST_CASE("batch8278 empty manager update render shutdown remain controlled") { Salix::ProjectManager m;CHECK_NOTHROW(m.update(8.278f));CHECK_NOTHROW(m.render(nullptr));CHECK_NOTHROW(m.shutdown());CHECK(m.get_active_project()==nullptr); }
+}
+

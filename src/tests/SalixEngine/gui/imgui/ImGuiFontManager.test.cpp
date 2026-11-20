@@ -1498,3 +1498,38 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch8178") {
     TEST_CASE("batch8178 empty registry exposes no families") { Salix::ImGuiFontManager m; CHECK(m.get_unique_font_families().empty()); }
 }
 
+namespace {
+void batch8278_expect_missing_public_font_load(const std::string& name, float size) {
+    Batch6947FontManagerContext context;
+    Salix::ImGuiFontManager manager;
+    CHECK_FALSE(manager.load_font_from_file(
+        (std::filesystem::temp_directory_path()/("__missing_batch8278_"+name+".ttf")).string(),
+        name,size,false));
+    CHECK(manager.get_font(name)==nullptr);
+}
+void batch8278_expect_directory_batch_failure(const std::string& family, float size) {
+    Batch6947FontManagerContext context;
+    Salix::ApplicationConfig config; config.renderer_type=Salix::RendererType::None; config.gui_settings.global_dpi_scaling=1.0f;
+    MockIGui gui; gui.set_app_config(&config); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);
+    Salix::ImGuiFontManager manager; REQUIRE(manager.initialize(&gui));
+    const auto dir=std::filesystem::temp_directory_path()/("Salix_Batch8278_FontDir_"+family);
+    std::error_code ec; std::filesystem::create_directories(dir,ec); REQUIRE_FALSE(ec);
+    manager.create_font_batch(dir.string(),family,size,size);
+    CHECK(manager.get_font_registry().empty());
+    std::filesystem::remove_all(dir,ec);
+}
+}
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch8278") {
+    TEST_CASE("batch8278 public font loader rejects missing file at six pixels") { batch8278_expect_missing_public_font_load("Missing8278A",6.0f); }
+    TEST_CASE("batch8278 public font loader rejects missing file at twelve pixels") { batch8278_expect_missing_public_font_load("Missing8278B",12.0f); }
+    TEST_CASE("batch8278 public font loader rejects missing file at seventy two pixels") { batch8278_expect_missing_public_font_load("Missing8278C",72.0f); }
+    TEST_CASE("batch8278 public font loader missing file never registers requested name") { batch8278_expect_missing_public_font_load("Missing8278D",18.0f); }
+    TEST_CASE("batch8278 public font loader missing file remains repeatable") { batch8278_expect_missing_public_font_load("Missing8278E",24.0f); }
+    TEST_CASE("batch8278 font batch directory path reaches private loader failure at eight pixels") { batch8278_expect_directory_batch_failure("Dir8278A",8.0f); }
+    TEST_CASE("batch8278 font batch directory path reaches private loader failure at ten pixels") { batch8278_expect_directory_batch_failure("Dir8278B",10.0f); }
+    TEST_CASE("batch8278 font batch directory path reaches private loader failure at fourteen pixels") { batch8278_expect_directory_batch_failure("Dir8278C",14.0f); }
+    TEST_CASE("batch8278 font batch directory path reaches private loader failure at twenty pixels") { batch8278_expect_directory_batch_failure("Dir8278D",20.0f); }
+    TEST_CASE("batch8278 font batch directory failure leaves no active font") { batch8278_expect_directory_batch_failure("Dir8278E",16.0f); }
+}
+

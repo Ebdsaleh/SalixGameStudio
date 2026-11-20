@@ -442,3 +442,16 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch8178") {
     TEST_CASE("batch8178 OpenGL initialized context is nonnull before shutdown") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); REQUIRE(f.gui.get_context()!=nullptr); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
 }
 
+TEST_SUITE("Salix::gui::OpenGLImGuiBatch8278") {
+    TEST_CASE("batch8278 OpenGL owned context is cleared by direct shutdown") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* owned=f.gui.get_context(); REQUIRE(owned); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 OpenGL owned context shutdown remains safe after frame") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.new_frame(); f.gui.render(); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 OpenGL owned context shutdown remains safe after backend rebuild") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.reinitialize_backend(); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 OpenGL owned context shutdown unregisters callback") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.setup_event_polling(&f.poller,&f.events); REQUIRE(f.poller.raw_callback_count()==1u); f.gui.shutdown(); f.gui_ready=false; CHECK(f.poller.raw_callback_count()==0u); }
+    TEST_CASE("batch8278 OpenGL owned context shutdown after save dialog is controlled") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); REQUIRE(f.gui.open_save_file_dialog("GL8278Save","Save",".txt",".","x.txt")); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 OpenGL owned context shutdown after folder dialog is controlled") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); REQUIRE(f.gui.open_folder_dialog("GL8278Folder","Folder",".")); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 OpenGL owned context shutdown after registered dialog is controlled") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); REQUIRE(f.gui.register_dialog(std::make_unique<Salix::DialogBox>("GL8278Reg","R",Salix::DialogType::File,false))); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 OpenGL shutdown leaves renderer window alive for fixture cleanup") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.shutdown(); f.gui_ready=false; CHECK(f.renderer.get_window()!=nullptr); }
+    TEST_CASE("batch8278 OpenGL context starts nonnull and finishes null") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); REQUIRE(f.gui.get_context()!=nullptr); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 OpenGL shutdown after theme reload handshake is controlled") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.request_theme_reload(); REQUIRE(f.gui.is_theme_reload_requested()); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+}
+

@@ -1277,3 +1277,16 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch8178") {
     TEST_CASE("batch8178 default theme retains owned data") { Salix::ImGuiTheme t; REQUIRE(t.get_data()!=nullptr); CHECK(t.get_data()->get_gui_type()=="ImGui"); }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeBatch8278") {
+    TEST_CASE("batch8278 theme roundtrip preserves hover short delay") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8278A");a.get_data()->hover_delay_short=.8278f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->hover_delay_short==doctest::Approx(.8278f)); }
+    TEST_CASE("batch8278 theme roundtrip preserves hover normal delay") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8278B");a.get_data()->hover_delay_normal=1.8278f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->hover_delay_normal==doctest::Approx(1.8278f)); }
+    TEST_CASE("batch8278 theme roundtrip preserves cursor scale") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8278C");a.get_data()->mouse_cursor_scale=2.8278f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->mouse_cursor_scale==doctest::Approx(2.8278f)); }
+    TEST_CASE("batch8278 theme roundtrip preserves anti alias fill false") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8278D");a.get_data()->anti_aliased_fill=false;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK_FALSE(b.get_data()->anti_aliased_fill); }
+    TEST_CASE("batch8278 theme roundtrip preserves tab rounding") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8278E");a.get_data()->tab_rounding=8.278f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->tab_rounding==doctest::Approx(8.278f)); }
+    TEST_CASE("batch8278 theme missing file remains controlled") { Salix::ImGuiTheme t("T8278F");CHECK_FALSE(t.load_from_yaml("__missing_theme_8278__.yaml"));CHECK(t.get_name()=="T8278F"); }
+    TEST_CASE("batch8278 theme malformed map remains controlled") { Batch1147ThemeTempFile f;f.write("StyleFloats: [bad\n");Salix::ImGuiTheme t("T8278G");CHECK_FALSE(t.load_from_yaml(f.path.string())); }
+    TEST_CASE("batch8278 theme directory save remains controlled") { auto d=std::filesystem::temp_directory_path()/"Theme8278Dir";std::error_code ec;std::filesystem::create_directories(d,ec);Salix::ImGuiTheme t("T8278H");CHECK_FALSE(t.save_to_yaml(d.string()));std::filesystem::remove_all(d,ec); }
+    TEST_CASE("batch8278 theme apply preserves finite alpha") { Batch6947ThemeContext c;Salix::ImGuiTheme t("T8278I");t.get_data()->alpha=.8278f;MockIGui g;g.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);t.apply(&g);CHECK(ImGui::GetStyle().Alpha==doctest::Approx(.8278f)); }
+    TEST_CASE("batch8278 fresh theme always owns data") { Salix::ImGuiTheme t("T8278J");REQUIRE(t.get_data()!=nullptr);CHECK(t.get_data()->get_gui_type()=="ImGui"); }
+}
+

@@ -1498,3 +1498,97 @@ TEST_SUITE("Salix::core::EngineBatch8178") {
     TEST_CASE("batch8178 missing theme explicit shutdown clears asset manager") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.shutdown(); f.initialized=false; CHECK(f.engine.get_asset_manager()==nullptr); }
 }
 
+namespace {
+struct Batch8278DllOverride {
+    std::filesystem::path directory;
+    std::filesystem::path target;
+    std::filesystem::path backup;
+    bool ready=false;
+
+    Batch8278DllOverride(const std::string& target_name, const std::string& replacement_name = {}) {
+        char* raw_base = SDL_GetBasePath();
+        directory = raw_base ? std::filesystem::path(raw_base) : std::filesystem::current_path();
+        if (raw_base) SDL_free(raw_base);
+        target = directory / target_name;
+        backup = target;
+        backup += ".batch8278_backup";
+
+        std::error_code ec;
+        if (!std::filesystem::exists(target) && std::filesystem::exists(backup)) {
+            std::filesystem::rename(backup, target, ec);
+            if (ec) return;
+        }
+        ec.clear();
+        std::filesystem::remove(backup, ec);
+        ec.clear();
+        if (!std::filesystem::exists(target)) return;
+        std::filesystem::rename(target, backup, ec);
+        if (ec) return;
+
+        if (!replacement_name.empty()) {
+            const auto replacement = directory / replacement_name;
+            if (!std::filesystem::is_regular_file(replacement)) {
+                std::filesystem::rename(backup, target, ec);
+                return;
+            }
+            ec.clear();
+            std::filesystem::copy_file(replacement, target, std::filesystem::copy_options::overwrite_existing, ec);
+            if (ec) {
+                ec.clear();
+                std::filesystem::rename(backup, target, ec);
+                return;
+            }
+        }
+        ready=true;
+    }
+
+    ~Batch8278DllOverride() {
+        if (!ready) return;
+        std::error_code ec;
+        if (std::filesystem::exists(target)) std::filesystem::remove(target, ec);
+        ec.clear();
+        if (std::filesystem::exists(backup)) std::filesystem::rename(backup, target, ec);
+    }
+};
+
+struct Batch8278EngineDllFailure {
+    Batch7678WindowsVideoGuard driver;
+    Batch8278DllOverride dll;
+    Salix::Engine engine;
+    bool initialized=false;
+
+    Batch8278EngineDllFailure(
+        const std::string& target_name,
+        const std::string& replacement_name = {},
+        Salix::AppStateType state = Salix::AppStateType::Launch,
+        Salix::TimerType timer = Salix::TimerType::SDL)
+        : dll(target_name, replacement_name) {
+        if (!dll.ready) return;
+        Salix::ApplicationConfig config;
+        config.renderer_type=Salix::RendererType::SDL;
+        config.gui_type=Salix::GuiType::None;
+        config.initial_state=state;
+        config.timer_type=timer;
+        config.target_fps=60;
+        config.window_config.title="Batch8278 DLL Failure";
+        config.window_config.width=96;
+        config.window_config.height=64;
+        initialized=engine.initialize(config);
+    }
+    ~Batch8278EngineDllFailure(){ engine.shutdown(); }
+};
+}
+
+TEST_SUITE("Salix::core::EngineBatch8278") {
+    TEST_CASE("batch8278 missing Game DLL reaches controlled initialization failure") { Batch8278EngineDllFailure f("Game.dll"); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK_FALSE(f.engine.is_running()); }
+    TEST_CASE("batch8278 missing Game DLL still leaves initialized renderer available for cleanup") { Batch8278EngineDllFailure f("Game.dll","",Salix::AppStateType::Options); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_renderer()!=nullptr); }
+    TEST_CASE("batch8278 plugin substituted for Game DLL reaches missing game factory failure") { Batch8278EngineDllFailure f("Game.dll","Batch7376ScriptPlugin.dll"); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK_FALSE(f.engine.is_running()); }
+    TEST_CASE("batch8278 plugin substituted for Game DLL preserves asset manager for cleanup") { Batch8278EngineDllFailure f("Game.dll","Batch7376ScriptPlugin.dll",Salix::AppStateType::Options,Salix::TimerType::Chrono); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_asset_manager()!=nullptr); }
+    TEST_CASE("batch8278 missing editor DLL reaches controlled initialization failure") { Batch8278EngineDllFailure f("SalixEditor.dll"); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK_FALSE(f.engine.is_running()); }
+    TEST_CASE("batch8278 missing editor DLL retains event manager until cleanup") { Batch8278EngineDllFailure f("SalixEditor.dll","",Salix::AppStateType::Options); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_event_manager()!=nullptr); }
+    TEST_CASE("batch8278 plugin substituted for editor DLL reaches missing editor factory failure") { Batch8278EngineDllFailure f("SalixEditor.dll","Batch7376ScriptPlugin.dll"); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK_FALSE(f.engine.is_running()); }
+    TEST_CASE("batch8278 plugin substituted for editor DLL retains renderer until cleanup") { Batch8278EngineDllFailure f("SalixEditor.dll","Batch7376ScriptPlugin.dll",Salix::AppStateType::Options,Salix::TimerType::Chrono); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_renderer()!=nullptr); }
+    TEST_CASE("batch8278 missing Game DLL chrono path remains controlled") { Batch8278EngineDllFailure f("Game.dll","",Salix::AppStateType::Launch,Salix::TimerType::Chrono); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_event_manager()!=nullptr); }
+    TEST_CASE("batch8278 missing editor DLL chrono path retains asset manager for cleanup") { Batch8278EngineDllFailure f("SalixEditor.dll","",Salix::AppStateType::Launch,Salix::TimerType::Chrono); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_asset_manager()!=nullptr); }
+}
+

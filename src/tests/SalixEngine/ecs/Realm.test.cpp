@@ -1639,3 +1639,16 @@ TEST_SUITE("Salix::ecs::RealmBatch7578") {
     }
 }
 
+TEST_SUITE("Salix::ecs::RealmBatch8278") {
+    TEST_CASE("batch8278 missing realm file remains null") { Salix::InitContext c{};CHECK(Salix::Realm::load_from_file("__missing8278__.realm",c)==nullptr); }
+    TEST_CASE("batch8278 directory realm input remains null") { Batch7047RealmFile f("Dir8278");Salix::InitContext c{};CHECK(Salix::Realm::load_from_file(f.root.string(),c)==nullptr); }
+    TEST_CASE("batch8278 realm save beneath missing parent remains false") { Batch7047RealmFile f("Missing8278");Salix::Realm r("R8278","x");CHECK_FALSE(r.save_to_file((f.root/"missing"/"x.realm").string())); }
+    TEST_CASE("batch8278 realm save to directory remains false") { Batch7047RealmFile f("SaveDir8278");Salix::Realm r("R8278","x");CHECK_FALSE(r.save_to_file(f.root.string())); }
+    TEST_CASE("batch8278 unregistered script A remains serialization failure") { batch7478_expect_realm_polymorphic_save_failure("UnregisteredA8278","RealmA8278","EntityA8278"); }
+    TEST_CASE("batch8278 unregistered script B remains serialization failure") { batch7478_expect_realm_polymorphic_save_failure("UnregisteredB8278","RealmB8278","EntityB8278"); }
+    TEST_CASE("batch8278 empty realm roundtrip preserves name") { Batch7047RealmFile f("Round8278");auto p=f.root/"r8278.realm";Salix::Realm a("Round8278",p.string());REQUIRE(a.save_to_file(p.string()));Salix::InitContext c{};auto b=Salix::Realm::load_from_file(p.string(),c);REQUIRE(b);CHECK(b->get_name()=="Round8278"); }
+    TEST_CASE("batch8278 realm metadata setters remain stable") { Salix::Realm r("Before8278","before.realm");r.set_name("After8278");r.set_path("after.realm");CHECK(r.get_name()=="After8278");CHECK(r.get_path()=="after.realm"); }
+    TEST_CASE("batch8278 clear all entities remains idempotent") { Salix::Realm r;REQUIRE(r.create_entity("A8278"));r.clear_all_entities();r.clear_all_entities();CHECK(r.get_entities().empty()); }
+    TEST_CASE("batch8278 purged entity maintain removes entity") { Salix::Realm r;auto* e=r.create_entity("Gone8278");REQUIRE(e);e->simple_purge();r.maintain();CHECK(r.get_entity_by_name("Gone8278")==nullptr); }
+}
+

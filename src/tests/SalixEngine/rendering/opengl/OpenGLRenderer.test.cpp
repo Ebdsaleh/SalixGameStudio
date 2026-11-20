@@ -421,3 +421,16 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch8178") {
     TEST_CASE("batch8178 invalid simple shader shutdown clears native context") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); f.renderer.shutdown(); f.ready=false; CHECK(f.renderer.get_native_handle()==nullptr); }
 }
 
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch8278") {
+    TEST_CASE("batch8278 broken simple shader cube remains guarded with identity matrix") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); MockICamera c; f.renderer.set_active_camera(&c); CHECK_NOTHROW(f.renderer.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch8278 broken simple shader cube remains guarded with scaled matrix") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); MockICamera c; f.renderer.set_active_camera(&c); CHECK_NOTHROW(f.renderer.draw_cube(glm::mat4(8.278f),Salix::Color{})); }
+    TEST_CASE("batch8278 broken simple shader sphere remains guarded at zero segments") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); MockICamera c; f.renderer.set_active_camera(&c); CHECK_NOTHROW(f.renderer.draw_sphere(glm::vec3(0.0f),1.0f,Salix::Color{},0)); }
+    TEST_CASE("batch8278 broken simple shader sphere remains guarded at high segments") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); MockICamera c; f.renderer.set_active_camera(&c); CHECK_NOTHROW(f.renderer.draw_sphere(glm::vec3(1.0f),2.0f,Salix::Color{},32)); }
+    TEST_CASE("batch8278 broken simple shader framebuffer cube remains guarded with full interpolation") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); MockICamera c; f.renderer.set_active_camera(&c); CHECK_NOTHROW(f.renderer.draw_cube(8278u,8728u,1.0f)); }
+    TEST_CASE("batch8278 broken simple shader retains framebuffer creation") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); auto id=f.renderer.create_framebuffer(12,12); REQUIRE(id); CHECK(f.renderer.get_framebuffer_texture_id(id)!=static_cast<ImTextureID>(0)); f.renderer.delete_framebuffer(id); }
+    TEST_CASE("batch8278 broken simple shader retains current framebuffer query") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); CHECK_NOTHROW(f.renderer.get_current_framebuffer_binding()); }
+    TEST_CASE("batch8278 broken simple shader accepts viewport update") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); CHECK_NOTHROW(f.renderer.set_viewport(0,0,64,48)); }
+    TEST_CASE("batch8278 broken simple shader clear depth remains callable") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); CHECK_NOTHROW(f.renderer.clear_depth_buffer()); }
+    TEST_CASE("batch8278 blocked GL log still fails before owning a window") { Batch7978BlockedGLLog cwd; REQUIRE(cwd.ready); Salix::OpenGLRenderer r; Salix::WindowConfig wc; wc.title="Batch8278 blocked"; wc.width=48; wc.height=48; CHECK_FALSE(r.initialize(wc)); CHECK(r.get_window()==nullptr); }
+}
+

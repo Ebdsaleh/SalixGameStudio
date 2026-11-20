@@ -421,3 +421,16 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch8178") {
     TEST_CASE("batch8178 SDL shutdown leaves raw renderer owned by fixture") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.shutdown(); f.ready=false; CHECK(f.raw_renderer!=nullptr); }
 }
 
+TEST_SUITE("Salix::gui::SDLImGuiBatch8278") {
+    TEST_CASE("batch8278 SDL owned context is cleared by direct shutdown") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); REQUIRE(f.gui.get_context()!=nullptr); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 SDL owned context shutdown remains safe after frame") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.new_frame(); f.gui.render(); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 SDL owned context shutdown remains safe after backend rebuild") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.reinitialize_backend(); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 SDL owned context shutdown unregisters callback") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); Salix::EventManager e; f.gui.setup_event_polling(&f.poller,&e); REQUIRE(f.poller.raw_callback_count()==1u); f.gui.shutdown(); f.ready=false; CHECK(f.poller.raw_callback_count()==0u); }
+    TEST_CASE("batch8278 SDL explicit viewport flag platform update remains controlled") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); REQUIRE(f.gui.get_context()); f.gui.get_context()->IO.ConfigFlags|=ImGuiConfigFlags_ViewportsEnable; f.gui.new_frame(); f.gui.render(); CHECK_NOTHROW(f.gui.update_and_render_platform_windows()); f.gui.get_context()->IO.ConfigFlags&=~ImGuiConfigFlags_ViewportsEnable; }
+    TEST_CASE("batch8278 SDL shutdown after save dialog is controlled") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); REQUIRE(f.gui.open_save_file_dialog("SDL8278Save","Save",".txt",".","x.txt")); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 SDL shutdown after folder dialog is controlled") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); REQUIRE(f.gui.open_folder_dialog("SDL8278Folder","Folder",".")); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 SDL shutdown after registered dialog is controlled") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); REQUIRE(f.gui.register_dialog(std::make_unique<Salix::DialogBox>("SDL8278Reg","R",Salix::DialogType::File,false))); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8278 SDL shutdown leaves fixture renderer alive") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.shutdown(); f.ready=false; CHECK(f.raw_renderer!=nullptr); }
+    TEST_CASE("batch8278 SDL shutdown after theme reload handshake is controlled") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.request_theme_reload(); REQUIRE(f.gui.is_theme_reload_requested()); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+}
+

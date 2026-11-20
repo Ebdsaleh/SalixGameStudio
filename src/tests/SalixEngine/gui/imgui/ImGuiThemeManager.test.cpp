@@ -1115,3 +1115,16 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch8078") {
     TEST_CASE("batch8078 shutdown empty manager remains idempotent") { Salix::ImGuiThemeManager m; m.shutdown(); m.shutdown(); CHECK(m.get_registered_themes().empty()); CHECK(m.get_active_theme()==nullptr); }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch8278") {
+    TEST_CASE("batch8278 theme manager rejects null registration") { Salix::ImGuiThemeManager m;std::unique_ptr<Salix::ITheme> t;CHECK_FALSE(m.register_theme(std::move(t))); }
+    TEST_CASE("batch8278 theme manager rejects missing apply") { Salix::ImGuiThemeManager m;CHECK_FALSE(m.apply_theme("Missing8278")); }
+    TEST_CASE("batch8278 theme manager rejects missing active selection") { Salix::ImGuiThemeManager m;CHECK_FALSE(m.set_active_theme("Missing8278")); }
+    TEST_CASE("batch8278 theme manager rejects missing purge") { Salix::ImGuiThemeManager m;CHECK_FALSE(m.purge_theme("Missing8278")); }
+    TEST_CASE("batch8278 theme manager rejects missing unregister") { Salix::ImGuiThemeManager m;CHECK_FALSE(m.unregister_theme("Missing8278")); }
+    TEST_CASE("batch8278 theme manager loads minimal internal theme") { Batch1947ThemeDirectory d;auto p=d.path/"i8278.theme";{std::ofstream o(p);o<<"name: Internal8278\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_internal_theme_from_file(p.string(),false));CHECK(m.get_theme("Internal8278")!=nullptr); }
+    TEST_CASE("batch8278 theme manager loads requested named theme") { Batch1947ThemeDirectory d;auto p=d.path/"n8278.theme";{std::ofstream o(p);o<<"name: File8278\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_theme_from_file("Named8278",p.string(),false));CHECK(m.get_theme("Named8278")!=nullptr); }
+    TEST_CASE("batch8278 theme manager malformed internal theme remains false") { Batch1947ThemeDirectory d;auto p=d.path/"bad8278.theme";{std::ofstream o(p);o<<"Colors: [bad\n";}Salix::ImGuiThemeManager m;CHECK_FALSE(m.load_internal_theme_from_file(p.string(),false)); }
+    TEST_CASE("batch8278 theme manager repeated internal load keeps one identity") { Batch1947ThemeDirectory d;auto p=d.path/"dup8278.theme";{std::ofstream o(p);o<<"name: Dup8278\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_internal_theme_from_file(p.string(),false));REQUIRE(m.load_internal_theme_from_file(p.string(),false));CHECK(m.get_registered_themes().size()==1); }
+    TEST_CASE("batch8278 theme manager shutdown clears loaded registry") { Batch1947ThemeDirectory d;auto p=d.path/"s8278.theme";{std::ofstream o(p);o<<"name: Shutdown8278\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_internal_theme_from_file(p.string(),false));m.shutdown();CHECK(m.get_registered_themes().empty()); }
+}
+
