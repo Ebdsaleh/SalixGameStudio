@@ -10,6 +10,7 @@
 #include <Salix/gui/DialogBox.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/core/ApplicationConfig.h>
+#include <Salix/input/ImGuiInputManager.h>
 #include <Tests/SalixEngine/mocking/window/MockIWindow.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
 #include <Tests/SalixEngine/mocking/events/MockIEventPoller.h>
@@ -435,31 +436,41 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch8278") {
 }
 
 namespace {
-struct Batch8378SDLTwoContexts {
+struct Batch8378SDLForeignContext {
     Batch7678SDLImGuiBackend primary;
-    Salix::SDLImGui secondary;
-    bool secondary_ready=false;
-    Batch8378SDLTwoContexts() {
-        if(!primary.ready)return;
-        secondary.set_app_config(&primary.config);
-        secondary_ready=secondary.initialize(&primary.window,&primary.renderer,nullptr,nullptr,nullptr);
+    ImGuiContext* previous_test=ImGui::GetCurrentContext();
+    ImGuiContext* previous_engine=nullptr;
+    ImGuiContext* foreign=nullptr;
+
+    Batch8378SDLForeignContext() {
+        previous_engine=Salix::ImGuiInputManager::get_context_for_testing();
+        foreign=ImGui::CreateContext();
     }
-    void shutdown_primary(){primary.gui.shutdown();primary.ready=false;}
-    void shutdown_secondary(){secondary.shutdown();secondary_ready=false;}
-    ~Batch8378SDLTwoContexts(){if(secondary_ready)secondary.shutdown();}
+    void activate_foreign() {
+        ImGui::SetCurrentContext(foreign);
+        Salix::ImGuiInputManager::set_context_for_testing(foreign);
+    }
+    void shutdown_primary() {
+        primary.gui.shutdown();
+        primary.ready=false;
+    }
+    ~Batch8378SDLForeignContext() {
+        Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
+        ImGui::DestroyContext(foreign);
+        ImGui::SetCurrentContext(previous_test);
+    }
 };
 }
 
 TEST_SUITE("Salix::gui::SDLImGuiBatch8378") {
-    TEST_CASE("batch8378 SDL shutdown switches from second context to owned first context") { Batch8378SDLTwoContexts f; REQUIRE(f.primary.ready); REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.get_context()!=f.secondary.get_context()); f.shutdown_primary(); CHECK(f.primary.gui.get_context()==nullptr); }
-    TEST_CASE("batch8378 SDL shutdown restores second live context") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); auto* second=f.secondary.get_context(); f.shutdown_primary(); CHECK(f.secondary.get_context()==second); }
-    TEST_CASE("batch8378 SDL second context remains frame capable after first shutdown") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK_NOTHROW(f.secondary.new_frame()); CHECK_NOTHROW(f.secondary.render()); }
-    TEST_CASE("batch8378 SDL first shutdown unregisters callback while preserving second") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); Salix::EventManager e; f.primary.gui.setup_event_polling(&f.primary.poller,&e); REQUIRE(f.primary.poller.raw_callback_count()==1u); f.shutdown_primary(); CHECK(f.primary.poller.raw_callback_count()==0u); CHECK(f.secondary.get_context()!=nullptr); }
-    TEST_CASE("batch8378 SDL repeated first shutdown reaches cleared context guard") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK_NOTHROW(f.primary.gui.shutdown()); CHECK(f.primary.gui.get_context()==nullptr); }
-    TEST_CASE("batch8378 SDL second context shuts down after first") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); f.shutdown_secondary(); CHECK(f.secondary.get_context()==nullptr); }
-    TEST_CASE("batch8378 SDL first shutdown preserves raw renderer for second context") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK(f.primary.raw_renderer!=nullptr); CHECK(f.secondary.get_renderer()==&f.primary.renderer); }
+    TEST_CASE("batch8378 SDL shutdown switches from foreign current context to owned context") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); auto* owned=f.primary.gui.get_context(); REQUIRE(owned); REQUIRE(f.foreign!=owned); f.activate_foreign(); REQUIRE(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); f.shutdown_primary(); CHECK(f.primary.gui.get_context()==nullptr); }
+    TEST_CASE("batch8378 SDL shutdown restores foreign current context") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 SDL foreign-context shutdown preserves raw renderer") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); f.activate_foreign(); f.shutdown_primary(); CHECK(f.primary.raw_renderer!=nullptr); }
+    TEST_CASE("batch8378 SDL foreign-context shutdown unregisters callback") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); Salix::EventManager e; f.primary.gui.setup_event_polling(&f.primary.poller,&e); REQUIRE(f.primary.poller.raw_callback_count()==1u); f.activate_foreign(); f.shutdown_primary(); CHECK(f.primary.poller.raw_callback_count()==0u); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 SDL repeated shutdown preserves foreign current context") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); f.activate_foreign(); f.shutdown_primary(); CHECK_NOTHROW(f.primary.gui.shutdown()); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 SDL foreign-context shutdown after registered dialog remains controlled") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); REQUIRE(f.primary.gui.register_dialog(std::make_unique<Salix::DialogBox>("SDL8378","S",Salix::DialogType::File,false))); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 SDL foreign-context shutdown after theme reload remains controlled") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); f.primary.gui.request_theme_reload(); REQUIRE(f.primary.gui.is_theme_reload_requested()); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 SDL foreign-context shutdown after cursor toggle remains controlled") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); f.primary.gui.set_mouse_cursor_visible(false); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); }
+    TEST_CASE("batch8378 SDL foreign-context shutdown after layout save remains controlled") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); auto p=std::filesystem::temp_directory_path()/"batch8378_sdl_foreign.ini"; f.primary.gui.save_layout(p.string()); REQUIRE(std::filesystem::exists(p)); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); std::error_code ec;std::filesystem::remove(p,ec); }
     TEST_CASE("batch8378 SDL null font texture reinitialize follows controlled defensive branch") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto* ctx=f.gui.get_context(); REQUIRE(ctx); auto* saved=ctx->IO.Fonts->TexData; ctx->IO.Fonts->TexData=nullptr; CHECK_NOTHROW(f.gui.reinitialize_backend()); ctx->IO.Fonts->TexData=saved; }
-    TEST_CASE("batch8378 SDL first shutdown after registered dialog preserves second") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.register_dialog(std::make_unique<Salix::DialogBox>("SDL8378","S",Salix::DialogType::File,false))); f.shutdown_primary(); CHECK(f.secondary.get_context()!=nullptr); }
-    TEST_CASE("batch8378 SDL both distinct contexts finish cleanly") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.get_context()!=f.secondary.get_context()); f.shutdown_primary(); f.shutdown_secondary(); CHECK(f.primary.gui.get_context()==nullptr); CHECK(f.secondary.get_context()==nullptr); }
 }
-
