@@ -458,13 +458,12 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch8278") {
 
 namespace {
 struct Batch8378OpenGLForeignContext {
-    Batch7778OpenGLImGuiFixture primary;
     ImGuiContext* previous_test=ImGui::GetCurrentContext();
-    ImGuiContext* previous_engine=nullptr;
+    ImGuiContext* previous_engine=Salix::ImGuiInputManager::get_context_for_testing();
+    Batch7778OpenGLImGuiFixture primary;
     ImGuiContext* foreign=nullptr;
 
     Batch8378OpenGLForeignContext() {
-        previous_engine=Salix::ImGuiInputManager::get_context_for_testing();
         foreign=ImGui::CreateContext();
     }
     void activate_foreign() {
@@ -476,8 +475,12 @@ struct Batch8378OpenGLForeignContext {
         primary.gui_ready=false;
     }
     ~Batch8378OpenGLForeignContext() {
+        if (primary.gui_ready) {
+            primary.gui.shutdown();
+        primary.gui_ready=false;
+        }
         Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
-        ImGui::DestroyContext(foreign);
+        if (foreign) ImGui::DestroyContext(foreign);
         ImGui::SetCurrentContext(previous_test);
     }
 };
