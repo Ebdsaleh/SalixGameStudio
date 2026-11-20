@@ -9,7 +9,11 @@ typedef uint64_t ImTextureID;
 typedef int GLint;
 namespace Salix{
     class Transform;
+    #ifdef SALIX_TESTS_ENABLED
+    class SALIX_API SDLRenderer : public IRenderer {
+    #else
     class SDLRenderer : public IRenderer {
+    #endif
         public:
             SDLRenderer();
             virtual ~SDLRenderer() override;  // Good practice to mark overridan destructers as virtual.
