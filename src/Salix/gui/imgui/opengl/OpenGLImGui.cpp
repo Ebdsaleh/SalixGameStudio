@@ -126,8 +126,11 @@ namespace Salix {
             ImGui::SetCurrentContext(owned_context);
         }
 
-        // 2. Shutdown extensions.
+        // 2. Shutdown extensions. Salix's ImGuizmo::Deinitialize()
+        // intentionally clears ImGui's current context, so restore the owned
+        // context before invoking backend shutdown APIs.
         ImGuizmo::Deinitialize();
+        ImGui::SetCurrentContext(owned_context);
 
         // 3. Then renderer (OpenGL/Vulkan/etc).
         ImGui_ImplOpenGL3_Shutdown();
