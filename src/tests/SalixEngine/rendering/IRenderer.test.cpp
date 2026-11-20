@@ -4,6 +4,7 @@
 #include <Salix/core/ApplicationConfig.h>
 #include <Salix/core/Engine.h>
 #include <Salix/rendering/IRenderer.h>
+#include <Salix/rendering/sdl/SDLRenderer.h>
 #include <Salix/window/WindowConfig.h>
 #include <Salix/ecs/Transform.h>
 #include <Tests/SalixEngine/mocking/rendering/MockIRenderer.h>
@@ -416,4 +417,16 @@ TEST_SUITE("Salix::rendering::IRendererBatch7878") {
     TEST_CASE("batch7878 DLL SDL renderer inherited line width setter accepts zero") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK_NOTHROW(run.renderer()->set_line_width(0.0f));CHECK(run.renderer()->get_line_width()==doctest::Approx(1.0f)); }
     TEST_CASE("batch7878 DLL SDL renderer inherited sphere default accepts negative radius without backend work") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);CHECK_NOTHROW(run.renderer()->draw_sphere(glm::vec3(-1.0f),-7.878f,Salix::Color{},3)); }
     TEST_CASE("batch7878 DLL SDL renderer inherited matrix sprite default accepts transformed matrix") { Batch7678NativeSDLRenderer run;REQUIRE(run.initialized);glm::mat4 model(2.0f);CHECK_NOTHROW(run.renderer()->draw_sprite(nullptr,model,Salix::Color{})); }
+}
+
+TEST_SUITE("Salix::rendering::IRendererBatch8478") {
+    TEST_CASE("batch8478 concrete SDL renderer getter matches native renderer handle") {
+        Batch7678NativeSDLRenderer run;
+        REQUIRE(run.initialized);
+        auto* concrete = dynamic_cast<Salix::SDLRenderer*>(run.renderer());
+        REQUIRE(concrete != nullptr);
+        auto* native_renderer = static_cast<SDL_Renderer*>(run.renderer()->get_native_handle());
+        REQUIRE(native_renderer != nullptr);
+        CHECK(concrete->get_sdl_renderer() == native_renderer);
+    }
 }
