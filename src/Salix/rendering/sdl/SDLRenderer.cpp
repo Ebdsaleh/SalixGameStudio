@@ -38,12 +38,15 @@ namespace Salix {
             return false;
         }
 
-        // 3. Get the native handle and create the actual SDL renderer.
+        // 3. Get the native handle and keep the concrete SDL window pointer
+        // alongside the owning IWindow wrapper for native backend access.
         void* native_handle = pimpl->window->get_native_handle();
-        pimpl->sdl_renderer = SDL_CreateRenderer(static_cast<SDL_Window*>(native_handle), -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        pimpl->sdl_window = static_cast<SDL_Window*>(native_handle);
+        pimpl->sdl_renderer = SDL_CreateRenderer(pimpl->sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 
         if (pimpl->sdl_renderer == nullptr) {
             std::cout << "Renderer::initalize - SDL_CreateRenderer Failed!" << std::endl;
+            pimpl->sdl_window = nullptr;
             pimpl->window.reset();  // Cleanup the window object.
             return false;
         }
@@ -73,7 +76,8 @@ namespace Salix {
             SDL_DestroyRenderer(pimpl->sdl_renderer);
         }
 
-        pimpl->sdl_renderer = nullptr; // Prevent double-deletion  
+        pimpl->sdl_renderer = nullptr; // Prevent double-deletion
+        pimpl->sdl_window = nullptr;
         pimpl->window = nullptr;
     }
 
