@@ -91,8 +91,17 @@ if(WIN32 AND TARGET SalixEngine_tests)
     target_link_libraries(Batch7376NullScriptPlugin PRIVATE SalixEngine)
     target_compile_definitions(Batch7376NullScriptPlugin PRIVATE BATCH7376_NULL_PLUGIN)
 
+    add_library(Batch8378EditorNoContextPlugin SHARED
+        "${CMAKE_CURRENT_SOURCE_DIR}/fixtures/Batch8378EditorNoContextPlugin.cpp"
+    )
+    target_include_directories(Batch8378EditorNoContextPlugin PRIVATE
+        "${CMAKE_SOURCE_DIR}/src"
+    )
+    target_link_libraries(Batch8378EditorNoContextPlugin PRIVATE SalixEngine)
+
     add_dependencies(SalixEngine_tests
         Batch7376ScriptPlugin
         Batch7376NullScriptPlugin
+        Batch8378EditorNoContextPlugin
     )
 endif()

@@ -1763,3 +1763,16 @@ TEST_SUITE("Salix::management::ProjectManagerBatch8278") {
     TEST_CASE("batch8278 empty manager update render shutdown remain controlled") { Salix::ProjectManager m;CHECK_NOTHROW(m.update(8.278f));CHECK_NOTHROW(m.render(nullptr));CHECK_NOTHROW(m.shutdown());CHECK(m.get_active_project()==nullptr); }
 }
 
+TEST_SUITE("Salix::management::ProjectManagerBatch8378") {
+    TEST_CASE("batch8378 missing bool project remains false") { Salix::ProjectManager m;CHECK_FALSE(m.load_project("__missing8378a__.salixproj")); }
+    TEST_CASE("batch8378 missing pointer project remains null") { Salix::ProjectManager m;CHECK(m.load_project_from_file("__missing8378b__.salixproj")==nullptr); }
+    TEST_CASE("batch8378 numeric project remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"a8378.salixproj","8378");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8378 numeric pointer project remains null") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"b8378.salixproj","8378");Salix::ProjectManager m;CHECK(m.load_project_from_file(p.string())==nullptr); }
+    TEST_CASE("batch8378 string project remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"c8378.salixproj","\"8378\"");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8378 null project remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"d8378.salixproj","null");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8378 null pointer project remains null") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"e8378.salixproj","null");Salix::ProjectManager m;CHECK(m.load_project_from_file(p.string())==nullptr); }
+    TEST_CASE("batch8378 metadata setters preserve independent values") { Salix::ProjectManager m;m.set_project_to_load("P8378");m.set_loaded_project_directory("D8378");CHECK(m.get_project_to_load()=="P8378");CHECK(m.get_loaded_project_directory()=="D8378"); }
+    TEST_CASE("batch8378 empty update and render remain safe") { Salix::ProjectManager m;CHECK_NOTHROW(m.update(.8378f));CHECK_NOTHROW(m.render(nullptr)); }
+    TEST_CASE("batch8378 empty shutdown remains idempotent") { Salix::ProjectManager m;m.shutdown();m.shutdown();CHECK(m.get_active_project()==nullptr); }
+}
+

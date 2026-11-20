@@ -434,3 +434,32 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch8278") {
     TEST_CASE("batch8278 SDL shutdown after theme reload handshake is controlled") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.request_theme_reload(); REQUIRE(f.gui.is_theme_reload_requested()); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
 }
 
+namespace {
+struct Batch8378SDLTwoContexts {
+    Batch7678SDLImGuiBackend primary;
+    Salix::SDLImGui secondary;
+    bool secondary_ready=false;
+    Batch8378SDLTwoContexts() {
+        if(!primary.ready)return;
+        secondary.set_app_config(&primary.config);
+        secondary_ready=secondary.initialize(&primary.window,&primary.renderer,nullptr,nullptr,nullptr);
+    }
+    void shutdown_primary(){primary.gui.shutdown();primary.ready=false;}
+    void shutdown_secondary(){secondary.shutdown();secondary_ready=false;}
+    ~Batch8378SDLTwoContexts(){if(secondary_ready)secondary.shutdown();}
+};
+}
+
+TEST_SUITE("Salix::gui::SDLImGuiBatch8378") {
+    TEST_CASE("batch8378 SDL shutdown switches from second context to owned first context") { Batch8378SDLTwoContexts f; REQUIRE(f.primary.ready); REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.get_context()!=f.secondary.get_context()); f.shutdown_primary(); CHECK(f.primary.gui.get_context()==nullptr); }
+    TEST_CASE("batch8378 SDL shutdown restores second live context") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); auto* second=f.secondary.get_context(); f.shutdown_primary(); CHECK(f.secondary.get_context()==second); }
+    TEST_CASE("batch8378 SDL second context remains frame capable after first shutdown") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK_NOTHROW(f.secondary.new_frame()); CHECK_NOTHROW(f.secondary.render()); }
+    TEST_CASE("batch8378 SDL first shutdown unregisters callback while preserving second") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); Salix::EventManager e; f.primary.gui.setup_event_polling(&f.primary.poller,&e); REQUIRE(f.primary.poller.raw_callback_count()==1u); f.shutdown_primary(); CHECK(f.primary.poller.raw_callback_count()==0u); CHECK(f.secondary.get_context()!=nullptr); }
+    TEST_CASE("batch8378 SDL repeated first shutdown reaches cleared context guard") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK_NOTHROW(f.primary.gui.shutdown()); CHECK(f.primary.gui.get_context()==nullptr); }
+    TEST_CASE("batch8378 SDL second context shuts down after first") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); f.shutdown_secondary(); CHECK(f.secondary.get_context()==nullptr); }
+    TEST_CASE("batch8378 SDL first shutdown preserves raw renderer for second context") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK(f.primary.raw_renderer!=nullptr); CHECK(f.secondary.get_renderer()==&f.primary.renderer); }
+    TEST_CASE("batch8378 SDL null font texture reinitialize follows controlled defensive branch") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto* ctx=f.gui.get_context(); REQUIRE(ctx); auto* saved=ctx->IO.Fonts->TexData; ctx->IO.Fonts->TexData=nullptr; CHECK_NOTHROW(f.gui.reinitialize_backend()); ctx->IO.Fonts->TexData=saved; }
+    TEST_CASE("batch8378 SDL first shutdown after registered dialog preserves second") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.register_dialog(std::make_unique<Salix::DialogBox>("SDL8378","S",Salix::DialogType::File,false))); f.shutdown_primary(); CHECK(f.secondary.get_context()!=nullptr); }
+    TEST_CASE("batch8378 SDL both distinct contexts finish cleanly") { Batch8378SDLTwoContexts f; REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.get_context()!=f.secondary.get_context()); f.shutdown_primary(); f.shutdown_secondary(); CHECK(f.primary.gui.get_context()==nullptr); CHECK(f.secondary.get_context()==nullptr); }
+}
+

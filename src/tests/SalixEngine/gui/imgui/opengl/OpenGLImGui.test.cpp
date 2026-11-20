@@ -455,3 +455,32 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch8278") {
     TEST_CASE("batch8278 OpenGL shutdown after theme reload handshake is controlled") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.request_theme_reload(); REQUIRE(f.gui.is_theme_reload_requested()); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
 }
 
+namespace {
+struct Batch8378OpenGLTwoContexts {
+    Batch7778OpenGLImGuiFixture primary;
+    Salix::OpenGLImGui secondary;
+    bool secondary_ready=false;
+    Batch8378OpenGLTwoContexts() {
+        if(!primary.gui_ready)return;
+        secondary.set_app_config(&primary.config);
+        secondary_ready=secondary.initialize(primary.renderer.get_window(),&primary.renderer,nullptr,nullptr,nullptr);
+    }
+    void shutdown_primary(){ primary.gui.shutdown(); primary.gui_ready=false; }
+    void shutdown_secondary(){ secondary.shutdown(); secondary_ready=false; }
+    ~Batch8378OpenGLTwoContexts(){ if(secondary_ready)secondary.shutdown(); }
+};
+}
+
+TEST_SUITE("Salix::gui::OpenGLImGuiBatch8378") {
+    TEST_CASE("batch8378 OpenGL shutdown switches from a different current context to owned context") { Batch8378OpenGLTwoContexts f; REQUIRE(f.primary.gui_ready); REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.get_context()!=f.secondary.get_context()); f.shutdown_primary(); CHECK(f.primary.gui.get_context()==nullptr); }
+    TEST_CASE("batch8378 OpenGL shutdown restores second live context ownership") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); auto* second=f.secondary.get_context(); REQUIRE(second); f.shutdown_primary(); CHECK(f.secondary.get_context()==second); }
+    TEST_CASE("batch8378 OpenGL second context remains frame capable after first shutdown") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK_NOTHROW(f.secondary.new_frame()); CHECK_NOTHROW(f.secondary.render()); }
+    TEST_CASE("batch8378 OpenGL first shutdown with registered callback preserves second context") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.primary.gui.setup_event_polling(&f.primary.poller,&f.primary.events); REQUIRE(f.primary.poller.raw_callback_count()==1u); f.shutdown_primary(); CHECK(f.primary.poller.raw_callback_count()==0u); CHECK(f.secondary.get_context()!=nullptr); }
+    TEST_CASE("batch8378 OpenGL first shutdown with dialog registry preserves second context") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.register_dialog(std::make_unique<Salix::DialogBox>("GL8378","G",Salix::DialogType::File,false))); f.shutdown_primary(); CHECK(f.secondary.get_context()!=nullptr); }
+    TEST_CASE("batch8378 OpenGL repeated shutdown reaches already cleared context guard") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK_NOTHROW(f.primary.gui.shutdown()); CHECK(f.primary.gui.get_context()==nullptr); }
+    TEST_CASE("batch8378 OpenGL second context can shut down after first context") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); f.shutdown_secondary(); CHECK(f.secondary.get_context()==nullptr); }
+    TEST_CASE("batch8378 OpenGL first shutdown preserves shared renderer window") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.shutdown_primary(); CHECK(f.primary.renderer.get_window()!=nullptr); CHECK(f.secondary.get_window()==f.primary.renderer.get_window()); }
+    TEST_CASE("batch8378 OpenGL first shutdown after theme reload request preserves second") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); f.primary.gui.request_theme_reload(); f.shutdown_primary(); CHECK(f.secondary.get_context()!=nullptr); }
+    TEST_CASE("batch8378 OpenGL both distinct contexts finish cleanly") { Batch8378OpenGLTwoContexts f; REQUIRE(f.secondary_ready); REQUIRE(f.primary.gui.get_context()!=f.secondary.get_context()); f.shutdown_primary(); f.shutdown_secondary(); CHECK(f.primary.gui.get_context()==nullptr); CHECK(f.secondary.get_context()==nullptr); }
+}
+

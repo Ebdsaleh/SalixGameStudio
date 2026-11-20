@@ -1128,3 +1128,16 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch8278") {
     TEST_CASE("batch8278 theme manager shutdown clears loaded registry") { Batch1947ThemeDirectory d;auto p=d.path/"s8278.theme";{std::ofstream o(p);o<<"name: Shutdown8278\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_internal_theme_from_file(p.string(),false));m.shutdown();CHECK(m.get_registered_themes().empty()); }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch8378") {
+    TEST_CASE("batch8378 manager null theme registration remains false") { Salix::ImGuiThemeManager m;std::unique_ptr<Salix::ITheme> t;CHECK_FALSE(m.register_theme(std::move(t))); }
+    TEST_CASE("batch8378 manager missing apply remains false") { Salix::ImGuiThemeManager m;CHECK_FALSE(m.apply_theme("Missing8378")); }
+    TEST_CASE("batch8378 manager missing set active remains false") { Salix::ImGuiThemeManager m;CHECK_FALSE(m.set_active_theme("Missing8378")); }
+    TEST_CASE("batch8378 manager missing purge remains false") { Salix::ImGuiThemeManager m;CHECK_FALSE(m.purge_theme("Missing8378")); }
+    TEST_CASE("batch8378 manager missing unregister remains false") { Salix::ImGuiThemeManager m;CHECK_FALSE(m.unregister_theme("Missing8378")); }
+    TEST_CASE("batch8378 manager loads minimal internal theme") { Batch1947ThemeDirectory d;auto p=d.path/"a8378.theme";{std::ofstream o(p);o<<"name: A8378\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_internal_theme_from_file(p.string(),false));CHECK(m.get_theme("A8378")!=nullptr); }
+    TEST_CASE("batch8378 manager named load uses requested identity") { Batch1947ThemeDirectory d;auto p=d.path/"b8378.theme";{std::ofstream o(p);o<<"name: File8378\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_theme_from_file("B8378",p.string(),false));CHECK(m.get_theme("B8378")!=nullptr); }
+    TEST_CASE("batch8378 manager malformed theme remains false") { Batch1947ThemeDirectory d;auto p=d.path/"bad8378.theme";{std::ofstream o(p);o<<"Colors: [bad\n";}Salix::ImGuiThemeManager m;CHECK_FALSE(m.load_internal_theme_from_file(p.string(),false)); }
+    TEST_CASE("batch8378 manager duplicate load retains one theme") { Batch1947ThemeDirectory d;auto p=d.path/"dup8378.theme";{std::ofstream o(p);o<<"name: Dup8378\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_internal_theme_from_file(p.string(),false));REQUIRE(m.load_internal_theme_from_file(p.string(),false));CHECK(m.get_registered_themes().size()==1); }
+    TEST_CASE("batch8378 manager shutdown clears registry") { Batch1947ThemeDirectory d;auto p=d.path/"s8378.theme";{std::ofstream o(p);o<<"name: Shutdown8378\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_internal_theme_from_file(p.string(),false));m.shutdown();CHECK(m.get_registered_themes().empty()); }
+}
+

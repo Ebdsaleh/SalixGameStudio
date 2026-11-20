@@ -434,3 +434,16 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch8278") {
     TEST_CASE("batch8278 blocked GL log still fails before owning a window") { Batch7978BlockedGLLog cwd; REQUIRE(cwd.ready); Salix::OpenGLRenderer r; Salix::WindowConfig wc; wc.title="Batch8278 blocked"; wc.width=48; wc.height=48; CHECK_FALSE(r.initialize(wc)); CHECK(r.get_window()==nullptr); }
 }
 
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch8378") {
+    TEST_CASE("batch8378 fresh renderer cube remains safe without active camera") { Salix::OpenGLRenderer r;CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch8378 fresh renderer cube remains safe with camera and no shader") { Salix::OpenGLRenderer r;MockICamera c;r.set_active_camera(&c);CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch8378 broken shader renderer retains nonnull GL context") { Batch8178BrokenSimpleShader f;REQUIRE(f.ready);CHECK(f.renderer.get_sdl_gl_context()!=nullptr); }
+    TEST_CASE("batch8378 broken shader renderer retains nonnull SDL window") { Batch8178BrokenSimpleShader f;REQUIRE(f.ready);CHECK(f.renderer.get_sdl_window()!=nullptr); }
+    TEST_CASE("batch8378 broken shader renderer cube guard remains stable") { Batch8178BrokenSimpleShader f;REQUIRE(f.ready);MockICamera c;f.renderer.set_active_camera(&c);CHECK_NOTHROW(f.renderer.draw_cube(glm::mat4(8.378f),Salix::Color{})); }
+    TEST_CASE("batch8378 broken shader renderer sphere guard remains stable") { Batch8178BrokenSimpleShader f;REQUIRE(f.ready);MockICamera c;f.renderer.set_active_camera(&c);CHECK_NOTHROW(f.renderer.draw_sphere(glm::vec3(0.0f),.8378f,Salix::Color{},12)); }
+    TEST_CASE("batch8378 broken shader renderer viewport remains callable") { Batch8178BrokenSimpleShader f;REQUIRE(f.ready);CHECK_NOTHROW(f.renderer.set_viewport(1,2,83,78)); }
+    TEST_CASE("batch8378 broken shader renderer frame remains callable") { Batch8178BrokenSimpleShader f;REQUIRE(f.ready);CHECK_NOTHROW(f.renderer.begin_frame());CHECK_NOTHROW(f.renderer.end_frame()); }
+    TEST_CASE("batch8378 broken shader renderer active camera can be cleared") { Batch8178BrokenSimpleShader f;REQUIRE(f.ready);MockICamera c;f.renderer.set_active_camera(&c);f.renderer.set_active_camera(nullptr);CHECK(f.renderer.get_active_camera()==nullptr); }
+    TEST_CASE("batch8378 blocked GL log initialization still fails cleanly") { Batch7978BlockedGLLog cwd;REQUIRE(cwd.ready);Salix::OpenGLRenderer r;Salix::WindowConfig wc;wc.title="Batch8378 blocked";wc.width=83;wc.height=78;CHECK_FALSE(r.initialize(wc)); }
+}
+

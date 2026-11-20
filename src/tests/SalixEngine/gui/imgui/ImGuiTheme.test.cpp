@@ -1290,3 +1290,16 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch8278") {
     TEST_CASE("batch8278 fresh theme always owns data") { Salix::ImGuiTheme t("T8278J");REQUIRE(t.get_data()!=nullptr);CHECK(t.get_data()->get_gui_type()=="ImGui"); }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeBatch8378") {
+    TEST_CASE("batch8378 theme roundtrip preserves disabled alpha") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("A8378");a.get_data()->disabled_alpha=.8378f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->disabled_alpha==doctest::Approx(.8378f)); }
+    TEST_CASE("batch8378 theme roundtrip preserves child rounding") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("B8378");a.get_data()->child_rounding=8.378f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->child_rounding==doctest::Approx(8.378f)); }
+    TEST_CASE("batch8378 theme roundtrip preserves frame rounding") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("C8378");a.get_data()->frame_rounding=3.878f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->frame_rounding==doctest::Approx(3.878f)); }
+    TEST_CASE("batch8378 theme roundtrip preserves popup rounding") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("D8378");a.get_data()->popup_rounding=2.378f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->popup_rounding==doctest::Approx(2.378f)); }
+    TEST_CASE("batch8378 theme malformed YAML remains controlled") { Batch1147ThemeTempFile f;f.write("StyleVec2: [bad\n");Salix::ImGuiTheme t("E8378");CHECK_FALSE(t.load_from_yaml(f.path.string())); }
+    TEST_CASE("batch8378 theme missing YAML keeps identity") { Salix::ImGuiTheme t("F8378");CHECK_FALSE(t.load_from_yaml("__missing8378__.yaml"));CHECK(t.get_name()=="F8378"); }
+    TEST_CASE("batch8378 theme save directory remains false") { auto d=std::filesystem::temp_directory_path()/"Theme8378";std::error_code ec;std::filesystem::create_directories(d,ec);Salix::ImGuiTheme t("G8378");CHECK_FALSE(t.save_to_yaml(d.string()));std::filesystem::remove_all(d,ec); }
+    TEST_CASE("batch8378 theme apply preserves alpha") { Batch6947ThemeContext c;Salix::ImGuiTheme t("H8378");t.get_data()->alpha=.8378f;MockIGui g;g.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);t.apply(&g);CHECK(ImGui::GetStyle().Alpha==doctest::Approx(.8378f)); }
+    TEST_CASE("batch8378 theme explicit path remains metadata") { Salix::ImGuiTheme t("I8378","Themes/I8378.yaml");CHECK(t.get_file_path()=="Themes/I8378.yaml"); }
+    TEST_CASE("batch8378 fresh theme owns ImGui data") { Salix::ImGuiTheme t("J8378");REQUIRE(t.get_data());CHECK(t.get_data()->get_gui_type()=="ImGui"); }
+}
+
