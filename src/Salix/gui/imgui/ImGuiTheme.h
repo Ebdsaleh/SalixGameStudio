@@ -23,6 +23,9 @@ namespace Salix {
         void apply(IGui* gui_system) override;
         bool load_from_yaml(const std::string& file_path) override;
         bool save_to_yaml(const std::string& file_path) const override;
+        #ifdef SALIX_TESTS_ENABLED
+        void clear_data_for_testing();
+        #endif
 
     private:
         struct Pimpl;
