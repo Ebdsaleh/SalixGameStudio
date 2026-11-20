@@ -82,8 +82,12 @@ namespace Salix {
 
     void LaunchState::update(float /*delta_time*/) {
         if (pimpl->is_first_frame) {
-        pimpl->setup_ui();
-        pimpl->is_first_frame = false;
+            // LaunchState is also used by valid GUI-less engine configurations.
+            // Do not build dialog UI unless a GUI system was actually initialized.
+            if (pimpl->context.gui) {
+                pimpl->setup_ui();
+            }
+            pimpl->is_first_frame = false;
         }
 
         pimpl->reset_transition_flags(); 
