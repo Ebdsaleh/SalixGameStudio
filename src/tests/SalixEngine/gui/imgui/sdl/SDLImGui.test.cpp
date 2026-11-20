@@ -437,13 +437,12 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch8278") {
 
 namespace {
 struct Batch8378SDLForeignContext {
-    Batch7678SDLImGuiBackend primary;
     ImGuiContext* previous_test=ImGui::GetCurrentContext();
-    ImGuiContext* previous_engine=nullptr;
+    ImGuiContext* previous_engine=Salix::ImGuiInputManager::get_context_for_testing();
+    Batch7678SDLImGuiBackend primary;
     ImGuiContext* foreign=nullptr;
 
     Batch8378SDLForeignContext() {
-        previous_engine=Salix::ImGuiInputManager::get_context_for_testing();
         foreign=ImGui::CreateContext();
     }
     void activate_foreign() {
@@ -455,8 +454,12 @@ struct Batch8378SDLForeignContext {
         primary.ready=false;
     }
     ~Batch8378SDLForeignContext() {
+        if (primary.ready) {
+            primary.gui.shutdown();
+        primary.ready=false;
+        }
         Salix::ImGuiInputManager::set_context_for_testing(previous_engine);
-        ImGui::DestroyContext(foreign);
+        if (foreign) ImGui::DestroyContext(foreign);
         ImGui::SetCurrentContext(previous_test);
     }
 };
