@@ -1264,3 +1264,16 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch8078") {
     TEST_CASE("batch8078 apply finite rounding updates live ImGui style") { Batch6947ThemeContext c; Salix::ImGuiTheme t("Apply8078"); t.get_data()->window_rounding=8.078f; MockIGui gui; gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr); t.apply(&gui); CHECK(ImGui::GetStyle().WindowRounding==doctest::Approx(8.078f)); }
 }
 
+TEST_SUITE("Salix::gui::ImGuiThemeBatch8178") {
+    TEST_CASE("batch8178 save load preserves alpha zero") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8178A");a.get_data()->alpha=0.0f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->alpha==doctest::Approx(0.0f)); }
+    TEST_CASE("batch8178 save load preserves alpha one") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8178B");a.get_data()->alpha=1.0f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->alpha==doctest::Approx(1.0f)); }
+    TEST_CASE("batch8178 save load preserves negative rounding") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8178C");a.get_data()->window_rounding=-8.178f;REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->window_rounding==doctest::Approx(-8.178f)); }
+    TEST_CASE("batch8178 save load preserves empty font name") { Batch1147ThemeTempFile f;Salix::ImGuiTheme a("T8178D");a.get_data()->default_font_name.clear();REQUIRE(a.save_to_yaml(f.path.string()));Salix::ImGuiTheme b;REQUIRE(b.load_from_yaml(f.path.string()));CHECK(b.get_data()->default_font_name.empty()); }
+    TEST_CASE("batch8178 missing YAML preserves explicit name") { Salix::ImGuiTheme t("Keep8178");CHECK_FALSE(t.load_from_yaml("__missing8178__.yaml"));CHECK(t.get_name()=="Keep8178"); }
+    TEST_CASE("batch8178 malformed YAML remains false") { Batch1147ThemeTempFile f;f.write("Enums: [bad\n");Salix::ImGuiTheme t("Bad8178");CHECK_FALSE(t.load_from_yaml(f.path.string())); }
+    TEST_CASE("batch8178 directory save remains false") { auto d=std::filesystem::temp_directory_path()/"Theme8178Dir";std::error_code ec;std::filesystem::create_directories(d,ec);Salix::ImGuiTheme t("Dir8178");CHECK_FALSE(t.save_to_yaml(d.string()));std::filesystem::remove_all(d,ec); }
+    TEST_CASE("batch8178 apply alpha updates style") { Batch6947ThemeContext c;Salix::ImGuiTheme t("Apply8178A");t.get_data()->alpha=.8178f;MockIGui g;g.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);t.apply(&g);CHECK(ImGui::GetStyle().Alpha==doctest::Approx(.8178f)); }
+    TEST_CASE("batch8178 apply rounding updates style") { Batch6947ThemeContext c;Salix::ImGuiTheme t("Apply8178B");t.get_data()->window_rounding=8.178f;MockIGui g;g.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);t.apply(&g);CHECK(ImGui::GetStyle().WindowRounding==doctest::Approx(8.178f)); }
+    TEST_CASE("batch8178 default theme retains owned data") { Salix::ImGuiTheme t; REQUIRE(t.get_data()!=nullptr); CHECK(t.get_data()->get_gui_type()=="ImGui"); }
+}
+

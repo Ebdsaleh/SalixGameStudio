@@ -408,3 +408,16 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch8078") {
     TEST_CASE("batch8078 SDL GUI theme reload clear remains idempotent") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.clear_theme_reload_request(); f.gui.clear_theme_reload_request(); CHECK_FALSE(f.gui.is_theme_reload_requested()); }
 }
 
+TEST_SUITE("Salix::gui::SDLImGuiBatch8178") {
+    TEST_CASE("batch8178 SDL shutdown clears cached context pointer") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 SDL shutdown after completed frame clears context") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.new_frame(); f.gui.render(); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 SDL shutdown after backend reinit clears context") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.reinitialize_backend(); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 SDL shutdown unregisters raw callback and clears context") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); Salix::EventManager e; f.gui.setup_event_polling(&f.poller,&e); REQUIRE(f.poller.raw_callback_count()==1u); f.gui.shutdown(); f.ready=false; CHECK(f.poller.raw_callback_count()==0u); CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 SDL shutdown after theme reload request clears context") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.request_theme_reload(); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 SDL shutdown after cursor toggle clears context") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.set_mouse_cursor_visible(false); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 SDL shutdown after layout save clears context") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto p=std::filesystem::temp_directory_path()/"batch8178_sdl.ini"; f.gui.save_layout(p.string()); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); std::error_code ec;std::filesystem::remove(p,ec); }
+    TEST_CASE("batch8178 SDL shutdown after dialog registry use clears context") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto d=std::make_unique<Salix::DialogBox>("SDL8178","S",Salix::DialogType::File,false); REQUIRE(f.gui.register_dialog(std::move(d))); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 SDL initialized context is nonnull before shutdown") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); REQUIRE(f.gui.get_context()!=nullptr); f.gui.shutdown(); f.ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 SDL shutdown leaves raw renderer owned by fixture") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.shutdown(); f.ready=false; CHECK(f.raw_renderer!=nullptr); }
+}
+

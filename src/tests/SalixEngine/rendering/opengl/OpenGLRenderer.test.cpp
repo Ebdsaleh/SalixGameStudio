@@ -375,3 +375,49 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch8078") {
     TEST_CASE("batch8078 cube guard remains safe after camera clear and restore") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); r.set_active_camera(nullptr); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); r.set_active_camera(&c); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
 }
 
+namespace {
+struct Batch8178BrokenSimpleShader {
+    std::filesystem::path previous=std::filesystem::current_path();
+    std::filesystem::path root;
+    bool had=false; std::string old;
+    Salix::OpenGLRenderer renderer;
+    bool ready=false;
+    Batch8178BrokenSimpleShader() {
+        auto repo=std::filesystem::absolute(std::filesystem::path(__FILE__)).parent_path();
+        while(repo.has_parent_path()&&!std::filesystem::exists(repo/"Assets"/"Shaders")) repo=repo.parent_path();
+        if(!std::filesystem::exists(repo/"Assets"/"Shaders")) return;
+        static std::atomic<unsigned> seq{0};
+        root=std::filesystem::temp_directory_path()/("Salix_Batch8178_BrokenShader_"+std::to_string(++seq));
+        std::error_code ec;
+        std::filesystem::create_directories(root/"Assets",ec); if(ec)return;
+        std::filesystem::copy(repo/"Assets"/"Shaders",root/"Assets"/"Shaders",std::filesystem::copy_options::recursive|std::filesystem::copy_options::overwrite_existing,ec); if(ec)return;
+        { std::ofstream out(root/"Assets"/"Shaders"/"OpenGL"/"3D"/"simple.vert",std::ios::trunc); }
+        std::filesystem::current_path(root,ec); if(ec)return;
+        if(const char* v=SDL_getenv("SDL_VIDEODRIVER")){had=true;old=v;}
+        SDL_Quit(); SDL_setenv("SDL_VIDEODRIVER","windows",1);
+        if(SDL_Init(SDL_INIT_VIDEO|SDL_INIT_EVENTS)!=0)return;
+        Salix::WindowConfig wc; wc.title="Batch8178 Broken Shader"; wc.width=96; wc.height=64;
+        ready=renderer.initialize(wc);
+    }
+    ~Batch8178BrokenSimpleShader(){
+        if(ready)renderer.shutdown();
+        SDL_Quit();
+        if(had)SDL_setenv("SDL_VIDEODRIVER",old.c_str(),1);else _putenv_s("SDL_VIDEODRIVER","");
+        std::error_code ec; std::filesystem::current_path(previous,ec); if(!root.empty())std::filesystem::remove_all(root,ec);
+    }
+};
+}
+
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch8178") {
+    TEST_CASE("batch8178 invalid simple shader still leaves renderer initialization controlled") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); CHECK(f.renderer.get_window()!=nullptr); }
+    TEST_CASE("batch8178 invalid simple shader cube reaches missing shader guard") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); MockICamera c; f.renderer.set_active_camera(&c); CHECK_NOTHROW(f.renderer.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch8178 invalid simple shader sphere reaches missing shader guard") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); MockICamera c; f.renderer.set_active_camera(&c); CHECK_NOTHROW(f.renderer.draw_sphere(glm::vec3(0.0f),1.0f,Salix::Color{},8)); }
+    TEST_CASE("batch8178 invalid simple shader framebuffer cube reaches missing shader guard") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); MockICamera c; f.renderer.set_active_camera(&c); CHECK_NOTHROW(f.renderer.draw_cube(1u,2u,0.0f)); }
+    TEST_CASE("batch8178 invalid simple shader retains live GL context") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); CHECK(f.renderer.get_sdl_gl_context()!=nullptr); }
+    TEST_CASE("batch8178 invalid simple shader retains SDL window") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); CHECK(f.renderer.get_sdl_window()!=nullptr); }
+    TEST_CASE("batch8178 invalid simple shader can clear frame") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); CHECK_NOTHROW(f.renderer.clear()); }
+    TEST_CASE("batch8178 invalid simple shader can begin and end frame") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); CHECK_NOTHROW(f.renderer.begin_frame()); CHECK_NOTHROW(f.renderer.end_frame()); }
+    TEST_CASE("batch8178 invalid simple shader framebuffer lifecycle remains available") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); auto id=f.renderer.create_framebuffer(8,8); REQUIRE(id); f.renderer.delete_framebuffer(id); }
+    TEST_CASE("batch8178 invalid simple shader shutdown clears native context") { Batch8178BrokenSimpleShader f; REQUIRE(f.ready); f.renderer.shutdown(); f.ready=false; CHECK(f.renderer.get_native_handle()==nullptr); }
+}
+

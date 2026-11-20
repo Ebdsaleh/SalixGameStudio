@@ -358,7 +358,7 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7878") {
     TEST_CASE("batch7878 OpenGL platform update executes with explicit viewport flag after completed frame") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.get_context()!=nullptr);f.gui.get_context()->IO.ConfigFlags|=ImGuiConfigFlags_ViewportsEnable;f.gui.new_frame();f.gui.render();CHECK_NOTHROW(f.gui.update_and_render_platform_windows());f.gui.get_context()->IO.ConfigFlags&=~ImGuiConfigFlags_ViewportsEnable; }
     TEST_CASE("batch7878 OpenGL folder dialog display executes first frame open path") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.open_folder_dialog("GLFolderDisplay7878","Folder","."));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render(); }
     TEST_CASE("batch7878 OpenGL save dialog display executes configured filename path") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);REQUIRE(f.gui.open_save_file_dialog("GLSaveDisplay7878","Save",".txt",".","batch7878.txt"));f.gui.new_frame();CHECK_NOTHROW(f.gui.display_dialogs());f.gui.render(); }
-    TEST_CASE("batch7878 OpenGL explicit shutdown destroys live backend context") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);CHECK_NOTHROW(f.gui.shutdown());f.gui_ready=false;CHECK(f.gui.get_context()!=nullptr); }
+    TEST_CASE("batch7878 OpenGL explicit shutdown destroys live backend context") { Batch7778OpenGLImGuiFixture f;REQUIRE(f.gui_ready);CHECK_NOTHROW(f.gui.shutdown());f.gui_ready=false;CHECK(f.gui.get_context()==nullptr); }
 }
 
 TEST_SUITE("Salix::gui::OpenGLImGuiBatch7978") {
@@ -427,5 +427,18 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch8078") {
     TEST_CASE("batch8078 OpenGL ImGui style remains zero rounded after one completed frame") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.new_frame(); f.gui.render(); auto* c=f.gui.get_context(); REQUIRE(c); CHECK(c->Style.WindowRounding==doctest::Approx(0.0f)); }
     TEST_CASE("batch8078 OpenGL ImGui style remains opaque after backend reinitialize") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.reinitialize_backend(); auto* c=f.gui.get_context(); REQUIRE(c); CHECK(c->Style.Colors[ImGuiCol_WindowBg].w==doctest::Approx(1.0f)); }
     TEST_CASE("batch8078 OpenGL ImGui context pointer stays stable across frame") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* before=f.gui.get_context(); f.gui.new_frame(); f.gui.render(); CHECK(f.gui.get_context()==before); }
+}
+
+TEST_SUITE("Salix::gui::OpenGLImGuiBatch8178") {
+    TEST_CASE("batch8178 OpenGL shutdown clears cached context pointer") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 OpenGL shutdown after completed frame clears context") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.new_frame(); f.gui.render(); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 OpenGL shutdown after backend reinit clears context") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.reinitialize_backend(); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 OpenGL shutdown unregisters raw callback and clears context") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.setup_event_polling(&f.poller,&f.events); REQUIRE(f.poller.raw_callback_count()==1u); f.gui.shutdown(); f.gui_ready=false; CHECK(f.poller.raw_callback_count()==0u); CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 OpenGL shutdown after theme reload request clears context") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.request_theme_reload(); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 OpenGL shutdown after cursor toggle clears context") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.set_mouse_cursor_visible(false); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 OpenGL shutdown after layout save clears context") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto p=std::filesystem::temp_directory_path()/"batch8178_gl.ini"; f.gui.save_layout(p.string()); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); std::error_code ec;std::filesystem::remove(p,ec); }
+    TEST_CASE("batch8178 OpenGL shutdown after dialog registry use clears context") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto d=std::make_unique<Salix::DialogBox>("GL8178","G",Salix::DialogType::File,false); REQUIRE(f.gui.register_dialog(std::move(d))); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
+    TEST_CASE("batch8178 OpenGL shutdown preserves renderer ownership outside GUI") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.shutdown(); f.gui_ready=false; CHECK(f.renderer.get_window()!=nullptr); }
+    TEST_CASE("batch8178 OpenGL initialized context is nonnull before shutdown") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); REQUIRE(f.gui.get_context()!=nullptr); f.gui.shutdown(); f.gui_ready=false; CHECK(f.gui.get_context()==nullptr); }
 }
 

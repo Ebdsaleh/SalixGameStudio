@@ -1416,3 +1416,17 @@ TEST_SUITE("Salix::ecs::CameraBatch6747") {
         CHECK(second.get_projection_mode() == Salix::ProjectionMode::Perspective);
     }
 }
+
+TEST_SUITE("Salix::ecs::CameraBatch8178") {
+    TEST_CASE("batch8178 ownerless view matrix remains identity") { Salix::Camera c; CHECK_FALSE(batch1247_matrix_differs(c.get_view_matrix(),glm::mat4(1.0f))); }
+    TEST_CASE("batch8178 owned camera exposes transform") { Salix::Entity e; Salix::Camera c; c.set_owner(&e); CHECK(c.get_transform()==e.get_transform()); }
+    TEST_CASE("batch8178 owned camera view responds to translation") { Salix::Entity e; Salix::Camera c; c.set_owner(&e); auto before=c.get_view_matrix(); e.get_transform()->set_position(8.0f,1.0f,7.0f); auto after=c.get_view_matrix(); CHECK(batch1247_matrix_differs(before,after)); }
+    TEST_CASE("batch8178 owned camera view responds to rotation") { Salix::Entity e; Salix::Camera c; c.set_owner(&e); auto before=c.get_view_matrix(); e.get_transform()->set_rotation(0.0f,81.78f,0.0f); auto after=c.get_view_matrix(); CHECK(batch1247_matrix_differs(before,after)); }
+    TEST_CASE("batch8178 clearing owner returns null transform") { Salix::Entity e; Salix::Camera c; c.set_owner(&e); c.set_owner(nullptr); CHECK(c.get_transform()==nullptr); }
+    TEST_CASE("batch8178 perspective projection remains finite after viewport") { Salix::Camera c; c.set_viewport_size(817,478); c.set_projection_mode(Salix::ProjectionMode::Perspective); CHECK_NOTHROW(c.get_projection_matrix()); }
+    TEST_CASE("batch8178 orthographic projection remains finite after viewport") { Salix::Camera c; c.set_viewport_size(817,478); c.set_projection_mode(Salix::ProjectionMode::Orthographic); CHECK_NOTHROW(c.get_projection_matrix()); }
+    TEST_CASE("batch8178 zero viewport height preserves projection") { Salix::Camera c; auto before=c.get_projection_matrix(); c.set_viewport_size(8178,0); auto after=c.get_projection_matrix(); CHECK_FALSE(batch1247_matrix_differs(before,after)); }
+    TEST_CASE("batch8178 activation remains independent of view query") { Salix::Camera c; c.activate(); CHECK_NOTHROW(c.get_view_matrix()); CHECK(c.get_is_active()); }
+    TEST_CASE("batch8178 deactivation remains independent of projection query") { Salix::Camera c; c.deactivate(); CHECK_NOTHROW(c.get_projection_matrix()); CHECK_FALSE(c.get_is_active()); }
+}
+

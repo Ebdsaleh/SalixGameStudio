@@ -1737,3 +1737,16 @@ TEST_SUITE("Salix::management::ProjectManagerBatch7978") {
     TEST_CASE("batch7978 truncated numeric array fails pointer project loader") { batch7978_expect_malformed_project_load("j","[1,",true); }
 }
 
+TEST_SUITE("Salix::management::ProjectManagerBatch8178") {
+    TEST_CASE("batch8178 missing bool project load remains false") { Salix::ProjectManager m; CHECK_FALSE(m.load_project("__missing8178a__.salixproj")); }
+    TEST_CASE("batch8178 missing pointer project load remains null") { Salix::ProjectManager m; CHECK(m.load_project_from_file("__missing8178b__.salixproj")==nullptr); }
+    TEST_CASE("batch8178 malformed empty object bool load remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"a8178.salixproj","{}");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8178 malformed empty object pointer load remains null") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"b8178.salixproj","{}");Salix::ProjectManager m;CHECK(m.load_project_from_file(p.string())==nullptr); }
+    TEST_CASE("batch8178 malformed empty array bool load remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"c8178.salixproj","[]");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8178 malformed empty array pointer load remains null") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"d8178.salixproj","[]");Salix::ProjectManager m;CHECK(m.load_project_from_file(p.string())==nullptr); }
+    TEST_CASE("batch8178 malformed boolean bool load remains false") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"e8178.salixproj","true");Salix::ProjectManager m;CHECK_FALSE(m.load_project(p.string())); }
+    TEST_CASE("batch8178 malformed boolean pointer load remains null") { Batch1947ProjectRoot r;auto p=batch7147_write_raw_project(r,"f8178.salixproj","false");Salix::ProjectManager m;CHECK(m.load_project_from_file(p.string())==nullptr); }
+    TEST_CASE("batch8178 metadata setters roundtrip without project") { Salix::ProjectManager m;m.set_project_to_load("P8178");m.set_loaded_project_directory("D8178");CHECK(m.get_project_to_load()=="P8178");CHECK(m.get_loaded_project_directory()=="D8178"); }
+    TEST_CASE("batch8178 empty shutdown leaves active project null") { Salix::ProjectManager m;m.shutdown();CHECK(m.get_active_project()==nullptr); }
+}
+

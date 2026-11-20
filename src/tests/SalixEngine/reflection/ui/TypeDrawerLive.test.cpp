@@ -1250,3 +1250,16 @@ TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch8078") {
     TEST_CASE("batch8078 EnumClass combo selected value stays typed J") { Batch6947DrawerFrame frame; const auto* info=batch7147_projection_type_info(); REQUIRE(info); auto p=batch7347_handle_property("Enum8078J",Salix::PropertyType::EnumClass); p.contained_type_info=info; MockPropertyHandle h(p,Salix::PropertyValue{static_cast<int>(Salix::ProjectionMode::Orthographic)}); REQUIRE(frame.activate_named_combo_item(frame.item_id("Enum8078J"),"Perspective",[&]{Salix::TypeDrawerLive::draw_property("Enum8078J",h);})); CHECK(std::holds_alternative<int>(h.get_value())); }
 }
 
+TEST_SUITE("Salix::reflection::TypeDrawerLiveBatch8178") {
+    TEST_CASE("batch8178 EnumClass Perspective current item is stable A") { batch7978_open_enumclass_current_item("Enum8178A",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch8178 EnumClass Orthographic current item is stable B") { batch7978_open_enumclass_current_item("Enum8178B",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+    TEST_CASE("batch8178 EnumClass Perspective current item is stable C") { batch7978_open_enumclass_current_item("Enum8178C",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch8178 EnumClass Orthographic current item is stable D") { batch7978_open_enumclass_current_item("Enum8178D",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+    TEST_CASE("batch8178 EnumClass Perspective current item is stable E") { batch7978_open_enumclass_current_item("Enum8178E",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch8178 EnumClass Orthographic current item is stable F") { batch7978_open_enumclass_current_item("Enum8178F",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+    TEST_CASE("batch8178 EnumClass Perspective current item is stable G") { batch7978_open_enumclass_current_item("Enum8178G",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch8178 EnumClass Orthographic current item is stable H") { batch7978_open_enumclass_current_item("Enum8178H",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+    TEST_CASE("batch8178 EnumClass Perspective current item is stable I") { batch7978_open_enumclass_current_item("Enum8178I",static_cast<int>(Salix::ProjectionMode::Perspective)); }
+    TEST_CASE("batch8178 EnumClass Orthographic current item is stable J") { batch7978_open_enumclass_current_item("Enum8178J",static_cast<int>(Salix::ProjectionMode::Orthographic)); }
+}
+

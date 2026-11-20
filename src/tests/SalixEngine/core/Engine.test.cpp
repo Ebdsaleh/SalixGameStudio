@@ -1485,3 +1485,16 @@ TEST_SUITE("Salix::core::EngineBatch8078") {
     TEST_CASE("batch8078 missing default theme preserves explicit fractional time scale") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.set_time_scale(0.8078f); CHECK(f.engine.get_time_scale()==doctest::Approx(0.8078f)); }
 }
 
+TEST_SUITE("Salix::core::EngineBatch8178") {
+    TEST_CASE("batch8178 missing theme launch remains running after init") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); CHECK(f.engine.is_running()); }
+    TEST_CASE("batch8178 missing theme options reports options mode") { Batch8078MissingThemeEngine f(Salix::AppStateType::Options); REQUIRE(f.initialized); CHECK(f.engine.get_mode()==Salix::EngineMode::Options); }
+    TEST_CASE("batch8178 missing theme launch exposes renderer") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); CHECK(f.engine.get_renderer()!=nullptr); }
+    TEST_CASE("batch8178 missing theme launch exposes event manager") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); CHECK(f.engine.get_event_manager()!=nullptr); }
+    TEST_CASE("batch8178 missing theme launch accepts zero time scale") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.set_time_scale(0.0f); CHECK(f.engine.get_time_scale()==doctest::Approx(0.0f)); }
+    TEST_CASE("batch8178 missing theme launch accepts negative time scale") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.set_time_scale(-0.8178f); CHECK(f.engine.get_time_scale()==doctest::Approx(-0.8178f)); }
+    TEST_CASE("batch8178 missing theme launch options launch roundtrip") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.switch_state(Salix::AppStateType::Options); f.engine.switch_state(Salix::AppStateType::Launch); CHECK(f.engine.get_mode()==Salix::EngineMode::Launch); }
+    TEST_CASE("batch8178 missing theme explicit stop remains stopped") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.is_running(false); CHECK_FALSE(f.engine.is_running()); }
+    TEST_CASE("batch8178 missing theme explicit shutdown clears event manager") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.shutdown(); f.initialized=false; CHECK(f.engine.get_event_manager()==nullptr); }
+    TEST_CASE("batch8178 missing theme explicit shutdown clears asset manager") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.shutdown(); f.initialized=false; CHECK(f.engine.get_asset_manager()==nullptr); }
+}
+

@@ -1485,3 +1485,16 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch8078") {
     TEST_CASE("batch8078 renderer none atlas rebuild stays unsupported after repeated call") { Salix::ApplicationConfig cfg; cfg.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&cfg); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr); Salix::ImGuiFontManager m; REQUIRE(m.initialize(&gui)); CHECK_FALSE(m.rebuild_font_atlas_texture()); CHECK_FALSE(m.rebuild_font_atlas_texture()); }
 }
 
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch8178") {
+    TEST_CASE("batch8178 null GUI initialization remains rejected") { Salix::ImGuiFontManager m; CHECK_FALSE(m.initialize(nullptr)); }
+    TEST_CASE("batch8178 renderer none initialization remains accepted") { Salix::ApplicationConfig c;c.renderer_type=Salix::RendererType::None;MockIGui g;g.set_app_config(&c);g.initialize(nullptr,nullptr,nullptr,nullptr,nullptr);Salix::ImGuiFontManager m;CHECK(m.initialize(&g)); }
+    TEST_CASE("batch8178 missing apply remains rejected") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; CHECK_FALSE(m.apply_font("Missing8178")); }
+    TEST_CASE("batch8178 missing active selection remains rejected") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; CHECK_FALSE(m.set_active_font("Missing8178")); }
+    TEST_CASE("batch8178 missing unregister remains rejected") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; CHECK_FALSE(m.unregister_font("Missing8178")); }
+    TEST_CASE("batch8178 missing purge remains rejected") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; CHECK_FALSE(m.purge_font("Missing8178")); }
+    TEST_CASE("batch8178 six pixel repository font loads") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"Font8178A",6.0f,false)); CHECK(m.get_font("Font8178A")!=nullptr); }
+    TEST_CASE("batch8178 passive loaded font appears in names") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"Font8178B",12.0f,false)); auto n=m.get_registered_font_names(); CHECK(std::find(n.begin(),n.end(),"Font8178B")!=n.end()); }
+    TEST_CASE("batch8178 loaded active font clears on shutdown") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"Font8178C",14.0f,true)); m.shutdown(); CHECK(m.get_active_font()==nullptr); }
+    TEST_CASE("batch8178 empty registry exposes no families") { Salix::ImGuiFontManager m; CHECK(m.get_unique_font_families().empty()); }
+}
+
