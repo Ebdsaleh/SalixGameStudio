@@ -145,16 +145,32 @@ namespace Salix {
 
 
     void SDLImGui::shutdown() {
-        // Unregister raw event callback first
+        // Unregister raw event callback first.
         pimpl->unregister_raw_event_callback_if_registered();
 
-        // --- IMGUI SHUTDOWN ---
+        if (!pimpl->context) {
+            return;
+        }
+
+        // Backend shutdown APIs operate on ImGui's current context. Make the
+        // context owned by this GUI instance current for teardown, then restore
+        // any unrelated context that was active before shutdown.
+        ImGuiContext* owned_context = pimpl->context;
+        ImGuiContext* previous_context = ImGui::GetCurrentContext();
+        if (previous_context != owned_context) {
+            ImGui::SetCurrentContext(owned_context);
+        }
+
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
-        if (pimpl->context) {
-            ImGui::DestroyContext(pimpl->context);
-            pimpl->context = nullptr;
+
+        pimpl->context = nullptr;
+        ImGui::DestroyContext(owned_context);
+
+        if (previous_context && previous_context != owned_context) {
+            ImGui::SetCurrentContext(previous_context);
         }
+
         std::cout << "SDLImGui: ✅ Dear ImGui backend shut down." << std::endl;
     }
 
