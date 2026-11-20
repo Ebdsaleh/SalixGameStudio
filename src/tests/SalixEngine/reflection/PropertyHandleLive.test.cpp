@@ -1426,3 +1426,23 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch5747") {
     }
 }
 
+
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch8478") {
+    TEST_CASE("batch8478 invalid property type read reaches live fallback before getter") {
+        Batch1147LiveElement element;
+        bool getter_called = false;
+        auto property = batch1147_property(
+            "Invalid8478",
+            static_cast<Salix::PropertyType>(8478),
+            [&](void*) -> void* {
+                getter_called = true;
+                return &element.integer;
+            },
+            {});
+        Salix::PropertyHandleLive handle(property, &element);
+        const auto value = handle.get_value();
+        CHECK_FALSE(getter_called);
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+}
