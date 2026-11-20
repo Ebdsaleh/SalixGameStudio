@@ -979,3 +979,12 @@ TEST_SUITE("Salix::core::ChronoTimerBatch7478") {
     TEST_CASE("batch7478 ITimer virtual dispatch retains finite measured delta") { Salix::ChronoTimer concrete; Salix::ITimer& timer=concrete; timer.set_target_fps(0); timer.tick_start(); CHECK(std::isfinite(timer.get_delta_time())); CHECK(timer.get_delta_time()>=0.0f); }
 }
 
+
+TEST_SUITE("Salix::core::ChronoTimerBatch8478") {
+    TEST_CASE("batch8478 sub margin fractional delay executes spin wait body") {
+        const auto before = Salix::ChronoTimer::get_ticks_ms();
+        CHECK_NOTHROW(Salix::ChronoTimer::delay_for(std::chrono::duration<float, std::milli>(1.9f)));
+        const auto after = Salix::ChronoTimer::get_ticks_ms();
+        CHECK(after >= before);
+    }
+}
