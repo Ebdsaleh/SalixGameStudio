@@ -160,6 +160,12 @@ namespace Salix {
         return pimpl->theme_data.get();
     }
 
+    #ifdef SALIX_TESTS_ENABLED
+    void ImGuiTheme::clear_data_for_testing() {
+        pimpl->theme_data.reset();
+    }
+    #endif
+
     void Salix::ImGuiTheme::apply(IGui* gui_system) {
         if (!pimpl->theme_data) {
             std::cerr << "ImGuiTheme Error: Cannot apply theme '" << pimpl->name << "' with null data." << std::endl;
