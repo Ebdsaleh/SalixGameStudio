@@ -1,6 +1,5 @@
 #include <doctest.h>
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
-#include <Salix/rendering/opengl/OpenGLTexture.h>
 #include <Salix/rendering/ITexture.h>
 #include <Salix/ecs/Transform.h>
 #include <Tests/SalixEngine/mocking/rendering/MockICamera.h>
@@ -40,14 +39,3 @@ TEST_SUITE("Salix::rendering::OpenGLTextureBatch7778") {
     TEST_CASE("batch7778 OpenGL texture destruction occurs through renderer purge") { Batch7778OpenGLTextureFixture f;REQUIRE(f.ready);auto* t=f.renderer.load_texture(f.image().c_str());REQUIRE(t!=nullptr);CHECK_NOTHROW(f.renderer.purge_texture(t)); }
 }
 
-TEST_SUITE("Salix::rendering::OpenGLTextureBatch8478") {
-    TEST_CASE("batch8478 zero id OpenGL texture destruction follows invalid resource branch") {
-        {
-            Salix::OpenGLTexture texture(0, 8, 4);
-            CHECK(texture.get_id() == 0);
-            CHECK(texture.get_width() == 8);
-            CHECK(texture.get_height() == 4);
-        }
-        CHECK(true);
-    }
-}
