@@ -109,24 +109,40 @@ namespace Salix {
 
 
     void OpenGLImGui::shutdown() {
-        // 1. Unregister raw event callback first
+        // 1. Unregister raw event callback first.
         std::cout << "OpenGLImGUi::Shutdown - Shutdown called." << std::endl;
         pimpl->unregister_raw_event_callback_if_registered();
 
-        
-        // 2. First shutdown extensions
+        // Backend shutdown APIs operate on ImGui's current context. Never tear
+        // down an unrelated ambient context, and never destroy our owned
+        // context while its platform/renderer backends are still registered.
+        if (!pimpl->context) {
+            return;
+        }
+
+        ImGuiContext* owned_context = pimpl->context;
+        ImGuiContext* previous_context = ImGui::GetCurrentContext();
+        if (previous_context != owned_context) {
+            ImGui::SetCurrentContext(owned_context);
+        }
+
+        // 2. Shutdown extensions.
         ImGuizmo::Deinitialize();
 
-        // 3. Then renderer (OpenGL/Vulkan/etc)
+        // 3. Then renderer (OpenGL/Vulkan/etc).
         ImGui_ImplOpenGL3_Shutdown();
 
-        // 4. Then platform (SDL)
-        ImGui_ImplSDL2_Shutdown();  // Now fully protected
+        // 4. Then platform (SDL).
+        ImGui_ImplSDL2_Shutdown();
 
         // 5. Finally destroy the context owned by this GUI instance.
-        if (pimpl->context) {
-            ImGui::DestroyContext(pimpl->context);
-            pimpl->context = nullptr;
+        pimpl->context = nullptr;
+        ImGui::DestroyContext(owned_context);
+
+        // Preserve an unrelated caller-owned ImGui context if one was active
+        // before this GUI instance was shut down.
+        if (previous_context && previous_context != owned_context) {
+            ImGui::SetCurrentContext(previous_context);
         }
     }
 

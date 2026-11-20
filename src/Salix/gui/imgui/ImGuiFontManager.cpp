@@ -243,6 +243,10 @@ namespace Salix {
     
     
     bool ImGuiFontManager::load_and_register_font(const std::string& path, const std::string& name, const std::string& family, float size, const ImFontConfig& config) {
+        if (!FileManager::is_regular_file_and_exists(path)) {
+            std::cerr << "ImGuiFontManager Error: Font path is not a readable regular file: " << path << std::endl;
+            return false;
+        }
     
         // 1. Create the font object and set its family
         auto new_font = std::make_unique<ImGuiFont>(path, name, size);
@@ -304,8 +308,8 @@ namespace Salix {
     }
 
     void ImGuiFontManager::create_font_batch(const std::string& font_path, const std::string& font_family, float min_size, float max_size) {
-        if (!FileManager::path_exists(font_path)) {
-            std::cerr << "ImGuiFontManager::create_font_batch - Failed to create font batch, 'font_path' is invalid!" <<
+        if (!FileManager::is_regular_file_and_exists(font_path)) {
+            std::cerr << "ImGuiFontManager::create_font_batch - Failed to create font batch, 'font_path' is not a regular font file!" <<
             std::endl;
             return;
         }
@@ -356,6 +360,10 @@ namespace Salix {
         }
         if (file_path.empty()) {
             std::cerr << "ImGuiFontManager::load_font_from_file - File path is empty. Cannot load font." << std::endl;
+            return false;
+        }
+        if (!FileManager::is_regular_file_and_exists(file_path)) {
+            std::cerr << "ImGuiFontManager::load_font_from_file - Font path is not a readable regular file: " << file_path << std::endl;
             return false;
         }
         std::cout << "DEBUG: ImGuiFontManager::load_font_from_file - Current Working Directory: " << std::filesystem::current_path() << std::endl;
