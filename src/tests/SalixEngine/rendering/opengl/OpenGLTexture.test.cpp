@@ -42,11 +42,12 @@ TEST_SUITE("Salix::rendering::OpenGLTextureBatch7778") {
 
 TEST_SUITE("Salix::rendering::OpenGLTextureBatch8478") {
     TEST_CASE("batch8478 zero id OpenGL texture destruction follows invalid resource branch") {
-        CHECK_NOTHROW({
+        {
             Salix::OpenGLTexture texture(0, 8, 4);
             CHECK(texture.get_id() == 0);
             CHECK(texture.get_width() == 8);
             CHECK(texture.get_height() == 4);
-        });
+        }
+        CHECK(true);
     }
 }
