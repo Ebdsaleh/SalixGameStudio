@@ -331,12 +331,13 @@ struct Batch7678NativeSDLRenderer {
 }
 
 TEST_SUITE("Salix::rendering::IRendererBatch7678") {
-    TEST_CASE("batch7678 native SDL renderer exposes renderer handle while SDL window shortcut remains null") {
+    TEST_CASE("batch7678 native SDL renderer exposes renderer and owned SDL window handles") {
         Batch7678NativeSDLRenderer run; REQUIRE(run.initialized); REQUIRE(run.renderer() != nullptr);
         CHECK(run.renderer()->get_native_handle() != nullptr);
-        CHECK(run.renderer()->get_window() != nullptr);
-        CHECK(run.renderer()->get_window()->get_native_handle() != nullptr);
-        CHECK(run.renderer()->get_sdl_window() == nullptr);
+        REQUIRE(run.renderer()->get_window() != nullptr);
+        auto* native_window = static_cast<SDL_Window*>(run.renderer()->get_window()->get_native_handle());
+        REQUIRE(native_window != nullptr);
+        CHECK(run.renderer()->get_sdl_window() == native_window);
     }
     TEST_CASE("batch7678 native SDL renderer clear executes against live backend") {
         Batch7678NativeSDLRenderer run; REQUIRE(run.initialized);
