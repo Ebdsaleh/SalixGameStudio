@@ -668,11 +668,6 @@ namespace Salix {
 
 
     void OpenGLRenderer::draw_cube(const glm::mat4& model_matrix, const Color& color) {
-        // --- ADD THESE DEBUG PRINTS ---
-        GLint test_binding = -1; // Initialize to an invalid value
-        glad_glGetIntegerv(GL_FRAMEBUFFER_BINDING, &test_binding); // <-- Test the problematic call here
-        // std::cout << "DEBUG: OpenGLRenderer::draw_cube() - GL_FRAMEBUFFER_BINDING: " << test_binding << std::endl;
-        // --- END DEBUG 
         if (!pimpl->active_camera) {
             std::cerr << "WARNING: Attempted to draw_cube with no active camera set." << std::endl;
             return;
@@ -682,6 +677,9 @@ namespace Salix {
             std::cerr << "[FATAL] simple_3d_shader is null in draw_cube()\n";
             return;
         }
+
+        GLint test_binding = -1;
+        glad_glGetIntegerv(GL_FRAMEBUFFER_BINDING, &test_binding);
         // Explicitly enable depth testing right before drawing a 3D object.
         glad_glEnable(GL_DEPTH_TEST);
         pimpl->simple_3d_shader->use();

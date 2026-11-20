@@ -239,8 +239,8 @@ namespace Salix {
                 auto enum_data = EnumRegistry::get_enum_data_as_ptr(handle.get_contained_type_info()->type_index.value());
 
                 if (enum_data) {
-                    const char* current_item_name = enum_data->get_name(current_value_int).c_str();
-                    if (ImGui::BeginCombo(label, current_item_name)) {
+                    const std::string current_item_name = enum_data->get_name(current_value_int);
+                    if (ImGui::BeginCombo(label, current_item_name.c_str())) {
                         for (const auto& name : enum_data->get_names()) {
                             bool is_selected = (current_item_name == name);
                             if (ImGui::Selectable(name.c_str(), is_selected)) {
