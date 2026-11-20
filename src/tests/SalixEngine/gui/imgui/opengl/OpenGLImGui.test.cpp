@@ -416,3 +416,16 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch7978") {
     }
 }
 
+TEST_SUITE("Salix::gui::OpenGLImGuiBatch8078") {
+    TEST_CASE("batch8078 OpenGL ImGui default viewport branch forces zero window rounding") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* c=f.gui.get_context(); REQUIRE(c); CHECK(c->Style.WindowRounding==doctest::Approx(0.0f)); }
+    TEST_CASE("batch8078 OpenGL ImGui default viewport branch forces opaque window background") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* c=f.gui.get_context(); REQUIRE(c); CHECK(c->Style.Colors[ImGuiCol_WindowBg].w==doctest::Approx(1.0f)); }
+    TEST_CASE("batch8078 OpenGL ImGui initialization enables docking") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* c=f.gui.get_context(); REQUIRE(c); CHECK((c->IO.ConfigFlags&ImGuiConfigFlags_DockingEnable)!=0); }
+    TEST_CASE("batch8078 OpenGL ImGui initialization enables keyboard navigation") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* c=f.gui.get_context(); REQUIRE(c); CHECK((c->IO.ConfigFlags&ImGuiConfigFlags_NavEnableKeyboard)!=0); }
+    TEST_CASE("batch8078 OpenGL ImGui initializes with viewports disabled by default") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* c=f.gui.get_context(); REQUIRE(c); CHECK((c->IO.ConfigFlags&ImGuiConfigFlags_ViewportsEnable)==0); }
+    TEST_CASE("batch8078 OpenGL ImGui context records docking tab bar preference") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* c=f.gui.get_context(); REQUIRE(c); CHECK(c->IO.ConfigDockingAlwaysTabBar); }
+    TEST_CASE("batch8078 OpenGL ImGui context records transparent docking payload preference") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* c=f.gui.get_context(); REQUIRE(c); CHECK(c->IO.ConfigDockingTransparentPayload); }
+    TEST_CASE("batch8078 OpenGL ImGui style remains zero rounded after one completed frame") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.new_frame(); f.gui.render(); auto* c=f.gui.get_context(); REQUIRE(c); CHECK(c->Style.WindowRounding==doctest::Approx(0.0f)); }
+    TEST_CASE("batch8078 OpenGL ImGui style remains opaque after backend reinitialize") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); f.gui.reinitialize_backend(); auto* c=f.gui.get_context(); REQUIRE(c); CHECK(c->Style.Colors[ImGuiCol_WindowBg].w==doctest::Approx(1.0f)); }
+    TEST_CASE("batch8078 OpenGL ImGui context pointer stays stable across frame") { Batch7778OpenGLImGuiFixture f; REQUIRE(f.gui_ready); auto* before=f.gui.get_context(); f.gui.new_frame(); f.gui.render(); CHECK(f.gui.get_context()==before); }
+}
+

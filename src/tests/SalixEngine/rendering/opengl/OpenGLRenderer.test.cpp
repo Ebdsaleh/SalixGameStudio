@@ -362,3 +362,16 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch7978") {
     }
 }
 
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch8078") {
+    TEST_CASE("batch8078 fresh cube with camera reaches missing shader guard identity") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch8078 fresh cube missing shader accepts translated model") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); CHECK_NOTHROW(r.draw_cube(glm::mat4(2.0f),Salix::Color{})); }
+    TEST_CASE("batch8078 fresh cube missing shader accepts zero matrix") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); CHECK_NOTHROW(r.draw_cube(glm::mat4(0.0f),Salix::Color{})); }
+    TEST_CASE("batch8078 fresh cube missing shader accepts opaque white") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color::from_rgba_int(255,255,255,255))); }
+    TEST_CASE("batch8078 fresh cube missing shader accepts transparent color") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color::from_rgba_int(0,0,0,0))); }
+    TEST_CASE("batch8078 cube without camera still returns before GL dispatch") { Salix::OpenGLRenderer r; CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch8078 cube missing shader retains active camera pointer") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); r.draw_cube(glm::mat4(1.0f),Salix::Color{}); CHECK(r.get_active_camera()==&c); }
+    TEST_CASE("batch8078 repeated cube missing shader guard remains stable") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+    TEST_CASE("batch8078 cube guard remains safe after camera replacement") { Salix::OpenGLRenderer r; MockICamera a,b; r.set_active_camera(&a); r.set_active_camera(&b); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); CHECK(r.get_active_camera()==&b); }
+    TEST_CASE("batch8078 cube guard remains safe after camera clear and restore") { Salix::OpenGLRenderer r; MockICamera c; r.set_active_camera(&c); r.set_active_camera(nullptr); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); r.set_active_camera(&c); CHECK_NOTHROW(r.draw_cube(glm::mat4(1.0f),Salix::Color{})); }
+}
+

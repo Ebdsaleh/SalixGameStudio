@@ -395,3 +395,16 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch7978") {
     }
 }
 
+TEST_SUITE("Salix::gui::SDLImGuiBatch8078") {
+    TEST_CASE("batch8078 SDL GUI empty dialog result remains default") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto r=f.gui.get_dialog_result("Missing8078A"); CHECK_FALSE(r.is_ok); CHECK(r.file_name.empty()); }
+    TEST_CASE("batch8078 SDL GUI empty populate key remains default") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto r=f.gui.populate_dialog_result(""); CHECK_FALSE(r.is_ok); CHECK(r.folder_path.empty()); }
+    TEST_CASE("batch8078 SDL GUI null raw event remains unconsumed") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); CHECK_FALSE(f.gui.process_raw_input_event(nullptr)); }
+    TEST_CASE("batch8078 SDL GUI nonescape key remains unconsumed") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); SDL_Event e{}; e.type=SDL_KEYDOWN; e.key.keysym.sym=SDLK_F8; CHECK_FALSE(f.gui.process_raw_input_event(&e)); }
+    TEST_CASE("batch8078 SDL GUI mouse motion remains unconsumed by explicit handler") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); SDL_Event e{}; e.type=SDL_MOUSEMOTION; e.motion.x=8;e.motion.y=78; CHECK_FALSE(f.gui.process_raw_input_event(&e)); }
+    TEST_CASE("batch8078 SDL GUI duplicate created dialog preserves original pointer") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); std::string k="SDLDup8078",a="A",b="B"; auto* p=f.gui.create_dialog(k,a,Salix::DialogType::File,false); REQUIRE(p); CHECK(f.gui.create_dialog(k,b,Salix::DialogType::Folder,true)==p); }
+    TEST_CASE("batch8078 SDL GUI empty show key remains inactive") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); std::string k; f.gui.show_dialog_by_key(k); CHECK_FALSE(f.gui.is_dialog_open(k)); }
+    TEST_CASE("batch8078 SDL GUI missing registry lookup stays null") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); CHECK(f.gui.get_dialog("Missing8078B")==nullptr); }
+    TEST_CASE("batch8078 SDL GUI direct null dialog registration is rejected") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); std::unique_ptr<Salix::DialogBox> p; CHECK_FALSE(f.gui.register_dialog(std::move(p))); }
+    TEST_CASE("batch8078 SDL GUI theme reload clear remains idempotent") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); f.gui.clear_theme_reload_request(); f.gui.clear_theme_reload_request(); CHECK_FALSE(f.gui.is_theme_reload_requested()); }
+}
+

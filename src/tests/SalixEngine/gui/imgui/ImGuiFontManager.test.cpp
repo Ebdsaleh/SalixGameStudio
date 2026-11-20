@@ -1472,3 +1472,16 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch7978") {
     }
 }
 
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch8078") {
+    TEST_CASE("batch8078 public loader rejects five point nine nine again without registry mutation") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; CHECK_FALSE(m.load_font_from_file(batch7047_font_path().string(),"Small8078A",5.99f,false)); CHECK(m.get_font_registry().empty()); }
+    TEST_CASE("batch8078 public loader accepts six point zero one") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"Six8078",6.01f,false)); CHECK(m.get_font("Six8078")!=nullptr); }
+    TEST_CASE("batch8078 loaded font can be selected active without immediate apply") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"Active8078",12.0f,false)); REQUIRE(m.set_active_font("Active8078")); REQUIRE(m.get_active_font()); CHECK(m.get_active_font()->get_name()=="Active8078"); }
+    TEST_CASE("batch8078 missing active font selection is rejected") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; CHECK_FALSE(m.set_active_font("Missing8078")); CHECK(m.get_active_font()==nullptr); }
+    TEST_CASE("batch8078 missing font unregister is rejected") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; CHECK_FALSE(m.unregister_font("Missing8078")); }
+    TEST_CASE("batch8078 missing font purge is rejected") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; CHECK_FALSE(m.purge_font("Missing8078")); }
+    TEST_CASE("batch8078 one loaded family appears exactly once") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"Family8078",14.0f,false)); auto names=m.get_registered_font_names(); REQUIRE(names.size()==1); CHECK(names[0]=="Family8078"); }
+    TEST_CASE("batch8078 two distinct loaded names remain independently retrievable") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"A8078",10.0f,false)); REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"B8078",18.0f,false)); CHECK(m.get_font("A8078")!=nullptr); CHECK(m.get_font("B8078")!=nullptr); }
+    TEST_CASE("batch8078 shutdown after passive font clears registry") { Batch6947FontManagerContext c; Salix::ImGuiFontManager m; REQUIRE(m.load_font_from_file(batch7047_font_path().string(),"Shutdown8078",16.0f,false)); m.shutdown(); CHECK(m.get_font_registry().empty()); }
+    TEST_CASE("batch8078 renderer none atlas rebuild stays unsupported after repeated call") { Salix::ApplicationConfig cfg; cfg.renderer_type=Salix::RendererType::None; MockIGui gui; gui.set_app_config(&cfg); gui.initialize(nullptr,nullptr,nullptr,nullptr,nullptr); Salix::ImGuiFontManager m; REQUIRE(m.initialize(&gui)); CHECK_FALSE(m.rebuild_font_atlas_texture()); CHECK_FALSE(m.rebuild_font_atlas_texture()); }
+}
+

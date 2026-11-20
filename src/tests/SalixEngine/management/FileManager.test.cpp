@@ -1276,3 +1276,16 @@ TEST_SUITE("Salix::management::FileManagerBatch7978") {
     TEST_CASE("batch7978 Q to R drive relative conversion falls back to absolute path") { batch7978_expect_cross_drive_fallback("Q:/Batch7978Root","R:/Batch7978Target/file.salixproj"); }
 }
 
+TEST_SUITE("Salix::management::FileManagerBatch8078") {
+    TEST_CASE("batch8078 identical absolute paths convert to dot") { CHECK(Salix::FileManager::convert_to_relative_path("C:/Project8078","C:/Project8078")=="."); }
+    TEST_CASE("batch8078 direct child path converts to filename") { CHECK(Salix::FileManager::convert_to_relative_path("C:/Project8078","C:/Project8078/a.txt")=="a.txt"); }
+    TEST_CASE("batch8078 nested child path uses forward separators") { CHECK(Salix::FileManager::convert_to_relative_path("C:/Project8078","C:/Project8078/a/b.txt")=="a/b.txt"); }
+    TEST_CASE("batch8078 sibling path uses parent traversal") { CHECK(Salix::FileManager::convert_to_relative_path("C:/Project8078/A","C:/Project8078/B/file.txt")=="../B/file.txt"); }
+    TEST_CASE("batch8078 parent path converts to parent traversal") { CHECK(Salix::FileManager::convert_to_relative_path("C:/Project8078/A/B","C:/Project8078/A")==".."); }
+    TEST_CASE("batch8078 dotted child normalizes through filesystem relative") { CHECK(Salix::FileManager::convert_to_relative_path("C:/Project8078","C:/Project8078/./a.txt")=="a.txt"); }
+    TEST_CASE("batch8078 parent alias normalizes through filesystem relative") { CHECK(Salix::FileManager::convert_to_relative_path("C:/Project8078/A","C:/Project8078/A/B/../c.txt")=="c.txt"); }
+    TEST_CASE("batch8078 spaced child path remains relative") { CHECK(Salix::FileManager::convert_to_relative_path("C:/Project 8078","C:/Project 8078/a b.txt")=="a b.txt"); }
+    TEST_CASE("batch8078 cross drive C to S falls back to absolute") { const std::string p="S:/Other8078/file.txt"; CHECK(Salix::FileManager::convert_to_relative_path("C:/Project8078",p)==p); }
+    TEST_CASE("batch8078 cross drive Z to A falls back to absolute") { const std::string p="A:/Other8078/file.txt"; CHECK(Salix::FileManager::convert_to_relative_path("Z:/Project8078",p)==p); }
+}
+

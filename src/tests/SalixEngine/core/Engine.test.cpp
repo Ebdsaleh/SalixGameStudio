@@ -1428,3 +1428,60 @@ TEST_SUITE("Salix::core::EngineBatch7978") {
     }
 }
 
+namespace {
+struct Batch8078MissingThemeEngine {
+    Salix::Engine engine;
+    bool initialized=false;
+    std::filesystem::path previous=std::filesystem::current_path();
+    std::filesystem::path root;
+    bool had_driver=false;
+    std::string old_driver;
+    Batch8078MissingThemeEngine(
+        Salix::AppStateType state=Salix::AppStateType::Launch,
+        Salix::TimerType timer=Salix::TimerType::SDL,
+        int target_fps=60) {
+        static unsigned seq=0;
+        if(const char* v=SDL_getenv("SDL_VIDEODRIVER")){had_driver=true;old_driver=v;}
+        SDL_Quit();
+        SDL_setenv("SDL_VIDEODRIVER","windows",1);
+        std::error_code ec;
+        root=std::filesystem::temp_directory_path()/("Salix_Batch8078_MissingTheme_"+std::to_string(++seq));
+        std::filesystem::create_directories(root,ec);
+        if(ec)return;
+        std::filesystem::current_path(root,ec);
+        if(ec)return;
+        Salix::ApplicationConfig config;
+        config.renderer_type=Salix::RendererType::SDL;
+        config.gui_type=Salix::GuiType::ImGui;
+        config.initial_state=state;
+        config.timer_type=timer;
+        config.target_fps=target_fps;
+        config.window_config.title="Batch8078 Missing Theme";
+        config.window_config.width=96;
+        config.window_config.height=64;
+        initialized=engine.initialize(config);
+    }
+    ~Batch8078MissingThemeEngine(){
+        if(initialized)engine.shutdown();
+        SDL_Quit();
+        std::error_code ec;
+        std::filesystem::current_path(previous,ec);
+        if(had_driver)SDL_setenv("SDL_VIDEODRIVER",old_driver.c_str(),1);else _putenv_s("SDL_VIDEODRIVER","");
+        if(!root.empty())std::filesystem::remove_all(root,ec);
+    }
+};
+}
+
+TEST_SUITE("Salix::core::EngineBatch8078") {
+    TEST_CASE("batch8078 SDL ImGui launch initializes when default theme asset is absent") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); CHECK(f.engine.get_mode()==Salix::EngineMode::Launch); }
+    TEST_CASE("batch8078 SDL ImGui options initializes when default theme asset is absent") { Batch8078MissingThemeEngine f(Salix::AppStateType::Options); REQUIRE(f.initialized); CHECK(f.engine.get_mode()==Salix::EngineMode::Options); }
+    TEST_CASE("batch8078 missing default theme remains recoverable with chrono launch") { Batch8078MissingThemeEngine f(Salix::AppStateType::Launch,Salix::TimerType::Chrono); REQUIRE(f.initialized); CHECK(f.engine.is_running()); }
+    TEST_CASE("batch8078 missing default theme remains recoverable with chrono options") { Batch8078MissingThemeEngine f(Salix::AppStateType::Options,Salix::TimerType::Chrono); REQUIRE(f.initialized); CHECK(f.engine.is_running()); }
+    TEST_CASE("batch8078 missing default theme accepts thirty fps launch configuration") { Batch8078MissingThemeEngine f(Salix::AppStateType::Launch,Salix::TimerType::SDL,30); REQUIRE(f.initialized); CHECK(f.engine.get_renderer()!=nullptr); }
+    TEST_CASE("batch8078 missing default theme accepts high fps options configuration") { Batch8078MissingThemeEngine f(Salix::AppStateType::Options,Salix::TimerType::SDL,144); REQUIRE(f.initialized); CHECK(f.engine.get_renderer()!=nullptr); }
+    TEST_CASE("batch8078 missing default theme launch can switch to options") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.switch_state(Salix::AppStateType::Options); CHECK(f.engine.get_mode()==Salix::EngineMode::Options); }
+    TEST_CASE("batch8078 missing default theme options can switch back to launch") { Batch8078MissingThemeEngine f(Salix::AppStateType::Options); REQUIRE(f.initialized); f.engine.switch_state(Salix::AppStateType::Launch); CHECK(f.engine.get_mode()==Salix::EngineMode::Launch); }
+    TEST_CASE("batch8078 missing default theme explicit shutdown clears renderer") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.shutdown(); f.initialized=false; CHECK(f.engine.get_renderer()==nullptr); }
+    TEST_CASE("batch8078 missing default theme preserves explicit fractional time scale") { Batch8078MissingThemeEngine f; REQUIRE(f.initialized); f.engine.set_time_scale(0.8078f); CHECK(f.engine.get_time_scale()==doctest::Approx(0.8078f)); }
+}
+
