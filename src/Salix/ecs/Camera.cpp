@@ -113,21 +113,6 @@ namespace Salix {
         return pimpl->projection_matrix;
     }
 
-    void Camera::recalculate_view_matrix() {
-        // Get the transform from the entity that owns this camera
-        Transform* transform = owner->get_transform();
-        if (!transform) {
-            pimpl->view_matrix = glm::mat4(1.0f); // Default to identity if no transform
-            return;
-        }
-
-        glm::vec3 position = transform->get_position().to_glm();  // need to cast from a Vector3
-        glm::vec3 front = transform->get_forward();
-        glm::vec3 up = transform->get_up();
-
-        pimpl->view_matrix = glm::lookAt(position, position + front, up);
-    }
-
     void Camera::recalculate_projection_matrix() {
         if (pimpl->projection_mode == ProjectionMode::Perspective) {
             pimpl->projection_matrix = glm::perspective(

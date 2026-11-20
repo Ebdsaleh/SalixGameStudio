@@ -151,7 +151,10 @@ namespace Salix {
         // --- IMGUI SHUTDOWN ---
         ImGui_ImplSDLRenderer2_Shutdown();
         ImGui_ImplSDL2_Shutdown();
-        ImGui::DestroyContext();
+        if (ImGui::GetCurrentContext()) {
+            ImGui::DestroyContext();
+        }
+        pimpl->context = nullptr;
         std::cout << "SDLImGui: ✅ Dear ImGui backend shut down." << std::endl;
     }
 

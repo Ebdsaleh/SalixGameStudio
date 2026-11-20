@@ -98,8 +98,6 @@ namespace Salix {
             GLuint texture_id = 0; // The color texture we render to
             GLuint rbo_id = 0; // Renderbuffer Object for depth/stencil
         };
-        GLint get_gl_framebuffer_binding_internal() const;
-        void set_gl_viewport_internal(int x, int y, int width, int height);
         
     };
 

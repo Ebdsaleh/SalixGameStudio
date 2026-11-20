@@ -63,7 +63,6 @@ public:
 private:
     // Recalculates the projection matrix when properties change.
     void recalculate_projection_matrix();
-    void recalculate_view_matrix();
     struct Pimpl;
     std::unique_ptr<Pimpl> pimpl;
 };

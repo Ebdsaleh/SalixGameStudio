@@ -794,17 +794,6 @@ namespace Salix {
         return pimpl->sdl_window;
     }
 
-    GLint OpenGLRenderer::get_gl_framebuffer_binding_internal() const {
-        GLint binding = 0;
-        glad_glGetIntegerv(GL_FRAMEBUFFER_BINDING, &binding); // Direct GLAD call
-        return binding;
-    }
-
-    void OpenGLRenderer::set_gl_viewport_internal(int x, int y, int width, int height) {
-        glad_glViewport(x, y, static_cast<GLsizei>(width), static_cast<GLsizei>(height)); // Direct GLAD call
-    }
-
-
     // --- Texture Management ---
 
     ITexture* OpenGLRenderer::load_texture(const char* file_path) {

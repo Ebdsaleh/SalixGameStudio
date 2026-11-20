@@ -126,6 +126,7 @@ namespace Salix {
         // 5. Finally core context
         if (ImGui::GetCurrentContext())
             ImGui::DestroyContext();
+        pimpl->context = nullptr;
     }
 
 
@@ -294,8 +295,6 @@ namespace Salix {
         // Set internal flag based on the key
         pimpl->active_dialog_keys[key] = true; // Mark dialog as active
         return true;
-
-        return false;
     }
 
 
