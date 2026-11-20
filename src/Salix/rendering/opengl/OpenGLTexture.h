@@ -5,7 +5,11 @@
 #include <memory>
 
 namespace Salix {
+    #ifdef SALIX_TESTS_ENABLED
+    class SALIX_API OpenGLTexture : public ITexture {
+    #else
     class OpenGLTexture : public ITexture {
+    #endif
     public:
         // Constructor that takes the OpenGL texture ID, width, and height
         OpenGLTexture(GLuint texture_id, int width, int height);
