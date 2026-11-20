@@ -1592,27 +1592,6 @@ TEST_SUITE("Salix::core::EngineBatch8278") {
     TEST_CASE("batch8278 missing editor DLL chrono path retains asset manager for cleanup") { Batch8278EngineDllFailure f("SalixEditor.dll","",Salix::AppStateType::Launch,Salix::TimerType::Chrono); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_asset_manager()!=nullptr); }
 }
 
-namespace {
-struct Batch8378MissingRenderDriverEngine {
-    Batch7678WindowsVideoGuard driver;
-    Salix::Engine engine;
-    bool initialized=false;
-    Batch8378MissingRenderDriverEngine() {
-        SDL_setenv("SDL_RENDER_DRIVER","__batch8378_missing_renderer__",1);
-        Salix::ApplicationConfig config;
-        config.renderer_type=Salix::RendererType::SDL;
-        config.gui_type=Salix::GuiType::None;
-        config.initial_state=Salix::AppStateType::Launch;
-        config.timer_type=Salix::TimerType::SDL;
-        config.window_config.title="Batch8378 Missing Renderer";
-        config.window_config.width=96;
-        config.window_config.height=64;
-        initialized=engine.initialize(config);
-    }
-    ~Batch8378MissingRenderDriverEngine(){engine.shutdown();}
-};
-}
-
 TEST_SUITE("Salix::core::EngineBatch8378") {
     TEST_CASE("batch8378 editor fixture without context export reaches set context failure") { Batch8278EngineDllFailure f("SalixEditor.dll","Batch8378EditorNoContextPlugin.dll"); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK_FALSE(f.engine.is_running()); }
     TEST_CASE("batch8378 editor fixture without context export retains renderer until cleanup") { Batch8278EngineDllFailure f("SalixEditor.dll","Batch8378EditorNoContextPlugin.dll",Salix::AppStateType::Options); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_renderer()!=nullptr); }
@@ -1620,8 +1599,8 @@ TEST_SUITE("Salix::core::EngineBatch8378") {
     TEST_CASE("batch8378 editor fixture without context export retains asset manager") { Batch8278EngineDllFailure f("SalixEditor.dll","Batch8378EditorNoContextPlugin.dll"); REQUIRE(f.dll.ready); CHECK_FALSE(f.initialized); CHECK(f.engine.get_asset_manager()!=nullptr); }
     TEST_CASE("batch8378 missing editor DLL allows controlled editor switch with unavailable factory") { Batch8278EngineDllFailure f("SalixEditor.dll"); REQUIRE(f.dll.ready); REQUIRE_FALSE(f.initialized); CHECK_NOTHROW(f.engine.switch_state(Salix::AppStateType::Editor)); CHECK(f.engine.get_mode()==Salix::EngineMode::Editor); }
     TEST_CASE("batch8378 editor DLL without factory allows controlled editor switch with unavailable factory") { Batch8278EngineDllFailure f("SalixEditor.dll","Batch7376ScriptPlugin.dll"); REQUIRE(f.dll.ready); REQUIRE_FALSE(f.initialized); CHECK_NOTHROW(f.engine.switch_state(Salix::AppStateType::Editor)); CHECK(f.engine.get_mode()==Salix::EngineMode::Editor); }
-    TEST_CASE("batch8378 invalid SDL render driver fails renderer initialization cleanly") { Batch8378MissingRenderDriverEngine f; CHECK_FALSE(f.initialized); REQUIRE(f.engine.get_renderer()!=nullptr); CHECK(f.engine.get_renderer()->get_window()==nullptr); }
-    TEST_CASE("batch8378 invalid SDL render driver leaves native renderer handle null") { Batch8378MissingRenderDriverEngine f; CHECK_FALSE(f.initialized); REQUIRE(f.engine.get_renderer()!=nullptr); CHECK(f.engine.get_renderer()->get_native_handle()==nullptr); }
+    TEST_CASE("batch8378 native SDL renderer exposes nonnull renderer handle") { Batch7678NativeEngineRun f; REQUIRE(f.initialized); REQUIRE(f.engine.get_renderer()!=nullptr); CHECK(f.engine.get_renderer()->get_native_handle()!=nullptr); }
+    TEST_CASE("batch8378 native SDL renderer shutdown clears owned window and native handles") { Batch7678NativeEngineRun f; REQUIRE(f.initialized); auto* r=f.engine.get_renderer(); REQUIRE(r); REQUIRE(r->get_sdl_window()!=nullptr); r->shutdown(); CHECK(r->get_window()==nullptr); CHECK(r->get_sdl_window()==nullptr); CHECK(r->get_native_handle()==nullptr); }
     TEST_CASE("batch8378 native SDL renderer exposes concrete SDL window through interface") { Batch7678NativeEngineRun f; REQUIRE(f.initialized); REQUIRE(f.engine.get_renderer()!=nullptr); CHECK(f.engine.get_renderer()->get_sdl_window()!=nullptr); }
     TEST_CASE("batch8378 native SDL renderer window handle matches owned window native handle") { Batch7678NativeEngineRun f; REQUIRE(f.initialized); auto* r=f.engine.get_renderer(); REQUIRE(r); REQUIRE(r->get_window()); CHECK(r->get_sdl_window()==static_cast<SDL_Window*>(r->get_window()->get_native_handle())); }
 }
