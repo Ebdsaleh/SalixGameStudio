@@ -1303,3 +1303,32 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch8378") {
     TEST_CASE("batch8378 fresh theme owns ImGui data") { Salix::ImGuiTheme t("J8378");REQUIRE(t.get_data());CHECK(t.get_data()->get_gui_type()=="ImGui"); }
 }
 
+
+TEST_SUITE("Salix::gui::ImGuiThemeBatch8578") {
+    TEST_CASE("batch8578 cleared theme data makes apply exit through null-data guard") {
+        Salix::ImGuiTheme theme("NullApply8578");
+        theme.clear_data_for_testing();
+        REQUIRE(theme.get_data() == nullptr);
+        CHECK_NOTHROW(theme.apply(nullptr));
+    }
+
+    TEST_CASE("batch8578 cleared theme data makes save reject missing data") {
+        Batch1147ThemeTempFile file;
+        Salix::ImGuiTheme theme("NullSave8578");
+        theme.clear_data_for_testing();
+        REQUIRE(theme.get_data() == nullptr);
+        CHECK_FALSE(theme.save_to_yaml(file.path.string()));
+    }
+
+    TEST_CASE("batch8578 valid YAML recreates cleared theme data before loading") {
+        Batch1147ThemeTempFile file;
+        file.write("name: Recreated8578\ngui_type: ImGui\n");
+        Salix::ImGuiTheme theme;
+        theme.clear_data_for_testing();
+        REQUIRE(theme.get_data() == nullptr);
+        REQUIRE(theme.load_from_yaml(file.path.string()));
+        REQUIRE(theme.get_data() != nullptr);
+        CHECK(theme.get_name() == "Recreated8578");
+        CHECK(theme.get_data()->get_gui_type() == "ImGui");
+    }
+}
