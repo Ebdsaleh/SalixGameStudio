@@ -447,3 +447,53 @@ TEST_SUITE("Salix::rendering::OpenGLRendererBatch8378") {
     TEST_CASE("batch8378 blocked GL log initialization still fails cleanly") { Batch7978BlockedGLLog cwd;REQUIRE(cwd.ready);Salix::OpenGLRenderer r;Salix::WindowConfig wc;wc.title="Batch8378 blocked";wc.width=83;wc.height=78;CHECK_FALSE(r.initialize(wc)); }
 }
 
+
+TEST_SUITE("Salix::rendering::OpenGLRendererBatch8678") {
+    TEST_CASE("batch8678 forced OpenGL context failure reaches initialization error branch") {
+        Batch7778RendererCwd cwd;
+        Batch7778RendererSDL sdl;
+        REQUIRE(sdl.ready);
+        Salix::OpenGLRenderer::set_force_context_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::OpenGLRenderer::set_force_context_failure_for_testing(false); }
+        } reset;
+        Salix::OpenGLRenderer renderer;
+        Salix::WindowConfig config;
+        config.title = "Batch8678 Context Failure";
+        config.width = 96;
+        config.height = 64;
+        CHECK_FALSE(renderer.initialize(config));
+        CHECK(renderer.get_sdl_gl_context() == nullptr);
+        renderer.shutdown();
+    }
+
+    TEST_CASE("batch8678 forced GLAD failure reaches initialization error branch") {
+        Batch7778RendererCwd cwd;
+        Batch7778RendererSDL sdl;
+        REQUIRE(sdl.ready);
+        Salix::OpenGLRenderer::set_force_glad_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::OpenGLRenderer::set_force_glad_failure_for_testing(false); }
+        } reset;
+        Salix::OpenGLRenderer renderer;
+        Salix::WindowConfig config;
+        config.title = "Batch8678 GLAD Failure";
+        config.width = 96;
+        config.height = 64;
+        CHECK_FALSE(renderer.initialize(config));
+        CHECK(renderer.get_sdl_gl_context() != nullptr);
+        renderer.shutdown();
+    }
+
+    TEST_CASE("batch8678 zero cube VAO reaches guarded draw return") {
+        Batch7778NativeGLRenderer fixture;
+        REQUIRE(fixture.ready);
+        MockICamera camera;
+        fixture.renderer.set_active_camera(&camera);
+        const GLuint original = fixture.renderer.get_cube_vao_for_testing();
+        REQUIRE(original != 0u);
+        fixture.renderer.set_cube_vao_for_testing(0u);
+        CHECK_NOTHROW(fixture.renderer.draw_cube(glm::mat4(1.0f), Salix::Color{}));
+        fixture.renderer.set_cube_vao_for_testing(original);
+    }
+}
