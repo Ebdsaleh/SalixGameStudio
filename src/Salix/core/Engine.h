@@ -52,6 +52,11 @@ namespace Salix {
             InitContext make_context() const;
             float get_time_scale() const override;
             void set_time_scale(float new_time_scale) override;
+            #ifdef SALIX_TESTS_ENABLED
+            static void set_force_ttf_init_failure_for_testing(bool enabled);
+            static void set_force_application_listener_init_failure_for_testing(bool enabled);
+            static void set_force_gui_init_failure_for_testing(bool enabled);
+            #endif
         private:
             void process_input();
             void update(float delta_time);
