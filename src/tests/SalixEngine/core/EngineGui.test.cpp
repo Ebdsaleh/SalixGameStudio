@@ -135,6 +135,7 @@ TEST_SUITE("Salix::core::EngineGuiBatch9078") {
         } reset;
         Batch7878GuiEngine f(Salix::RendererType::SDL);
         CHECK_FALSE(f.ready);
+        f.engine.shutdown();
     }
 
     TEST_CASE("batch9078 forced OpenGL GUI cast failure reaches event polling error return") {
@@ -144,6 +145,7 @@ TEST_SUITE("Salix::core::EngineGuiBatch9078") {
         } reset;
         Batch7878GuiEngine f(Salix::RendererType::OpenGL);
         CHECK_FALSE(f.ready);
+        f.engine.shutdown();
     }
 
     TEST_CASE("batch9078 forced GUI event polling renderer mismatch reaches fallback error return") {
@@ -153,6 +155,7 @@ TEST_SUITE("Salix::core::EngineGuiBatch9078") {
         } reset;
         Batch7878GuiEngine f(Salix::RendererType::SDL);
         CHECK_FALSE(f.ready);
+        f.engine.shutdown();
     }
 
     TEST_CASE("batch9078 initialized GUI engine can exercise theme manager initialization failure guard") {
