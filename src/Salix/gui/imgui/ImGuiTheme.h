@@ -25,6 +25,7 @@ namespace Salix {
         bool save_to_yaml(const std::string& file_path) const override;
         #ifdef SALIX_TESTS_ENABLED
         void clear_data_for_testing();
+        static void set_force_yaml_save_exception_for_testing(bool enabled);
         #endif
 
     private:
