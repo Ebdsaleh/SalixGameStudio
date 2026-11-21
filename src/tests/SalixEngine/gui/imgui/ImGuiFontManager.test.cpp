@@ -1533,3 +1533,55 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch8278") {
     TEST_CASE("batch8278 font batch directory failure leaves no active font") { batch8278_expect_directory_batch_failure("Dir8278E",16.0f); }
 }
 
+
+TEST_SUITE("Salix::gui::ImGuiFontManagerBatch8878") {
+    TEST_CASE("batch8878 private font loader rejects missing file through DLL bridge") {
+        Salix::ImGuiFontManager manager;
+        const auto missing = (std::filesystem::temp_directory_path() / "__missing_batch8878_private__.ttf").string();
+        std::error_code ec;
+        std::filesystem::remove(missing, ec);
+        CHECK_FALSE(manager.load_and_register_font_for_testing(missing, "Missing8878", "MissingFamily8878", 12.0f));
+        CHECK(manager.get_font_registry().empty());
+    }
+
+    TEST_CASE("batch8878 private font loader rejects invalid regular font file") {
+        Batch6947FontManagerContext context;
+        const auto bad = batch6947_bad_font_file();
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_and_register_font_for_testing(bad.string(), "BadPrivate8878", "BadFamily8878", 12.0f));
+        CHECK(manager.get_font("BadPrivate8878") == nullptr);
+        std::error_code ec;
+        std::filesystem::remove(bad, ec);
+    }
+
+    TEST_CASE("batch8878 public font loader rejects invalid regular font file") {
+        Batch6947FontManagerContext context;
+        const auto bad = batch6947_bad_font_file();
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file(bad.string(), "BadPublic8878", 12.0f, false));
+        CHECK(manager.get_font("BadPublic8878") == nullptr);
+        std::error_code ec;
+        std::filesystem::remove(bad, ec);
+    }
+
+    TEST_CASE("batch8878 forced font object creation failure reaches defensive guard") {
+        Salix::ImGuiFontManager::set_force_new_font_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::ImGuiFontManager::set_force_new_font_failure_for_testing(false); }
+        } reset;
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file(batch7047_font_path().string(), "ForcedNewFail8878", 12.0f, false));
+        CHECK(manager.get_font("ForcedNewFail8878") == nullptr);
+    }
+
+    TEST_CASE("batch8878 forced incompatible font data reaches defensive cast guard") {
+        Batch6947FontManagerContext context;
+        Salix::ImGuiFontManager::set_force_incompatible_font_data_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::ImGuiFontManager::set_force_incompatible_font_data_for_testing(false); }
+        } reset;
+        Salix::ImGuiFontManager manager;
+        CHECK_FALSE(manager.load_font_from_file(batch7047_font_path().string(), "ForcedDataFail8878", 12.0f, false));
+        CHECK(manager.get_font("ForcedDataFail8878") == nullptr);
+    }
+}
