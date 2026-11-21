@@ -35,6 +35,9 @@ namespace Salix {
             /* Create a new project on the filesystem in a dynamic location (will be used as a'sandbox'for testing.
                 Linking systems together OUTSIDE of our development ecosystem. 'External end-user-developer experience'). */
             bool create_new_external_project(const std::string& project_path, const std::string& project_name);
+            #ifdef SALIX_TESTS_ENABLED
+            static void set_force_serialization_failure_for_testing(bool enabled);
+            #endif
             // --- END OF DEVELOPMENT-ONLY METHODS. ---
 
             // Loads a project from a given path. This will become the primary
