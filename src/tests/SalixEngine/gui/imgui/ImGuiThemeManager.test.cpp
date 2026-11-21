@@ -1141,3 +1141,31 @@ TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch8378") {
     TEST_CASE("batch8378 manager shutdown clears registry") { Batch1947ThemeDirectory d;auto p=d.path/"s8378.theme";{std::ofstream o(p);o<<"name: Shutdown8378\ngui_type: ImGui\n";}Salix::ImGuiThemeManager m;REQUIRE(m.load_internal_theme_from_file(p.string(),false));m.shutdown();CHECK(m.get_registered_themes().empty()); }
 }
 
+
+TEST_SUITE("Salix::gui::ImGuiThemeManagerBatch8678") {
+    TEST_CASE("batch8678 forced internal theme registration failure reaches loader error branch") {
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "internal8678.theme";
+        { std::ofstream out(file); out << "name: Internal8678\ngui_type: ImGui\n"; }
+        Salix::ImGuiThemeManager::set_force_registration_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::ImGuiThemeManager::set_force_registration_failure_for_testing(false); }
+        } reset;
+        Salix::ImGuiThemeManager manager;
+        CHECK_FALSE(manager.load_internal_theme_from_file(file.string(), false));
+        CHECK(manager.get_theme("Internal8678") == nullptr);
+    }
+
+    TEST_CASE("batch8678 forced named theme registration failure reaches loader cleanup branch") {
+        Batch1947ThemeDirectory directory;
+        const auto file = directory.path / "named8678.theme";
+        { std::ofstream out(file); out << "name: Ignored8678\ngui_type: ImGui\n"; }
+        Salix::ImGuiThemeManager::set_force_registration_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::ImGuiThemeManager::set_force_registration_failure_for_testing(false); }
+        } reset;
+        Salix::ImGuiThemeManager manager;
+        CHECK_FALSE(manager.load_theme_from_file("Named8678", file.string(), false));
+        CHECK(manager.get_theme("Named8678") == nullptr);
+    }
+}
