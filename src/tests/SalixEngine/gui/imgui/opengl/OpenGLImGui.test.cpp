@@ -498,3 +498,49 @@ TEST_SUITE("Salix::gui::OpenGLImGuiBatch8378") {
     TEST_CASE("batch8378 OpenGL foreign-context shutdown after layout save remains controlled") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); auto p=std::filesystem::temp_directory_path()/"batch8378_gl_foreign.ini"; f.primary.gui.save_layout(p.string()); REQUIRE(std::filesystem::exists(p)); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); std::error_code ec;std::filesystem::remove(p,ec); }
     TEST_CASE("batch8378 OpenGL foreign context remains independently destroyable after GUI shutdown") { Batch8378OpenGLForeignContext f; REQUIRE(f.primary.gui_ready); auto* foreign=f.foreign; f.activate_foreign(); f.shutdown_primary(); REQUIRE(Salix::ImGuiInputManager::get_context_for_testing()==foreign); CHECK(f.primary.gui.get_context()==nullptr); }
 }
+
+TEST_SUITE("Salix::gui::OpenGLImGuiBatch8778") {
+    TEST_CASE("batch8778 OpenGL forced dialog close stores successful result invokes callback and clears active key") {
+        Batch7778OpenGLImGuiFixture f;
+        REQUIRE(f.gui_ready);
+        std::string key = "GL8778Close";
+        auto dialog = std::make_unique<Salix::DialogBox>(key, "Close8778", Salix::DialogType::File, false);
+        bool callback_called = false;
+        dialog->set_callback([&](const Salix::FileDialogResult& result) {
+            callback_called = true;
+            CHECK(result.is_ok);
+        });
+        REQUIRE(f.gui.register_dialog(std::move(dialog)));
+        f.gui.show_dialog_by_key(key);
+        REQUIRE(f.gui.is_dialog_open(key));
+
+        Salix::OpenGLImGui::set_force_dialog_close_for_testing(true);
+        Salix::OpenGLImGui::set_force_dialog_ok_for_testing(true);
+        struct Reset {
+            ~Reset() {
+                Salix::OpenGLImGui::set_force_dialog_close_for_testing(false);
+                Salix::OpenGLImGui::set_force_dialog_ok_for_testing(false);
+            }
+        } reset;
+
+        CHECK_NOTHROW(f.gui.display_dialogs());
+        CHECK(callback_called);
+        CHECK_FALSE(f.gui.is_dialog_open(key));
+        CHECK(f.gui.is_dialog_closed_this_frame(key));
+        const auto result = f.gui.get_dialog_result(key);
+        CHECK(result.is_ok);
+    }
+
+    TEST_CASE("batch8778 OpenGL forced registry insertion failure propagates through create dialog") {
+        Batch7778OpenGLImGuiFixture f;
+        REQUIRE(f.gui_ready);
+        Salix::OpenGLImGui::set_force_dialog_insert_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::OpenGLImGui::set_force_dialog_insert_failure_for_testing(false); }
+        } reset;
+        std::string key = "GL8778InsertFail";
+        std::string title = "Insert Fail 8778";
+        CHECK(f.gui.create_dialog(key, title, Salix::DialogType::File, false) == nullptr);
+        CHECK(f.gui.get_dialog(key) == nullptr);
+    }
+}
