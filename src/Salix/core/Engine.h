@@ -56,6 +56,12 @@ namespace Salix {
             static void set_force_ttf_init_failure_for_testing(bool enabled);
             static void set_force_application_listener_init_failure_for_testing(bool enabled);
             static void set_force_gui_init_failure_for_testing(bool enabled);
+            static void set_force_sdl_gui_cast_failure_for_testing(bool enabled);
+            static void set_force_opengl_gui_cast_failure_for_testing(bool enabled);
+            static void set_force_gui_event_polling_renderer_mismatch_for_testing(bool enabled);
+            void run_theme_manager_init_failure_for_testing();
+            void run_font_manager_init_failure_for_testing();
+            void run_null_icon_manager_setup_for_testing();
             #endif
         private:
             void process_input();
