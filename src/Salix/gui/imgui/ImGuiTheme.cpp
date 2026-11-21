@@ -23,6 +23,10 @@
 
 
 namespace Salix {
+
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_THEME_YAML_SAVE_EXCEPTION_FOR_TESTING = false;
+    #endif
     namespace ThemeParsingHelpers {
         // Helper to parse enum from string, returns a default value if not found
         ImGuiDir parse_imgui_dir(const YAML::Node& node, ImGuiDir default_val) {
@@ -163,6 +167,10 @@ namespace Salix {
     #ifdef SALIX_TESTS_ENABLED
     void ImGuiTheme::clear_data_for_testing() {
         pimpl->theme_data.reset();
+    }
+
+    void ImGuiTheme::set_force_yaml_save_exception_for_testing(bool enabled) {
+        G_FORCE_THEME_YAML_SAVE_EXCEPTION_FOR_TESTING = enabled;
     }
     #endif
 
@@ -589,6 +597,11 @@ namespace Salix {
         }
 
         try {
+            #ifdef SALIX_TESTS_ENABLED
+            if (G_FORCE_THEME_YAML_SAVE_EXCEPTION_FOR_TESTING) {
+                throw YAML::Exception(YAML::Mark::null_mark(), "Batch9178 forced theme YAML save failure");
+            }
+            #endif
             YAML::Emitter emitter;
             emitter << YAML::BeginMap; // Root map
 
