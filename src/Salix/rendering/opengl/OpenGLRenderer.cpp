@@ -39,6 +39,11 @@
 
 namespace Salix {
 
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_CONTEXT_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_GLAD_FAILURE_FOR_TESTING = false;
+    #endif
+
     // --- OpenGLRenderer Pimpl Implementation ---
     struct OpenGLRenderer::Pimpl {
         std::unique_ptr<IWindow> window;
@@ -416,7 +421,14 @@ namespace Salix {
 
         // --- Step 2: Create the OpenGL Context ---
         log_file << "[DEBUG] Creating OpenGL context..." << std::endl;
-        pimpl->gl_context = SDL_GL_CreateContext(static_cast<SDL_Window*>(pimpl->window->get_native_handle()));
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_CONTEXT_FAILURE_FOR_TESTING) {
+            pimpl->gl_context = nullptr;
+        } else
+        #endif
+        {
+            pimpl->gl_context = SDL_GL_CreateContext(static_cast<SDL_Window*>(pimpl->window->get_native_handle()));
+        }
         if (pimpl->gl_context == nullptr) {
             log_file << "OpenGLRenderer Error: Failed to create OpenGL context! SDL_Error: " << SDL_GetError() << std::endl;
             return false;
@@ -425,7 +437,13 @@ namespace Salix {
 
         // --- Step 3: Initialize GLAD ---
         log_file << "[DEBUG] Initializing GLAD..." << std::endl;
-        if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
+        bool glad_loaded = gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress) != 0;
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_GLAD_FAILURE_FOR_TESTING) {
+            glad_loaded = false;
+        }
+        #endif
+        if (!glad_loaded) {
             log_file << "OpenGLRenderer Error: Failed to initialize GLAD!" << std::endl;
             return false;
         }
@@ -472,6 +490,24 @@ namespace Salix {
 
         return true;
     }
+
+    #ifdef SALIX_TESTS_ENABLED
+    void OpenGLRenderer::set_force_context_failure_for_testing(bool enabled) {
+        G_FORCE_CONTEXT_FAILURE_FOR_TESTING = enabled;
+    }
+
+    void OpenGLRenderer::set_force_glad_failure_for_testing(bool enabled) {
+        G_FORCE_GLAD_FAILURE_FOR_TESTING = enabled;
+    }
+
+    GLuint OpenGLRenderer::get_cube_vao_for_testing() const {
+        return pimpl->cube_vao;
+    }
+
+    void OpenGLRenderer::set_cube_vao_for_testing(GLuint value) {
+        pimpl->cube_vao = value;
+    }
+    #endif
 
     void OpenGLRenderer::shutdown() {
         // Clean up OpenGL resources (VAO, VBO, Shaders)
