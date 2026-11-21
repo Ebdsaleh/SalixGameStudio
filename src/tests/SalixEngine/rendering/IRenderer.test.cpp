@@ -431,3 +431,23 @@ TEST_SUITE("Salix::rendering::IRendererBatch8578") {
         CHECK(concrete->get_sdl_renderer() == native_renderer);
     }
 }
+
+TEST_SUITE("Salix::rendering::IRendererBatch8678") {
+    TEST_CASE("batch8678 forced SDL renderer creation failure clears owned window state") {
+        Batch7678RendererNativeGuard driver;
+        REQUIRE(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) == 0);
+        Salix::SDLRenderer::set_force_renderer_creation_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::SDLRenderer::set_force_renderer_creation_failure_for_testing(false); }
+        } reset;
+        Salix::SDLRenderer renderer;
+        Salix::WindowConfig config;
+        config.title = "Batch8678 SDL failure";
+        config.width = 96;
+        config.height = 64;
+        CHECK_FALSE(renderer.initialize(config));
+        CHECK(renderer.get_native_handle() == nullptr);
+        CHECK(renderer.get_window() == nullptr);
+        CHECK(renderer.get_sdl_window() == nullptr);
+    }
+}
