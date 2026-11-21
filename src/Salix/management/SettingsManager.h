@@ -36,6 +36,9 @@ namespace Salix {
         // @param config: The config struct to save.
         // @return: True if settings were successfully saved, false otherwise.
         bool save_settings(const std::string& yaml_path, const ApplicationConfig& config);
+        #ifdef SALIX_TESTS_ENABLED
+        static void set_force_yaml_save_exception_for_testing(bool enabled);
+        #endif
 
     private:
         // Generates the path for the binary cache file from the YAML path.
