@@ -152,6 +152,7 @@ namespace Salix {
             public:
                 Element* get_element_internal(const std::type_info& type_info);
                 const Element* get_element_internal(const std::type_info& type_info) const;
+                void add_null_unique_element_for_testing();
             #else
             private:
                 Element* get_element_internal(const std::type_info& type_info);
