@@ -477,3 +477,49 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch8378") {
     TEST_CASE("batch8378 SDL foreign-context shutdown after layout save remains controlled") { Batch8378SDLForeignContext f; REQUIRE(f.primary.ready); auto p=std::filesystem::temp_directory_path()/"batch8378_sdl_foreign.ini"; f.primary.gui.save_layout(p.string()); REQUIRE(std::filesystem::exists(p)); f.activate_foreign(); f.shutdown_primary(); CHECK(Salix::ImGuiInputManager::get_context_for_testing()==f.foreign); std::error_code ec;std::filesystem::remove(p,ec); }
     TEST_CASE("batch8378 SDL null font texture reinitialize follows controlled defensive branch") { Batch7678SDLImGuiBackend f; REQUIRE(f.ready); auto* ctx=f.gui.get_context(); REQUIRE(ctx); auto* saved=ctx->IO.Fonts->TexData; ctx->IO.Fonts->TexData=nullptr; CHECK_NOTHROW(f.gui.reinitialize_backend()); ctx->IO.Fonts->TexData=saved; }
 }
+
+TEST_SUITE("Salix::gui::SDLImGuiBatch8778") {
+    TEST_CASE("batch8778 SDL forced dialog close stores successful result invokes callback and clears active key") {
+        Batch7678SDLImGuiBackend f;
+        REQUIRE(f.ready);
+        std::string key = "SDL8778Close";
+        auto dialog = std::make_unique<Salix::DialogBox>(key, "Close8778", Salix::DialogType::File, false);
+        bool callback_called = false;
+        dialog->set_callback([&](const Salix::FileDialogResult& result) {
+            callback_called = true;
+            CHECK(result.is_ok);
+        });
+        REQUIRE(f.gui.register_dialog(std::move(dialog)));
+        f.gui.show_dialog_by_key(key);
+        REQUIRE(f.gui.is_dialog_open(key));
+
+        Salix::SDLImGui::set_force_dialog_close_for_testing(true);
+        Salix::SDLImGui::set_force_dialog_ok_for_testing(true);
+        struct Reset {
+            ~Reset() {
+                Salix::SDLImGui::set_force_dialog_close_for_testing(false);
+                Salix::SDLImGui::set_force_dialog_ok_for_testing(false);
+            }
+        } reset;
+
+        CHECK_NOTHROW(f.gui.display_dialogs());
+        CHECK(callback_called);
+        CHECK_FALSE(f.gui.is_dialog_open(key));
+        CHECK(f.gui.is_dialog_closed_this_frame(key));
+        const auto result = f.gui.get_dialog_result(key);
+        CHECK(result.is_ok);
+    }
+
+    TEST_CASE("batch8778 SDL forced registry insertion failure propagates through create dialog") {
+        Batch7678SDLImGuiBackend f;
+        REQUIRE(f.ready);
+        Salix::SDLImGui::set_force_dialog_insert_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::SDLImGui::set_force_dialog_insert_failure_for_testing(false); }
+        } reset;
+        std::string key = "SDL8778InsertFail";
+        std::string title = "Insert Fail 8778";
+        CHECK(f.gui.create_dialog(key, title, Salix::DialogType::File, false) == nullptr);
+        CHECK(f.gui.get_dialog(key) == nullptr);
+    }
+}
