@@ -1544,24 +1544,28 @@ TEST_SUITE("Salix::gui::ImGuiFontManagerBatch8878") {
         CHECK(manager.get_font_registry().empty());
     }
 
-    TEST_CASE("batch8878 private font loader rejects invalid regular font file") {
+    TEST_CASE("batch8878 private font loader handles forced atlas load failure") {
         Batch6947FontManagerContext context;
-        const auto bad = batch6947_bad_font_file();
+        Salix::ImGuiFontManager::set_force_atlas_load_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::ImGuiFontManager::set_force_atlas_load_failure_for_testing(false); }
+        } reset;
         Salix::ImGuiFontManager manager;
-        CHECK_FALSE(manager.load_and_register_font_for_testing(bad.string(), "BadPrivate8878", "BadFamily8878", 12.0f));
+        CHECK_FALSE(manager.load_and_register_font_for_testing(
+            batch7047_font_path().string(), "BadPrivate8878", "BadFamily8878", 12.0f));
         CHECK(manager.get_font("BadPrivate8878") == nullptr);
-        std::error_code ec;
-        std::filesystem::remove(bad, ec);
     }
 
-    TEST_CASE("batch8878 public font loader rejects invalid regular font file") {
+    TEST_CASE("batch8878 public font loader handles forced atlas load failure") {
         Batch6947FontManagerContext context;
-        const auto bad = batch6947_bad_font_file();
+        Salix::ImGuiFontManager::set_force_atlas_load_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::ImGuiFontManager::set_force_atlas_load_failure_for_testing(false); }
+        } reset;
         Salix::ImGuiFontManager manager;
-        CHECK_FALSE(manager.load_font_from_file(bad.string(), "BadPublic8878", 12.0f, false));
+        CHECK_FALSE(manager.load_font_from_file(
+            batch7047_font_path().string(), "BadPublic8878", 12.0f, false));
         CHECK(manager.get_font("BadPublic8878") == nullptr);
-        std::error_code ec;
-        std::filesystem::remove(bad, ec);
     }
 
     TEST_CASE("batch8878 forced font object creation failure reaches defensive guard") {
