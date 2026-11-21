@@ -20,6 +20,11 @@
 
 namespace Salix {
 
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_NEW_FONT_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_INCOMPATIBLE_FONT_DATA_FOR_TESTING = false;
+    #endif
+
     // Pimpl struct definition
     struct ImGuiFontManager::Pimpl {
         IGui* gui_system = nullptr; // Non-owning pointer to the GUI system
@@ -134,6 +139,26 @@ namespace Salix {
 
 
 
+
+    #ifdef SALIX_TESTS_ENABLED
+    void ImGuiFontManager::set_force_new_font_failure_for_testing(bool enabled) {
+        G_FORCE_NEW_FONT_FAILURE_FOR_TESTING = enabled;
+    }
+
+    void ImGuiFontManager::set_force_incompatible_font_data_for_testing(bool enabled) {
+        G_FORCE_INCOMPATIBLE_FONT_DATA_FOR_TESTING = enabled;
+    }
+
+    bool ImGuiFontManager::load_and_register_font_for_testing(
+        const std::string& path,
+        const std::string& name,
+        const std::string& family,
+        float size) {
+        ImFontConfig config;
+        config.SizePixels = size;
+        return load_and_register_font(path, name, family, size, config);
+    }
+    #endif
 
     bool ImGuiFontManager::rebuild_font_atlas_texture() {
 
@@ -369,6 +394,11 @@ namespace Salix {
         std::cout << "DEBUG: ImGuiFontManager::load_font_from_file - Current Working Directory: " << std::filesystem::current_path() << std::endl;
         // 1. Create a concrete ImGuiFont object to hold the data
         auto new_font = std::make_unique<ImGuiFont>(file_path, font_name, font_size);
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_NEW_FONT_FAILURE_FOR_TESTING) {
+            new_font.reset();
+        }
+        #endif
         if (!new_font) {
             std::cerr << "ImGuiFontManager::load_font_from_file - Failed to create ImGuiFont object for '" << font_name << "'." << std::endl;
             return false;
@@ -382,6 +412,11 @@ namespace Salix {
         // Populate font_cfg from new_font->get_data()->config
         // FIX: Dynamic cast IFontData* to ImGuiFontData*
         ImGuiFontData* font_data = dynamic_cast<ImGuiFontData*>(new_font->get_data());
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_INCOMPATIBLE_FONT_DATA_FOR_TESTING) {
+            font_data = nullptr;
+        }
+        #endif
         if (!font_data) { // Check if the cast was successful
             std::cerr << "ImGuiFontManager::load_font_from_file - ImGuiFont object has incompatible font data." << std::endl;
             return false;
