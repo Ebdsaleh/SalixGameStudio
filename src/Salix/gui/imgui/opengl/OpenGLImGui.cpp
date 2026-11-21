@@ -24,6 +24,12 @@
 #include <SDL.h>
  
 namespace Salix {
+
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_OPENGL_DIALOG_CLOSE_FOR_TESTING = false;
+    static bool G_FORCE_OPENGL_DIALOG_OK_FOR_TESTING = false;
+    static bool G_FORCE_OPENGL_DIALOG_INSERT_FAILURE_FOR_TESTING = false;
+    #endif
     
     struct OpenGLImGui::Pimpl {
         ImGuiContext* context = nullptr;
@@ -408,7 +414,16 @@ namespace Salix {
             }
 
             // Now, call Display() every frame it's active (including the first after Open())
-            if (ImGuiFileDialog::Instance()->Display(key.c_str())) { // Display returns true when dialog is closed.
+            bool dialog_closed = false;
+            #ifdef SALIX_TESTS_ENABLED
+            if (G_FORCE_OPENGL_DIALOG_CLOSE_FOR_TESTING) {
+                dialog_closed = true;
+            } else
+            #endif
+            {
+                dialog_closed = ImGuiFileDialog::Instance()->Display(key.c_str());
+            }
+            if (dialog_closed) { // Display returns true when dialog is closed.
                 // Dialog was just closed this frame (either OK or Cancel)
                 FileDialogResult result = populate_dialog_result(key);
                 pimpl->dialog_results_this_frame[key] = result;
@@ -456,6 +471,11 @@ namespace Salix {
         FileDialogResult result;
         if (key.empty()) { return result; }
         result.is_ok = ImGuiFileDialog::Instance()->IsOk();
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_OPENGL_DIALOG_OK_FOR_TESTING) {
+            result.is_ok = true;
+        }
+        #endif
         if (result.is_ok) {
             result.file_path_name = ImGuiFileDialog::Instance()->GetFilePathName();
             result.file_name = ImGuiFileDialog::Instance()->GetCurrentFileName();
@@ -520,7 +540,13 @@ namespace Salix {
         }
 
         // emplace returns a pair<iterator, bool>, where bool is true if insertion happened.
-        auto [it, inserted] = pimpl->dialog_registry.emplace(key, std::move(dialog));
+        bool inserted = false;
+        #ifdef SALIX_TESTS_ENABLED
+        if (!G_FORCE_OPENGL_DIALOG_INSERT_FAILURE_FOR_TESTING)
+        #endif
+        {
+            inserted = pimpl->dialog_registry.emplace(key, std::move(dialog)).second;
+        }
 
         if (inserted) {
             std::cout << "OpenGLImGui: Dialog '" << key << "' registered." << std::endl;
@@ -569,6 +595,20 @@ namespace Salix {
         return event_consumed_by_gui;
     } 
     
+    #ifdef SALIX_TESTS_ENABLED
+    void OpenGLImGui::set_force_dialog_close_for_testing(bool enabled) {
+        G_FORCE_OPENGL_DIALOG_CLOSE_FOR_TESTING = enabled;
+    }
+
+    void OpenGLImGui::set_force_dialog_ok_for_testing(bool enabled) {
+        G_FORCE_OPENGL_DIALOG_OK_FOR_TESTING = enabled;
+    }
+
+    void OpenGLImGui::set_force_dialog_insert_failure_for_testing(bool enabled) {
+        G_FORCE_OPENGL_DIALOG_INSERT_FAILURE_FOR_TESTING = enabled;
+    }
+    #endif
+
     ImGuiContext* OpenGLImGui::get_context() { return pimpl->context; }
 
     IIconManager* OpenGLImGui::get_icon_manager() {
