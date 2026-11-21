@@ -15,6 +15,10 @@
 
 namespace Salix {
 
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_THEME_REGISTRATION_FAILURE_FOR_TESTING = false;
+    #endif
+
     // ---------------------- ImGuiThemeManager ----------------------
     struct ImGuiThemeManager::Pimpl {
         IGui* gui_system = nullptr;
@@ -52,6 +56,11 @@ namespace Salix {
             std::cerr << "ImGuiThemeManager Error: Cannot register a null theme." << std::endl;
             return false;
         }
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_THEME_REGISTRATION_FAILURE_FOR_TESTING) {
+            return false;
+        }
+        #endif
         const std::string& name = theme->get_name(); // Get name before moving
         if (pimpl->theme_registry.count(name)) {
             std::cerr << "ImGuiThemeManager Error: Theme '" << name << "' already registered." << std::endl;
@@ -61,6 +70,12 @@ namespace Salix {
         std::cout << "ImGuiThemeManager: Theme '" << name << "' registered." << std::endl;
         return true;
         }
+
+    #ifdef SALIX_TESTS_ENABLED
+    void ImGuiThemeManager::set_force_registration_failure_for_testing(bool enabled) {
+        G_FORCE_THEME_REGISTRATION_FAILURE_FOR_TESTING = enabled;
+    }
+    #endif
 
     bool ImGuiThemeManager::unregister_theme(const std::string& theme_name) {
         auto it = pimpl->theme_registry.find(theme_name);
