@@ -10,6 +10,10 @@
 
 namespace Salix {
 
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_RENDERER_CREATION_FAILURE_FOR_TESTING = false;
+    #endif
+
     struct SDLRenderer::Pimpl {
         // The Renderer's own SDL_Renderer object
         SDL_Renderer* sdl_renderer = nullptr;
@@ -42,7 +46,14 @@ namespace Salix {
         // alongside the owning IWindow wrapper for native backend access.
         void* native_handle = pimpl->window->get_native_handle();
         pimpl->sdl_window = static_cast<SDL_Window*>(native_handle);
-        pimpl->sdl_renderer = SDL_CreateRenderer(pimpl->sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_RENDERER_CREATION_FAILURE_FOR_TESTING) {
+            pimpl->sdl_renderer = nullptr;
+        } else
+        #endif
+        {
+            pimpl->sdl_renderer = SDL_CreateRenderer(pimpl->sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+        }
 
         if (pimpl->sdl_renderer == nullptr) {
             std::cout << "Renderer::initalize - SDL_CreateRenderer Failed!" << std::endl;
@@ -69,6 +80,12 @@ namespace Salix {
     SDL_Renderer* SDLRenderer::get_sdl_renderer() {
         return pimpl->sdl_renderer;
     }
+
+    #ifdef SALIX_TESTS_ENABLED
+    void SDLRenderer::set_force_renderer_creation_failure_for_testing(bool enabled) {
+        G_FORCE_RENDERER_CREATION_FAILURE_FOR_TESTING = enabled;
+    }
+    #endif
 
     void SDLRenderer::shutdown() {
         std::cout << "Shutting down renderer." << std::endl;
