@@ -173,6 +173,13 @@ namespace Salix {
         }
     }
 
+    #ifdef SALIX_TESTS_ENABLED
+    void Entity::add_null_unique_element_for_testing() {
+        std::unique_ptr<BoxCollider> empty;
+        add_element(std::move(empty));
+    }
+    #endif
+
     Element* Entity::get_element_by_name(const std::string& element_name) {
         Element* found_element = nullptr;
         if (element_name.empty()) return found_element;
