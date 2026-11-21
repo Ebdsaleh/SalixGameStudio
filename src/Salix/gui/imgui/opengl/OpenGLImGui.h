@@ -67,6 +67,11 @@ namespace Salix {
         // Specific method to set up event system dependencies.
         void setup_event_polling(IEventPoller* event_poller, EventManager* event_manager);
         ImGuiContext* get_context() override;
+        #ifdef SALIX_TESTS_ENABLED
+        static void set_force_dialog_close_for_testing(bool enabled);
+        static void set_force_dialog_ok_for_testing(bool enabled);
+        static void set_force_dialog_insert_failure_for_testing(bool enabled);
+        #endif
         void request_theme_reload();
         bool is_theme_reload_requested();
         void clear_theme_reload_request();
