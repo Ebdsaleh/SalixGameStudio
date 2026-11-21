@@ -91,6 +91,7 @@ namespace Salix {
         #ifdef SALIX_TESTS_ENABLED
         static void set_force_new_font_failure_for_testing(bool enabled);
         static void set_force_incompatible_font_data_for_testing(bool enabled);
+        static void set_force_atlas_load_failure_for_testing(bool enabled);
         bool load_and_register_font_for_testing(const std::string& path, const std::string& name, const std::string& family, float size);
         #endif
         // Remember std::map<const std::string, std::unique_ptr<IFont>> for the font_registry.
