@@ -82,6 +82,11 @@ namespace Salix {
     static bool G_FORCE_TTF_INIT_FAILURE_FOR_TESTING = false;
     static bool G_FORCE_APPLICATION_LISTENER_INIT_FAILURE_FOR_TESTING = false;
     static bool G_FORCE_GUI_INIT_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_SDL_GUI_CAST_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_OPENGL_GUI_CAST_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_GUI_EVENT_POLLING_RENDERER_MISMATCH_FOR_TESTING = false;
+    static bool G_FORCE_THEME_MANAGER_INIT_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_FONT_MANAGER_INIT_FAILURE_FOR_TESTING = false;
     #endif
 
     struct Engine::Pimpl {
@@ -397,8 +402,20 @@ namespace Salix {
                 
                 
                 
-                if ( config.renderer_type == RendererType::SDL) {
-                    if (auto* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_system.get())) {
+                #ifdef SALIX_TESTS_ENABLED
+                const bool force_renderer_mismatch = G_FORCE_GUI_EVENT_POLLING_RENDERER_MISMATCH_FOR_TESTING;
+                #else
+                const bool force_renderer_mismatch = false;
+                #endif
+
+                if (config.renderer_type == RendererType::SDL && !force_renderer_mismatch) {
+                    auto* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_system.get());
+                    #ifdef SALIX_TESTS_ENABLED
+                    if (G_FORCE_SDL_GUI_CAST_FAILURE_FOR_TESTING) {
+                        sdl_imgui = nullptr;
+                    }
+                    #endif
+                    if (sdl_imgui) {
                         sdl_imgui->setup_event_polling(
                             pimpl->event_poller.get(),
                             pimpl->event_manager.get()
@@ -411,8 +428,14 @@ namespace Salix {
                         // This is a critical error if SDLImGui was just created and casting fails.
                         return false;
                     }
-                } else if (config.renderer_type == RendererType::OpenGL) {
-                    if (auto* opengl_imgui = dynamic_cast<OpenGLImGui*>(pimpl->gui_system.get())) {
+                } else if (config.renderer_type == RendererType::OpenGL && !force_renderer_mismatch) {
+                    auto* opengl_imgui = dynamic_cast<OpenGLImGui*>(pimpl->gui_system.get());
+                    #ifdef SALIX_TESTS_ENABLED
+                    if (G_FORCE_OPENGL_GUI_CAST_FAILURE_FOR_TESTING) {
+                        opengl_imgui = nullptr;
+                    }
+                    #endif
+                    if (opengl_imgui) {
                         opengl_imgui->setup_event_polling(
                             pimpl->event_poller.get(),
                             pimpl->event_manager.get()
@@ -736,6 +759,36 @@ namespace Salix {
     void Engine::set_force_gui_init_failure_for_testing(bool enabled) {
         G_FORCE_GUI_INIT_FAILURE_FOR_TESTING = enabled;
     }
+
+    void Engine::set_force_sdl_gui_cast_failure_for_testing(bool enabled) {
+        G_FORCE_SDL_GUI_CAST_FAILURE_FOR_TESTING = enabled;
+    }
+
+    void Engine::set_force_opengl_gui_cast_failure_for_testing(bool enabled) {
+        G_FORCE_OPENGL_GUI_CAST_FAILURE_FOR_TESTING = enabled;
+    }
+
+    void Engine::set_force_gui_event_polling_renderer_mismatch_for_testing(bool enabled) {
+        G_FORCE_GUI_EVENT_POLLING_RENDERER_MISMATCH_FOR_TESTING = enabled;
+    }
+
+    void Engine::run_theme_manager_init_failure_for_testing() {
+        G_FORCE_THEME_MANAGER_INIT_FAILURE_FOR_TESTING = true;
+        pimpl->setup_theme();
+        G_FORCE_THEME_MANAGER_INIT_FAILURE_FOR_TESTING = false;
+    }
+
+    void Engine::run_font_manager_init_failure_for_testing() {
+        G_FORCE_FONT_MANAGER_INIT_FAILURE_FOR_TESTING = true;
+        pimpl->setup_fonts();
+        G_FORCE_FONT_MANAGER_INIT_FAILURE_FOR_TESTING = false;
+    }
+
+    void Engine::run_null_icon_manager_setup_for_testing() {
+        auto saved = std::move(pimpl->icon_manager);
+        pimpl->setup_icons();
+        pimpl->icon_manager = std::move(saved);
+    }
     #endif
 
     IRenderer* Engine::get_renderer() { return pimpl->renderer.get(); }
@@ -797,7 +850,11 @@ namespace Salix {
      void Engine::Pimpl::setup_theme()  {
         // Initialize the Theme Manager (AFTER GUI System is initialized)
         // The Theme Manager needs the IGui* to apply themes.
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_THEME_MANAGER_INIT_FAILURE_FOR_TESTING || !theme_manager->initialize(gui_system.get())) {
+        #else
         if (!theme_manager->initialize(gui_system.get())) {
+        #endif
             std::cerr << "Engine Error: Theme Manager failed to initialize with GUI system!" << std::endl;
             return;
         }         
@@ -808,7 +865,11 @@ namespace Salix {
 
      void Engine::Pimpl::setup_fonts()  {
 
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_FONT_MANAGER_INIT_FAILURE_FOR_TESTING || !font_manager->initialize(gui_system.get())) {
+        #else
         if (!font_manager->initialize(gui_system.get())) {
+        #endif
                 std::cerr << "Engine Error: Font Manager failed to initialize with GUI system!" << std::endl;
                 return;
             }
