@@ -19,6 +19,10 @@
 
 namespace Salix {
 
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_SETTINGS_YAML_SAVE_EXCEPTION_FOR_TESTING = false;
+    #endif
+
     bool write_cache(const std::string& cache_path, const ApplicationConfig& config);
     bool read_cache(const std::string& cache_path, ApplicationConfig& out_config);
 
@@ -129,6 +133,12 @@ namespace Salix {
         return true;
     }
 
+    #ifdef SALIX_TESTS_ENABLED
+    void SettingsManager::set_force_yaml_save_exception_for_testing(bool enabled) {
+        G_FORCE_SETTINGS_YAML_SAVE_EXCEPTION_FOR_TESTING = enabled;
+    }
+    #endif
+
    bool SettingsManager::save_settings(const std::string& yaml_path, const ApplicationConfig& config)
     {
         if (yaml_path.empty()) { 
@@ -137,6 +147,11 @@ namespace Salix {
         }
 
         try {
+            #ifdef SALIX_TESTS_ENABLED
+            if (G_FORCE_SETTINGS_YAML_SAVE_EXCEPTION_FOR_TESTING) {
+                throw YAML::Exception(YAML::Mark::null_mark(), "Batch9178 forced settings YAML save failure");
+            }
+            #endif
             YAML::Emitter emitter;
             emitter << YAML::BeginMap;
 
