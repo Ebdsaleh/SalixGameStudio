@@ -1605,3 +1605,70 @@ TEST_SUITE("Salix::core::EngineBatch8378") {
     TEST_CASE("batch8378 native SDL renderer window handle matches owned window native handle") { Batch7678NativeEngineRun f; REQUIRE(f.initialized); auto* r=f.engine.get_renderer(); REQUIRE(r); REQUIRE(r->get_window()); CHECK(r->get_sdl_window()==static_cast<SDL_Window*>(r->get_window()->get_native_handle())); }
 }
 
+
+TEST_SUITE("Salix::core::EngineBatch8978") {
+    TEST_CASE("batch8978 forced TTF initialization failure reaches cleanup return") {
+        Batch7678WindowsVideoGuard driver;
+        Salix::Engine::set_force_ttf_init_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::Engine::set_force_ttf_init_failure_for_testing(false); }
+        } reset;
+
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = Salix::GuiType::None;
+        config.initial_state = Salix::AppStateType::Launch;
+        config.window_config.title = "Batch8978 TTF Failure";
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+
+        CHECK_FALSE(engine.initialize(config));
+        CHECK(engine.get_renderer() == nullptr);
+        engine.shutdown();
+    }
+
+    TEST_CASE("batch8978 forced application listener initialization failure reaches engine return") {
+        Batch7678WindowsVideoGuard driver;
+        Salix::Engine::set_force_application_listener_init_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::Engine::set_force_application_listener_init_failure_for_testing(false); }
+        } reset;
+
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = Salix::GuiType::None;
+        config.initial_state = Salix::AppStateType::Launch;
+        config.window_config.title = "Batch8978 Listener Failure";
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+
+        CHECK_FALSE(engine.initialize(config));
+        CHECK(engine.get_renderer() != nullptr);
+        CHECK(engine.get_event_manager() != nullptr);
+        engine.shutdown();
+    }
+
+    TEST_CASE("batch8978 forced GUI initialization failure reaches critical GUI return") {
+        Batch7678WindowsVideoGuard driver;
+        Salix::Engine::set_force_gui_init_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::Engine::set_force_gui_init_failure_for_testing(false); }
+        } reset;
+
+        Salix::Engine engine;
+        Salix::ApplicationConfig config;
+        config.renderer_type = Salix::RendererType::SDL;
+        config.gui_type = Salix::GuiType::ImGui;
+        config.initial_state = Salix::AppStateType::Launch;
+        config.window_config.title = "Batch8978 GUI Failure";
+        config.window_config.width = 96;
+        config.window_config.height = 64;
+
+        CHECK_FALSE(engine.initialize(config));
+        CHECK(engine.get_renderer() != nullptr);
+        CHECK(engine.get_event_manager() != nullptr);
+        engine.shutdown();
+    }
+}
