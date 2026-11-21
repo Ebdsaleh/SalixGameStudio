@@ -89,6 +89,12 @@ namespace Salix {
             const Color& color,
             int segments = 16
             ) override;
+        #ifdef SALIX_TESTS_ENABLED
+        static void set_force_context_failure_for_testing(bool enabled);
+        static void set_force_glad_failure_for_testing(bool enabled);
+        GLuint get_cube_vao_for_testing() const;
+        void set_cube_vao_for_testing(GLuint value);
+        #endif
         
     private:
         struct Pimpl;
