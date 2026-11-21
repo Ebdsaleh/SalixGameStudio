@@ -37,6 +37,9 @@ namespace Salix {
         bool set_active_theme(const std::string& theme_name) override;
         bool purge_theme(const std::string& theme_name) override;
         void apply_style_scale(float scale) override;
+        #ifdef SALIX_TESTS_ENABLED
+        static void set_force_registration_failure_for_testing(bool enabled);
+        #endif
 
     private:
         struct Pimpl;
