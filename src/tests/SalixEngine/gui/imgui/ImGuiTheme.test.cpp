@@ -1332,3 +1332,16 @@ TEST_SUITE("Salix::gui::ImGuiThemeBatch8578") {
         CHECK(theme.get_data()->get_gui_type() == "ImGui");
     }
 }
+
+TEST_SUITE("Salix::gui::ImGuiThemeBatch9178") {
+    TEST_CASE("batch9178 forced YAML save exception reaches original catch body") {
+        Batch1147ThemeTempFile file;
+        Salix::ImGuiTheme::set_force_yaml_save_exception_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::ImGuiTheme::set_force_yaml_save_exception_for_testing(false); }
+        } reset;
+
+        Salix::ImGuiTheme theme("ForcedSave9178");
+        CHECK_FALSE(theme.save_to_yaml(file.path.string()));
+    }
+}
