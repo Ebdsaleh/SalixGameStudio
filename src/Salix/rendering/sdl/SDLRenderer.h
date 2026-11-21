@@ -79,6 +79,9 @@ namespace Salix{
             void* get_native_handle() override;
 
             SDL_Renderer* get_sdl_renderer();
+            #ifdef SALIX_TESTS_ENABLED
+            static void set_force_renderer_creation_failure_for_testing(bool enabled);
+            #endif
 
         private:
             struct Pimpl;
