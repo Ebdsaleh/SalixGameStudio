@@ -23,6 +23,7 @@ namespace Salix {
     #ifdef SALIX_TESTS_ENABLED
     static bool G_FORCE_NEW_FONT_FAILURE_FOR_TESTING = false;
     static bool G_FORCE_INCOMPATIBLE_FONT_DATA_FOR_TESTING = false;
+    static bool G_FORCE_ATLAS_LOAD_FAILURE_FOR_TESTING = false;
     #endif
 
     // Pimpl struct definition
@@ -147,6 +148,10 @@ namespace Salix {
 
     void ImGuiFontManager::set_force_incompatible_font_data_for_testing(bool enabled) {
         G_FORCE_INCOMPATIBLE_FONT_DATA_FOR_TESTING = enabled;
+    }
+
+    void ImGuiFontManager::set_force_atlas_load_failure_for_testing(bool enabled) {
+        G_FORCE_ATLAS_LOAD_FAILURE_FOR_TESTING = enabled;
     }
 
     bool ImGuiFontManager::load_and_register_font_for_testing(
@@ -279,7 +284,13 @@ namespace Salix {
 
         // 2. Load the font into ImGui's atlas
         ImGuiIO& io = ImGui::GetIO();
-        ImFont* loaded_ptr = io.Fonts->AddFontFromFileTTF(path.c_str(), size, &config);
+        ImFont* loaded_ptr = nullptr;
+        #ifdef SALIX_TESTS_ENABLED
+        if (!G_FORCE_ATLAS_LOAD_FAILURE_FOR_TESTING)
+        #endif
+        {
+            loaded_ptr = io.Fonts->AddFontFromFileTTF(path.c_str(), size, &config);
+        }
 
         if (!loaded_ptr) {
             std::cerr << "ImGuiFontManager Error: Failed to load font from file: " << path << std::endl;
@@ -444,12 +455,18 @@ namespace Salix {
         strncpy_s(font_cfg.Name, IM_ARRAYSIZE(font_cfg.Name), font_data->get_name().c_str(), IM_ARRAYSIZE(font_cfg.Name) - 1);
         font_cfg.Name[IM_ARRAYSIZE(font_cfg.Name) - 1] = '\0';
 
-        ImFont* loaded_imgui_font_ptr = io.Fonts->AddFontFromFileTTF(
-            file_path.c_str(), // Use the file_path parameter here
-            font_size,         // Use the font_size parameter here
-            &font_cfg,
-            NULL
-        );
+        ImFont* loaded_imgui_font_ptr = nullptr;
+        #ifdef SALIX_TESTS_ENABLED
+        if (!G_FORCE_ATLAS_LOAD_FAILURE_FOR_TESTING)
+        #endif
+        {
+            loaded_imgui_font_ptr = io.Fonts->AddFontFromFileTTF(
+                file_path.c_str(), // Use the file_path parameter here
+                font_size,         // Use the font_size parameter here
+                &font_cfg,
+                NULL
+            );
+        }
 
         if (!loaded_imgui_font_ptr) {
             std::cerr << "ImGuiFontManager::load_font_from_file - ImGui failed to load font from file: " << file_path << std::endl;
