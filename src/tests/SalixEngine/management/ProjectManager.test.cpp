@@ -1776,3 +1776,16 @@ TEST_SUITE("Salix::management::ProjectManagerBatch8378") {
     TEST_CASE("batch8378 empty shutdown remains idempotent") { Salix::ProjectManager m;m.shutdown();m.shutdown();CHECK(m.get_active_project()==nullptr); }
 }
 
+
+TEST_SUITE("Salix::management::ProjectManagerBatch9178") {
+    TEST_CASE("batch9178 forced project serialization exception reaches original catch body") {
+        Batch7047ExternalProjectEnv env;
+        Salix::ProjectManager::set_force_serialization_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::ProjectManager::set_force_serialization_failure_for_testing(false); }
+        } reset;
+
+        Salix::ProjectManager manager;
+        CHECK_FALSE(manager.create_new_external_project(env.projects.string(), "ForcedSerialize9178"));
+    }
+}
