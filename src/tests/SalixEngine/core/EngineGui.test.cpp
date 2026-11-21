@@ -126,3 +126,53 @@ TEST_SUITE("Salix::core::EngineGuiBatch7978") {
     }
 }
 
+
+TEST_SUITE("Salix::core::EngineGuiBatch9078") {
+    TEST_CASE("batch9078 forced SDL GUI cast failure reaches event polling error return") {
+        Salix::Engine::set_force_sdl_gui_cast_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::Engine::set_force_sdl_gui_cast_failure_for_testing(false); }
+        } reset;
+        Batch7878GuiEngine f(Salix::RendererType::SDL);
+        CHECK_FALSE(f.ready);
+    }
+
+    TEST_CASE("batch9078 forced OpenGL GUI cast failure reaches event polling error return") {
+        Salix::Engine::set_force_opengl_gui_cast_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::Engine::set_force_opengl_gui_cast_failure_for_testing(false); }
+        } reset;
+        Batch7878GuiEngine f(Salix::RendererType::OpenGL);
+        CHECK_FALSE(f.ready);
+    }
+
+    TEST_CASE("batch9078 forced GUI event polling renderer mismatch reaches fallback error return") {
+        Salix::Engine::set_force_gui_event_polling_renderer_mismatch_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::Engine::set_force_gui_event_polling_renderer_mismatch_for_testing(false); }
+        } reset;
+        Batch7878GuiEngine f(Salix::RendererType::SDL);
+        CHECK_FALSE(f.ready);
+    }
+
+    TEST_CASE("batch9078 initialized GUI engine can exercise theme manager initialization failure guard") {
+        Batch7878GuiEngine f(Salix::RendererType::SDL);
+        REQUIRE(f.ready);
+        CHECK_NOTHROW(f.engine.run_theme_manager_init_failure_for_testing());
+        CHECK(f.engine.is_running());
+    }
+
+    TEST_CASE("batch9078 initialized GUI engine can exercise font manager initialization failure guard") {
+        Batch7878GuiEngine f(Salix::RendererType::SDL);
+        REQUIRE(f.ready);
+        CHECK_NOTHROW(f.engine.run_font_manager_init_failure_for_testing());
+        CHECK(f.engine.is_running());
+    }
+
+    TEST_CASE("batch9078 initialized GUI engine can exercise null icon manager setup guard") {
+        Batch7878GuiEngine f(Salix::RendererType::SDL);
+        REQUIRE(f.ready);
+        CHECK_NOTHROW(f.engine.run_null_icon_manager_setup_for_testing());
+        CHECK(f.engine.is_running());
+    }
+}
