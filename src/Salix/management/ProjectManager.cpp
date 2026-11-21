@@ -29,6 +29,10 @@
 #include <cereal/types/array.hpp>
 
 namespace Salix {
+
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_PROJECT_SERIALIZATION_FAILURE_FOR_TESTING = false;
+    #endif
     SALIX_API std::filesystem::path g_project_root_path;
     // --- Pimpl struct definition ---
     struct ProjectManager::Pimpl {
@@ -124,6 +128,12 @@ namespace Salix {
     }
 
     // --- DEVELOPMENT-ONLY METHODS ---
+
+    #ifdef SALIX_TESTS_ENABLED
+    void ProjectManager::set_force_serialization_failure_for_testing(bool enabled) {
+        G_FORCE_PROJECT_SERIALIZATION_FAILURE_FOR_TESTING = enabled;
+    }
+    #endif
 
     bool ProjectManager::create_new_external_project(const std::string& project_path, const std::string& project_name) {
         // --- 1. Construct all paths ---
@@ -231,6 +241,11 @@ namespace Salix {
         }
       
         try {
+            #ifdef SALIX_TESTS_ENABLED
+            if (G_FORCE_PROJECT_SERIALIZATION_FAILURE_FOR_TESTING) {
+                throw cereal::Exception("Batch9178 forced project serialization failure");
+            }
+            #endif
             cereal::JSONOutputArchive archive(new_project_file_os);
             archive(project_config);
         } catch (const cereal::Exception& e) {
