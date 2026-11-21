@@ -78,6 +78,12 @@
 
 namespace Salix {
 
+    #ifdef SALIX_TESTS_ENABLED
+    static bool G_FORCE_TTF_INIT_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_APPLICATION_LISTENER_INIT_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_GUI_INIT_FAILURE_FOR_TESTING = false;
+    #endif
+
     struct Engine::Pimpl {
         bool is_running;
         float time_scale = 1.0f;
@@ -174,7 +180,11 @@ namespace Salix {
 
 
         // --- INITIALIZE SDL_TTF ---
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_TTF_INIT_FAILURE_FOR_TESTING || TTF_Init() == -1) {
+        #else
         if (TTF_Init() == -1) {
+        #endif
             std::cerr << "Engine::initialize - SDL_ttf could not be initialized! TTF_Error: " << TTF_GetError() << std::endl;
             SDL_Quit(); // Ensure SDL is quit if TTF fails
             return false;
@@ -264,7 +274,11 @@ namespace Salix {
 
         // -- INITIALIZE APPLICATION EVENT LISTENER ---
         pimpl->app_event_listener = std::make_unique<ApplicationEventListener>();
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_APPLICATION_LISTENER_INIT_FAILURE_FOR_TESTING || !pimpl->app_event_listener->initialize(this)) {
+        #else
         if (!pimpl->app_event_listener->initialize(this)) {
+        #endif
             std::cerr << "Engine Error: Application Event Listener failed to initialize." << std::endl;
             return false;
         }
@@ -324,14 +338,20 @@ namespace Salix {
                 
                 pimpl->gui_system->set_app_config(pimpl->app_config.get());
                 
-                if (!pimpl->gui_system->initialize(
+                bool gui_initialized = false;
+                #ifdef SALIX_TESTS_ENABLED
+                if (!G_FORCE_GUI_INIT_FAILURE_FOR_TESTING)
+                #endif
+                {
+                    gui_initialized = pimpl->gui_system->initialize(
                         pimpl->renderer->get_window(),
                         pimpl->renderer.get(),
                         pimpl->theme_manager.get(),
                         pimpl->font_manager.get(),
                         pimpl->icon_manager.get()
-                    )
-                    ) {
+                    );
+                }
+                if (!gui_initialized) {
                     std::cerr << "Engine Error: GUI system initialization failed!" << std::endl;
                     // IMPORTANT: If GUI init fails, the whole engine initialization fails.
                     // We MUST return false from Engine::initialize here.
@@ -703,6 +723,20 @@ namespace Salix {
             }
         
     }
+
+    #ifdef SALIX_TESTS_ENABLED
+    void Engine::set_force_ttf_init_failure_for_testing(bool enabled) {
+        G_FORCE_TTF_INIT_FAILURE_FOR_TESTING = enabled;
+    }
+
+    void Engine::set_force_application_listener_init_failure_for_testing(bool enabled) {
+        G_FORCE_APPLICATION_LISTENER_INIT_FAILURE_FOR_TESTING = enabled;
+    }
+
+    void Engine::set_force_gui_init_failure_for_testing(bool enabled) {
+        G_FORCE_GUI_INIT_FAILURE_FOR_TESTING = enabled;
+    }
+    #endif
 
     IRenderer* Engine::get_renderer() { return pimpl->renderer.get(); }
     AssetManager* Engine::get_asset_manager() { return pimpl->asset_manager.get(); }
