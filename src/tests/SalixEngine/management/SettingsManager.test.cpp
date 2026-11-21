@@ -1861,3 +1861,17 @@ TEST_SUITE("Salix::management::SettingsManagerBatch8378") {
     TEST_CASE("batch8378 save load preserves editor initial state") { Batch3447SettingsFiles f("Batch8378J");Salix::ApplicationConfig a;a.initial_state=Salix::AppStateType::Editor;Salix::SettingsManager m;REQUIRE(m.save_settings(f.yaml.string(),a));std::filesystem::remove(f.cache);Salix::ApplicationConfig b;REQUIRE(m.load_settings(f.yaml.string(),b));CHECK(b.initial_state==Salix::AppStateType::Editor); }
 }
 
+
+TEST_SUITE("Salix::management::SettingsManagerBatch9178") {
+    TEST_CASE("batch9178 forced YAML save exception reaches original catch body") {
+        Batch3447SettingsFiles files("Batch9178_ForcedYamlSave");
+        Salix::SettingsManager::set_force_yaml_save_exception_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::SettingsManager::set_force_yaml_save_exception_for_testing(false); }
+        } reset;
+
+        Salix::ApplicationConfig config;
+        Salix::SettingsManager manager;
+        CHECK_FALSE(manager.save_settings(files.yaml.string(), config));
+    }
+}
