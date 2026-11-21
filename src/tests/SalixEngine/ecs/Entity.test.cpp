@@ -1608,3 +1608,12 @@ TEST_SUITE("Salix::ecs::EntityBatch5747") {
     }
 }
 
+
+TEST_SUITE("Salix::ecs::EntityBatch8678") {
+    TEST_CASE("batch8678 DLL side null unique element insertion preserves ownership") {
+        Salix::Entity entity;
+        const auto before = entity.get_all_elements().size();
+        CHECK_NOTHROW(entity.add_null_unique_element_for_testing());
+        CHECK(entity.get_all_elements().size() == before);
+    }
+}
