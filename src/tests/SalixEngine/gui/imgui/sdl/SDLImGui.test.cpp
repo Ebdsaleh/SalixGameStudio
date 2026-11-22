@@ -523,3 +523,19 @@ TEST_SUITE("Salix::gui::SDLImGuiBatch8778") {
         CHECK(f.gui.get_dialog(key) == nullptr);
     }
 }
+
+TEST_SUITE("Salix::gui::SDLImGuiBatch9478") {
+    TEST_CASE("batch9478 forced SDL platform window update reaches engine DLL viewport calls") {
+        Batch7678SDLImGuiBackend fixture;
+        REQUIRE(fixture.ready);
+
+        Salix::SDLImGui::set_force_platform_windows_update_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::SDLImGui::set_force_platform_windows_update_for_testing(false); }
+        } reset;
+
+        fixture.gui.new_frame();
+        fixture.gui.render();
+        CHECK_NOTHROW(fixture.gui.update_and_render_platform_windows());
+    }
+}
