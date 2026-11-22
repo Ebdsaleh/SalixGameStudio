@@ -361,9 +361,9 @@ namespace Salix {
                     // IMPORTANT: If GUI init fails, the whole engine initialization fails.
                     // We MUST return false from Engine::initialize here.
                     return false;
-                } else {
-                    std::cout << "[ENGINE] GUI system initialized." << std::endl;
                 }
+
+                std::cout << "[ENGINE] GUI system initialized." << std::endl;
 
                 
                 // 1. Initialize the Theme Manager
@@ -812,10 +812,10 @@ namespace Salix {
     AssetManager* Engine::get_asset_manager() { return pimpl->asset_manager.get(); }
     IInputManager* Engine::get_input_manager() {
        if (pimpl->context.engine_mode == EngineMode::Game) {
-        return pimpl->game_input_manager.get(); 
-       } else {
-        return pimpl->gui_input_manager.get();
+        return pimpl->game_input_manager.get();
        }
+
+       return pimpl->gui_input_manager.get();
     }
     EventManager* Engine::get_event_manager() { return pimpl->event_manager.get(); }
     bool Engine::is_running() const { return pimpl->is_running; }
