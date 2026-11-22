@@ -21,6 +21,8 @@ namespace Salix {
 
     #ifdef SALIX_TESTS_ENABLED
     static bool G_FORCE_SETTINGS_YAML_SAVE_EXCEPTION_FOR_TESTING = false;
+    static bool G_FORCE_READ_STRING_INVALID_BOUNDS_FOR_TESTING = false;
+    static bool G_FORCE_READ_STRING_PAYLOAD_FAILURE_FOR_TESTING = false;
     #endif
 
     bool write_cache(const std::string& cache_path, const ApplicationConfig& config);
@@ -265,6 +267,11 @@ namespace Salix {
         const std::streampos data_end = stream.tellg();
         stream.seekg(data_start);
 
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_READ_STRING_INVALID_BOUNDS_FOR_TESTING) {
+            return false;
+        }
+        #endif
         if (data_start < 0 || data_end < data_start) {
             return false;
         }
@@ -275,6 +282,11 @@ namespace Salix {
         }
 
         std::string value(len, '\0');
+        #ifdef SALIX_TESTS_ENABLED
+        if (G_FORCE_READ_STRING_PAYLOAD_FAILURE_FOR_TESTING && len > 0) {
+            return false;
+        }
+        #endif
         if (len > 0 && !stream.read(&value[0], static_cast<std::streamsize>(len))) {
             return false;
         }
@@ -282,6 +294,24 @@ namespace Salix {
         str = std::move(value);
         return true;
     }
+
+    #ifdef SALIX_TESTS_ENABLED
+    void SettingsManager::set_force_read_string_invalid_bounds_for_testing(bool enabled) {
+        G_FORCE_READ_STRING_INVALID_BOUNDS_FOR_TESTING = enabled;
+    }
+
+    void SettingsManager::set_force_read_string_payload_failure_for_testing(bool enabled) {
+        G_FORCE_READ_STRING_PAYLOAD_FAILURE_FOR_TESTING = enabled;
+    }
+
+    bool SettingsManager::read_string_for_testing(const std::string& path, std::string& value) {
+        std::ifstream stream(path, std::ios::binary);
+        if (!stream.is_open()) {
+            return false;
+        }
+        return read_string(stream, value);
+    }
+    #endif
 
     // Writes the entire config to a binary cache file
     bool write_cache(const std::string& cache_path, const ApplicationConfig& config) {
