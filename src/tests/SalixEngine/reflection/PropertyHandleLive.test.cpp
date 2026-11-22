@@ -1446,3 +1446,30 @@ TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch8478") {
         CHECK(std::get<int>(value) == 0);
     }
 }
+
+TEST_SUITE("Salix::reflection::PropertyHandleLiveBatch9378") {
+    TEST_CASE("batch9378 bypassed unsupported type guard reaches final getter fallback") {
+        Batch1147LiveElement element;
+        int getter_calls = 0;
+        auto property = batch1147_property(
+            "class9378",
+            Salix::PropertyType::Class,
+            [&](void*) -> void* {
+                ++getter_calls;
+                return &element.integer;
+            },
+            {});
+
+        Salix::PropertyHandleLive::set_bypass_type_guard_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::PropertyHandleLive::set_bypass_type_guard_for_testing(false); }
+        } reset;
+
+        Salix::PropertyHandleLive handle(property, &element);
+        const auto value = handle.get_value();
+
+        CHECK(getter_calls == 1);
+        CHECK(std::holds_alternative<int>(value));
+        CHECK(std::get<int>(value) == 0);
+    }
+}
