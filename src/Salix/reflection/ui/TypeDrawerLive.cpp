@@ -199,8 +199,8 @@ namespace Salix {
                 if (ImGui::InputText(label, buffer, sizeof(buffer))) {
                     handle.set_value(std::string(buffer));
                 }
-                break;
             }
+                break;
 
             case PropertyType::Vector2: {
                 Vector2 value = std::get<Vector2>(handle.get_value());
