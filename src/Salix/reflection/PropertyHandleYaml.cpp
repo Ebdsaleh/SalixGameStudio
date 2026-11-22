@@ -31,35 +31,39 @@ namespace Salix {
             return {}; // Return empty if the property doesn't exist in the YAML
         }
 
-        // This switch uses the clean .as<T>() syntax thanks to our converters
+        PropertyValue value{};
+
+        // This switch uses the clean .as<T>() syntax thanks to our converters.
         switch (property_info.type)
         {
-            case PropertyType::Int:       return property_node.as<int>();
-            case PropertyType::UInt64:    return property_node.as<uint64_t>();
-            case PropertyType::Float:     return property_node.as<float>();
-            case PropertyType::Bool:      return property_node.as<bool>();
-            case PropertyType::String:    return property_node.as<std::string>();
-            case PropertyType::Vector2:   return property_node.as<Vector2>();
-            case PropertyType::Vector3:   return property_node.as<Vector3>();
-            case PropertyType::Color:     return property_node.as<Color>();
-            case PropertyType::Point:     return property_node.as<Point>();
-            case PropertyType::Rect:      return property_node.as<Rect>();
-            case PropertyType::GlmMat4:   return property_node.as<glm::mat4>();
-            case PropertyType::Enum:      return property_node.as<int>();
-            // NEW: Handle EnumClass for getting values
+            case PropertyType::Int:       value = property_node.as<int>(); break;
+            case PropertyType::UInt64:    value = property_node.as<uint64_t>(); break;
+            case PropertyType::Float:     value = property_node.as<float>(); break;
+            case PropertyType::Bool:      value = property_node.as<bool>(); break;
+            case PropertyType::String:    value = property_node.as<std::string>(); break;
+            case PropertyType::Vector2:   value = property_node.as<Vector2>(); break;
+            case PropertyType::Vector3:   value = property_node.as<Vector3>(); break;
+            case PropertyType::Color:     value = property_node.as<Color>(); break;
+            case PropertyType::Point:     value = property_node.as<Point>(); break;
+            case PropertyType::Rect:      value = property_node.as<Rect>(); break;
+            case PropertyType::GlmMat4:   value = property_node.as<glm::mat4>(); break;
+            case PropertyType::Enum:      value = property_node.as<int>(); break;
+            // Handle EnumClass by translating the stored YAML name through the registry.
             case PropertyType::EnumClass: {
                 if (property_info.contained_type_info && property_info.contained_type_info->type_index.has_value()) {
                     const EnumRegistry::EnumData* enum_data = EnumRegistry::get_enum_data_as_ptr(*property_info.contained_type_info->type_index);
                     if (enum_data) {
-                        // Read the string from YAML and use the registry to find its int value
-                        return enum_data->get_value(property_node.as<std::string>());
+                        value = enum_data->get_value(property_node.as<std::string>());
                     }
                 }
-                return {}; // Return empty if registry info not found
+                break;
             }
-            
-            default: return {};
+
+            default:
+                break;
         }
+
+        return value;
     }
 
     void PropertyHandleYaml::set_value(const PropertyValue& value)
