@@ -572,12 +572,12 @@ namespace Salix {
         if (inserted) {
             std::cout << "SDLImGui: Dialog '" << key << "' registered." << std::endl;
             return true;
-        } else {
-            // This case should ideally not be hit due to the .count(key) check above,
-            // but it's good defensive programming.
-            std::cerr << "SDLImGui::register_dialog - Failed to register dialog '" << key << "' (unexpected error)." << std::endl;
-            return false;
         }
+
+        // This case should ideally not be hit due to the .count(key) check above,
+        // but it's good defensive programming.
+        std::cerr << "SDLImGui::register_dialog - Failed to register dialog '" << key << "' (unexpected error)." << std::endl;
+        return false;
     }
 
     void SDLImGui::show_dialog_by_key(std::string& key) {
