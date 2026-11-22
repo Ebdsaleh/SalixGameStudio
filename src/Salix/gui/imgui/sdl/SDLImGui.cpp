@@ -25,6 +25,7 @@ namespace Salix {
     static bool G_FORCE_SDL_DIALOG_CLOSE_FOR_TESTING = false;
     static bool G_FORCE_SDL_DIALOG_OK_FOR_TESTING = false;
     static bool G_FORCE_SDL_DIALOG_INSERT_FAILURE_FOR_TESTING = false;
+    static bool G_FORCE_SDL_PLATFORM_WINDOWS_UPDATE_FOR_TESTING = false;
     #endif
 
     struct SDLImGui::Pimpl {
@@ -214,7 +215,12 @@ namespace Salix {
     void SDLImGui::update_and_render_platform_windows() {
         // Update and Render additional Platform Windows (for multi-viewport/docking)
         ImGuiIO& io = ImGui::GetIO();
-        if (io.ConfigFlags& ImGuiConfigFlags_ViewportsEnable) {
+        #ifdef SALIX_TESTS_ENABLED
+        const bool force_platform_windows_update = G_FORCE_SDL_PLATFORM_WINDOWS_UPDATE_FOR_TESTING;
+        #else
+        const bool force_platform_windows_update = false;
+        #endif
+        if (force_platform_windows_update || (io.ConfigFlags& ImGuiConfigFlags_ViewportsEnable)) {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
         }
@@ -599,6 +605,10 @@ namespace Salix {
 
     void SDLImGui::set_force_dialog_insert_failure_for_testing(bool enabled) {
         G_FORCE_SDL_DIALOG_INSERT_FAILURE_FOR_TESTING = enabled;
+    }
+
+    void SDLImGui::set_force_platform_windows_update_for_testing(bool enabled) {
+        G_FORCE_SDL_PLATFORM_WINDOWS_UPDATE_FOR_TESTING = enabled;
     }
     #endif
 
