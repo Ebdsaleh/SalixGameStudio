@@ -551,10 +551,10 @@ namespace Salix {
         if (inserted) {
             std::cout << "OpenGLImGui: Dialog '" << key << "' registered." << std::endl;
             return true;
-        } else {
-            std::cerr << "OpenGLImGui::register_dialog - Failed to register dialog '" << key << "' (unexpected error)." << std::endl;
-            return false;
         }
+
+        std::cerr << "OpenGLImGui::register_dialog - Failed to register dialog '" << key << "' (unexpected error)." << std::endl;
+        return false;
     }
 
 
