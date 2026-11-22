@@ -176,31 +176,30 @@ namespace Salix {
         // This is the correct way to trigger the font texture recreation from the font manager.
         if (pimpl->gui_system->get_app_config()->renderer_type == RendererType::SDL) {
             SDLImGui* sdl_imgui = dynamic_cast<SDLImGui*>(pimpl->gui_system);
-            if (sdl_imgui) {
-
-                sdl_imgui->reinitialize_backend(); // Call the new re-initialization method
-                std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
-                return true;
-            } else {
-
+            if (!sdl_imgui) {
                 std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Could not cast IGui* to SDLImGui*. Font texture not rebuilt." << std::endl;
                 return false;
             }
-        } else if (pimpl->gui_system->get_app_config()->renderer_type == RendererType::OpenGL) {
-                OpenGLImGui* opengl_imgui = dynamic_cast<OpenGLImGui*>(pimpl->gui_system);
-                if (opengl_imgui) {
-                    opengl_imgui->reinitialize_backend();
-                    std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
-                    return true;
-            } else {
 
+            sdl_imgui->reinitialize_backend(); // Call the new re-initialization method
+            std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
+            return true;
+        }
+
+        if (pimpl->gui_system->get_app_config()->renderer_type == RendererType::OpenGL) {
+            OpenGLImGui* opengl_imgui = dynamic_cast<OpenGLImGui*>(pimpl->gui_system);
+            if (!opengl_imgui) {
                 std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Could not cast IGui* to OpenGLImGui*. Font texture not rebuilt." << std::endl;
                 return false;
             }
-        } else {
-            std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Unrecognized 'gui_system'!" << std::endl;
-            return false;
+
+            opengl_imgui->reinitialize_backend();
+            std::cout << "ImGuiFontManager::rebuild_font_atlas_texture - Operation Successful." << std::endl;
+            return true;
         }
+
+        std::cerr << "ImGuiFontManager::rebuild_font_atlas_texture - Unrecognized 'gui_system'!" << std::endl;
+        return false;
     }
 
 
