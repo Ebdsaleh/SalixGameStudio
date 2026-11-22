@@ -127,12 +127,12 @@ namespace Salix {
                 std::cout << "SettingsManager: Created binary cache '" << cache_path << "'" << std::endl;
             }
 
+            return true;
         } catch (const YAML::Exception& e) {
             std::cerr << "SettingsManager Error: Failed to parse YAML file '" << yaml_path << "'. Error: " << e.what() << std::endl;
-            return false;
         }
 
-        return true;
+        return false;
     }
 
     #ifdef SALIX_TESTS_ENABLED
@@ -236,8 +236,9 @@ namespace Salix {
             // It's difficult to trigger reliably with standard ApplicationConfig data in unit tests.
             // File I/O errors during saving are handled by the check before this try block.
             std::cerr << "SettingsManager Error: Failed to save YAML file '" << yaml_path << "'. Error: " << e.what() << std::endl;
-            return false;
         }
+
+        return false;
     }
  
 
