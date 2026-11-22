@@ -649,13 +649,24 @@ namespace Salix {
     }
 
     void Engine::switch_state(AppStateType new_state_type) {
+        // Reject sentinel and invalid state values before disturbing the active state.
+        switch (new_state_type) {
+            case AppStateType::Launch:
+            case AppStateType::Editor:
+            case AppStateType::Game:
+            case AppStateType::Options:
+                break;
+            case AppStateType::None:
+            default:
+                std::cerr << "Engine::switch_state - Invalid or unsupported state requested!" << std::endl;
+                return;
+        }
+
         if (pimpl->current_state) {
             pimpl->current_state->on_exit();
         }
 
         std::unique_ptr<IAppState> new_state;
-
-        
 
         switch (new_state_type) {
             case AppStateType::Launch:
@@ -675,19 +686,23 @@ namespace Salix {
                 }
                 break;
 
-            case AppStateType::Options:
-                set_mode(EngineMode::Options);
-                pimpl->context = make_context();
-                new_state = std::make_unique<OptionsMenuState>();
-                break;
-
-            default:
+            case AppStateType::Game:
                 if (pimpl->game_state_factory) {
                     set_mode(EngineMode::Game);
                     pimpl->context = make_context();
                     new_state.reset(pimpl->game_state_factory(new_state_type));
                 }
                 break;
+
+            case AppStateType::Options:
+                set_mode(EngineMode::Options);
+                pimpl->context = make_context();
+                new_state = std::make_unique<OptionsMenuState>();
+                break;
+
+            case AppStateType::None:
+            default:
+                return;
         }
 
         // pimpl->context = make_context(); 
