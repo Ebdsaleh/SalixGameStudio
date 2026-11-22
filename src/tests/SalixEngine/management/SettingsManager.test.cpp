@@ -1875,3 +1875,51 @@ TEST_SUITE("Salix::management::SettingsManagerBatch9178") {
         CHECK_FALSE(manager.save_settings(files.yaml.string(), config));
     }
 }
+
+TEST_SUITE("Salix::management::SettingsManagerBatch9278") {
+    TEST_CASE("batch9278 forced invalid read string bounds reaches defensive return") {
+        const auto path = std::filesystem::temp_directory_path() / "SalixGameStudio_Batch9278_InvalidBounds.cache";
+        {
+            std::ofstream out(path, std::ios::binary | std::ios::trunc);
+            const size_t len = 1;
+            const char payload = 'A';
+            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+            out.write(&payload, 1);
+        }
+
+        Salix::SettingsManager::set_force_read_string_invalid_bounds_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::SettingsManager::set_force_read_string_invalid_bounds_for_testing(false); }
+        } reset;
+
+        std::string value = "unchanged";
+        CHECK_FALSE(Salix::SettingsManager::read_string_for_testing(path.string(), value));
+        CHECK(value == "unchanged");
+
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+    }
+
+    TEST_CASE("batch9278 forced read string payload failure reaches defensive return") {
+        const auto path = std::filesystem::temp_directory_path() / "SalixGameStudio_Batch9278_PayloadFailure.cache";
+        {
+            std::ofstream out(path, std::ios::binary | std::ios::trunc);
+            const size_t len = 1;
+            const char payload = 'B';
+            out.write(reinterpret_cast<const char*>(&len), sizeof(len));
+            out.write(&payload, 1);
+        }
+
+        Salix::SettingsManager::set_force_read_string_payload_failure_for_testing(true);
+        struct Reset {
+            ~Reset() { Salix::SettingsManager::set_force_read_string_payload_failure_for_testing(false); }
+        } reset;
+
+        std::string value = "unchanged";
+        CHECK_FALSE(Salix::SettingsManager::read_string_for_testing(path.string(), value));
+        CHECK(value == "unchanged");
+
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+    }
+}
