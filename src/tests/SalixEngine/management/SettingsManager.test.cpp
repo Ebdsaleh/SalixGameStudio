@@ -1877,6 +1877,17 @@ TEST_SUITE("Salix::management::SettingsManagerBatch9178") {
 }
 
 TEST_SUITE("Salix::management::SettingsManagerBatch9278") {
+    TEST_CASE("batch9278 missing bridge file follows explicit open failure") {
+        const auto path = std::filesystem::temp_directory_path() / "SalixGameStudio_Batch9278_Missing.cache";
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+
+        std::string value = "unchanged";
+        CHECK_FALSE(Salix::SettingsManager::read_string_for_testing(path.string(), value));
+        CHECK(value == "unchanged");
+    }
+
+
     TEST_CASE("batch9278 forced invalid read string bounds reaches defensive return") {
         const auto path = std::filesystem::temp_directory_path() / "SalixGameStudio_Batch9278_InvalidBounds.cache";
         {
