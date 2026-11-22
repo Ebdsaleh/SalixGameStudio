@@ -38,6 +38,9 @@ namespace Salix {
         bool save_settings(const std::string& yaml_path, const ApplicationConfig& config);
         #ifdef SALIX_TESTS_ENABLED
         static void set_force_yaml_save_exception_for_testing(bool enabled);
+        static void set_force_read_string_invalid_bounds_for_testing(bool enabled);
+        static void set_force_read_string_payload_failure_for_testing(bool enabled);
+        static bool read_string_for_testing(const std::string& path, std::string& value);
         #endif
 
     private:
