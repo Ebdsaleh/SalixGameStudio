@@ -9,6 +9,8 @@
 #include <Salix/core/InitContext.h>
 #include <Salix/core/Engine.h>
 #include <Salix/core/EngineMode.h>
+#include <Salix/gui/IThemeManager.h>
+#include <Salix/gui/IFontManager.h>
 #include <memory>
 
 TEST_SUITE("Salix::core::EngineBatch1647") {
@@ -1670,5 +1672,59 @@ TEST_SUITE("Salix::core::EngineBatch8978") {
         CHECK(engine.get_renderer() != nullptr);
         CHECK(engine.get_event_manager() != nullptr);
         engine.shutdown();
+    }
+}
+
+
+TEST_SUITE("Salix::core::EngineBatch9578") {
+    TEST_CASE("batch9578 initialized None state rejection preserves launch mode with game factory loaded") {
+        Batch7778OpenGLEngine run;
+        REQUIRE(run.initialized);
+        REQUIRE(run.engine.get_mode() == Salix::EngineMode::Launch);
+        auto* const input_before = run.engine.get_input_manager();
+        REQUIRE(input_before != nullptr);
+
+        CHECK_NOTHROW(run.engine.switch_state(Salix::AppStateType::None));
+
+        CHECK(run.engine.get_mode() == Salix::EngineMode::Launch);
+        CHECK(run.engine.get_input_manager() == input_before);
+        CHECK(run.engine.is_running());
+    }
+
+    TEST_CASE("batch9578 initialized invalid state rejection preserves launch mode with game factory loaded") {
+        Batch7778OpenGLEngine run;
+        REQUIRE(run.initialized);
+        REQUIRE(run.engine.get_mode() == Salix::EngineMode::Launch);
+        auto* const input_before = run.engine.get_input_manager();
+        REQUIRE(input_before != nullptr);
+        const auto invalid = static_cast<Salix::AppStateType>(9578);
+
+        CHECK_NOTHROW(run.engine.switch_state(invalid));
+
+        CHECK(run.engine.get_mode() == Salix::EngineMode::Launch);
+        CHECK(run.engine.get_input_manager() == input_before);
+        CHECK(run.engine.is_running());
+    }
+
+    TEST_CASE("batch9578 missing theme fallback becomes the active theme after successful initialization") {
+        Batch8078MissingThemeEngine fixture;
+        REQUIRE(fixture.initialized);
+
+        auto context = fixture.engine.make_context();
+        REQUIRE(context.theme_manager != nullptr);
+        auto* const fallback = context.theme_manager->get_theme("FALLBACK THEME");
+        REQUIRE(fallback != nullptr);
+
+        CHECK(context.theme_manager->get_active_theme() == fallback);
+    }
+
+    TEST_CASE("batch9578 missing theme path still initializes font manager backend") {
+        Batch8078MissingThemeEngine fixture;
+        REQUIRE(fixture.initialized);
+
+        auto context = fixture.engine.make_context();
+        REQUIRE(context.font_manager != nullptr);
+
+        CHECK(context.font_manager->rebuild_font_atlas_texture());
     }
 }
