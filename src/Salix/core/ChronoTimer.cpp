@@ -52,9 +52,9 @@ namespace Salix {
 
         // The high-precision spin-wait will correctly handle the remaining time,
         // including any fractional milliseconds we truncated off for the sleep.
-        while (clock::now() < end) {
-            // spin
-        }
+        // Intentionally empty busy-wait for the final sub-millisecond interval.
+        while (clock::now() < end)
+            ;
     }
 
     
