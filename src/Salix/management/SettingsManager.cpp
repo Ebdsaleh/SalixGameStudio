@@ -262,20 +262,18 @@ namespace Salix {
             return false;
         }
 
-        const std::streampos data_start = stream.tellg();
-        stream.seekg(0, std::ios::end);
-        const std::streampos data_end = stream.tellg();
-        stream.seekg(data_start);
-
         #ifdef SALIX_TESTS_ENABLED
         if (G_FORCE_READ_STRING_INVALID_BOUNDS_FOR_TESTING) {
             stream.setstate(std::ios::failbit);
         }
         #endif
 
-        const std::streampos checked_data_start = stream.tellg();
-        const std::streampos checked_data_end = data_end;
-        if (checked_data_start < 0 || checked_data_end < checked_data_start) {
+        const std::streampos data_start = stream.tellg();
+        stream.seekg(0, std::ios::end);
+        const std::streampos data_end = stream.tellg();
+        stream.seekg(data_start);
+
+        if (data_start < 0 || data_end < data_start) {
             return false;
         }
 
