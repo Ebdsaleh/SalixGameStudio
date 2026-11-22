@@ -268,10 +268,14 @@ namespace Salix {
         stream.seekg(data_start);
 
         #ifdef SALIX_TESTS_ENABLED
-        if (G_FORCE_READ_STRING_INVALID_BOUNDS_FOR_TESTING || data_start < 0 || data_end < data_start) {
-        #else
-        if (data_start < 0 || data_end < data_start) {
+        if (G_FORCE_READ_STRING_INVALID_BOUNDS_FOR_TESTING) {
+            stream.setstate(std::ios::failbit);
+        }
         #endif
+
+        const std::streampos checked_data_start = stream.tellg();
+        const std::streampos checked_data_end = data_end;
+        if (checked_data_start < 0 || checked_data_end < checked_data_start) {
             return false;
         }
 
@@ -282,10 +286,11 @@ namespace Salix {
 
         std::string value(len, '\0');
         #ifdef SALIX_TESTS_ENABLED
-        if (len > 0 && (G_FORCE_READ_STRING_PAYLOAD_FAILURE_FOR_TESTING || !stream.read(&value[0], static_cast<std::streamsize>(len)))) {
-        #else
-        if (len > 0 && !stream.read(&value[0], static_cast<std::streamsize>(len))) {
+        if (G_FORCE_READ_STRING_PAYLOAD_FAILURE_FOR_TESTING && len > 0) {
+            stream.setstate(std::ios::failbit);
+        }
         #endif
+        if (len > 0 && !stream.read(&value[0], static_cast<std::streamsize>(len))) {
             return false;
         }
 
@@ -304,6 +309,9 @@ namespace Salix {
 
     bool SettingsManager::read_string_for_testing(const std::string& path, std::string& value) {
         std::ifstream stream(path, std::ios::binary);
+        if (!stream.is_open()) {
+            return false;
+        }
         return read_string(stream, value);
     }
     #endif
