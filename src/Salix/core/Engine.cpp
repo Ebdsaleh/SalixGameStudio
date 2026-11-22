@@ -371,21 +371,23 @@ namespace Salix {
                 // 2. Load the default theme's data from the file, but DO NOT apply it yet.
                 const std::string default_theme_name = "Default Dark Theme";
                 const std::string default_theme_file_path = "Assets/Themes/default_theme.yaml";
+                std::string active_theme_name = default_theme_name;
+
                 if (!pimpl->theme_manager->load_theme_from_file(default_theme_name, default_theme_file_path, false)) { // <-- Set apply_immediately to false
                     std::cerr << "Engine Error: Failed to load default theme. Using built-in defaults." << std::endl;
-                    // Fallback logic to register a theme if the file is missing...
-                    std::string fallback_theme_name = "FALLBACK THEME";
-                    std::string fallback_theme_path = "FALLBACK THEME - NO PATH DEFINED";
+
+                    const std::string fallback_theme_name = "FALLBACK THEME";
+                    const std::string fallback_theme_path = "FALLBACK THEME - NO PATH DEFINED";
+
                     if (!pimpl->theme_manager->get_theme(default_theme_name)) {
                         auto fallback_theme = std::make_unique<Salix::ImGuiTheme>(fallback_theme_name, fallback_theme_path);
                         pimpl->theme_manager->register_theme(std::move(fallback_theme));
-                        break;
+                        active_theme_name = fallback_theme_name;
                     }
-                    break;
                 }
 
-                // 3. Set the newly loaded theme as the active one internally.
-                pimpl->theme_manager->set_active_theme(default_theme_name);
+                // 3. Set the loaded or fallback theme as the active one internally.
+                pimpl->theme_manager->set_active_theme(active_theme_name);
 
                 // 4. Now, set up all the fonts. This will pre-load the batches.
                 pimpl->setup_fonts();
@@ -395,7 +397,7 @@ namespace Salix {
 
                 // 6. Finally, apply the active theme. This will now correctly find and
                 //    apply the font specified in the theme because all fonts have been pre-loaded.
-                pimpl->theme_manager->apply_theme(default_theme_name);
+                pimpl->theme_manager->apply_theme(active_theme_name);
 
 
                 
