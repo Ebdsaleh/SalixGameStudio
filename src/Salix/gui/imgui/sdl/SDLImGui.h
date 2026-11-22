@@ -75,6 +75,7 @@ namespace Salix {
         static void set_force_dialog_close_for_testing(bool enabled);
         static void set_force_dialog_ok_for_testing(bool enabled);
         static void set_force_dialog_insert_failure_for_testing(bool enabled);
+        static void set_force_platform_windows_update_for_testing(bool enabled);
         #endif
         void request_theme_reload();
         bool is_theme_reload_requested();
