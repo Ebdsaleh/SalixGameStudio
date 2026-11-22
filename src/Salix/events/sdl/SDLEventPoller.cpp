@@ -50,16 +50,21 @@ namespace Salix {
                 }
             }
 
-            // 2. Then, process the SDL_Event into our Salix IEvent system
-            //    Crucially, pass the raw 'sdl_event' to the constructors of SDLEventBase derived classes.
+            // 2. Then, process the SDL_Event into our Salix IEvent system.
+            // SDL_TEXTINPUT is intentionally raw-only for ImGui and produces no Salix IEvent.
+            if (sdl_event.type == SDL_TEXTINPUT) {
+                continue;
+            }
+
+            // Crucially, pass the raw 'sdl_event' to the constructors of SDLEventBase derived classes.
             switch (sdl_event.type)
             {
                 case SDL_QUIT: {
                     // WindowCloseEvent does NOT take SDL_Event&, as it's an application event.
                     WindowCloseEvent event; 
                     event_dispatcher(event);
-                    break;
                 }
+                    break;
                 case SDL_WINDOWEVENT: {
                     switch (sdl_event.window.event) {
                         case SDL_WINDOWEVENT_RESIZED:
@@ -70,59 +75,50 @@ namespace Salix {
                                 (unsigned int)sdl_event.window.data2
                             );
                             event_dispatcher(event);
-                            break;
                         }
+                            break;
                         // Add other window events if you have them (e.g., SDL_WINDOWEVENT_FOCUS_GAINED/LOST)
                         // If you add focus events, remember they also inherit from IEvent, not SDLEventBase
                         // unless you modify them to directly pass the SDL_Event.
                     }
-                    break;
                 }
+                    break;
                 case SDL_KEYDOWN: {
                     // KeyPressedEvent now takes SDL_Event& as the last parameter
                     KeyPressedEvent event(sdl_event.key.keysym.sym, sdl_event.key.repeat != 0, sdl_event);
                     event_dispatcher(event);
-                    break;
                 }
+                    break;
                 case SDL_KEYUP: {
                     // KeyReleasedEvent now takes SDL_Event& as the last parameter
                     KeyReleasedEvent event(sdl_event.key.keysym.sym, sdl_event);
                     event_dispatcher(event);
+                }
                     break;
-                }
-                case SDL_TEXTINPUT: {
-                    // SDL_TEXTINPUT is important for ImGui for text input characters.
-                    // If you have a KeyTypedEvent or similar for raw character input,
-                    // you would create and dispatch it here. Otherwise, ImGui handles it.
-                    // Example (if you have KeyTypedEvent):
-                    // KeyTypedEvent event(sdl_event.text.text[0], sdl_event); // Assuming single char and SDL_Event& constructor
-                    // event_dispatcher(event);
-                    break; // No Salix IEvent created by default for TEXTINPUT, ImGui handles it via raw callback
-                }
                 case SDL_MOUSEMOTION: {
                     // MouseMovedEvent now takes SDL_Event& as the last parameter
                     MouseMovedEvent event((float)sdl_event.motion.x, (float)sdl_event.motion.y, sdl_event);
                     event_dispatcher(event);
-                    break;
                 }
+                    break;
                 case SDL_MOUSEBUTTONDOWN: {
                     // MouseButtonPressedEvent now takes SDL_Event& as the last parameter
                     MouseButtonPressedEvent event(sdl_event.button.button, sdl_event);
                     event_dispatcher(event);
-                    break;
                 }
+                    break;
                 case SDL_MOUSEBUTTONUP: {
                     // MouseButtonReleasedEvent now takes SDL_Event& as the last parameter
                     MouseButtonReleasedEvent event(sdl_event.button.button, sdl_event);
                     event_dispatcher(event);
-                    break;
                 }
+                    break;
                 case SDL_MOUSEWHEEL: {
                     // MouseScrolledEvent now takes SDL_Event& as the last parameter
                     MouseScrolledEvent event((float)sdl_event.wheel.x, (float)sdl_event.wheel.y, sdl_event);
                     event_dispatcher(event);
-                    break;
                 }
+                    break;
                 // Add other SDL event types as needed that you want to convert to Salix IEvents.
             }
         }
