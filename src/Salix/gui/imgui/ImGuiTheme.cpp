@@ -581,8 +581,9 @@ namespace Salix {
 
         } catch (const YAML::Exception& e) {
             std::cerr << "ImGuiTheme Error: Failed to parse YAML file '" << file_path << "'. Error: " << e.what() << std::endl;
-            return false;
         }
+
+        return false;
     }
 
 
@@ -839,8 +840,9 @@ namespace Salix {
 
         } catch (const YAML::Exception& e) {
             std::cerr << "ImGuiTheme Error: Failed to save YAML file '" << file_path << "'. Error: " << e.what() << std::endl;
-            return false;
         }
+
+        return false;
     }
 
 }
