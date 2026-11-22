@@ -4,10 +4,21 @@
 
 namespace Salix {
 
+#ifdef SALIX_TESTS_ENABLED
+static bool G_BYPASS_PROPERTY_TYPE_GUARD_FOR_TESTING = false;
+#endif
+
 // The constructor's only job is to pass the required info to the base class
 // and store the pointer to the live element instance.
 PropertyHandleLive::PropertyHandleLive(const Property& property_info, Element* instance)
     : PropertyHandle(property_info), instance(instance) {}
+
+#ifdef SALIX_TESTS_ENABLED
+void PropertyHandleLive::set_bypass_type_guard_for_testing(bool enabled)
+{
+    G_BYPASS_PROPERTY_TYPE_GUARD_FOR_TESTING = enabled;
+}
+#endif
 
 // --- getValue() ---
 // This function's whole job is to look at the property's type, call the
@@ -36,6 +47,11 @@ PropertyValue PropertyHandleLive::get_value() const
         case PropertyType::GlmMat4:
             break;
         default:
+            #ifdef SALIX_TESTS_ENABLED
+            if (G_BYPASS_PROPERTY_TYPE_GUARD_FOR_TESTING) {
+                break;
+            }
+            #endif
             return {};
     }
 
