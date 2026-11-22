@@ -108,9 +108,9 @@ namespace Salix {
         if (!ScriptLoader::load_script_library(dll_path.string(), pimpl->context)) {
             std::cerr << "FATAL ERROR: Could not load game DLL at '" << dll_path.string() << "'!" << std::endl;
             return;
-        } else {
-            std::cout << "Project: Game script DLL loaded successfully." << std::endl;
         }
+
+        std::cout << "Project: Game script DLL loaded successfully." << std::endl;
     }
 
     void Project::shutdown() {
