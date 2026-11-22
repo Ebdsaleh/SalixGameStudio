@@ -28,6 +28,9 @@ namespace Salix {
             // The full implementation for these will be in PropertyHandle_Live.cpp.
             PropertyValue get_value() const override;
             void set_value(const PropertyValue& value) override;
+            #ifdef SALIX_TESTS_ENABLED
+            static void set_bypass_type_guard_for_testing(bool enabled);
+            #endif
 
         private:
             // A pointer to the live element instance that this handle operates on.
