@@ -63,8 +63,9 @@ namespace Salix {
             return realm;
         } catch (const cereal::Exception& e) {
             std::cerr << "Realm Error: Failed to deserialize realm from '" << path << "': " << e.what() << std::endl;
-            return nullptr;
         }
+
+        return nullptr;
     }
 
     // Saving
@@ -81,8 +82,9 @@ namespace Salix {
             return true;
         } catch (const cereal::Exception& e) {
             std::cerr << "Realm Error: Failed to serialize realm to '" << path << "': " << e.what() << std::endl;
-            return false;
         }
+
+        return false;
     }
 
     // Retrieve name and path
