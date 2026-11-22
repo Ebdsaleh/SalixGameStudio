@@ -196,6 +196,7 @@ namespace Salix {
         std::stringstream ss(file_content_buffer);
 
         // --- Cereal Deserialization: Parse from the stringstream ---
+        bool template_deserialized = false;
         try {
             cereal::JSONInputArchive archive(ss); // Archive parses from stringstream 'ss'
             std::cout << "DEBUG: Buffer content:\n" << file_content_buffer << std::endl;
@@ -203,11 +204,15 @@ namespace Salix {
                 cereal::make_nvp("project_data", project_config.project_data),
                 cereal::make_nvp("build_settings", project_config.build_settings)
             );
+            template_deserialized = true;
 
         } catch (const cereal::Exception& e) {
             std::cerr << "ProjectManager: Error: Failed to deserialize project configuration template: " <<
             e.what() << std::endl;
-            return false; // Return false on deserialization error
+        }
+
+        if (!template_deserialized) {
+            return false;
         }
         // --- END DEBUG & PARSING CODE ---
         
@@ -240,6 +245,7 @@ namespace Salix {
             return false;
         }
       
+        bool project_serialized = false;
         try {
             #ifdef SALIX_TESTS_ENABLED
             if (G_FORCE_PROJECT_SERIALIZATION_FAILURE_FOR_TESTING) {
@@ -248,9 +254,13 @@ namespace Salix {
             #endif
             cereal::JSONOutputArchive archive(new_project_file_os);
             archive(project_config);
+            project_serialized = true;
         } catch (const cereal::Exception& e) {
             std::cerr << "ProjectManager: Error: Failed to serialize project config: " << e.what() << std::endl;
             new_project_file_os.close();
+        }
+
+        if (!project_serialized) {
             return false;
         }
         new_project_file_os.close();
@@ -317,12 +327,17 @@ namespace Salix {
             return false;
         }
 
+        bool project_deserialized = false;
         try {
             cereal::JSONInputArchive archive(project_file_is);
             archive(loaded_config); // Load the entire project config
+            project_deserialized = true;
         } catch (const cereal::Exception& e) {
             std::cerr << "ProjectManager Error: Failed to deserialize project config from '" << project_file_path << "': " << e.what() << std::endl;
             project_file_is.close();
+        }
+
+        if (!project_deserialized) {
             return false;
         }
         project_file_is.close(); // Close the file stream after deserialization
@@ -374,12 +389,17 @@ namespace Salix {
             return nullptr;
         }
 
+        bool project_deserialized = false;
         try {
             cereal::JSONInputArchive archive(project_file_is);
             archive(loaded_config); // Load the entire project config
+            project_deserialized = true;
         } catch (const cereal::Exception& e) {
             std::cerr << "ProjectManager Error: Failed to deserialize project config from '" << project_file_path << "': " << e.what() << std::endl;
             project_file_is.close();
+        }
+
+        if (!project_deserialized) {
             return nullptr;
         }
         project_file_is.close(); // Close the file stream after deserialization
