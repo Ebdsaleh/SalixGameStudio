@@ -457,8 +457,8 @@ namespace Salix {
                     return false;
                 }
 
-                break; 
             }
+                break;
             default: // This case handles unsupported GUI types
                 std::cerr << "Engine Error: Unsupported GuiType requested!" << std::endl;
                 return false; 
@@ -702,9 +702,6 @@ namespace Salix {
                 new_state = std::make_unique<OptionsMenuState>();
                 break;
 
-            case AppStateType::None:
-            default:
-                return;
         }
 
         // pimpl->context = make_context(); 
