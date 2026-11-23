@@ -982,9 +982,14 @@ TEST_SUITE("Salix::core::ChronoTimerBatch7478") {
 
 TEST_SUITE("Salix::core::ChronoTimerBatch8478") {
     TEST_CASE("batch8478 sub margin fractional delay executes spin wait body") {
-        const auto before = Salix::ChronoTimer::get_ticks_ms();
+        const auto before = Salix::ChronoTimer::clock::now();
         CHECK_NOTHROW(Salix::ChronoTimer::delay_for(std::chrono::duration<float, std::milli>(1.9f)));
-        const auto after = Salix::ChronoTimer::get_ticks_ms();
-        CHECK(after >= before);
+        const auto elapsed = std::chrono::duration<float, std::milli>(
+            Salix::ChronoTimer::clock::now() - before
+        );
+
+        // A sub-margin delay performs no coarse sleep, so this assertion proves
+        // the high-resolution spin phase actually held the caller for the interval.
+        CHECK(elapsed.count() >= 1.5f);
     }
 }
