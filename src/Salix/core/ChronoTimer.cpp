@@ -41,7 +41,8 @@ namespace Salix {
         if (duration.count() <= 0.0f) return;
 
         const auto margin = std::chrono::milliseconds(2);
-        auto end = clock::now() + duration;
+        const auto precise_duration = std::chrono::duration_cast<clock::duration>(duration);
+        const auto end = clock::now() + precise_duration;
 
         if (duration > margin) {
             // Cast the duration to an integer-based type before passing it to the
