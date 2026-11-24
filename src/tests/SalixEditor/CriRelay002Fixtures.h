@@ -1,4 +1,8 @@
 #pragma once
+// ImGuizmo enables ImGui math operators; define them before any transitive imgui.h include.
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
 #include "CriRelay001Fixtures.h"
 #include <Editor/EditorContext.h>
 #include <Editor/EditorAPI.h>
