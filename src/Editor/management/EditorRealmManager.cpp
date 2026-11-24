@@ -263,15 +263,18 @@ namespace Salix {
             pimpl->realm.end()
         );
 
-        // 3. Clear the parent's child list and update its state.
-        parent_archetype->child_ids.clear();
-        if (parent_archetype->state != ArchetypeState::New) {
-            parent_archetype->state = ArchetypeState::Modified;
-        }
-        update_ancestor_states(parent_archetype->id);
-
-        // 4. Resynchronize the manager and dispatch the event.
+        // 3. Rebuild the lookup before reacquiring a pointer invalidated by erase.
         synchronize();
+        parent_archetype = get_archetype(parent_id);
+        if (parent_archetype) {
+            parent_archetype->child_ids.clear();
+            if (parent_archetype->state != ArchetypeState::New) {
+                parent_archetype->state = ArchetypeState::Modified;
+            }
+            update_ancestor_states(parent_id);
+        }
+
+        // 4. Dispatch the event using stable IDs.
         
         pimpl->context->event_manager->dispatch(
             std::make_unique<OnEntityFamilyPurgedEvent>(descendants_to_purge)
@@ -465,8 +468,10 @@ namespace Salix {
         if (!child_archetype.parent_id.is_valid()) return;
 
         // 1. Find the parent archetype and update its child list.
-        EntityArchetype* parent_archetype = get_archetype(child_archetype.parent_id);
-        if (parent_archetype) {
+        const SimpleGuid parent_id = child_archetype.parent_id;
+        EntityArchetype* parent_archetype = get_archetype(parent_id);
+        if (!parent_archetype) return;
+        {
             parent_archetype->child_ids.push_back(child_archetype.id);
             if (parent_archetype->state != ArchetypeState::New) {
                 parent_archetype->state = ArchetypeState::Modified;
@@ -480,7 +485,7 @@ namespace Salix {
         synchronize();
 
         // 4. Update ancestor states and notify the editor of the change.
-        update_ancestor_states(parent_archetype->id);
+        update_ancestor_states(parent_id);
         
         pimpl->context->event_manager->dispatch(
             std::make_unique<OnChildEntityAddedEvent>(pimpl->realm.back())

@@ -162,7 +162,7 @@ namespace Salix {
 
 
     void EditorCamera::initialize(EditorContext* context) {
-        if (!context) {
+        if (!context || !context->init_context) {
             std::cerr << "EditorCamera::initialize - Failed initialization, EditorContext is NULL!" << std::endl;
             return; 
         }
@@ -184,7 +184,7 @@ namespace Salix {
 
     void EditorCamera::on_update(float delta_time) {
         if (!pimpl->is_initialzed) {return; }
-        if (pimpl->mouse_is_inside_scene) {
+        if (pimpl->mouse_is_inside_scene && pimpl->input) {
             pimpl->handle_movement();
             pimpl->handle_panning();
             if(!pimpl->is_2D_project) {

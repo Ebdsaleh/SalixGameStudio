@@ -42,7 +42,7 @@ namespace Salix {
 
 
     void LockablePanel::initialize(EditorContext* context) {
-        if (!context) return;
+        if (!context || !context->init_context) return;
         pimpl->context = context;
         pimpl->icon_manager = context->init_context->icon_manager;
 
@@ -194,6 +194,7 @@ namespace Salix {
 
     void LockablePanel::unlock() {
         pimpl->is_locked = false;
+        if (!pimpl->icon_manager) return;
         pimpl->lock_icon = pimpl->icon_manager->get_icon_by_name(pimpl->unlocked_state_icon_name);
     }
 
@@ -202,6 +203,7 @@ namespace Salix {
     void LockablePanel::lock() {
 
         pimpl->is_locked = true;
+        if (!pimpl->icon_manager) return;
         pimpl->lock_icon = pimpl->icon_manager->get_icon_by_name(pimpl->locked_state_icon_name);
     }
 
@@ -251,6 +253,7 @@ namespace Salix {
             return;
         }
 
+        if (!pimpl->icon_manager) return;
         pimpl->lock_icon = pimpl->icon_manager->get_icon_by_name(icon_name);
         if (!pimpl->lock_icon.texture_id) {
             std::cerr << "LockablePanel::set_lock_icon - Failed to set lock icon, icon name: '" 
