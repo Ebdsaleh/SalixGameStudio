@@ -211,3 +211,70 @@ TEST_SUITE("EditorCRI009_WorldTreePanel") {
         TreeProbe p; CHECK_NOTHROW(p.process_entity_drop_for_testing(id(11),id(14))); CHECK(p.get_name()=="World Tree Panel");
     }
 }
+
+namespace {
+using namespace EditorCri;
+void run_tree_commands(TreeFixture& f) {
+    auto pending=std::move(f.c.ctx.deferred_commands);
+    f.c.ctx.deferred_commands.clear();
+    for(auto& command:pending) command();
+}
+void add_tree_component(const char* type) {
+    TreeFixture f;
+    SimpleGuid::update_next_id(100000);
+    auto count=f.root()->elements.size();
+    f.panel.queue_add_element_for_testing(id(11),type);
+    REQUIRE(f.c.ctx.deferred_commands.size()==1);
+    CHECK(f.root()->elements.size()==count);
+    run_tree_commands(f);
+    REQUIRE(f.root()->elements.size()==count+1);
+    const auto& component=f.root()->elements.back();
+    CHECK(component.type_name==type);
+    CHECK(component.owner_id==id(11));
+    CHECK(component.id.is_valid());
+    CHECK(f.c.ctx.selected_entity_id==id(11));
+    CHECK_FALSE(f.c.events.is_queue_empty());
+}
+}
+TEST_SUITE("EditorCRI011_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 WorldTreePanel: root menu command defers actual creation and selects new root") {
+        TreeFixture f; SimpleGuid::update_next_id(100000); f.c.ctx.selected_element_id=id(12); f.panel.queue_add_root_for_testing(); CHECK(f.c.ctx.editor_realm_manager->get_realm_size()==1); run_tree_commands(f); REQUIRE(f.c.ctx.editor_realm_manager->get_realm_size()==2); auto selected=f.c.ctx.selected_entity_id; CHECK(selected!=id(11)); CHECK_FALSE(f.c.ctx.selected_element_id.is_valid()); REQUIRE(f.c.ctx.editor_realm_manager->get_archetype(selected)); CHECK_FALSE(f.c.ctx.editor_realm_manager->get_archetype(selected)->parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: transform menu adds component to selected owner") {
+        add_tree_component("Transform");
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: collider menu adds actual reflected BoxCollider") {
+        add_tree_component("BoxCollider");
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: sprite menu adds actual reflected Sprite2D") {
+        add_tree_component("Sprite2D");
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: camera menu adds actual reflected Camera") {
+        add_tree_component("Camera");
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: unknown component type does not change selection or model") {
+        TreeFixture f; f.c.ctx.selected_entity_id=id(99); f.panel.queue_add_element_for_testing(id(11),"CRI011Unknown"); run_tree_commands(f); CHECK(f.root()->elements.size()==1); CHECK(f.c.ctx.selected_entity_id==id(99)); CHECK(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: removed owner invalidates deferred command safely") {
+        TreeFixture f; f.panel.queue_add_element_for_testing(id(11),"Sprite2D"); f.c.ctx.editor_realm_manager->purge_entity(id(11)); run_tree_commands(f); CHECK(f.c.ctx.editor_realm_manager->get_realm_size()==0);
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: queued component commands retain original owners") {
+        TreeFixture f; SimpleGuid::update_next_id(100000); f.c.ctx.editor_realm_manager->add_entity(entity(21,"Other")); f.panel.queue_add_element_for_testing(id(11),"Camera"); f.panel.queue_add_element_for_testing(id(21),"Sprite2D"); run_tree_commands(f); CHECK(f.root()->has_element_of_type("Camera")); CHECK(f.c.ctx.editor_realm_manager->get_archetype(id(21))->has_element_of_type("Sprite2D"));
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: two queued root commands create distinct identities") {
+        TreeFixture f; SimpleGuid::update_next_id(100000); f.panel.queue_add_root_for_testing(); f.panel.queue_add_root_for_testing(); run_tree_commands(f); const auto& r=f.c.ctx.editor_realm_manager->get_realm(); REQUIRE(r.size()==3); CHECK(r[1].id!=r[2].id); CHECK(f.c.ctx.selected_entity_id==r[2].id);
+    }
+
+    TEST_CASE("CRI011 WorldTreePanel: uninitialized command handlers leave queue untouched") {
+        TreeProbe p; CHECK_NOTHROW(p.queue_add_root_for_testing()); CHECK_NOTHROW(p.queue_add_element_for_testing(id(11),"Camera"));
+    }
+}

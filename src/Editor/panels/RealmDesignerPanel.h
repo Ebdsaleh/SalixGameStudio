@@ -32,6 +32,9 @@ namespace Salix {
 
             uint32_t get_framebuffer_id() const;
             ImVec2 get_viewport_size() const;
+#ifdef SALIX_TESTS_ENABLED
+            void pick_at_for_testing(const ImVec2& mouse, const ImVec2& min, const ImVec2& max, bool double_click=false);
+#endif
             
         private:
         struct Pimpl;

@@ -41,6 +41,8 @@ namespace Salix {
         float child_indent = 22.0f;
         void render_entity_tree(EntityArchetype& archetype);
         void show_empty_space_context_menu();
+        void queue_add_element(SimpleGuid owner_id, const std::string& type);
+        void queue_add_root();
         void show_entity_context_menu(EntityArchetype& archetype);
         void show_element_context_menu(EntityArchetype& parent_archetype, ElementArchetype& element_archetype);
         void setup_entity_drag_source(EntityArchetype& archetype);
@@ -251,25 +253,42 @@ namespace Salix {
         ImGui::PopID();
     }
 
+    void WorldTreePanel::Pimpl::queue_add_root() {
+        if (!context || !context->editor_realm_manager || !context->event_manager) return;
+        context->add_deferred_command([this]() {
+            auto new_entity = ArchetypeFactory::create_entity_archetype("Entity");
+            if (!new_entity.id.is_valid()) return;
+            context->editor_realm_manager->add_entity(new_entity);
+            context->selected_entity_id = new_entity.id;
+            context->selected_element_id = SimpleGuid::invalid();
+            context->event_manager->dispatch(std::make_unique<EntitySelectedEvent>(new_entity.id, nullptr));
+        });
+    }
+
+    void WorldTreePanel::Pimpl::queue_add_element(SimpleGuid owner_id, const std::string& type) {
+        if (!context || !context->editor_realm_manager || !context->event_manager) return;
+        context->add_deferred_command([this, owner_id, type]() {
+            if (!context->editor_realm_manager->get_archetype(owner_id)) return;
+            auto new_element = ArchetypeFactory::create_element_archetype(type);
+            if (!new_element.id.is_valid()) return;
+            new_element.owner_id = owner_id;
+            context->editor_realm_manager->add_element_to_entity(owner_id, std::move(new_element));
+            context->selected_entity_id = owner_id;
+            context->event_manager->dispatch(std::make_unique<EntitySelectedEvent>(owner_id, nullptr));
+        });
+    }
+
+#ifdef SALIX_TESTS_ENABLED
+    void WorldTreePanel::queue_add_root_for_testing() { pimpl->queue_add_root(); }
+    void WorldTreePanel::queue_add_element_for_testing(SimpleGuid owner_id, const std::string& type) {
+        pimpl->queue_add_element(owner_id, type);
+    }
+#endif
+
     void WorldTreePanel::Pimpl::show_empty_space_context_menu() {
         if (ImGui::BeginPopupContextWindow("WorldTreeContextMenu", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverExistingPopup)) {
             if (ImGui::MenuItem("Add Entity##AddRootEntity")) {
-                context->add_deferred_command([this]() {
-                    // The panel's only job is to create the data and send the command.
-                    EntityArchetype new_entity = ArchetypeFactory::create_entity_archetype("Entity");
-                    if (new_entity.id.is_valid()) {
-                        // Tell the manager to add the entity. The manager handles everything else.
-                        context->editor_realm_manager->add_entity(new_entity);
-
-                        // The panel is still responsible for UI state, like what is selected.
-                        context->selected_entity_id = new_entity.id;
-                        context->selected_element_id = SimpleGuid::invalid();
-                        
-                        context->event_manager->dispatch(
-                            std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
-                        );
-                    }
-                });
+                queue_add_root();
             }
             
             ImGui::Separator();
@@ -308,130 +327,33 @@ namespace Salix {
             // Element Creation Submenu
             if (ImGui::BeginMenu("Add Element##AddElementMenu")) {
                 if (ImGui::MenuItem("Transform##AddTransform")) {
-                    context->add_deferred_command([this, archetype_id = archetype.id]() {
-                        // Create the new element data.
-                        ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Transform");
-                        new_element.owner_id = archetype_id;
-                        
-                        if (new_element.id.is_valid()) {
-                            // Tell the manager to add the element. The manager handles everything else.
-                            context->editor_realm_manager->add_element_to_entity(archetype_id, std::move(new_element));
-
-                            // Reselect the entity to refresh the Inspector panel.
-                            context->selected_entity_id = archetype_id;
-                            
-                            context->event_manager->dispatch(
-                                std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
-                            );
-                        }
-                    });
+                    queue_add_element(archetype.id, "Transform");
                 }
                 if (ImGui::BeginMenu("Collider##AddColliderMenu")) {
                     if (ImGui::MenuItem("Box Collider##AddBoxCollider")) {
-                        context->add_deferred_command([this, archetype_id = archetype.id]() {
-                            // Create the new element data.
-                            ElementArchetype new_element = ArchetypeFactory::create_element_archetype("BoxCollider");
-                            new_element.owner_id = archetype_id;
-                            
-                            if (new_element.id.is_valid()) {
-                                // Tell the manager to add the element. The manager handles all data
-                                // manipulation, state updates, and event dispatching.
-                                context->editor_realm_manager->add_element_to_entity(archetype_id, std::move(new_element));
-
-                                // Reselect the entity to refresh the Inspector panel.
-                                context->selected_entity_id = archetype_id;
-                                
-                                context->event_manager->dispatch(
-                                    std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
-                                );
-                            }
-                        });
+                        queue_add_element(archetype.id, "BoxCollider");
                     }
                     // Will add other collider types here (e.g., Sphere, Capsule) following the same pattern.
                     ImGui::EndMenu();
                 }
                 
                 if (ImGui::MenuItem("Sprite2D##AddSprite2D")) {
-                    context->add_deferred_command([this, archetype_id = archetype.id]() {
-                        // 1. Create the new element data.
-                        ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Sprite2D");
-                        new_element.owner_id = archetype_id;
-                        
-                        if (new_element.id.is_valid()) {
-                            // 2. Tell the manager to add the element. It handles all the complex logic internally.
-                            context->editor_realm_manager->add_element_to_entity(archetype_id, std::move(new_element));
-
-                            // 3. Reselect the entity to refresh the Inspector panel.
-                            context->selected_entity_id = archetype_id;
-                            
-                            context->event_manager->dispatch(
-                                std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
-                            );
-                        }
-                    });
+                    queue_add_element(archetype.id, "Sprite2D");
                 }
                 
                 if (ImGui::BeginMenu("Script##AddScriptMenu")) {
                     if (ImGui::MenuItem("C++ Script##AddCPPScript")) {
-                        context->add_deferred_command([this, archetype_id = archetype.id]() {
-                            // Create the new element data
-                            ElementArchetype new_element = ArchetypeFactory::create_element_archetype("CppScript");
-                            new_element.owner_id = archetype_id;
-                            
-                            if (new_element.id.is_valid()) {
-                                // Tell the manager to add the element
-                                context->editor_realm_manager->add_element_to_entity(archetype_id, std::move(new_element));
-
-                                // Reselect the entity to refresh the Inspector
-                                context->selected_entity_id = archetype_id;
-                                
-                                context->event_manager->dispatch(
-                                    std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
-                                );
-                            }
-                        });
+                        queue_add_element(archetype.id, "CppScript");
                     }
 
                     if (ImGui::MenuItem("Python Script##AddPythonScript")) {
-                        context->add_deferred_command([this, archetype_id = archetype.id]() {
-                            // Create the new element data
-                            ElementArchetype new_element = ArchetypeFactory::create_element_archetype("PythonScript");
-                            new_element.owner_id = archetype_id;
-
-                            if (new_element.id.is_valid()) {
-                                // Tell the manager to add the element
-                                context->editor_realm_manager->add_element_to_entity(archetype_id, std::move(new_element));
-
-                                // Reselect the entity to refresh the Inspector
-                                context->selected_entity_id = archetype_id;
-                                
-                                context->event_manager->dispatch(
-                                    std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
-                                );
-                            }
-                        });
+                        queue_add_element(archetype.id, "PythonScript");
                     }
                     ImGui::EndMenu();
                 }
                 
                 if (ImGui::MenuItem("Camera##AddCamera")) {
-                    context->add_deferred_command([this, archetype_id = archetype.id]() {
-                        // 1. Create the new element data.
-                        ElementArchetype new_element = ArchetypeFactory::create_element_archetype("Camera");
-                        new_element.owner_id = archetype_id;
-                        
-                        if (new_element.id.is_valid()) {
-                            // 2. Tell the manager to add the element. It handles everything else.
-                            context->editor_realm_manager->add_element_to_entity(archetype_id, std::move(new_element));
-
-                            // 3. Reselect the entity to refresh the Inspector panel.
-                            context->selected_entity_id = archetype_id;
-                            
-                            context->event_manager->dispatch(
-                                std::make_unique<EntitySelectedEvent>(context->selected_entity_id, nullptr)
-                            );
-                        }
-                    });
+                    queue_add_element(archetype.id, "Camera");
                 }
                 // This should be followed by the existing ImGui::EndMenu() call for the "Add Element" menu
                 ImGui::EndMenu();

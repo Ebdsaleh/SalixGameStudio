@@ -232,3 +232,73 @@ TEST_SUITE("EditorCRI009_RealmDesignerPanel") {
         DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->get_owner()->get_transform()->set_scale(2,3,1); s->use_entity_rotation=true; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(1.6)); CHECK(v.draws()[0].matrix[1][1]==doctest::Approx(1.2)); v.draws().clear(); s->use_entity_rotation=false; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(.8));
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct PickingFixture {
+    DesignerViewportFixture v;
+    PickingFixture() {
+        v.camera.set_2D_mode(false);
+        v.camera.get_transform()->set_position(0,0,10);
+        v.camera.get_transform()->set_rotation(0,0,0);
+        v.camera.set_viewport_size(400,400);
+        v.camera.set_orthographic_size(10);
+    }
+    void add(uint64_t n,float x,float y,float z,bool collider=true,uint64_t parent=0) {
+        auto a=entity(n,"Pick");
+        a.parent_id=id(parent);
+        auto t=element("Transform",1000+n,"{position: {x: 0,y: 0,z: 0}, rotation: {x: 0,y: 0,z: 0}, scale: {x: 1,y: 1,z: 1}}");
+        t.owner_id=a.id;t.data["position"]["x"]=x;t.data["position"]["y"]=y;t.data["position"]["z"]=z;a.elements.push_back(t);
+        if(collider){auto c=element("BoxCollider",2000+n,"{size: {x: 2,y: 2,z: 2}}");c.owner_id=a.id;a.elements.push_back(c);}
+        if(parent)v.f.c.ctx.editor_realm_manager->add_child_entity(a);else v.f.c.ctx.editor_realm_manager->add_entity(a);
+        auto* live=v.f.c.ctx.preview_realm->create_entity(id(n),"Pick");live->get_transform()->set_position(x,y,z);
+    }
+    void pick(ProjectionMode mode,float x=200,float y=200,bool twice=false) {
+        v.camera.set_projection_mode(mode);
+        v.f.panel.pick_at_for_testing(ImVec2(x,y),ImVec2(0,0),ImVec2(400,400),twice);
+    }
+    SimpleGuid selected(){return v.f.c.ctx.selected_entity_id;}
+};
+}
+TEST_SUITE("EditorCRI011_RealmDesignerPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 RealmDesignerPanel: orthographic central collider selects authored entity") {
+        PickingFixture f; f.add(11,0,0,0); f.pick(ProjectionMode::Orthographic); CHECK(f.selected()==id(11)); CHECK(f.v.f.c.ctx.selected_entity==f.v.f.live(11));
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: orthographic miss clears selection") {
+        PickingFixture f; f.add(11,0,0,0); f.v.f.c.ctx.selected_entity_id=id(11); f.pick(ProjectionMode::Orthographic,390,390); CHECK_FALSE(f.selected().is_valid()); CHECK(f.v.f.c.ctx.selected_entity==nullptr);
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: orthographic overlapping colliders select closest depth") {
+        PickingFixture f; f.add(11,0,0,-2); f.add(12,0,0,2); f.pick(ProjectionMode::Orthographic); CHECK(f.selected()==id(12));
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: perspective central ray selects authored collider") {
+        PickingFixture f; f.add(11,0,0,0); f.pick(ProjectionMode::Perspective); CHECK(f.selected()==id(11));
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: perspective ray misses off-axis collider") {
+        PickingFixture f; f.add(11,100,0,0); f.pick(ProjectionMode::Perspective); CHECK_FALSE(f.selected().is_valid());
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: perspective overlap selects closest hit") {
+        PickingFixture f; f.add(11,0,0,-2); f.add(12,0,0,2); f.pick(ProjectionMode::Perspective); CHECK(f.selected()==id(12));
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: collider-free entity is not selected by either projection") {
+        PickingFixture f; f.add(11,0,0,0,false); f.pick(ProjectionMode::Perspective); CHECK_FALSE(f.selected().is_valid()); f.pick(ProjectionMode::Orthographic); CHECK_FALSE(f.selected().is_valid());
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: parent transform contributes to child's pick location") {
+        PickingFixture f; f.add(11,3,0,0,false); f.add(12,-3,0,0,true,11); f.pick(ProjectionMode::Orthographic); CHECK(f.selected()==id(12));
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: double click focuses selected live transform") {
+        PickingFixture f; f.add(11,0,0,0); f.pick(ProjectionMode::Orthographic,200,200,true); CHECK(f.selected()==id(11)); CHECK(glm::length(f.v.camera.get_transform()->get_position().to_glm())==doctest::Approx(3));
+    }
+
+    TEST_CASE("CRI011 RealmDesignerPanel: invalid viewport and uninitialized panel do not change selection") {
+        PickingFixture f; f.v.f.c.ctx.selected_entity_id=id(77); f.v.f.panel.pick_at_for_testing(ImVec2(0,0),ImVec2(0,0),ImVec2(0,0)); CHECK(f.selected()==id(77)); RealmDesignerPanel p; CHECK_NOTHROW(p.pick_at_for_testing(ImVec2(1,1),ImVec2(0,0),ImVec2(10,10)));
+    }
+}

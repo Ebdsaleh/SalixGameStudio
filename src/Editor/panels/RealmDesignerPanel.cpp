@@ -95,6 +95,7 @@ namespace Salix {
         // void handle_gizmos_for_live_entity(EditorCamera* camera, Entity* selected_entity);
         void handle_input();
         void handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max);
+        void pick_at(const ImVec2& mouse_pos, const ImVec2& viewport_min, const ImVec2& viewport_max, bool double_click);
         void draw_bounding_boxes();
         void draw_grid();
 
@@ -592,7 +593,12 @@ namespace Salix {
             return;
         }
 
-        ImVec2 mouse_pos = ImGui::GetMousePos();
+        pick_at(ImGui::GetMousePos(), viewport_min, viewport_max, ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left));
+    }
+
+    void RealmDesignerPanel::Pimpl::pick_at(const ImVec2& mouse_pos, const ImVec2& viewport_min, const ImVec2& viewport_max, bool double_click) {
+        if (!context || !context->editor_camera || !context->editor_realm_manager || !context->preview_realm) return;
+        if (viewport_max.x <= viewport_min.x || viewport_max.y <= viewport_min.y) return;
         viewport_size = { (viewport_max.x - viewport_min.x), (viewport_max.y - viewport_min.y) };
         float closest_hit_distance = FLT_MAX;
         SimpleGuid closest_hit_id = SimpleGuid::invalid();
@@ -695,7 +701,7 @@ namespace Salix {
             );
         }
         
-        if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && closest_hit_id.is_valid()) {
+        if (double_click && closest_hit_id.is_valid()) {
             Entity* entity_to_focus = context->preview_realm->get_entity_by_id(closest_hit_id);
             if (entity_to_focus && entity_to_focus->get_transform()) {
                 context->editor_camera->focus_on(entity_to_focus->get_transform(), 3.0f);
@@ -703,6 +709,12 @@ namespace Salix {
         }
     }
 
+
+#ifdef SALIX_TESTS_ENABLED
+    void RealmDesignerPanel::pick_at_for_testing(const ImVec2& mouse, const ImVec2& min, const ImVec2& max, bool double_click) {
+        pimpl->pick_at(mouse, min, max, double_click);
+    }
+#endif
 
     void RealmDesignerPanel::on_gui_render() {
         

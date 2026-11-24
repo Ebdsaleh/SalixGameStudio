@@ -8,6 +8,7 @@
 #include <Editor/panels/LockablePanel.h>
 #include <Editor/EditorAPI.h>
 #include <memory>
+#include <string>
 #include <Salix/core/SimpleGuid.h>
 
 namespace Salix {
@@ -26,6 +27,8 @@ namespace Salix {
         void on_event(IEvent& event) override;
 #ifdef SALIX_TESTS_ENABLED
         void process_entity_drop_for_testing(SimpleGuid dragged_id, SimpleGuid target_id);
+        void queue_add_root_for_testing();
+        void queue_add_element_for_testing(SimpleGuid owner_id, const std::string& type);
 #endif
     protected:
         void on_panel_gui_update() override; // Main content
