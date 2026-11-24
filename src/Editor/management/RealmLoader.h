@@ -10,6 +10,6 @@ namespace Salix {
 
     // This is the function DECLARATION.
     // It tells the compiler "this function exists somewhere."
-    std::vector<EntityArchetype> load_archetypes_from_file(const std::string& filepath);
+    EDITOR_API std::vector<EntityArchetype> load_archetypes_from_file(const std::string& filepath);
 
 } // namespace Salix

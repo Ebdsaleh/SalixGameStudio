@@ -1,0 +1,48 @@
+// CRI relay 001: RealmLoader; actual Editor DLL APIs, no native windows.
+#include "CriRelay001Fixtures.h"
+#include <Editor/management/RealmLoader.h>
+namespace {
+using namespace EditorCri;
+auto load(TempRealm& f, const std::string& yaml) { return load_archetypes_from_file(f.write(yaml)); }
+}
+TEST_SUITE("EditorCRI001_RealmLoader") {
+    TEST_CASE("CRI001 RealmLoader: missing file returns empty") {
+        TempRealm f; CHECK(load_archetypes_from_file(f.path()).empty());
+    }
+
+    TEST_CASE("CRI001 RealmLoader: invalid YAML returns empty") {
+        TempRealm f; CHECK(load(f,"Entities: [").empty());
+    }
+
+    TEST_CASE("CRI001 RealmLoader: missing or nonsequence Entities rejected") {
+        TempRealm f; CHECK(load(f,"Other: []").empty()); CHECK(load(f,"Entities: {name: Bad}").empty());
+    }
+
+    TEST_CASE("CRI001 RealmLoader: empty entity sequence accepted") {
+        TempRealm f; CHECK(load(f,"Entities: []").empty());
+    }
+
+    TEST_CASE("CRI001 RealmLoader: identity and root defaults preserved") {
+        TempRealm f; auto r=load(f,"Entities: [{name: Root, id: 10001}]"); REQUIRE(r.size()==1); CHECK(r[0].name=="Root"); CHECK(r[0].id==id(10001)); CHECK_FALSE(r[0].parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI001 RealmLoader: invalid entities skipped without dropping valid siblings") {
+        TempRealm f; auto r=load(f,"Entities: [bad, {name: NoId}, {id: 3}, {name: BadId, id: nope}, {name: Good, id: 9}]"); REQUIRE(r.size()==1); CHECK(r[0].id==id(9));
+    }
+
+    TEST_CASE("CRI001 RealmLoader: parent references and self parenting") {
+        TempRealm f; auto r=load(f,"Entities: [{name: Child, id: 2, parent: 1}, {name: Self, id: 3, parent: 3}, {name: Root, id: 1, parent: null}]"); REQUIRE(r.size()==3); CHECK(r[0].parent_id==id(1)); CHECK_FALSE(r[1].parent_id.is_valid()); CHECK_FALSE(r[2].parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI001 RealmLoader: element metadata separated from property YAML") {
+        TempRealm f; auto r=load(f,"Entities: [{name: E, id: 1, elements: {Transform: {id: 2, name: Local, allows_duplication: false, position: {x: 1,y: 2,z: 3}}}}]"); REQUIRE(r.size()==1); REQUIRE(r[0].elements.size()==1); const auto& e=r[0].elements[0]; CHECK(e.id==id(2)); CHECK(e.owner_id==id(1)); CHECK(e.name=="Local"); CHECK_FALSE(e.allows_duplication); CHECK_FALSE(e.data["id"]); CHECK_FALSE(e.data["allows_duplication"]); CHECK(e.data["position"]["x"].as<int>()==1);
+    }
+
+    TEST_CASE("CRI001 RealmLoader: unknown component data and legacy name preserved") {
+        TempRealm f; auto r=load(f,"Entities: [{name: E, id: 1, elements: {FutureType: {id: 2, payload: [4,5]}}}]"); REQUIRE(r.size()==1); REQUIRE(r[0].elements.size()==1); const auto& e=r[0].elements[0]; CHECK(e.type_name=="FutureType"); CHECK(e.name=="FutureType"); CHECK(e.data["name"].as<std::string>()=="FutureType"); CHECK(e.allows_duplication); CHECK(e.data["payload"][1].as<int>()==5);
+    }
+
+    TEST_CASE("CRI001 RealmLoader: malformed elements skipped independently") {
+        TempRealm f; auto r=load(f,"Entities: [{name: E, id: 1, elements: {Bad: 3, Missing: {name: X}, Invalid: {id: nope}, BadFlag: {id: 4, allows_duplication: nope}, Good: {id: 5}}}]"); REQUIRE(r.size()==1); REQUIRE(r[0].elements.size()==1); CHECK(r[0].elements[0].id==id(5));
+    }
+}

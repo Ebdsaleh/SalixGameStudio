@@ -72,6 +72,7 @@ namespace Salix {
         if (panel_ptr == nullptr) {
             std::cerr << "PanelManager::lock_panel - Panel '" << panel_name
                 << "' doesn't exist." << std::endl;
+            return;
         }
         panel_ptr->lock();
 
@@ -82,6 +83,7 @@ namespace Salix {
         if (panel_ptr == nullptr) {
             std::cerr << "PanelManager::unlock_panel - Panel '" << panel_name
                 << "' doesn't exist." << std::endl;
+            return;
         }
         panel_ptr->unlock();
     }
