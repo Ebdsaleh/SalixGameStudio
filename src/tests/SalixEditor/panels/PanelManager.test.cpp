@@ -1,7 +1,11 @@
-// CRI relay 001: PanelManager; actual Editor DLL APIs, no native windows.
-#include "CriRelay001Fixtures.h"
+// Tests for Editor/panels/PanelManager.
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
+#include "../fixtures/ArchetypeFixtures.h"
 #include <Editor/panels/PanelManager.h>
 #include <Editor/panels/IPanel.h>
+
 namespace {
 using namespace EditorCri;
 struct ProbePanel : IPanel {

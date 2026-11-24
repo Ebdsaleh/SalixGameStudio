@@ -1,6 +1,10 @@
-// CRI relay 001: PropertyHandleFactory; actual Editor DLL APIs, no native windows.
-#include "CriRelay001Fixtures.h"
+// Tests for Editor/reflection/PropertyHandleFactory.
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
+#include "../fixtures/ArchetypeFixtures.h"
 #include <Editor/reflection/PropertyHandleFactory.h>
+
 namespace {
 using namespace EditorCri;
 using Handles=std::vector<std::unique_ptr<PropertyHandle>>;

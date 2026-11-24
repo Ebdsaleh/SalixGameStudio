@@ -1,6 +1,10 @@
-// CRI relay 001: RealmLoader; actual Editor DLL APIs, no native windows.
-#include "CriRelay001Fixtures.h"
+// Tests for Editor/management/RealmLoader.
+#ifndef IMGUI_DEFINE_MATH_OPERATORS
+#define IMGUI_DEFINE_MATH_OPERATORS
+#endif
+#include "../fixtures/ArchetypeFixtures.h"
 #include <Editor/management/RealmLoader.h>
+
 namespace {
 using namespace EditorCri;
 auto load(TempRealm& f, const std::string& yaml) { return load_archetypes_from_file(f.write(yaml)); }
