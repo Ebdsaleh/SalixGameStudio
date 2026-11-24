@@ -386,3 +386,76 @@ TEST_SUITE("EditorCRI013_TypeDrawer") {
         GuiFrame g;EditorContext c;auto p=prop(PropertyType::String);p.hint=UIHint::FilePath;HandleProbe h(p,std::string("Assets/fixture.txt"));ImVec2 point{};auto frame=[&]{g.draw([&]{auto a=ImGui::GetCursorScreenPos();point=ImVec2(a.x+30,a.y+ImGui::GetFrameHeight()*.5f);CHECK_FALSE(TypeDrawer::draw_property("##Path",h,&c));});};frame();frame();ImGui::GetIO().AddMousePosEvent(point.x,point.y);frame();CHECK(h.writes==0);CHECK(std::get<std::string>(h.value)=="Assets/fixture.txt");
     }
 }
+
+namespace {
+using namespace EditorCri;
+enum class SparseEnum014 { First=10, Second=42 };
+enum class UnregisteredEnum014 { First=0 };
+template<class F> void select_second_combo(GuiFrame& g,F draw) {
+    // Open the actual ImGui combo popup by its ID, then deliver real mouse input.
+    auto frame=[&](bool open=false){g.draw([&]{
+        if(open) ImGui::OpenPopupEx(ImHashStr("##ComboPopup",0,ImGui::GetID("##Sparse")),ImGuiPopupFlags_None);
+        draw();
+    });};
+    frame();frame(true);frame();frame();
+    REQUIRE(g.current->OpenPopupStack.Size==1);
+    auto* popup=g.current->OpenPopupStack[0].Window;REQUIRE(popup);
+    const float h=ImGui::GetTextLineHeight(), spacing=ImGui::GetStyle().ItemSpacing.y;
+    ImVec2 pt(popup->DC.CursorStartPos.x+15,popup->DC.CursorStartPos.y+h+spacing+h*.5f);
+    auto& io=ImGui::GetIO();io.AddMousePosEvent(pt.x,pt.y);frame();
+    io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();
+}
+struct SparseEnumFixture {
+    GuiFrame gui; EditorContext context; TypeInfo info{}; Property p; int value=10,writes=0;
+    explicit SparseEnumFixture(PropertyType type):p(prop(type,"##Sparse")){
+        EnumRegistry::EnumData data;data.ordered_names={"First","Second"};data.value_to_string={{10,"First"},{42,"Second"}};
+        EnumRegistry::register_enum(typeid(SparseEnum014),std::move(data));
+        TypeDrawer::register_all_type_drawers();info.type_index=typeid(SparseEnum014);p.contained_type_info=&info;
+        p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* v){value=*static_cast<int*>(v);++writes;};
+    }
+    void select_registered(){select_second_combo(gui,[&]{TypeDrawer::get_drawer(p.type)(p,nullptr);});}
+};
+void color_options014(){ImGui::SetColorEditOptions(ImGuiColorEditFlags_Float|ImGuiColorEditFlags_DisplayRGB|ImGuiColorEditFlags_InputRGB|ImGuiColorEditFlags_PickerHueBar);}
+}
+TEST_SUITE("EditorCRI014_TypeDrawer") {
+    using namespace EditorCri;
+    TEST_CASE("CRI014 TypeDrawer: registered sparse enum selects underlying value rather than index") {
+        SparseEnumFixture f(PropertyType::Enum);f.select_registered();CHECK(f.value==42);CHECK(f.writes==1);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: registered sparse enum class selects underlying value rather than index") {
+        SparseEnumFixture f(PropertyType::EnumClass);f.select_registered();CHECK(f.value==42);CHECK(f.writes==1);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: enum property handle selects underlying sparse value") {
+        SparseEnumFixture f(PropertyType::Enum);HandleProbe h(f.p,10);select_second_combo(f.gui,[&]{TypeDrawer::draw_property("##Sparse",h,&f.context);});CHECK(std::get<int>(h.value)==42);CHECK(h.writes==1);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: enum class property handle selects underlying sparse value") {
+        SparseEnumFixture f(PropertyType::EnumClass);HandleProbe h(f.p,10);select_second_combo(f.gui,[&]{TypeDrawer::draw_property("##Sparse",h,&f.context);});CHECK(std::get<int>(h.value)==42);CHECK(h.writes==1);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: registered enum absent registry is handled without exception") {
+        SparseEnumFixture f(PropertyType::Enum);f.info.type_index=typeid(UnregisteredEnum014);CHECK_NOTHROW(f.gui.draw([&]{TypeDrawer::get_drawer(f.p.type)(f.p,nullptr);}));CHECK(f.writes==0);CHECK(f.value==10);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: registered enum class absent metadata never reads value") {
+        SparseEnumFixture f(PropertyType::EnumClass);f.p.contained_type_info=nullptr;f.p.get_data=[](void*)->void*{FAIL("getter must not run");return nullptr;};CHECK_NOTHROW(f.gui.draw([&]{TypeDrawer::get_drawer(f.p.type)(f.p,nullptr);}));CHECK(f.writes==0);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: registered enum missing live storage cannot dereference null") {
+        SparseEnumFixture f(PropertyType::Enum);f.p.get_data=[](void*)->void*{return nullptr;};CHECK_NOTHROW(f.gui.draw([&]{TypeDrawer::get_drawer(f.p.type)(f.p,nullptr);}));CHECK(f.writes==0);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: registered RGBA editor writes modified channel to live setter") {
+        GuiFrame g;TypeDrawer::register_all_type_drawers();Color c(.2f,.3f,.4f,.5f);int writes=0;auto p=prop(PropertyType::Color,"##RGBA");p.get_data=[&](void*)->void*{return &c;};p.set_data=[&](void*,void* v){c=*static_cast<Color*>(v);++writes;};color_options014();drag_first_component(g,[&]{TypeDrawer::get_drawer(p.type)(p,nullptr);});CHECK(c.r>.2f);CHECK(c.g==doctest::Approx(.3));CHECK(c.a==doctest::Approx(.5));CHECK(writes>0);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: handle color edit persists typed RGBA without changing alpha") {
+        GuiFrame g;EditorContext ctx;HandleProbe h(prop(PropertyType::Color),Color(.2f,.3f,.4f,.5f));color_options014();drag_first_component(g,[&]{TypeDrawer::draw_property("##RGBA",h,&ctx);});auto c=std::get<Color>(h.value);CHECK(c.r>.2f);CHECK(c.a==doctest::Approx(.5));CHECK(h.writes>0);
+    }
+
+    TEST_CASE("CRI014 TypeDrawer: YAML color editor writes edited channel and retains sibling fields") {
+        GuiFrame g;auto n=YAML::Load("{Value: {r: 0.2,g: 0.3,b: 0.4,a: 0.5}, other: 7}");color_options014();drag_first_component(g,[&]{TypeDrawer::draw_yaml_property(prop(PropertyType::Color),n);});auto c=n["Value"].as<Color>();CHECK(c.r>.2f);CHECK(c.a==doctest::Approx(.5));CHECK(n["other"].as<int>()==7);
+    }
+}

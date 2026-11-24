@@ -146,37 +146,30 @@ namespace Salix {
         TypeDrawer::register_drawer(PropertyType::Class, draw_nested_object);
         TypeDrawer::register_drawer(PropertyType::Struct, draw_nested_object);
 
-        TypeDrawer::register_drawer(PropertyType::Enum, [](const Property& prop, Element* element) {
-            int value = *static_cast<int*>(prop.get_data(element));
-            if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
-                const EnumRegistry::EnumData& enum_data = EnumRegistry::get_enum_data(*prop.contained_type_info->type_index);
-
-                std::vector<const char*> item_names;
-                for (const auto& name : enum_data.ordered_names) {
-                    item_names.push_back(name.c_str());
+        const DrawFunc enum_drawer = [](const Property& prop, Element* element) {
+            const auto* info = prop.contained_type_info;
+            if (!info || !info->type_index.has_value() || !prop.get_data) return;
+            const auto* data = EnumRegistry::get_enum_data_as_ptr(*info->type_index);
+            if (!data) return;
+            const auto* current = static_cast<const int*>(prop.get_data(element));
+            if (!current) return;
+            const std::string preview = data->get_name(*current);
+            ImGui::BeginDisabled(prop.is_read_only || !prop.set_data);
+            if (ImGui::BeginCombo(prop.name.c_str(), preview.c_str())) {
+                for (const auto& name : data->get_names()) {
+                    const bool selected = name == preview;
+                    if (ImGui::Selectable(name.c_str(), selected) && !prop.is_read_only && prop.set_data) {
+                        int value = data->get_value(name);
+                        prop.set_data(element, &value);
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
                 }
-
-                if (ImGui::Combo(prop.name.c_str(), &value, item_names.data(), static_cast<int>(item_names.size()))) {
-                    prop.set_data(element, &value);
-                }
+                ImGui::EndCombo();
             }
-        });
-        
-        TypeDrawer::register_drawer(PropertyType::EnumClass, [](const Property& prop, Element* element) {
-            int value = *static_cast<int*>(prop.get_data(element));
-            if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
-                const EnumRegistry::EnumData& enum_data = EnumRegistry::get_enum_data(*prop.contained_type_info->type_index);
-            
-                std::vector<const char*> item_names;
-                for (const auto& name : enum_data.ordered_names) {
-                    item_names.push_back(name.c_str());
-                }
-
-                if (ImGui::Combo(prop.name.c_str(), &value, item_names.data(), static_cast<int>(item_names.size()))) {
-                prop.set_data(element, &value);
-                }
-            }
-        });
+            ImGui::EndDisabled();
+        };
+        TypeDrawer::register_drawer(PropertyType::Enum, enum_drawer);
+        TypeDrawer::register_drawer(PropertyType::EnumClass, enum_drawer);
 
     }
 
