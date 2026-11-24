@@ -206,23 +206,29 @@ void file_button(UIHint hint){
     click_drawn_item(g,[&]{if(TypeDrawer::draw_property("##Value",h,&c))++changes;});
     CHECK(changes==1);CHECK(h.writes==0);CHECK(std::get<std::string>(h.value)=="Assets/example.txt");
 }
-template<class T> void drag_registered(PropertyType type,T initial){
+template<class T> void edit_registered_number(PropertyType type,T initial){
     GuiFrame g;TypeDrawer::register_all_type_drawers();T value=initial;int writes=0;
-    // Registered numeric drawers use InputInt/InputFloat, not DragInt/DragFloat.
-    // With a hidden label the rightmost part of their group is the '+' step button.
-    auto p=prop(type,"##RegisteredValue");p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* ptr){value=*static_cast<T*>(ptr);++writes;};
-    ImVec2 plus{};
+    // The registry uses InputInt/InputFloat. InputFloat has no step button by default.
+    auto p=prop(type,"##RegisteredValue");
+    p.get_data=[&](void*)->void*{return &value;};
+    p.set_data=[&](void*,void* ptr){value=*static_cast<T*>(ptr);++writes;};
+    ImVec2 input{};
     auto frame=[&]{g.draw([&]{
         TypeDrawer::get_drawer(type)(p,nullptr);
-        const auto a=ImGui::GetItemRectMin(), b=ImGui::GetItemRectMax();
-        plus=ImVec2(b.x-ImGui::GetFrameHeight()*.5f,(a.y+b.y)*.5f);
+        auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();
+        input=ImVec2(a.x+30.f,(a.y+b.y)*.5f);
     });};
     frame();frame();
-    const auto target=plus;
-    ImGui::GetIO().AddMousePosEvent(target.x,target.y);frame();
-    ImGui::GetIO().AddMouseButtonEvent(0,true);frame();
-    ImGui::GetIO().AddMouseButtonEvent(0,false);frame();
-    CHECK(value>initial);CHECK(writes>0);
+    auto& io=ImGui::GetIO();
+    io.AddMousePosEvent(input.x,input.y);frame();
+    io.AddMouseButtonEvent(0,true);frame();
+    io.AddMouseButtonEvent(0,false);frame();
+    io.AddKeyEvent(ImGuiMod_Ctrl,true);io.AddKeyEvent(ImGuiKey_A,true);frame();
+    io.AddKeyEvent(ImGuiKey_A,false);io.AddKeyEvent(ImGuiMod_Ctrl,false);frame();
+    io.AddInputCharactersUTF8("42");frame();
+    io.AddKeyEvent(ImGuiKey_Enter,true);frame();
+    io.AddKeyEvent(ImGuiKey_Enter,false);frame();
+    CHECK(value==static_cast<T>(42));CHECK(writes>0);
 }
 }
 TEST_SUITE("EditorCRI009_TypeDrawer") {
@@ -256,11 +262,11 @@ TEST_SUITE("EditorCRI009_TypeDrawer") {
     }
 
     TEST_CASE("CRI009 TypeDrawer: registered integer drag calls live setter") {
-        drag_registered(PropertyType::Int,3);
+        edit_registered_number(PropertyType::Int,3);
     }
 
     TEST_CASE("CRI009 TypeDrawer: registered float drag calls live setter") {
-        drag_registered(PropertyType::Float,1.f);
+        edit_registered_number(PropertyType::Float,1.f);
     }
 
     TEST_CASE("CRI009 TypeDrawer: read-only integer remains unchanged under drag") {
