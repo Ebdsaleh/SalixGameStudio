@@ -373,3 +373,69 @@ TEST_SUITE("EditorCRI013_EditorState") {
         EditorState s;CHECK_NOTHROW(s.show_panel_for_testing("Theme Editor Panel"));CHECK_NOTHROW(s.choose_projection_for_testing(true));CHECK_NOTHROW(s.request_exit_for_testing());CHECK(s.get_panel_for_testing("World Tree Panel")==nullptr);
     }
 }
+
+#include <Salix/gui/imgui/ImGuiFont.h>
+namespace {
+using namespace EditorCri;
+struct StateMenuFixture {
+    GuiFrame gui; StartupFixture startup;
+    StateMenuFixture(){startup.enter();startup.f.engine.is_running(true);}
+    void frame(const char* open=nullptr){gui.frame([&]{
+        ImGui::SetNextWindowPos(ImVec2(20,20),ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(800,600),ImGuiCond_Always);
+        ImGui::Begin("CRI014 Menu Host",nullptr,ImGuiWindowFlags_MenuBar|ImGuiWindowFlags_NoSavedSettings);
+        if(open){ImGui::PushID("##MenuBar");ImGui::OpenPopup(open);ImGui::PopID();}
+        startup.f.state.draw_main_menu_for_testing();
+        ImGui::End();
+    });}
+    void open(const char* menu){
+        frame();frame(menu);frame();frame();
+        REQUIRE(gui.current->OpenPopupStack.Size==1);
+        auto* w=gui.current->OpenPopupStack[0].Window;REQUIRE(w);
+        CHECK((w->Flags&ImGuiWindowFlags_ChildMenu)!=0);
+        CHECK(w->DC.CursorMaxPos.y>w->DC.CursorStartPos.y);
+    }
+};
+}
+TEST_SUITE("EditorCRI014_EditorState") {
+    using namespace EditorCri;
+    TEST_CASE("CRI014 EditorState: new deferred commands execute next frame without invalidating current batch") {
+        FrameFixture f;std::vector<int> order;f.context()->add_deferred_command([&]{order.push_back(1);f.context()->add_deferred_command([&]{order.push_back(3);});});f.context()->add_deferred_command([&]{order.push_back(2);});f.frame();CHECK((order==std::vector<int>{1,2}));REQUIRE(f.context()->deferred_commands.size()==1);f.frame();CHECK((order==std::vector<int>{1,2,3}));CHECK(f.context()->deferred_commands.empty());
+    }
+
+    TEST_CASE("CRI014 EditorState: large deferred enqueue remains intact for next frame") {
+        FrameFixture f;int calls=0;f.context()->add_deferred_command([&]{for(int i=0;i<64;++i)f.context()->add_deferred_command([&]{++calls;});});f.frame();CHECK(calls==0);CHECK(f.context()->deferred_commands.size()==64);f.frame();CHECK(calls==64);CHECK(f.context()->deferred_commands.empty());
+    }
+
+    TEST_CASE("CRI014 EditorState: callback clearing next frame queue does not cancel current batch") {
+        FrameFixture f;int calls=0;f.context()->add_deferred_command([&]{f.context()->add_deferred_command([&]{calls+=100;});f.context()->clear_deferred_commands();});f.context()->add_deferred_command([&]{++calls;});f.frame();CHECK(calls==1);f.frame();CHECK(calls==1);
+    }
+
+    TEST_CASE("CRI014 EditorState: active synthetic font is pushed and popped in actual frame") {
+        FrameFixture f;auto font=std::make_unique<ImGuiFont>("","FixtureFont",13);font->set_imgui_font_ptr(ImGui::GetIO().Fonts->Fonts[0]);REQUIRE(f.startup.f.fonts.register_font(std::move(font)));REQUIRE(f.startup.f.fonts.set_active_font("FixtureFont"));f.frame();f.frame();CHECK(f.gui.current->FontStack.Size==0);CHECK(f.startup.f.gui.dialog_frames==2);
+    }
+
+    TEST_CASE("CRI014 EditorState: font metadata without atlas pointer leaves font stack balanced") {
+        FrameFixture f;auto font=std::make_unique<ImGuiFont>("","Unloaded",13);REQUIRE(f.startup.f.fonts.register_font(std::move(font)));REQUIRE(f.startup.f.fonts.set_active_font("Unloaded"));f.frame();CHECK(f.gui.current->FontStack.Size==0);CHECK(f.startup.f.gui.dialog_frames==1);
+    }
+
+    TEST_CASE("CRI014 EditorState: File menu renders actual popup without stopping engine") {
+        StateMenuFixture m;m.open("File");CHECK(m.startup.f.engine.is_running());CHECK(m.startup.f.state.get_context_for_testing()!=nullptr);
+    }
+
+    TEST_CASE("CRI014 EditorState: Edit menu renders actual popup without showing hidden settings") {
+        StateMenuFixture m;auto* p=m.startup.f.state.get_panel_for_testing("Project Settings Panel");REQUIRE(p);p->set_visibility(false);m.open("Edit");CHECK_FALSE(p->get_visibility());
+    }
+
+    TEST_CASE("CRI014 EditorState: View menu renders actual popup without changing camera projection") {
+        StateMenuFixture m;auto* c=m.startup.f.state.get_context_for_testing()->editor_camera;REQUIRE(c);auto original=c->get_projection_mode();m.open("View");CHECK(c->get_projection_mode()==original);
+    }
+
+    TEST_CASE("CRI014 EditorState: purging current main camera clears borrowed Editor pointer") {
+        FrameFixture f;f.frame();auto* e=f.context()->preview_realm->create_entity(id(21),"Camera");auto* c=e->add_element<Camera>();REQUIRE(c);f.context()->main_camera=c;BeforeEntityPurgedEvent event(e);f.startup.f.state.on_event(event);CHECK(f.context()->main_camera==nullptr);
+    }
+
+    TEST_CASE("CRI014 EditorState: purging unrelated entity retains main camera pointer") {
+        FrameFixture f;f.frame();auto* e=f.context()->preview_realm->create_entity(id(21),"Camera");auto* c=e->add_element<Camera>();REQUIRE(c);f.context()->main_camera=c;auto* other=f.context()->preview_realm->get_entity_by_id(id(11));REQUIRE(other);BeforeEntityPurgedEvent event(other);f.startup.f.state.on_event(event);CHECK(f.context()->main_camera==c);
+    }
+}

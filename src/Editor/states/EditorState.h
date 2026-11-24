@@ -29,6 +29,7 @@ namespace Salix {
 #ifdef SALIX_TESTS_ENABLED
         EditorContext* get_context_for_testing() const;
         void show_panel_for_testing(const std::string& name);
+        void draw_main_menu_for_testing();
         IPanel* get_panel_for_testing(const std::string& name) const;
         void choose_projection_for_testing(bool orthographic);
         void request_exit_for_testing();

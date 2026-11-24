@@ -87,6 +87,7 @@ namespace Salix {
         void handle_first_frame_setup();
         void begin_dockspace();
         void update_menu_bar_and_panels();
+        void draw_main_menu();
         void show_panel(const std::string& name);
         void choose_projection(bool orthographic);
         void request_exit();
@@ -358,10 +359,9 @@ namespace Salix {
         }
 
 
-        IFont* active_font = pimpl->editor_context->font_manager->get_active_font();
-        if (active_font && active_font->get_imgui_font_ptr()) {
-            ImGui::PushFont(active_font->get_imgui_font_ptr());
-        }
+        IFont* active_font = pimpl->editor_context->font_manager ? pimpl->editor_context->font_manager->get_active_font() : nullptr;
+        ImFont* pushed_font = active_font ? active_font->get_imgui_font_ptr() : nullptr;
+        if (pushed_font) ImGui::PushFont(pushed_font);
 
         if (pimpl->editor_context->init_context->engine->is_running()) {
             ImGuizmo::BeginFrame();
@@ -376,9 +376,7 @@ namespace Salix {
         pimpl->end_dockspace();   
         
         // Pop the font immediately after to balance the stack.
-        if (active_font && active_font->get_imgui_font_ptr()) {
-            ImGui::PopFont();
-        }
+        if (pushed_font) ImGui::PopFont();
         
         // Process any commands that were deferred during this frame.
         // a. Process the single, central command queue. This will queue up all events.
@@ -450,10 +448,11 @@ namespace Salix {
         
         // a. Process the single, central command queue. This queues up all events.
         if (!pimpl->editor_context->is_deferred_commands_empty()) {
-            for (const auto& command : pimpl->editor_context->deferred_commands) {
-                command();
-            }
+            // Detach this frame's commands. Callbacks may enqueue more work and
+            // reallocate the live vector; new work belongs to the next frame.
+            auto pending = std::move(pimpl->editor_context->deferred_commands);
             pimpl->editor_context->clear_deferred_commands();
+            for (const auto& command : pending) command();
         }
 
         // b. Process the event queue. Listeners clear their pointers here, BEFORE demolition.
@@ -651,20 +650,7 @@ namespace Salix {
     void EditorState::request_exit_for_testing() { pimpl->request_exit(); }
 #endif
 
-    void EditorState::Pimpl::update_menu_bar_and_panels() {
-        ImGuiID dockspace_id = ImGui::GetID("EditorDockSpace");
-        // This flag tells ImGui that if the central node is empty,
-        // it should be transparent, allowing our 3D scene to show through.
-        ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
-        ImGui::PopStyleColor();
-        // Add this right after ImGui::Begin("Dockspace")
-        if (ImGuiDockNode* node = ImGui::GetWindowDockNode()) {
-        node->LocalFlags |= ImGuiDockNodeFlags_NoDockingOverOther | 
-                            ImGuiDockNodeFlags_NoDockingSplitOther;
-    }
-
+    void EditorState::Pimpl::draw_main_menu() {
         // --- Main Menu Bar ---
         if (ImGui::BeginMenuBar()) {
             if (ImGui::BeginMenu("File")) {
@@ -722,6 +708,27 @@ namespace Salix {
             }
             ImGui::EndMenuBar();
         }
+
+    }
+#ifdef SALIX_TESTS_ENABLED
+    void EditorState::draw_main_menu_for_testing() { pimpl->draw_main_menu(); }
+#endif
+
+    void EditorState::Pimpl::update_menu_bar_and_panels() {
+        ImGuiID dockspace_id = ImGui::GetID("EditorDockSpace");
+        // This flag tells ImGui that if the central node is empty,
+        // it should be transparent, allowing our 3D scene to show through.
+        ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
+        ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+        ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+        ImGui::PopStyleColor();
+        // Add this right after ImGui::Begin("Dockspace")
+        if (ImGuiDockNode* node = ImGui::GetWindowDockNode()) {
+        node->LocalFlags |= ImGuiDockNodeFlags_NoDockingOverOther | 
+                            ImGuiDockNodeFlags_NoDockingSplitOther;
+    }
+
+        draw_main_menu();
 
         // --- All Editor Panels ---
         if (panel_manager) {
