@@ -78,3 +78,50 @@ TEST_SUITE("EditorCRI005_RealmDesignerPanel") {
         CHECK_FALSE(f.c.events.is_queue_empty());
     }
 }
+
+#include <Editor/events/OnHierarchyChangedEvent.h>
+#include <Editor/events/OnEntityFamilyPurgedEvent.h>
+#include <Salix/events/sdl/SDLEvent.h>
+#include <Salix/ecs/BoxCollider.h>
+
+TEST_SUITE("EditorCRI006_RealmDesignerPanel") {
+    TEST_CASE("CRI006 RealmDesignerPanel: reparent notification links existing preview objects") {
+        DesignerFixture f; f.add(11); f.add(12); OnHierarchyChangedEvent e(id(12),id(11)); f.panel.on_event(e); REQUIRE(f.live(12)); CHECK(f.live(12)->get_parent()==f.live(11)); CHECK_FALSE(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: release notification makes child a root") {
+        DesignerFixture f; f.add(11); f.add(12); f.live(12)->set_parent(f.live(11)); OnHierarchyChangedEvent e(id(12),SimpleGuid::invalid()); f.panel.on_event(e); CHECK(f.live(12)->get_parent()==nullptr);
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: family event resolves child before parent ordering") {
+        DesignerFixture f; auto a=entity(11,"Parent"); auto b=entity(12,"Child"); b.parent_id=a.id; OnEntityFamilyAddedEvent e({b,a}); f.panel.on_event(e); REQUIRE(f.live(12)); CHECK(f.live(12)->get_parent()==f.live(11));
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: family with missing parent retains root") {
+        DesignerFixture f; auto a=entity(11,"Orphan"); a.parent_id=id(99); OnEntityFamilyAddedEvent e({a}); f.panel.on_event(e); REQUIRE(f.live(11)); CHECK(f.live(11)->get_parent()==nullptr);
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: purge event flags only requested independent entity") {
+        DesignerFixture f; f.add(11); f.add(12); OnEntityPurgedEvent e(id(11)); f.panel.on_event(e); REQUIRE(f.live(11)); CHECK(f.live(11)->is_purged()); CHECK_FALSE(f.live(12)->is_purged());
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: family purge ignores missing ID and flags present members") {
+        DesignerFixture f; f.add(11); f.add(12); f.add(13); OnEntityFamilyPurgedEvent e({id(11),id(99),id(12)}); f.panel.on_event(e); CHECK(f.live(11)->is_purged()); CHECK(f.live(12)->is_purged()); CHECK_FALSE(f.live(13)->is_purged());
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: valid new collider assigned authored ID") {
+        DesignerFixture f; f.add(11); auto a=element("BoxCollider",91,"{}"); OnElementAddedEvent e(id(11),a); f.panel.on_event(e); REQUIRE(f.live(11)); auto* added=f.live(11)->get_element_by_id(id(91)); REQUIRE(added); CHECK(dynamic_cast<BoxCollider*>(added)!=nullptr); CHECK_FALSE(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: unrecognised property leaves existing position unchanged") {
+        DesignerFixture f; f.add(11); auto* t=f.live(11)->get_transform(); t->set_position(1,2,3); PropertyValueChangedEvent e(id(11),t->get_id(),"Transform","not_a_property",Vector3(7,8,9)); f.panel.on_event(e); CHECK(t->get_position()==Vector3(1,2,3));
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: missing entity and element property updates leave live state alone") {
+        DesignerFixture f; f.add(11); auto* t=f.live(11)->get_transform(); t->set_position(1,2,3); PropertyValueChangedEvent a(id(99),t->get_id(),"Transform","position",Vector3(7,8,9)); PropertyValueChangedEvent b(id(11),id(99),"Transform","position",Vector3(7,8,9)); f.panel.on_event(a); f.panel.on_event(b); CHECK(t->get_position()==Vector3(1,2,3));
+    }
+
+    TEST_CASE("CRI006 RealmDesignerPanel: unrelated event leaves framebuffer and realm intact") {
+        DesignerFixture f; f.add(11); WindowResizeEvent e(20,30); f.panel.on_event(e); f.panel.on_gui_render(); CHECK(f.panel.get_framebuffer_id()==73); CHECK(f.live(11)!=nullptr); CHECK(f.c.renderer.begins==0);
+    }
+}

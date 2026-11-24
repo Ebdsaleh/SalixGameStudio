@@ -110,3 +110,48 @@ TEST_SUITE("EditorCRI003_EditorRealmManager") {
 }
 } // namespace coverage_batch_003
 } // namespace
+
+
+
+TEST_SUITE("EditorCRI006_EditorRealmManager") {
+    using namespace EditorCri;
+    TEST_CASE("CRI006 EditorRealmManager: validate clean realm and dump hierarchy") {
+        FamilyFixture f; f.family(); f.manager.add_element_to_entity(id(13),element("Transform",201)); f.manager.take_snapshot(); CoutCapture out; f.manager.validate_realm(); f.manager.print_hierarchy(); CHECK(out.str().find("Realm Snapshot is valid")!=std::string::npos); CHECK(out.str().find("13 - Grandchild")!=std::string::npos); CHECK(out.str().find("Transform")!=std::string::npos);
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: validate modified realm retains authored data") {
+        FamilyFixture f; f.family(); f.get(11)->name="Edited"; f.manager.validate_realm(); CHECK(f.manager.is_dirty()); CHECK(f.get(11)->name=="Edited");
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: single copy inserts detached root") {
+        FamilyFixture f; f.family(); f.manager.duplicate_entity(id(12)); REQUIRE(f.manager.get_realm_size()==5); const auto& copy=f.manager.get_realm().back(); CHECK(copy.name=="Child (Copy)"); CHECK_FALSE(copy.parent_id.is_valid()); CHECK(copy.child_ids.empty()); CHECK(copy.id!=id(12));
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: sibling copy attaches to original parent") {
+        FamilyFixture f; f.family(); f.manager.duplicate_entity_as_sibling(id(12)); REQUIRE(f.manager.get_realm_size()==5); const auto& copy=f.manager.get_realm().back(); CHECK(copy.parent_id==id(11)); REQUIRE(f.get(11)->child_ids.size()==2); CHECK(f.get(11)->child_ids.back()==copy.id);
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: root sibling copy stays root") {
+        FamilyFixture f; f.family(); f.manager.duplicate_entity_as_sibling(id(14)); REQUIRE(f.manager.get_realm_size()==5); CHECK_FALSE(f.manager.get_realm().back().parent_id.is_valid()); CHECK(f.manager.get_hierarchy().size()==3);
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: family copy inserts all descendants") {
+        FamilyFixture f; f.family(); f.manager.duplicate_entity_with_children(id(11)); const auto& all=f.manager.get_realm(); REQUIRE(all.size()==7); CHECK(all[5].parent_id==all[4].id); CHECK(all[6].parent_id==all[5].id); CHECK_FALSE(all[4].parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: sibling family copy links external parent") {
+        FamilyFixture f; f.family(); f.manager.duplicate_family_as_sibling(id(12)); const auto& all=f.manager.get_realm(); REQUIRE(all.size()==6); CHECK(all[4].parent_id==id(11)); CHECK(all[5].parent_id==all[4].id); REQUIRE(f.get(11)->child_ids.size()==2); CHECK(f.get(11)->child_ids.back()==all[4].id);
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: missing source IDs do not append copies") {
+        FamilyFixture f; f.family(); f.manager.duplicate_entity(id(99)); f.manager.duplicate_entity_as_sibling(id(99)); f.manager.duplicate_entity_with_children(id(99)); f.manager.duplicate_family_as_sibling(id(99)); CHECK(f.manager.get_realm_size()==4);
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: purging newly added element restores snapshot state") {
+        FamilyFixture f; f.family(); auto e=element("Transform",201); e.owner_id=id(11); f.manager.add_element_to_entity(id(11),e); CHECK(f.manager.is_dirty()); f.manager.purge_element(id(11),e.id); CHECK_FALSE(f.manager.is_dirty()); CHECK(f.get(11)->state==ArchetypeState::UnModified);
+    }
+
+    TEST_CASE("CRI006 EditorRealmManager: preview sync without preview realm is a no-op") {
+        FamilyFixture f; f.family(); f.services.ctx.preview_realm.reset(); f.manager.sync_preview_realm(); CHECK(f.services.ctx.preview_realm==nullptr); CHECK(f.manager.get_realm_size()==4);
+    }
+}

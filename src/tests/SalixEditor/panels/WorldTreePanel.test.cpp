@@ -55,3 +55,47 @@ TEST_SUITE("EditorCRI002_WorldTreePanel") {
         GuiFrame g; TreeFixture f; CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.editor_realm_manager->get_realm_size()==1); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
     }
 }
+
+
+
+TEST_SUITE("EditorCRI006_WorldTreePanel") {
+    TEST_CASE("CRI006 WorldTreePanel: position event preserves vector components") {
+        TreeFixture f; f.change(11,12,"position",Vector3(2,3,4)); auto n=f.root()->elements[0].data["position"]; CHECK(n["x"].as<float>()==2); CHECK(n["y"].as<float>()==3); CHECK(n["z"].as<float>()==4);
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: visibility event changes YAML without replacing name") {
+        TreeFixture f; f.change(11,12,"visible",false); CHECK_FALSE(f.root()->elements[0].data["visible"].as<bool>()); CHECK(f.root()->elements[0].name=="Original");
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: projection event does not overwrite stored enum string") {
+        TreeFixture f; f.root()->elements[0].data["projection_mode"]="Orthographic"; f.change(11,12,"projection_mode",0); CHECK(f.root()->elements[0].data["projection_mode"].as<std::string>()=="Orthographic");
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: nonstring name event preserves mirrored name") {
+        TreeFixture f; f.change(11,12,"name",42); CHECK(f.root()->elements[0].name=="Original");
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: empty hierarchy renders without new entities") {
+        GuiFrame g; TreeFixture f; f.c.ctx.editor_realm_manager->clear_realm(); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.editor_realm_manager->realm_is_empty());
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: selected root rendered without changing selection") {
+        GuiFrame g; TreeFixture f; EntitySelectedEvent e(id(11)); f.panel.on_event(e); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.selected_entity_id==id(11)); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: missing manager suppresses content") {
+        GuiFrame g; TreeFixture f; f.c.ctx.editor_realm_manager.reset(); CHECK(g.draw([&]{f.panel.content();})==0);
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: new root rendered with its unsaved state") {
+        GuiFrame g; TreeFixture f; auto a=entity(20,"Unsaved"); a.state=ArchetypeState::New; f.c.ctx.editor_realm_manager->add_entity(a); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.editor_realm_manager->get_archetype(id(20))->state==ArchetypeState::New);
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: modified root rendered without clearing dirty state") {
+        GuiFrame g; TreeFixture f; f.root()->name="Edited"; f.root()->state=ArchetypeState::Modified; CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.root()->state==ArchetypeState::Modified); CHECK(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI006 WorldTreePanel: multiple root entries stay in model order after rendering") {
+        GuiFrame g; TreeFixture f; f.c.ctx.editor_realm_manager->add_entity(entity(20,"Second")); f.c.ctx.editor_realm_manager->add_entity(entity(21,"Third")); CHECK(g.draw([&]{f.panel.content();})>0); const auto& r=f.c.ctx.editor_realm_manager->get_realm(); REQUIRE(r.size()==3); CHECK(r[0].id==id(11)); CHECK(r[1].id==id(20)); CHECK(r[2].id==id(21));
+    }
+}

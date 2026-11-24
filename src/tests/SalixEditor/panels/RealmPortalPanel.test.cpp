@@ -87,3 +87,47 @@ TEST_SUITE("EditorCRI005_RealmPortalPanel") {
         CHECK(p.get_framebuffer_id()==0); CHECK(p.get_visibility());
     }
 }
+
+#include <Salix/events/sdl/SDLEvent.h>
+
+TEST_SUITE("EditorCRI006_RealmPortalPanel") {
+    TEST_CASE("CRI006 RealmPortalPanel: name mutation retains framebuffer identity") {
+        PortalFixture f; f.panel.set_name("Preview output"); CHECK(f.panel.get_name()=="Preview output"); CHECK(f.panel.get_framebuffer_id()==73);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: lock and unlock preserve visibility and framebuffer") {
+        PortalFixture f; f.panel.lock(); CHECK(f.panel.is_locked()); f.panel.unlock(); CHECK_FALSE(f.panel.is_locked()); CHECK(f.panel.get_visibility()); CHECK(f.panel.get_framebuffer_id()==73);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: viewport update recreates framebuffer for new size") {
+        GuiFrame g; PortalFixture f; for(int i=0;i<2;++i)g.frame([&]{ImGui::SetNextWindowSize(ImVec2(500,400),ImGuiCond_Always); f.panel.on_gui_update();}); CHECK(f.c.renderer.deletes>=1); CHECK(f.c.renderer.creates>=2); CHECK(f.panel.get_viewport_size().x<1280); CHECK(f.panel.get_viewport_size().y<720);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: viewport resize updates selected camera projection") {
+        GuiFrame g; PortalFixture f; auto* camera=f.add_camera(11); REQUIRE(camera); f.select(11); f.c.ctx.main_camera=camera; camera->set_viewport_size(100,100); auto before=camera->get_projection_matrix()[0][0]; for(int i=0;i<2;++i)g.frame([&]{ImGui::SetNextWindowSize(ImVec2(600,300),ImGuiCond_Always);f.panel.on_gui_update();}); CHECK(camera->get_projection_matrix()[0][0]!=before);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: missing renderer during GUI update leaves viewport unchanged") {
+        GuiFrame g; PortalFixture f; f.c.init.renderer=nullptr; g.frame([&]{ImGui::SetNextWindowSize(ImVec2(400,300),ImGuiCond_Always);f.panel.on_gui_update();}); CHECK(f.c.renderer.creates==1); CHECK(f.panel.get_viewport_size().x==1280);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: missing renderer during render prevents pass") {
+        PortalFixture f; f.c.ctx.renderer=nullptr; f.panel.on_render(); CHECK(f.c.renderer.begins==0); CHECK(f.c.renderer.ends==0);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: unrelated resize event does not change camera selection") {
+        PortalFixture f; auto* camera=f.add_camera(11); REQUIRE(camera); f.select(11); WindowResizeEvent e(20,30); f.panel.on_event(e); f.panel.on_render(); CHECK(f.c.renderer.camera==camera);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: entity purge notification for different entity preserves camera") {
+        PortalFixture f; auto* camera=f.add_camera(11); REQUIRE(camera); f.select(11); auto* other=f.realm.create_entity(id(12),"Other"); BeforeEntityPurgedEvent e(other); f.panel.on_event(e); f.panel.on_render(); CHECK(f.c.renderer.camera==camera);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: element purge notification for different ID preserves camera") {
+        PortalFixture f; auto* camera=f.add_camera(11); REQUIRE(camera); f.select(11); BeforeElementPurgedEvent e(id(99),id(11)); f.panel.on_event(e); f.panel.on_render(); CHECK(f.c.renderer.camera==camera);
+    }
+
+    TEST_CASE("CRI006 RealmPortalPanel: camera deactivated outside panel uses fallback") {
+        PortalFixture f; auto* camera=f.add_camera(11); REQUIRE(camera); f.select(11); camera->deactivate(); f.panel.on_render(); REQUIRE(f.c.renderer.camera); CHECK(f.c.renderer.camera!=camera); CHECK(f.c.renderer.begins==f.c.renderer.ends);
+    }
+}

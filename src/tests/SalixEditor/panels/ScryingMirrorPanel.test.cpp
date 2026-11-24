@@ -71,3 +71,47 @@ TEST_SUITE("EditorCRI005_ScryingMirrorPanel") {
         CHECK(f.c.ctx.deferred_commands.empty());
     }
 }
+
+
+
+TEST_SUITE("EditorCRI006_ScryingMirrorPanel") {
+    TEST_CASE("CRI006 ScryingMirrorPanel: whole entity inspector preserves selection and source") {
+        GuiFrame g; MirrorFixture f; f.select(11); auto before=YAML::Dump(f.c.ctx.editor_realm_manager->get_archetype(id(11))->elements[0].data); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.panel.get_selected_entity_id_for_testing()==id(11)); CHECK(YAML::Dump(f.c.ctx.editor_realm_manager->get_archetype(id(11))->elements[0].data)==before);
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: stale entity selection renders fallback") {
+        GuiFrame g; MirrorFixture f; f.select(99); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.deferred_commands.empty());
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: stale element selection does not edit other element") {
+        GuiFrame g; MirrorFixture f; f.select_element(99,11); CHECK(g.draw([&]{f.panel.content();})>0); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: live mode avoids YAML inspector mutations") {
+        GuiFrame g; MirrorFixture f; f.select(11); f.c.ctx.data_mode=EditorDataMode::Live; CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.deferred_commands.empty()); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: hidden content is suppressed") {
+        GuiFrame g; MirrorFixture f; f.select(11); f.panel.set_visibility(false); CHECK(g.draw([&]{f.panel.content();})==0); CHECK(f.panel.get_selected_entity_id_for_testing()==id(11));
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: box collider inspector without sprite remains unchanged") {
+        GuiFrame g; MirrorFixture f; auto* a=f.c.ctx.editor_realm_manager->get_archetype(id(11)); REQUIRE(a); a->elements.push_back(element("BoxCollider",13,"{name: Bounds}")); a->elements.back().owner_id=a->id; f.c.ctx.editor_realm_manager->take_snapshot(); f.select_element(13,11); CHECK(g.draw([&]{f.panel.content();})>0); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: collider with authored sprite dimensions draws resize controls") {
+        GuiFrame g; MirrorFixture f; auto* a=f.c.ctx.editor_realm_manager->get_archetype(id(11)); REQUIRE(a); a->elements.push_back(element("BoxCollider",13,"{name: Bounds}")); a->elements.back().owner_id=a->id; a->elements.push_back(element("Sprite2D",14,"{name: Image, width: 64, height: 32}")); a->elements.back().owner_id=a->id; f.select_element(13,11); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.deferred_commands.empty()); CHECK(a->elements.back().data["width"].as<int>()==64);
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: whole inspector skips unknown components and continues") {
+        GuiFrame g; MirrorFixture f; auto* a=f.c.ctx.editor_realm_manager->get_archetype(id(11)); REQUIRE(a); a->elements.insert(a->elements.begin(),element("CRI006Unknown",13)); f.select(11); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(a->elements.size()==2); CHECK(f.c.ctx.deferred_commands.empty());
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: locked inspector renders without writing") {
+        GuiFrame g; MirrorFixture f; f.select(11); f.panel.lock(); for(int i=0;i<2;++i)g.frame([&]{ImGui::SetNextWindowSize(ImVec2(600,400),ImGuiCond_Always); f.panel.on_gui_update();}); CHECK(f.panel.is_locked()); CHECK(g.current->DisabledStackSize==0); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI006 ScryingMirrorPanel: switching selection between entities preserves both archetypes") {
+        GuiFrame g; MirrorFixture f; auto a=entity(20,"Second"); a.elements.push_back(element("Transform",21,"{name: Other}")); f.c.ctx.editor_realm_manager->add_entity(a); f.select(11); CHECK(g.draw([&]{f.panel.content();})>0); f.select_element(21,20); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.editor_realm_manager->get_archetype(id(20))->elements[0].name=="Transform"); CHECK(f.panel.get_selected_element_id_for_testing()==id(21));
+    }
+}
