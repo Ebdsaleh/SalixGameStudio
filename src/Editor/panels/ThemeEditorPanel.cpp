@@ -41,6 +41,7 @@ namespace Salix {
         // Helper functions for rendering UI sections
         void create_dialog_boxes();
         void render_layout();
+        void draw_lock_button();
         void save_current_theme(ImGuiThemeData* current_theme_data); 
         void load_selected_theme(ImGuiThemeData* data);
         void render_edit_colors(ImGuiThemeData* data);
@@ -71,40 +72,11 @@ namespace Salix {
     void ThemeEditorPanel::on_gui_update() {
         if (!pimpl->is_visible || !pimpl->context || !pimpl->context->theme_manager) return;
 
-        // Use RAII to handle disabled state safely
-        struct DisabledGuard {
-            bool active;
-            DisabledGuard(bool should_disable) : active(should_disable) { 
-                if (active) ImGui::BeginDisabled(); 
-            }
-            ~DisabledGuard() { 
-                if (active) ImGui::EndDisabled(); 
-            }
-        } disabled_guard(pimpl->is_locked);
-
-        // Early return checks AFTER setting up the guard
-        ITheme* active_theme_base = pimpl->context->theme_manager->get_active_theme();
-        ImGuiTheme* active_imgui_theme = dynamic_cast<ImGuiTheme*>(active_theme_base);
-
-        if (!active_imgui_theme) {
-            ImGui::Text("No active ImGui theme to edit.");
-            return; // Guard will auto-cleanup disabled state
-        }
-
-        ImGuiThemeData* data = active_imgui_theme->get_data();
-        if (!data) {
-            ImGui::Text("Active theme has no data.");
-            return; // Guard will auto-cleanup disabled state
-        }
-        
-        
-        
-        // A valid theme can outlive the GUI icon service.
+        // The lock control must remain interactive even when the content is disabled.
         if (!pimpl->icon_manager) {
             ImGui::TextUnformatted("Theme icon service is unavailable.");
             return;
         }
-        // Main panel rendering
         pimpl->render_layout();
     }
 
@@ -153,37 +125,26 @@ namespace Salix {
 
    
 
+    void ThemeEditorPanel::Pimpl::draw_lock_button() {
+        if (!icon_manager) return;
+        const auto& icon = icon_manager->get_icon_by_name(is_locked ? "Panel Locked" : "Panel Unlocked");
+        const ImVec4 tint = is_locked ? ImVec4(.5f, 0, 0, 1) : ImVec4(1, 1, 1, 1);
+        if (icon.texture_id != 0 && ImGui::ImageButton("##PanelLockBtn", icon.texture_id,
+                ImVec2(16,16), ImVec2(0,0), ImVec2(1,1), ImVec4(0,0,0,0), tint)) {
+            is_locked = !is_locked;
+            std::cout << "Theme Editor Panel lock toggled to: " << (is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
+        }
+    }
+#ifdef SALIX_TESTS_ENABLED
+    void ThemeEditorPanel::draw_lock_button_for_testing() { pimpl->draw_lock_button(); }
+#endif
+
     void ThemeEditorPanel::Pimpl::render_layout() {
         if (ImGui::Begin(name.c_str(), &is_visible)) {
-            // handle icon adjustment for OpenGL rendering
-                ImVec2 icon_size = ImVec2(16, 16);
-                ImVec2 top_left = ImVec2(0, 0);
-                ImVec2 bottom_right = ImVec2(1, 1);
+            ImGui::Separator();
+            ImGui::AlignTextToFramePadding();
+            draw_lock_button();
 
-                ImGui::Separator();
-
-                // --- PANEL LOCK/UNLOCK BUTTON ---
-                ImGui::AlignTextToFramePadding();
-                // ImGui::SameLine(
-
-                const IconInfo& lock_icon = is_locked ? 
-                    icon_manager->get_icon_by_name("Panel Locked") :
-                    icon_manager->get_icon_by_name("Panel Unlocked");
-
-                ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
-                if (is_locked) {
-                    tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
-                }
-
-                // Only attempt to draw if the icon texture ID is valid
-                if (lock_icon.texture_id != 0) {
-                    if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
-                        // Button was clicked, toggle the lock state
-                        is_locked = !is_locked; 
-                        std::cout << "Theme Editor Panel lock toggled to: " << (is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
-                    }
-                } 
-                
                 if (is_locked) {
                     ImGui::BeginDisabled(); // Disable all interactive widgets below this point
                 }
@@ -278,7 +239,11 @@ namespace Salix {
         if (!context || !context->theme_manager || !data) return;
         
         std::string file_path = std::string(theme_path_buffer);
-        context->theme_manager->save_theme_to_file(data->name, file_path);
+        // Editable theme metadata is not the registry identity. Saving a renamed
+        // theme must still select the actual active object, never another entry.
+        auto* active = dynamic_cast<ImGuiTheme*>(context->theme_manager->get_active_theme());
+        if (active && active->get_data() == data)
+            context->theme_manager->save_theme_to_file(active->get_name(), file_path);
     }
 
     void ThemeEditorPanel::Pimpl::render_edit_colors(ImGuiThemeData* data) {

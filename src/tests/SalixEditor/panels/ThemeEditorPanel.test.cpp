@@ -332,3 +332,54 @@ TEST_SUITE("EditorCRI013_ThemeEditorPanel") {
         ThemeEditorPanel p;CHECK_FALSE(p.choose_font_family_for_testing("Beta"));CHECK_FALSE(p.choose_font_size_for_testing(24));CHECK_NOTHROW(p.apply_font_changes_for_testing());
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct ThemeLockInteraction {
+    GuiFrame gui; ActiveThemeFixture f; ImVec2 target{};
+    void frame(){gui.draw([&]{f.panel.draw_lock_button_for_testing();auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();target=ImVec2((a.x+b.x)*.5f,(a.y+b.y)*.5f);});}
+    void click(bool inside=true){frame();frame();auto& io=ImGui::GetIO();auto p=target;io.AddMousePosEvent(p.x+(inside?0.f:200.f),p.y);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();}
+};
+}
+TEST_SUITE("EditorCRI014_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI014 ThemeEditorPanel: real lock button toggles theme content lock") {
+        ThemeLockInteraction x;x.click();CHECK(x.f.panel.is_locked());CHECK(x.f.panel.get_visibility());
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: locked theme can unlock through same button") {
+        ThemeLockInteraction x;x.f.panel.lock();x.click();CHECK_FALSE(x.f.panel.is_locked());CHECK(x.f.panel.get_visibility());
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: lock button can toggle twice without changing active theme") {
+        ThemeLockInteraction x;auto* old=x.f.themes.get_active_theme();x.click();REQUIRE(x.f.panel.is_locked());x.click();CHECK_FALSE(x.f.panel.is_locked());CHECK(x.f.themes.get_active_theme()==old);CHECK(x.f.c.gui.theme_reloads==0);
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: outside click does not toggle theme lock") {
+        ThemeLockInteraction x;x.click(false);CHECK_FALSE(x.f.panel.is_locked());CHECK(x.f.c.gui.theme_reloads==0);
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: missing lock texture does not draw an interactive button") {
+        ThemeLockInteraction x;x.f.c.icons.unlocked.texture_id=0;CHECK(x.gui.draw([&]{x.f.panel.draw_lock_button_for_testing();})==0);CHECK_FALSE(x.f.panel.is_locked());
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: icon service with no active theme renders balanced fallback window") {
+        GuiFrame g;PanelContext c;ImGuiThemeManager themes;ThemeEditorPanel p;c.ctx.theme_manager=&themes;p.initialize(&c.ctx);p.set_visibility(true);g.frame([&]{ImGui::SetNextWindowSize(ImVec2(500,400));p.on_gui_update();});CHECK(ImGui::FindWindowByName(p.get_name().c_str())!=nullptr);CHECK(g.current->DisabledStackSize==0);CHECK(themes.get_active_theme()==nullptr);
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: locked active theme with missing data exits balanced layout") {
+        GuiFrame g;ActiveThemeFixture f;auto* t=dynamic_cast<ImGuiTheme*>(f.themes.get_active_theme());REQUIRE(t);t->clear_data_for_testing();f.panel.lock();f.draw(g);CHECK(f.panel.is_locked());CHECK(g.current->DisabledStackSize==0);CHECK(t->get_data()==nullptr);
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: renamed metadata saves active theme using registry identity") {
+        ThemeFiles v;v.f.data()->name="Renamed Theme";v.save();REQUIRE(std::filesystem::exists(v.temp.path()));CHECK(YAML::LoadFile(v.temp.path())["name"].as<std::string>()=="Renamed Theme");CHECK(v.f.themes.get_active_theme()->get_name()=="CRI006");
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: editable name matching another theme never saves the wrong object") {
+        ThemeFiles v;auto other=std::make_unique<ImGuiTheme>("Other");other->get_data()->font_size=33;REQUIRE(v.f.themes.register_theme(std::move(other)));v.f.data()->name="Other";v.f.data()->font_size=17;v.save();auto n=YAML::LoadFile(v.temp.path());CHECK(n["name"].as<std::string>()=="Other");CHECK(n["Font"]["font_size"].as<float>()==17);CHECK(v.f.themes.get_active_theme()->get_name()=="CRI006");
+    }
+
+    TEST_CASE("CRI014 ThemeEditorPanel: saved renamed metadata can be loaded as independent registry entry") {
+        ThemeFiles v;v.f.data()->name="Renamed";v.f.data()->font_size=23;v.save();v.load("Renamed");REQUIRE(v.f.themes.get_active_theme());CHECK(v.f.themes.get_active_theme()->get_name()=="Renamed");CHECK(v.f.data()->font_size==23);
+    }
+}
