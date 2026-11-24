@@ -85,6 +85,7 @@ namespace Salix {
         EntityArchetype* get_selected_archetype();
         ElementArchetype* get_transform_archetype(EntityArchetype* entity_archetype);
         void handle_gizmos_for_archetype(EditorCamera* camera);
+        void apply_gizmo_matrix(const glm::mat4& matrix);
         glm::mat4 get_world_matrix(const EntityArchetype* archetype);
         void draw_scene();
         void draw_test_cube();
@@ -196,7 +197,7 @@ namespace Salix {
 
     // --- Implementation of Archetype Helper Functions ---
     EntityArchetype* RealmDesignerPanel::Pimpl::get_selected_archetype() {
-        if (!context || !context->selected_entity_id.is_valid()) {
+        if (!context || !context->editor_realm_manager || !context->selected_entity_id.is_valid()) {
             return nullptr;
         }
         return context->editor_realm_manager->get_archetype(context->selected_entity_id);
@@ -510,7 +511,7 @@ namespace Salix {
     // NEW: The complete implementation for the Archetype gizmo handler.
     void RealmDesignerPanel::Pimpl::handle_gizmos_for_archetype(EditorCamera* camera) {
     EntityArchetype* selected_archetype = get_selected_archetype();
-    if (is_locked || !selected_archetype) return;
+    if (is_locked || !selected_archetype || !context->preview_realm || !camera) return;
 
     // --- STEP 1: GET THE LIVE ENTITY AND ITS TRANSFORM ---
     Entity* live_entity = context->preview_realm->get_entity_by_id(selected_archetype->id);
@@ -535,9 +536,28 @@ namespace Salix {
     // --- STEP 2: MANIPULATE THE LIVE TRANSFORM'S MATRIX ---
     if (ImGuizmo::Manipulate(glm::value_ptr(camera_view), glm::value_ptr(camera_projection), CurrentGizmoOperation, ImGuizmo::WORLD, glm::value_ptr(entity_world_matrix))) {
         
+        apply_gizmo_matrix(entity_world_matrix);
+    }
+    
+    EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
+    if (ImGuizmo::IsOver()) { ImGui::SetMouseCursor(ImGuiMouseCursor_Hand); }
+}
+
+
+
+
+    void RealmDesignerPanel::Pimpl::apply_gizmo_matrix(const glm::mat4& matrix) {
+        if (is_locked || !context || context->data_mode != EditorDataMode::Yaml ||
+            !context->preview_realm || !context->event_manager) return;
+        auto* selected_archetype = get_selected_archetype();
+        if (!selected_archetype) return;
+        auto* live_entity = context->preview_realm->get_entity_by_id(selected_archetype->id);
+        if (!live_entity) return;
+        auto* live_transform = live_entity->get_transform();
+        if (!live_transform) return;
         // Decompose the newly manipulated world matrix
         glm::vec3 new_world_pos, new_world_rot_deg, new_world_scale;
-        ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(entity_world_matrix), glm::value_ptr(new_world_pos), glm::value_ptr(new_world_rot_deg), glm::value_ptr(new_world_scale));
+        ImGuizmo::DecomposeMatrixToComponents(glm::value_ptr(matrix), glm::value_ptr(new_world_pos), glm::value_ptr(new_world_rot_deg), glm::value_ptr(new_world_scale));
         
         // --- STEP 3: UPDATE THE LIVE TRANSFORM ---
         live_transform->set_world_position(Vector3(new_world_pos.x, new_world_pos.y, new_world_pos.z));
@@ -580,13 +600,10 @@ namespace Salix {
             );
         }
     }
-    
-    EntitySelectedEvent::block_selection = ImGuizmo::IsOver() || ImGuizmo::IsUsing();
-    if (ImGuizmo::IsOver()) { ImGui::SetMouseCursor(ImGuiMouseCursor_Hand); }
-}
 
-
-
+#ifdef SALIX_TESTS_ENABLED
+    void RealmDesignerPanel::apply_gizmo_matrix_for_testing(const glm::mat4& matrix) { pimpl->apply_gizmo_matrix(matrix); }
+#endif
 
     void RealmDesignerPanel::Pimpl::handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max) {
         if (!ImGui::IsMouseClicked(ImGuiMouseButton_Left)) {
@@ -956,12 +973,15 @@ namespace Salix {
 
     
     void RealmDesignerPanel::Pimpl::handle_hierarchy_changed_event(const OnHierarchyChangedEvent& e) {
+        if (!context->preview_realm || !context->editor_realm_manager || !context->event_manager) return;
         Entity* dragged_live_entity = context->preview_realm->get_entity_by_id(e.entity_id);
-        assert(dragged_live_entity != nullptr && "FATAL: Dragged Entity not found in live scene during hierarchy change!");
         
         Entity* target_live_entity = context->preview_realm->get_entity_by_id(e.parent_id);
 
-        if (!dragged_live_entity) return;
+        if (!dragged_live_entity || (e.parent_id.is_valid() && !target_live_entity)) return;
+        for (auto* ancestor = target_live_entity; ancestor; ancestor = ancestor->get_parent()) {
+            if (ancestor == dragged_live_entity) return;
+        }
 
         std::vector<Entity*> family_to_move;
         std::function<void(Entity*)> find_descendants = 

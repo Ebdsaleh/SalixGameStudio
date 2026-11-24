@@ -4,6 +4,7 @@
 #include <Editor/panels/IPanel.h>
 #include <memory>
 #include <string>
+#include <glm/glm.hpp>
 
 namespace Salix {
     struct EditorContext;
@@ -33,6 +34,7 @@ namespace Salix {
             uint32_t get_framebuffer_id() const;
             ImVec2 get_viewport_size() const;
 #ifdef SALIX_TESTS_ENABLED
+            void apply_gizmo_matrix_for_testing(const glm::mat4& matrix);
             void pick_at_for_testing(const ImVec2& mouse, const ImVec2& min, const ImVec2& max, bool double_click=false);
 #endif
             

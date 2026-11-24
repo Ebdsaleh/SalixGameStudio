@@ -302,3 +302,61 @@ TEST_SUITE("EditorCRI011_RealmDesignerPanel") {
         PickingFixture f; f.v.f.c.ctx.selected_entity_id=id(77); f.v.f.panel.pick_at_for_testing(ImVec2(0,0),ImVec2(0,0),ImVec2(0,0)); CHECK(f.selected()==id(77)); RealmDesignerPanel p; CHECK_NOTHROW(p.pick_at_for_testing(ImVec2(1,1),ImVec2(0,0),ImVec2(10,10)));
     }
 }
+
+#include <glm/gtc/matrix_transform.hpp>
+namespace {
+using namespace EditorCri;
+struct GizmoFixture {
+    PickingFixture pick;
+    DesignerViewportFixture& v=pick.v;
+    struct Listener:IEventListener {
+        std::map<std::string,PropertyValue> values;SimpleGuid owner=SimpleGuid::invalid(),component=SimpleGuid::invalid();
+        void on_event(IEvent& e) override {if(e.get_event_type()!=EventType::EditorPropertyValueChanged)return;auto& change=static_cast<PropertyValueChangedEvent&>(e);values[change.property_name]=change.new_value;owner=change.entity_id;component=change.element_id;}
+    } listener;
+    GizmoFixture(){pick.add(11,0,0,0);v.f.live(11)->get_transform()->set_id(id(1011));v.f.c.events.process_queue();v.f.c.ctx.selected_entity_id=id(11);v.f.c.events.subscribe(EventCategory::Editor,&listener);}
+    Transform* transform(){return v.f.live(11)->get_transform();}
+    void apply(float x,float y,float z){v.f.panel.apply_gizmo_matrix_for_testing(glm::translate(glm::mat4(1),glm::vec3(x,y,z)));}
+};
+}
+TEST_SUITE("EditorCRI013_RealmDesignerPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI013 RealmDesignerPanel: gizmo translation applies live world coordinates") {
+        GizmoFixture f;f.apply(3,4,5);auto p=f.transform()->get_world_position();CHECK(p.x==doctest::Approx(3));CHECK(p.y==doctest::Approx(4));CHECK(p.z==doctest::Approx(5));
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: gizmo scale applies all world axes") {
+        GizmoFixture f;auto m=glm::scale(glm::mat4(1),glm::vec3(2,3,4));f.v.f.panel.apply_gizmo_matrix_for_testing(m);auto s=f.transform()->get_world_scale();CHECK(s.x==doctest::Approx(2));CHECK(s.y==doctest::Approx(3));CHECK(s.z==doctest::Approx(4));
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: gizmo rotation changes live world basis") {
+        GizmoFixture f;auto m=glm::rotate(glm::mat4(1),glm::radians(45.f),glm::vec3(0,0,1));f.v.f.panel.apply_gizmo_matrix_for_testing(m);auto actual=f.transform()->get_model_matrix();CHECK(actual[0][0]==doctest::Approx(m[0][0]));CHECK(actual[0][1]==doctest::Approx(m[0][1]));
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: gizmo dispatches local transform property updates") {
+        GizmoFixture f;f.apply(3,4,5);f.v.f.c.events.process_queue();REQUIRE(f.listener.values.size()==3);CHECK(std::get<Vector3>(f.listener.values.at("position")).x==doctest::Approx(3));CHECK(f.listener.values.count("rotation")==1);CHECK(f.listener.values.count("scale")==1);CHECK(f.listener.owner==id(11));CHECK(f.listener.component==id(1011));
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: locked designer rejects manipulated matrix") {
+        GizmoFixture f;f.v.f.panel.lock();f.apply(3,4,5);CHECK(f.transform()->get_position()==Vector3(0,0,0));CHECK(f.v.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: live data mode does not mutate authored preview") {
+        GizmoFixture f;f.v.f.c.ctx.data_mode=EditorDataMode::Live;f.apply(3,4,5);CHECK(f.transform()->get_position()==Vector3(0,0,0));CHECK(f.v.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: missing selected identity produces no transform update") {
+        GizmoFixture f;f.v.f.c.ctx.selected_entity_id=id(99);f.apply(3,4,5);CHECK(f.transform()->get_position()==Vector3(0,0,0));CHECK(f.v.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: missing authored transform suppresses property events") {
+        GizmoFixture f;f.v.f.c.ctx.editor_realm_manager->get_archetype(id(11))->elements.clear();f.apply(3,4,5);CHECK(f.transform()->get_position().x==doctest::Approx(3));CHECK(f.v.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: stale hierarchy event with absent entity does not assert") {
+        DesignerFixture f;f.add(11);OnHierarchyChangedEvent event(id(99),id(11));CHECK_NOTHROW(f.panel.on_event(event));CHECK(f.live(11)->get_parent()==nullptr);
+    }
+
+    TEST_CASE("CRI013 RealmDesignerPanel: missing hierarchy target preserves current parent") {
+        DesignerFixture f;f.add(11);f.add(12);f.live(12)->set_parent(f.live(11));OnHierarchyChangedEvent event(id(12),id(99));f.panel.on_event(event);CHECK(f.live(12)->get_parent()==f.live(11));
+    }
+}
