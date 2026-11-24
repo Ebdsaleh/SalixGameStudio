@@ -55,3 +55,35 @@ TEST_SUITE("EditorCRI002_RealmPortalPanel") {
         PortalFixture f; auto* a=f.add_camera(11); REQUIRE(a); f.select(11); f.select(0); CHECK_FALSE(a->get_is_active()); CHECK_FALSE(f.realm.get_main_camera_entity_id().is_valid()); f.panel.on_render(); REQUIRE(f.c.renderer.camera); CHECK(f.c.renderer.camera!=a);
     }
 }
+
+TEST_SUITE("EditorCRI005_RealmPortalPanel") {
+    TEST_CASE("CRI005 RealmPortalPanel: missing GUI prevents framebuffer and render pass") {
+        PanelContext c; Realm realm; c.ctx.active_realm=&realm; c.ctx.gui=nullptr;
+        RealmPortalPanel p; p.initialize(&c.ctx); p.on_render();
+        CHECK(c.renderer.creates==0); CHECK(c.renderer.begins==0);
+    }
+    TEST_CASE("CRI005 RealmPortalPanel: missing event manager prevents partial initialization") {
+        PanelContext c; c.ctx.event_manager=nullptr;
+        RealmPortalPanel p; p.initialize(&c.ctx);
+        CHECK(p.get_framebuffer_id()==0); CHECK(c.renderer.creates==0);
+    }
+    TEST_CASE("CRI005 RealmPortalPanel: failed framebuffer never starts render pass") {
+        PanelContext c; Realm realm; c.ctx.active_realm=&realm; c.renderer.result=0;
+        RealmPortalPanel p; p.initialize(&c.ctx); p.on_render();
+        CHECK(c.renderer.creates==1); CHECK(p.get_framebuffer_id()==0);
+        CHECK(c.renderer.begins==0); CHECK(c.renderer.ends==0);
+    }
+    TEST_CASE("CRI005 RealmPortalPanel: locked collapsed window keeps disabled stack balanced") {
+        GuiFrame gui; PortalFixture f; f.panel.lock();
+        for(int i=0;i<2;++i) gui.frame([&]{
+            ImGui::SetNextWindowCollapsed(true,ImGuiCond_Always);
+            f.panel.on_gui_update();
+            CHECK(gui.current->DisabledStackSize==0);
+        });
+        CHECK(f.panel.is_locked()); CHECK(f.panel.get_visibility());
+    }
+    TEST_CASE("CRI005 RealmPortalPanel: event before initialization is safe") {
+        RealmPortalPanel p; OnMainCameraChangedEvent e(id(11)); p.on_event(e);
+        CHECK(p.get_framebuffer_id()==0); CHECK(p.get_visibility());
+    }
+}

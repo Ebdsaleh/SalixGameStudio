@@ -66,6 +66,7 @@ namespace Salix {
             std::cerr << "RealmPortalPanel Error: Renderer is not available, cannot create framebuffer!" << std::endl;
             return;
         }
+        if (!pimpl->context->gui || !pimpl->context->event_manager) return;
         pimpl->failsafe_camera = std::make_unique<DummyCamera>();
         pimpl->icon_manager = dynamic_cast<ImGuiIconManager*>(pimpl->context->gui->get_icon_manager());
         if (!pimpl->icon_manager) { return; }
@@ -97,7 +98,7 @@ namespace Salix {
 
 
     void RealmPortalPanel::on_gui_update() {
-        if (!pimpl->is_visible) return;
+        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->init_context || !pimpl->icon_manager) return;
         
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         if (ImGui::Begin("Realm Portal", &pimpl->is_visible)) {
@@ -168,10 +169,10 @@ namespace Salix {
                     ImGui::Image(tex_id, pimpl->viewport_size, ImVec2(0, 1), ImVec2(1, 0));
                 }
             }
+            if (pimpl->is_locked) {
+                ImGui::EndDisabled();
+            }
         }
-        if (pimpl->is_locked) {
-                    ImGui::EndDisabled(); // Disable all interactive widgets below this point
-                }
         ImGui::End();
         ImGui::PopStyleVar();
     }
@@ -185,7 +186,8 @@ namespace Salix {
 
 
     void RealmPortalPanel::on_render() {
-        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->active_realm) {
+        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->active_realm ||
+            !pimpl->failsafe_camera || pimpl->framebuffer_id == 0) {
             return;
         }
 
@@ -325,6 +327,7 @@ struct RenderJob {
     }
 
     void RealmPortalPanel::on_event(IEvent& event) {
+        if (!pimpl->context) return;
         if (event.get_event_type() == EventType::EditorOnMainCameraChanged) {
             auto& e = static_cast<OnMainCameraChangedEvent&>(event);
             

@@ -128,6 +128,7 @@ namespace Salix {
             return;
         }
         
+        if (!pimpl->context->gui || !pimpl->context->event_manager) return;
         pimpl->icon_manager = dynamic_cast<ImGuiIconManager*>(pimpl->context->gui->get_icon_manager());
         if (!pimpl->icon_manager) { return; }
         
@@ -851,6 +852,7 @@ namespace Salix {
  
 
     void RealmDesignerPanel::on_event(IEvent& event) {
+        if (!pimpl->context || !pimpl->context->init_context) return;
         // This switch statement cleanly dispatches the event to the correct handler.
         switch (event.get_event_type()) {
             case EventType::EditorPropertyValueChanged:
@@ -1045,11 +1047,8 @@ namespace Salix {
         Entity* live_child = context->preview_realm->get_entity_by_id(e.archetype.id);
         Entity* live_parent = context->preview_realm->get_entity_by_id(e.archetype.parent_id);
         // 3. If both exist, set the parent to establish the correct transform hierarchy.
-        if (live_child && live_parent) {
-            live_child->set_parent(live_parent);
-        }
-        
-        
+        if (!live_child || !live_parent) return;
+        live_child->set_parent(live_parent);
         context->event_manager->dispatch(
             std::make_unique<OnHierarchyChangedEvent>(live_child->get_id(), live_parent->get_id())
         );

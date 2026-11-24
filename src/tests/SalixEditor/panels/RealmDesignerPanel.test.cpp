@@ -58,3 +58,23 @@ TEST_SUITE("EditorCRI002_RealmDesignerPanel") {
         DesignerFixture f; f.add(11); auto* live=f.live(11); REQUIRE(live); auto n=live->get_all_elements().size(); OnElementAddedEvent unknown(id(11),element("CRI002_Unknown",80)); f.panel.on_event(unknown); OnElementAddedEvent absent(id(99),element("Transform",81)); f.panel.on_event(absent); CHECK(live->get_all_elements().size()==n); CHECK(live->get_element_by_id(id(80))==nullptr);
     }
 }
+
+TEST_SUITE("EditorCRI005_RealmDesignerPanel") {
+    TEST_CASE("CRI005 RealmDesignerPanel: missing GUI prevents framebuffer and preview creation") {
+        PanelContext c; c.ctx.gui=nullptr; RealmDesignerPanel p; p.initialize(&c.ctx);
+        CHECK(c.renderer.creates==0); CHECK(c.ctx.preview_realm==nullptr);
+    }
+    TEST_CASE("CRI005 RealmDesignerPanel: child event with missing parent does not dispatch invalid hierarchy") {
+        DesignerFixture f; auto a=entity(12,"Orphan"); a.parent_id=id(99);
+        OnChildEntityAddedEvent e(a); f.panel.on_event(e);
+        REQUIRE(f.live(12)); CHECK(f.live(12)->get_parent()==nullptr);
+        CHECK(f.c.events.is_queue_empty());
+    }
+    TEST_CASE("CRI005 RealmDesignerPanel: child event with valid parent retains hierarchy notification") {
+        DesignerFixture f; f.c.ctx.preview_realm->create_entity(id(11),"Parent");
+        auto a=entity(12,"Child"); a.parent_id=id(11);
+        OnChildEntityAddedEvent e(a); f.panel.on_event(e);
+        REQUIRE(f.live(12)); CHECK(f.live(12)->get_parent()==f.live(11));
+        CHECK_FALSE(f.c.events.is_queue_empty());
+    }
+}

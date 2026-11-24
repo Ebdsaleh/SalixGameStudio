@@ -8,6 +8,7 @@
 #include <Editor/EditorAPI.h>
 #include <Salix/core/InitContext.h>
 #include <Salix/events/EventManager.h>
+#include <Salix/input/ImGuiInputManager.h>
 #include <Salix/gui/IconInfo.h>
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
@@ -19,10 +20,12 @@ namespace EditorCri {
     // No SDL initialization, native windows or GPU resources.
     struct GuiFrame {
         ImGuiContext* previous = ImGui::GetCurrentContext();
+        ImGuiContext* previous_engine = ImGuiInputManager::get_context_for_testing();
         ImGuiContext* current = ImGui::CreateContext();
         GuiFrame() {
             ImGui::SetCurrentContext(current);
             set_imgui_context(current);
+            ImGuiInputManager::set_context_for_testing(current);
             auto& io = ImGui::GetIO();
             io.IniFilename = nullptr;
             io.LogFilename = nullptr;
@@ -33,6 +36,7 @@ namespace EditorCri {
             io.Fonts->SetTexID(ImTextureID(1));
         }
         ~GuiFrame() {
+            ImGuiInputManager::set_context_for_testing(previous_engine);
             set_imgui_context(previous);
             ImGui::DestroyContext(current);
             ImGui::SetCurrentContext(previous);

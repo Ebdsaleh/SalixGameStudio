@@ -54,3 +54,20 @@ TEST_SUITE("EditorCRI002_ScryingMirrorPanel") {
         GuiFrame g; MirrorFixture f; f.select_element(12,11); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(g.draw([&]{f.panel.content();})>0); auto* a=f.c.ctx.editor_realm_manager->get_archetype(id(11)); REQUIRE(a); CHECK(a->elements[0].data["name"].as<std::string>()=="Local"); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
     }
 }
+
+TEST_SUITE("EditorCRI005_ScryingMirrorPanel") {
+    TEST_CASE("CRI005 ScryingMirrorPanel: unregistered component can be inspected without changing data") {
+        GuiFrame gui; MirrorFixture f;
+        auto* a=f.c.ctx.editor_realm_manager->get_archetype(id(11)); REQUIRE(a);
+        a->elements.push_back(element("CRI005_Unknown",13,"{name: Unsupported}"));
+        f.select_element(13,11); auto before=YAML::Dump(a->elements.back().data);
+        CHECK(gui.draw([&]{f.panel.content();})>0);
+        CHECK(YAML::Dump(a->elements.back().data)==before);
+        CHECK(f.c.ctx.deferred_commands.empty());
+    }
+    TEST_CASE("CRI005 ScryingMirrorPanel: absent realm manager suppresses inspector safely") {
+        GuiFrame gui; MirrorFixture f; f.c.ctx.editor_realm_manager.reset();
+        f.select(11); CHECK(gui.draw([&]{f.panel.content();})==0);
+        CHECK(f.c.ctx.deferred_commands.empty());
+    }
+}

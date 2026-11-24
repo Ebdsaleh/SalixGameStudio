@@ -196,7 +196,7 @@ namespace Salix {
 
 
     void ScryingMirrorPanel::on_panel_gui_update() {
-        if (!pimpl->is_visible || !pimpl->context) {
+        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->editor_realm_manager) {
             return;
         }
 
@@ -253,6 +253,11 @@ namespace Salix {
                 for (auto* element_archetype : elements_to_display) {
                     ImGui::PushID(element_archetype);
                     const TypeInfo* type_info = ByteMirror::get_type_info_by_name(element_archetype->type_name);
+                    if (!type_info) {
+                        ImGui::Text("Unsupported component: %s", element_archetype->type_name.c_str());
+                        ImGui::PopID();
+                        continue;
+                    }
                     if (ImGui::CollapsingHeader(StringUtils::convert_from_pascal_case(type_info->name).c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
                         auto handles = PropertyHandleFactory::create_handles_for_element_archetype(element_archetype);
                         
