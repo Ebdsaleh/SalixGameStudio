@@ -63,6 +63,8 @@ namespace EditorCri {
     };
     struct IconProbe : ImGuiIconManager {
         IconInfo unlocked, locked, missing;
+        std::map<std::string,IconInfo> registry;
+        const std::map<std::string,IconInfo>& get_icon_registry() override {return registry;}
         IconProbe() { unlocked.path="unlocked.png"; locked.path="locked.png"; unlocked.texture_id=ImTextureID(2); locked.texture_id=ImTextureID(3); }
         const IconInfo& get_icon_by_name(const std::string& n) const override {
             return n=="Panel Unlocked"?unlocked:n=="Panel Locked"?locked:missing;

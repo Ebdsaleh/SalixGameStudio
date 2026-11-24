@@ -112,3 +112,59 @@ TEST_SUITE("EditorCRI006_ThemeEditorPanel") {
         ActiveThemeFixture f; auto* d=f.data(); REQUIRE(d); f.panel.set_visibility(false); f.panel.on_gui_update(); f.panel.on_render(); f.panel.on_gui_render(); CHECK(f.data()==d); CHECK_FALSE(f.panel.get_visibility());
     }
 }
+
+#include <Salix/gui/imgui/ImGuiFontManager.h>
+namespace {
+using namespace EditorCri;
+void open_theme_section(GuiFrame& g,ActiveThemeFixture& f,const char* section) {
+    f.draw(g);
+    auto* window=ImGui::FindWindowByName(f.panel.get_name().c_str());
+    REQUIRE(window);
+    window->StateStorage.SetInt(window->GetID(section),1);
+    f.draw(g);
+    CHECK(window->StateStorage.GetInt(window->GetID(section))==1);
+    CHECK(g.current->DisabledStackSize==0);
+}
+}
+TEST_SUITE("EditorCRI007_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI007 ThemeEditorPanel: expanded colors preserve theme and current style without edits") {
+        GuiFrame g; ActiveThemeFixture f; auto before=f.data()->text_color; open_theme_section(g,f,"Colors"); CHECK(f.data()->text_color==before); CHECK(f.panel.get_visibility());
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: expanded sizing controls preserve authored rounding") {
+        GuiFrame g; ActiveThemeFixture f; f.data()->window_rounding=8; f.data()->frame_rounding=3; open_theme_section(g,f,"Sizing & Spacing"); CHECK(f.data()->window_rounding==8); CHECK(f.data()->frame_rounding==3);
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: expanded sizing controls retain nondefault vector spacing") {
+        GuiFrame g; ActiveThemeFixture f; f.data()->window_padding=Vector2(7,11); f.data()->item_spacing=Vector2(2,4); open_theme_section(g,f,"Sizing & Spacing"); CHECK(f.data()->window_padding==Vector2(7,11)); CHECK(f.data()->item_spacing==Vector2(2,4));
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: expanded fonts tolerate unavailable font manager") {
+        GuiFrame g; ActiveThemeFixture f; auto name=f.data()->font_family; open_theme_section(g,f,"Fonts"); CHECK(f.data()->font_family==name); CHECK(f.c.ctx.font_manager==nullptr);
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: expanded fonts with empty registry retain authored selection") {
+        GuiFrame g; ActiveThemeFixture f; ImGuiFontManager fonts; f.c.ctx.font_manager=&fonts; f.data()->font_family="UnknownFamily"; f.data()->font_size=19; open_theme_section(g,f,"Fonts"); CHECK(f.data()->font_family=="UnknownFamily"); CHECK(f.data()->font_size==19);
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: expanded icons preserve current paths when registry empty") {
+        GuiFrame g; ActiveThemeFixture f; f.data()->icon_paths["Entity"]="Assets/entity.png"; open_theme_section(g,f,"Icon Theme"); CHECK(f.data()->icon_paths.at("Entity")=="Assets/entity.png");
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: SDL icon table draws registered icon without changing path") {
+        GuiFrame g; ActiveThemeFixture f; f.c.icons.registry["Entity"]=f.c.icons.unlocked; f.data()->icon_paths["Entity"]="authored.png"; f.c.init.renderer_type=RendererType::SDL; open_theme_section(g,f,"Icon Theme"); CHECK(f.data()->icon_paths.at("Entity")=="authored.png");
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: OpenGL icon table preserves registered icon and authored path") {
+        GuiFrame g; ActiveThemeFixture f; f.c.icons.registry["Entity"]=f.c.icons.locked; f.data()->icon_paths["Entity"]="authored.png"; f.c.init.renderer_type=RendererType::OpenGL; open_theme_section(g,f,"Icon Theme"); CHECK(f.data()->icon_paths.at("Entity")=="authored.png"); CHECK(f.c.icons.registry.at("Entity").texture_id==f.c.icons.locked.texture_id);
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: icon section tolerates missing InitContext icon manager") {
+        GuiFrame g; ActiveThemeFixture f; f.c.init.icon_manager=nullptr; open_theme_section(g,f,"Icon Theme"); CHECK(f.panel.get_visibility());
+    }
+
+    TEST_CASE("CRI007 ThemeEditorPanel: switching theme after open sections preserves new theme") {
+        GuiFrame g; ActiveThemeFixture f; open_theme_section(g,f,"Colors"); auto t=std::make_unique<ImGuiTheme>("Second", "second.yaml"); REQUIRE(f.themes.register_theme(std::move(t))); REQUIRE(f.themes.set_active_theme("Second")); f.draw(g); CHECK(f.themes.get_active_theme()->get_name()=="Second"); CHECK(f.themes.get_active_theme()->get_file_path()=="second.yaml");
+    }
+}

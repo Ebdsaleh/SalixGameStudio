@@ -736,6 +736,7 @@ namespace Salix {
    
    
     void WorldTreePanel::on_event(IEvent& event) {
+        if (!pimpl->context) return;
         // 1. The main function now just dispatches to the correct helper
         switch (event.get_event_type()) {
             case EventType::EditorEntitySelected:
@@ -798,15 +799,15 @@ namespace Salix {
         }
 
         // 4. Re-evaluate the modified element and entity against the snapshot to update their UI state.
-        if (context->editor_realm_manager->get_snapshot()->is_element_modified(*element_archetype)) {
+        if (element_archetype->state != ArchetypeState::New && context->editor_realm_manager->get_snapshot()->is_element_modified(*element_archetype)) {
             element_archetype->state = ArchetypeState::Modified;
-        } else {
+        } else if (element_archetype->state != ArchetypeState::New) {
             element_archetype->state = ArchetypeState::UnModified;
         }
 
-        if (context->editor_realm_manager->get_snapshot()->is_entity_modified(*entity_archetype)) {
+        if (entity_archetype->state != ArchetypeState::New && context->editor_realm_manager->get_snapshot()->is_entity_modified(*entity_archetype)) {
             entity_archetype->state = ArchetypeState::Modified;
-        } else {
+        } else if (entity_archetype->state != ArchetypeState::New) {
             entity_archetype->state = ArchetypeState::UnModified;
         }
     }

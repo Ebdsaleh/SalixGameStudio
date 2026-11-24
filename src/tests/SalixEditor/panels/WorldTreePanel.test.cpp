@@ -99,3 +99,62 @@ TEST_SUITE("EditorCRI006_WorldTreePanel") {
         GuiFrame g; TreeFixture f; f.c.ctx.editor_realm_manager->add_entity(entity(20,"Second")); f.c.ctx.editor_realm_manager->add_entity(entity(21,"Third")); CHECK(g.draw([&]{f.panel.content();})>0); const auto& r=f.c.ctx.editor_realm_manager->get_realm(); REQUIRE(r.size()==3); CHECK(r[0].id==id(11)); CHECK(r[1].id==id(20)); CHECK(r[2].id==id(21));
     }
 }
+
+
+namespace {
+using namespace EditorCri;
+void open_root(GuiFrame& g,TreeFixture& f) {
+    g.draw([&]{f.panel.content();}); g.draw([&]{f.panel.content();});
+    ImGuiWindow* child=nullptr;
+    for(auto* w:g.current->Windows) if(std::string(w->Name).find("WorldTreeContent")!=std::string::npos)child=w;
+    REQUIRE(child);
+    const ImGuiID seed=child->GetID(11);
+    void* ptr=reinterpret_cast<void*>(static_cast<uintptr_t>(11));
+    const ImGuiID root_id=ImHashData(&ptr,sizeof(ptr),seed);
+    child->StateStorage.SetInt(root_id,1);
+    g.draw([&]{f.panel.content();});
+    CHECK(child->StateStorage.GetInt(root_id)==1);
+}
+}
+TEST_SUITE("EditorCRI007_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI007 WorldTreePanel: expanded root renders original component without dirtying snapshot") {
+        GuiFrame g; TreeFixture f; open_root(g,f); CHECK(f.root()->elements[0].name=="Original"); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: expanded root renders selected element without replacing owner selection") {
+        GuiFrame g; TreeFixture f; ElementSelectedEvent e(id(12),id(11)); f.panel.on_event(e); open_root(g,f); CHECK(f.c.ctx.selected_entity_id==id(11)); CHECK(f.c.ctx.selected_element_id==id(12));
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: expanded modified element retains dirty state") {
+        GuiFrame g; TreeFixture f; f.change(11,12,"name",std::string("Edited")); open_root(g,f); CHECK(f.root()->elements[0].state==ArchetypeState::Modified); CHECK(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: expanded new component retains unsaved state") {
+        GuiFrame g; TreeFixture f; auto a=element("Sprite2D",20); a.state=ArchetypeState::New; f.root()->elements.push_back(a); open_root(g,f); CHECK(f.root()->elements.back().state==ArchetypeState::New); CHECK(f.root()->elements.size()==2);
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: expanded root traverses child with stable parent reference") {
+        GuiFrame g; TreeFixture f; auto a=entity(20,"Child"); a.parent_id=id(11); f.c.ctx.editor_realm_manager->add_child_entity(a); open_root(g,f); REQUIRE(f.c.ctx.editor_realm_manager->get_archetype(id(20))); CHECK(f.c.ctx.editor_realm_manager->get_archetype(id(20))->parent_id==id(11)); CHECK(f.root()->child_ids.size()==1);
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: expanded hierarchy preserves child and component ordering") {
+        GuiFrame g; TreeFixture f; auto a=entity(20,"Child"); a.parent_id=id(11); f.c.ctx.editor_realm_manager->add_child_entity(a); f.root()->elements.push_back(element("BoxCollider",21)); open_root(g,f); REQUIRE(f.root()->elements.size()==2); CHECK(f.root()->elements[0].id==id(12)); CHECK(f.root()->elements[1].id==id(21)); CHECK(f.root()->child_ids[0]==id(20));
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: expanded tree tolerates missing child reference") {
+        GuiFrame g; TreeFixture f; f.root()->child_ids.push_back(id(99)); open_root(g,f); CHECK(f.c.ctx.editor_realm_manager->get_archetype(id(99))==nullptr); CHECK(f.root()->child_ids[0]==id(99));
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: multiple edits on same property restore snapshot and state") {
+        TreeFixture f; f.change(11,12,"name",std::string("A")); f.change(11,12,"name",std::string("B")); CHECK(f.root()->elements[0].state==ArchetypeState::Modified); f.change(11,12,"name",std::string("Original")); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: editing new component does not lose new-state indicator") {
+        TreeFixture f; f.root()->elements[0].state=ArchetypeState::New; f.root()->state=ArchetypeState::New; f.change(11,12,"name",std::string("Renamed")); CHECK(f.root()->elements[0].state==ArchetypeState::New); CHECK(f.root()->state==ArchetypeState::New);
+    }
+
+    TEST_CASE("CRI007 WorldTreePanel: entity and property events before initialization are harmless") {
+        TreeProbe p; EntitySelectedEvent e(id(11)); p.on_event(e); PropertyValueChangedEvent change(id(11),id(12),"Transform","name",std::string("A")); p.on_event(change); CHECK(p.get_name()=="World Tree Panel");
+    }
+}

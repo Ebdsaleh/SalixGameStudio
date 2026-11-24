@@ -188,8 +188,8 @@ namespace Salix {
 
             // Sync UI buffers with theme data if the window is just appearing
             if (ImGui::IsWindowAppearing()) { 
-                std::strncpy(theme_name_buffer, active_imgui_theme->get_name().c_str(), sizeof(theme_name_buffer) - 1);
-                std::strncpy(theme_path_buffer, active_imgui_theme->get_file_path().c_str(), sizeof(theme_path_buffer) - 1);
+                strncpy_s(theme_name_buffer, sizeof(theme_name_buffer), active_imgui_theme->get_name().c_str(), _TRUNCATE);
+                strncpy_s(theme_path_buffer, sizeof(theme_path_buffer), active_imgui_theme->get_file_path().c_str(), _TRUNCATE);
             }
 
             ImGui::Text("Theme Properties:");
@@ -378,6 +378,10 @@ namespace Salix {
     void ThemeEditorPanel::Pimpl::render_edit_icons(ImGuiThemeData* data) {
         
         if (ImGui::CollapsingHeader("Icon Theme")) {
+            if (!context->init_context || !context->init_context->icon_manager) {
+                ImGui::TextUnformatted("Icon manager unavailable.");
+                return;
+            }
             if (ImGui::BeginTable("icon_table", 3)) {
                 ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_WidthFixed, 100.0f);
                 ImGui::TableSetupColumn("Preview", ImGuiTableColumnFlags_WidthFixed, 60.0f);

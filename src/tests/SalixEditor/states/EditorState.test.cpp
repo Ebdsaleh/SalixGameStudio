@@ -112,3 +112,94 @@ TEST_SUITE("EditorCRI006_EditorState") {
         StateFixture f; REQUIRE(std::filesystem::create_directory("editor_init.log")); f.state.on_enter(f.init); f.state.render(&f.renderer); f.state.update(0); BeforeEntityPurgedEvent e(nullptr); f.state.on_event(e); CHECK(f.renderer.clears==0); CHECK(f.events.is_queue_empty());
     }
 }
+
+#include <Salix/window/IWindow.h>
+#include <Salix/core/ApplicationConfig.h>
+#include <Salix/rendering/opengl/OpenGLRenderer.h>
+#include <Editor/camera/EditorCamera.h>
+#include <Salix/ecs/Camera.h>
+namespace {
+using namespace EditorCri;
+struct WindowProbe : IWindow {
+    int width=0,height=0,resizes=0;
+    bool initialize(const WindowConfig&)override{return false;}
+    void shutdown()override{}
+    void* get_native_handle()const override{return nullptr;}
+    void query_dimensions(int& w,int& h)const override{w=width;h=height;}
+    int get_width()const override{return width;}
+    int get_height()const override{return height;}
+    void set_size(int w,int h)override{width=w;height=h;++resizes;}
+    float get_dpi_scale()const override{return 1;}
+};
+struct StartupRenderer : OpenGLRenderer {
+    int creates=0,resize_calls=0,width=0,height=0;
+    ICamera* camera=nullptr;
+    uint32_t create_framebuffer(int,int)override{return static_cast<uint32_t>(++creates);}
+    void on_window_resize(int w,int h)override{++resize_calls;width=w;height=h;}
+    void set_active_camera(ICamera* c)override{camera=c;}
+    ICamera* get_active_camera()override{return camera;}
+    ImTextureID get_framebuffer_texture_id(uint32_t)override{return ImTextureID(0);}
+    void delete_framebuffer(uint32_t)override{}
+};
+struct StartupFixture {
+    StateFixture f; WindowProbe window; StartupRenderer renderer; ApplicationConfig app{};
+    IconProbe icons;
+    StartupFixture() {
+        f.gui.icons=&icons; f.init.icon_manager=&icons; f.init.window=&window;
+        f.init.app_config=&app; f.init.renderer=&renderer;
+        f.init.renderer_type=RendererType::OpenGL;
+        app.window_config.width=640; app.window_config.height=480;
+        auto root=std::filesystem::current_path();
+        f.projects.set_project_to_load((root/"fixture.salix").string());
+        f.projects.set_loaded_project_directory(root.string());
+        std::filesystem::create_directories(root/"Assets"/"Scenes");
+        std::ofstream out(root/"Assets"/"Scenes"/"default_realm.yaml");
+        out<<"Entities: [{name: Startup, id: 11}]";
+        out.close(); register_types();
+    }
+    ~StartupFixture(){f.state.on_exit();}
+    void enter(){f.state.on_enter(f.init);}
+    std::string log(){return read_text("editor_init.log");}
+};
+TEST_SUITE("EditorCRI007_EditorState") {
+    using namespace EditorCri;
+    TEST_CASE("CRI007 EditorState: entry rejects missing application configuration") {
+        StartupFixture s; s.f.init.app_config=nullptr; s.enter(); CHECK(s.log().find("engine_context.app_config is NULL!")!=std::string::npos); CHECK(s.renderer.creates==0);
+    }
+
+    TEST_CASE("CRI007 EditorState: entry rejects non OpenGL renderer after dependency checks") {
+        StartupFixture s; s.f.init.renderer=&s.f.renderer; s.enter(); CHECK(s.log().find("Editor requires an OpenGL renderer")!=std::string::npos); CHECK(s.f.renderer.creates==0); CHECK(s.window.resizes==0);
+    }
+
+    TEST_CASE("CRI007 EditorState: successful startup changes engine mode and creates panels") {
+        StartupFixture s; s.enter(); CHECK(s.f.engine.get_mode()==EngineMode::Editor); CHECK(s.renderer.creates==2); CHECK(s.log().find("FINISHED successfully")!=std::string::npos);
+    }
+
+    TEST_CASE("CRI007 EditorState: startup synchronizes window and renderer dimensions") {
+        StartupFixture s; s.enter(); CHECK(s.window.resizes==1); CHECK(s.window.width==640); CHECK(s.window.height==480); CHECK(s.renderer.resize_calls==1); CHECK(s.renderer.width==640); CHECK(s.renderer.height==480);
+    }
+
+    TEST_CASE("CRI007 EditorState: startup installs actual editor camera") {
+        StartupFixture s; s.enter(); REQUIRE(s.renderer.camera); CHECK(dynamic_cast<EditorCamera*>(s.renderer.camera)!=nullptr); CHECK(s.renderer.camera->get_is_active());
+    }
+
+    TEST_CASE("CRI007 EditorState: startup registers all six workflow panels") {
+        StartupFixture s; s.enter(); auto log=s.log(); for(const char* name:{"WorldTreePanel registered","ScryingMirrorPanel registered","RealmDesignerPanel registered","RealmPotalPanel registered","ThemeEditorPanel registered","ProjectSettingsPanel registered"})CHECK(log.find(name)!=std::string::npos);
+    }
+
+    TEST_CASE("CRI007 EditorState: startup registers theme image dialog through GUI interface") {
+        StartupFixture s; s.enter(); CHECK(s.f.gui.get_dialog("SelectIconImage")!=nullptr);
+    }
+
+    TEST_CASE("CRI007 EditorState: startup reads authored realm from selected project directory") {
+        StartupFixture s; std::ostringstream out; auto* previous=std::cout.rdbuf(out.rdbuf()); try{s.enter();}catch(...){std::cout.rdbuf(previous);throw;} std::cout.rdbuf(previous); CHECK(out.str().find("Vector size: 1")!=std::string::npos); CHECK(out.str().find("Startup")!=std::string::npos);
+    }
+
+    TEST_CASE("CRI007 EditorState: purge notification clears renderer camera owned by purged entity") {
+        StartupFixture s; s.enter(); Entity e; auto* cam=e.add_element<Camera>(); REQUIRE(cam); s.renderer.set_active_camera(cam); BeforeEntityPurgedEvent event(&e); s.f.state.on_event(event); CHECK(s.renderer.camera==nullptr);
+    }
+
+    TEST_CASE("CRI007 EditorState: purge notification leaves unrelated renderer camera intact") {
+        StartupFixture s; s.enter(); Entity a,b; auto* cam=a.add_element<Camera>(); REQUIRE(cam); s.renderer.set_active_camera(cam); BeforeEntityPurgedEvent event(&b); s.f.state.on_event(event); CHECK(s.renderer.camera==cam); s.renderer.set_active_camera(nullptr);
+    }
+}

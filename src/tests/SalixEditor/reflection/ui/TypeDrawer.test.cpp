@@ -110,3 +110,79 @@ TEST_SUITE("EditorCRI006_TypeDrawer") {
         for(auto hint:{UIHint::ImageFile,UIHint::AudioFile,UIHint::TextFile,UIHint::SourceFile,UIHint::FilePath}){auto p=prop(PropertyType::String);p.hint=hint;idle_draw(p,std::string("Assets/fixture.txt"));}
     }
 }
+
+#include <Salix/math/Point.h>
+namespace {
+using namespace EditorCri;
+template<class F> void click_drawn_item(GuiFrame& g,F draw) {
+    ImVec2 center{};
+    auto frame=[&]{g.draw([&]{draw(); auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax(); center=ImVec2((a.x+b.x)*.5f,(a.y+b.y)*.5f);});};
+    frame(); frame();
+    ImGui::GetIO().AddMousePosEvent(center.x,center.y); frame();
+    ImGui::GetIO().AddMouseButtonEvent(0,true); frame();
+    ImGui::GetIO().AddMouseButtonEvent(0,false); frame();
+}
+void nested_draw(PropertyType kind) {
+    GuiFrame g; TypeDrawer::register_all_type_drawers();
+    int value=17,reads=0,writes=0;
+    TypeInfo nested{}; auto child=prop(PropertyType::Int,"Child");
+    child.get_data=[&](void*)->void*{++reads;return &value;};
+    child.set_data=[&](void*,void*){++writes;};
+    nested.properties.push_back(child);
+    auto outer=prop(kind,"Nested"); outer.contained_type_info=&nested;
+    CHECK(g.draw([&]{TypeDrawer::get_drawer(kind)(outer,nullptr);})>0);
+    CHECK(reads==1); CHECK(writes==0); CHECK(value==17);
+}
+void registered_enum_idle(PropertyType kind) {
+    GuiFrame g; EnumRegistry::register_all_enums(); TypeDrawer::register_all_type_drawers();
+    TypeInfo info{}; info.type_index=typeid(ProjectionMode);
+    int value=static_cast<int>(ProjectionMode::Perspective),writes=0;
+    auto p=prop(kind); p.contained_type_info=&info;
+    p.get_data=[&](void*)->void*{return &value;};
+    p.set_data=[&](void*,void*){++writes;};
+    CHECK(g.draw([&]{TypeDrawer::get_drawer(kind)(p,nullptr);})>0);
+    CHECK(value==static_cast<int>(ProjectionMode::Perspective)); CHECK(writes==0);
+}
+}
+TEST_SUITE("EditorCRI007_TypeDrawer") {
+    using namespace EditorCri;
+    TEST_CASE("CRI007 TypeDrawer: checkbox interaction changes typed handle exactly once") {
+        GuiFrame g; EditorContext c; HandleProbe h(prop(PropertyType::Bool),false); int changes=0; click_drawn_item(g,[&]{if(TypeDrawer::draw_property("Value",h,&c))++changes;}); CHECK(std::get<bool>(h.value)); CHECK(h.writes==1); CHECK(changes==1);
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: YAML checkbox interaction writes selected value") {
+        GuiFrame g; auto n=YAML::Load("{Value: false, other: 7}"); auto p=prop(PropertyType::Bool); click_drawn_item(g,[&]{TypeDrawer::draw_yaml_property(p,n);}); CHECK(n["Value"].as<bool>()); CHECK(n["other"].as<int>()==7);
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: registered checkbox setter receives selected value") {
+        GuiFrame g; TypeDrawer::register_all_type_drawers(); bool value=false; int writes=0; auto p=prop(PropertyType::Bool); p.get_data=[&](void*)->void*{return &value;}; p.set_data=[&](void*,void* v){value=*static_cast<bool*>(v);++writes;}; click_drawn_item(g,[&]{TypeDrawer::get_drawer(PropertyType::Bool)(p,nullptr);}); CHECK(value); CHECK(writes==1);
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: registered Point drawer reads both integer coordinates") {
+        draw_registered(PropertyType::Point,Point{5,-3});
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: registered Class drawer recurses to reflected child") {
+        nested_draw(PropertyType::Class);
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: registered Struct drawer recurses to reflected child") {
+        nested_draw(PropertyType::Struct);
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: registered Enum drawer displays registered names") {
+        registered_enum_idle(PropertyType::Enum);
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: registered EnumClass drawer displays registered names") {
+        registered_enum_idle(PropertyType::EnumClass);
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: missing YAML fields do not become persisted defaults without edits") {
+        GuiFrame g; auto n=YAML::Load("{Other: 3}"); g.draw([&]{for(auto t:{PropertyType::Int,PropertyType::Float,PropertyType::Bool,PropertyType::String,PropertyType::Vector2,PropertyType::Vector3,PropertyType::Color})TypeDrawer::draw_yaml_property(prop(t,std::to_string((int)t).c_str()),n);}); CHECK(n.size()==1); CHECK(n["Other"].as<int>()==3);
+    }
+
+    TEST_CASE("CRI007 TypeDrawer: matrix handle read-only fallback does not call setter") {
+        GuiFrame g; EditorContext c; HandleProbe h(prop(PropertyType::GlmMat4),glm::mat4(2)); CHECK(g.draw([&]{CHECK_FALSE(TypeDrawer::draw_property("Matrix",h,&c));})>0); CHECK(h.writes==0); CHECK(std::get<glm::mat4>(h.value)==glm::mat4(2));
+    }
+}

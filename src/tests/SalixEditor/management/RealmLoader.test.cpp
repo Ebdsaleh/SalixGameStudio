@@ -50,3 +50,50 @@ TEST_SUITE("EditorCRI001_RealmLoader") {
         TempRealm f; auto r=load(f,"Entities: [{name: E, id: 1, elements: {Bad: 3, Missing: {name: X}, Invalid: {id: nope}, BadFlag: {id: 4, allows_duplication: nope}, Good: {id: 5}}}]"); REQUIRE(r.size()==1); REQUIRE(r[0].elements.size()==1); CHECK(r[0].elements[0].id==id(5));
     }
 }
+
+
+namespace {
+using namespace EditorCri;
+}
+TEST_SUITE("EditorCRI007_RealmLoader") {
+    using namespace EditorCri;
+    TEST_CASE("CRI007 RealmLoader: non scalar root yields empty model") {
+        TempRealm f; CHECK(load(f,"[1, 2, 3]").empty());
+    }
+
+    TEST_CASE("CRI007 RealmLoader: malformed parent field falls back to root") {
+        TempRealm f; auto r=load(f,"Entities: [{name: Root, id: 11, parent: invalid}]"); REQUIRE(r.size()==1); CHECK_FALSE(r[0].parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI007 RealmLoader: zero parent is treated as root") {
+        TempRealm f; auto r=load(f,"Entities: [{name: Root, id: 11, parent: 0}]"); REQUIRE(r.size()==1); CHECK_FALSE(r[0].parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI007 RealmLoader: uint64 identity beyond 32 bits survives loading") {
+        TempRealm f; auto r=load(f,"Entities: [{name: Large, id: 4294967297, parent: 4294967296}]"); REQUIRE(r.size()==1); CHECK(r[0].id==id(4294967297ULL)); CHECK(r[0].parent_id==id(4294967296ULL));
+    }
+
+    TEST_CASE("CRI007 RealmLoader: empty elements mapping preserves entity") {
+        TempRealm f; auto r=load(f,"Entities: [{name: E, id: 11, elements: {}}]"); REQUIRE(r.size()==1); CHECK(r[0].elements.empty());
+    }
+
+    TEST_CASE("CRI007 RealmLoader: nonmapping elements are ignored without dropping entity") {
+        TempRealm f; auto r=load(f,"Entities: [{name: E, id: 11, elements: [one,two]}]"); REQUIRE(r.size()==1); CHECK(r[0].elements.empty());
+    }
+
+    TEST_CASE("CRI007 RealmLoader: nested component data remains structured") {
+        TempRealm f; auto r=load(f,"Entities: [{name: E, id: 11, elements: {Future: {id: 21, settings: {enabled: true, list: [a,b]}}}}]"); REQUIRE(r.size()==1); REQUIRE(r[0].elements.size()==1); auto n=r[0].elements[0].data["settings"]; CHECK(n["enabled"].as<bool>()); CHECK(n["list"][1].as<std::string>()=="b");
+    }
+
+    TEST_CASE("CRI007 RealmLoader: invalid element name skips only malformed component") {
+        TempRealm f; auto r=load(f,"Entities: [{name: E, id: 11, elements: {Bad: {id: 21, name: [a,b]}, Good: {id: 22}}}]"); REQUIRE(r.size()==1); REQUIRE(r[0].elements.size()==1); CHECK(r[0].elements[0].id==id(22));
+    }
+
+    TEST_CASE("CRI007 RealmLoader: owner IDs assigned to components in separate entities") {
+        TempRealm f; auto r=load(f,"Entities: [{name: A, id: 11, elements: {Transform: {id: 21}}}, {name: B, id: 12, elements: {Transform: {id: 22}}}]"); REQUIRE(r.size()==2); REQUIRE(r[0].elements.size()==1); REQUIRE(r[1].elements.size()==1); CHECK(r[0].elements[0].owner_id==id(11)); CHECK(r[1].elements[0].owner_id==id(12));
+    }
+
+    TEST_CASE("CRI007 RealmLoader: repeated loads do not share mutable YAML nodes") {
+        TempRealm f; auto path=f.write("Entities: [{name: E, id: 11, elements: {Transform: {id: 21, name: Original}}}]"); auto a=load_archetypes_from_file(path),b=load_archetypes_from_file(path); REQUIRE(a.size()==1); REQUIRE(b.size()==1); a[0].elements[0].data["name"]="Edited"; CHECK(b[0].elements[0].data["name"].as<std::string>()=="Original");
+    }
+}
