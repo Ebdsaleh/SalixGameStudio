@@ -155,3 +155,53 @@ TEST_SUITE("EditorCRI007_RealmSnapshot") {
 }
 }
 }
+
+namespace {
+using namespace EditorCri;
+EntityArchetype metadata_model(){
+    register_types();auto a=entity(11,"Root");a.is_visible=false;a.display_order=3;
+    auto e=element("Transform",21,"{name: Local}");e.name="Local";e.owner_id=a.id;e.is_visible=false;e.display_order=5;a.elements.push_back(e);return a;
+}
+}
+TEST_SUITE("EditorCRI011_RealmSnapshot") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 RealmSnapshot: snapshot preserves entity visibility and display order") {
+        auto a=metadata_model();auto s=RealmSnapshot::load_from_entity_archetype_vector({a});auto* stored=s.get_entity_by_id(a.id);REQUIRE(stored);CHECK_FALSE(stored->is_visible);CHECK(stored->display_order==3);CHECK_FALSE(s.is_entity_modified(a));
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: snapshot preserves component visibility and display order") {
+        auto a=metadata_model();auto s=RealmSnapshot::load_from_entity_archetype_vector({a});auto* stored=s.get_element_by_id(id(21));REQUIRE(stored);CHECK_FALSE(stored->is_visible);CHECK(stored->display_order==5);CHECK_FALSE(s.is_element_modified(a.elements[0]));
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: changing entity visibility detects dirty state and restoration clears it") {
+        auto a=metadata_model();auto s=RealmSnapshot::load_from_entity_archetype_vector({a});a.is_visible=true;CHECK(s.is_entity_modified(a));CHECK_FALSE(s.validate_snapshot({a}));a.is_visible=false;CHECK_FALSE(s.is_entity_modified(a));CHECK(s.validate_snapshot({a}));
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: changing entity display order is detected independently") {
+        auto a=metadata_model();auto s=RealmSnapshot::load_from_entity_archetype_vector({a});a.display_order=9;CHECK(s.is_entity_modified(a));CHECK_FALSE(s.validate_snapshot({a}));CHECK_FALSE(s.is_element_modified(a.elements[0]));
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: changing component visibility marks component and owner dirty") {
+        auto a=metadata_model();auto s=RealmSnapshot::load_from_entity_archetype_vector({a});a.elements[0].is_visible=true;CHECK(s.is_element_modified(a.elements[0]));CHECK(s.is_entity_modified(a));CHECK_FALSE(s.validate_snapshot({a}));
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: changing component display order is detected independently") {
+        auto a=metadata_model();auto s=RealmSnapshot::load_from_entity_archetype_vector({a});a.elements[0].display_order=6;CHECK(s.is_element_modified(a.elements[0]));CHECK(s.is_entity_modified(a));CHECK_FALSE(s.validate_snapshot({a}));
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: validation checks metadata name independently of YAML") {
+        auto a=metadata_model();auto s=RealmSnapshot::load_from_entity_archetype_vector({a});a.elements[0].name="Changed metadata";CHECK_FALSE(s.validate_snapshot({a}));CHECK(s.is_element_modified(a.elements[0]));CHECK(s.get_initial_data_property_value(id(21),"name")=="Local");
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: validation checks component owner independently of YAML") {
+        auto a=metadata_model();auto s=RealmSnapshot::load_from_entity_archetype_vector({a});a.elements[0].owner_id=id(99);CHECK_FALSE(s.validate_snapshot({a}));CHECK(s.is_element_modified(a.elements[0]));
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: duplicate entity cannot overwrite first fossilized property") {
+        auto a=metadata_model();auto duplicate=metadata_model();duplicate.name="Duplicate";duplicate.elements[0].data["name"]="Different";auto s=RealmSnapshot::load_from_entity_archetype_vector({a,duplicate});REQUIRE(s.get_entity_by_id(id(11)));CHECK(s.get_entity_by_id(id(11))->name=="Root");CHECK(s.get_initial_data_property_value(id(21),"name")=="Local");CHECK_FALSE(s.is_entity_modified(a));CHECK_FALSE(s.validate_snapshot({a,duplicate}));
+    }
+
+    TEST_CASE("CRI011 RealmSnapshot: duplicate entity cannot leave orphan fossilized component entries") {
+        auto a=metadata_model();auto duplicate=entity(11,"Duplicate");duplicate.elements.push_back(element("Transform",99,"{name: Orphan}"));auto s=RealmSnapshot::load_from_entity_archetype_vector({a,duplicate});CHECK(s.get_element_by_id(id(99))==nullptr);CHECK(s.get_initial_element_data_as_string(id(99))==nullptr);CHECK(s.get_fossilized_data_for_element(id(99))==nullptr);CHECK(s.validate_snapshot({a}));
+    }
+}

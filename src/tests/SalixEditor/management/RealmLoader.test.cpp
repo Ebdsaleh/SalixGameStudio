@@ -97,3 +97,47 @@ TEST_SUITE("EditorCRI007_RealmLoader") {
         TempRealm f; auto path=f.write("Entities: [{name: E, id: 11, elements: {Transform: {id: 21, name: Original}}}]"); auto a=load_archetypes_from_file(path),b=load_archetypes_from_file(path); REQUIRE(a.size()==1); REQUIRE(b.size()==1); a[0].elements[0].data["name"]="Edited"; CHECK(b[0].elements[0].data["name"].as<std::string>()=="Original");
     }
 }
+
+
+TEST_SUITE("EditorCRI011_RealmLoader") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 RealmLoader: zero entity identity rejected while valid siblings load") {
+        TempRealm f;auto r=load(f,"Entities: [{name: Invalid, id: 0}, {name: Valid, id: 11}]");REQUIRE(r.size()==1);CHECK(r[0].id==id(11));
+    }
+
+    TEST_CASE("CRI011 RealmLoader: duplicate entity identity preserves first complete record") {
+        TempRealm f;auto r=load(f,"Entities: [{name: First, id: 11}, {name: Duplicate, id: 11}, {name: Next, id: 12}]");REQUIRE(r.size()==2);CHECK(r[0].name=="First");CHECK(r[1].id==id(12));
+    }
+
+    TEST_CASE("CRI011 RealmLoader: duplicate entity cannot reserve component IDs from later valid entities") {
+        TempRealm f;auto r=load(f,"Entities: [{name: First, id: 11}, {name: Duplicate, id: 11, elements: {Transform: {id: 21}}}, {name: Valid, id: 12, elements: {Transform: {id: 21}}}]");REQUIRE(r.size()==2);REQUIRE(r[1].elements.size()==1);CHECK(r[1].elements[0].owner_id==id(12));
+    }
+
+    TEST_CASE("CRI011 RealmLoader: invalid zero component does not discard valid owner") {
+        TempRealm f;auto r=load(f,"Entities: [{name: Root, id: 11, elements: {Bad: {id: 0}, Good: {id: 21}}}]");REQUIRE(r.size()==1);REQUIRE(r[0].elements.size()==1);CHECK(r[0].elements[0].id==id(21));
+    }
+
+    TEST_CASE("CRI011 RealmLoader: duplicate component IDs within one entity preserve first") {
+        TempRealm f;auto r=load(f,"Entities: [{name: Root, id: 11, elements: {First: {id: 21, name: Original}, Second: {id: 21, name: Duplicate}}}]");REQUIRE(r.size()==1);REQUIRE(r[0].elements.size()==1);CHECK(r[0].elements[0].type_name=="First");CHECK(r[0].elements[0].name=="Original");
+    }
+
+    TEST_CASE("CRI011 RealmLoader: duplicate component IDs across owners preserve unique lookup") {
+        TempRealm f;auto r=load(f,"Entities: [{name: A, id: 11, elements: {Transform: {id: 21}}}, {name: B, id: 12, elements: {Sprite2D: {id: 21}, Camera: {id: 22}}}]");REQUIRE(r.size()==2);REQUIRE(r[0].elements.size()==1);REQUIRE(r[1].elements.size()==1);CHECK(r[0].elements[0].owner_id==id(11));CHECK(r[1].elements[0].id==id(22));
+    }
+
+    TEST_CASE("CRI011 RealmLoader: malformed component does not reserve its ID") {
+        TempRealm f;auto r=load(f,"Entities: [{name: Root, id: 11, elements: {Bad: {id: 21, name: [bad]}, Good: {id: 21, name: Valid}}}]");REQUIRE(r.size()==1);REQUIRE(r[0].elements.size()==1);CHECK(r[0].elements[0].name=="Valid");
+    }
+
+    TEST_CASE("CRI011 RealmLoader: malformed entity name does not reserve its ID") {
+        TempRealm f;auto r=load(f,"Entities: [{name: [bad], id: 11}, {name: Valid, id: 11}]");REQUIRE(r.size()==1);CHECK(r[0].name=="Valid");
+    }
+
+    TEST_CASE("CRI011 RealmLoader: sequence component key skips only invalid component") {
+        TempRealm f;auto r=load(f,"Entities:\n - name: Root\n   id: 11\n   elements:\n     ? [Bad, Key]\n     : {id: 21}\n     Good: {id: 22}\n");REQUIRE(r.size()==1);REQUIRE(r[0].elements.size()==1);CHECK(r[0].elements[0].id==id(22));
+    }
+
+    TEST_CASE("CRI011 RealmLoader: null component key skips only invalid component") {
+        TempRealm f;auto r=load(f,"Entities: [{name: Root, id: 11, elements: {null: {id: 21}, Good: {id: 22}}}]");REQUIRE(r.size()==1);REQUIRE(r[0].elements.size()==1);CHECK(r[0].elements[0].type_name=="Good");
+    }
+}

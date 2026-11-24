@@ -95,6 +95,9 @@ namespace Salix {
     std::cout << "\n--- CREATING IMMUTABLE REALM SNAPSHOT ---\n";
 
     for (const auto& source_entity : archetype_vector) {
+        // Preserve the first complete record; duplicate entities must not overwrite
+        // the element indexes or fossilized properties of an already stored entity.
+        if (snapshot.pimpl->entity_archetype_map.count(source_entity.id)) continue;
         // 1. Create a copy of the entity archetype's metadata.
         EntityArchetype entity_copy;
         
@@ -105,6 +108,8 @@ namespace Salix {
         entity_copy.parent_id = source_entity.parent_id;
         entity_copy.child_ids = source_entity.child_ids;
         entity_copy.state = source_entity.state;
+        entity_copy.is_visible = source_entity.is_visible;
+        entity_copy.display_order = source_entity.display_order;
 
         // 2. Deep copy each element and populate the fossilized string map.
         for (const auto& source_element : source_entity.elements) {
@@ -116,6 +121,8 @@ namespace Salix {
             element_copy.owner_id = source_element.owner_id;
             element_copy.allows_duplication = source_element.allows_duplication;
             element_copy.state = source_element.state;
+            element_copy.is_visible = source_element.is_visible;
+            element_copy.display_order = source_element.display_order;
 
             element_copy.data = YAML::Load(YAML::Dump(source_element.data));
             
@@ -192,6 +199,10 @@ namespace Salix {
                 LOG_ERROR("Parent ID mismatch for ID " << source_archetype.id.get_value() << ": source=" << source_archetype.parent_id.get_value() << ", map=" << map_archetype.parent_id.get_value());
                 mismatch_count++;
             }
+            if (source_archetype.is_visible != map_archetype.is_visible || source_archetype.display_order != map_archetype.display_order) {
+                LOG_ERROR("Entity visibility/order mismatch for ID " << source_archetype.id.get_value());
+                mismatch_count++;
+            }
             if (source_archetype.child_ids != map_archetype.child_ids) {
                 LOG_ERROR("Child IDs mismatch for ID " << source_archetype.id.get_value());
                 mismatch_count++;
@@ -213,6 +224,12 @@ namespace Salix {
                 }
                 if (source_element.type_name != map_element.type_name) {
                     LOG_ERROR("Element type mismatch for element " << source_element.id.get_value() << " in entity " << source_archetype.id.get_value() << ": source='" << source_element.type_name << "', map='" << map_element.type_name << "'");
+                    mismatch_count++;
+                }
+                if (source_element.name != map_element.name || source_element.owner_id != map_element.owner_id ||
+                    source_element.allows_duplication != map_element.allows_duplication ||
+                    source_element.is_visible != map_element.is_visible || source_element.display_order != map_element.display_order) {
+                    LOG_ERROR("Element metadata mismatch for ID " << source_element.id.get_value());
                     mismatch_count++;
                 }
                 if (YAML::Dump(source_element.data) != YAML::Dump(map_element.data)) {
@@ -343,7 +360,9 @@ namespace Salix {
         if (live_element.name != snapshot_element->name ||
             live_element.owner_id != snapshot_element->owner_id ||
             live_element.type_name != snapshot_element->type_name ||
-            live_element.allows_duplication != snapshot_element->allows_duplication) {
+            live_element.allows_duplication != snapshot_element->allows_duplication ||
+            live_element.is_visible != snapshot_element->is_visible ||
+            live_element.display_order != snapshot_element->display_order) {
             return true;
         }
 
@@ -408,6 +427,8 @@ namespace Salix {
         if (live_archetype.name != snapshot_archetype->name ||
             live_archetype.parent_id != snapshot_archetype->parent_id ||
             live_archetype.child_ids != snapshot_archetype->child_ids ||
+            live_archetype.is_visible != snapshot_archetype->is_visible ||
+            live_archetype.display_order != snapshot_archetype->display_order ||
             live_archetype.elements.size() != snapshot_archetype->elements.size()) {
             return true;
         }

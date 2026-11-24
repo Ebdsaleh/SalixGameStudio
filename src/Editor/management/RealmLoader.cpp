@@ -4,6 +4,7 @@
 #include <Editor/Archetypes.h>
 #include <yaml-cpp/yaml.h>
 #include <Salix/core/SimpleGuid.h>
+#include <unordered_set>
 
 
 namespace Salix {
@@ -21,6 +22,8 @@ namespace Salix {
                 return archetypes;
             }
 
+            std::unordered_set<SimpleGuid> entity_ids;
+            std::unordered_set<SimpleGuid> element_ids;
             std::cout << "[RealmLoader] Parsing " << realm_yaml["Entities"].size() << " entities..." << std::endl;
 
             for (const auto& entity_node : realm_yaml["Entities"]) {
@@ -40,6 +43,10 @@ namespace Salix {
 
                     entity.name = entity_node["name"].as<std::string>();
                     entity.id = entity_node["id"].as<SimpleGuid>();
+                    if (!entity.id.is_valid() || entity_ids.count(entity.id)) {
+                        std::cerr << "[RealmLoader] Invalid or duplicate entity ID: " << entity.id.get_value() << std::endl;
+                        continue;
+                    }
 
                     // Optional parent
                     if (entity_node["parent"] && !entity_node["parent"].IsNull()) {
@@ -60,6 +67,11 @@ namespace Salix {
                     // Parse elements if they exist
                     if (entity_node["elements"] && entity_node["elements"].IsMap()) {
                         for (const auto& element_kv : entity_node["elements"]) {
+                            // A malformed component key must not discard its owning entity.
+                            if (!element_kv.first.IsScalar()) {
+                                std::cerr << "    [Element] Invalid non-scalar component type" << std::endl;
+                                continue;
+                            }
                             const std::string type_name = element_kv.first.as<std::string>();
                             const YAML::Node& element_data = element_kv.second;
 
@@ -77,6 +89,10 @@ namespace Salix {
                                 ElementArchetype element;
                                 element.type_name = type_name;
                                 element.id = element_data["id"].as<SimpleGuid>();
+                                if (!element.id.is_valid() || element_ids.count(element.id)) {
+                                    std::cerr << "    [Element] Invalid or duplicate element ID: " << element.id.get_value() << std::endl;
+                                    continue;
+                                }
                                 // If the flag exists in the file, load it. Otherwise, the C++
                                 // default of 'true' will be used. This makes it backwards-compatible.
 
@@ -103,6 +119,7 @@ namespace Salix {
                                 }
 
                                 entity.elements.push_back(element);
+                                element_ids.insert(element.id);
                             } catch (const YAML::Exception& e) {
                                 std::cerr << "    [Element] Error parsing element '" << type_name 
                                         << "': " << e.what() << std::endl;
@@ -111,6 +128,7 @@ namespace Salix {
                     }
 
                     archetypes.push_back(entity);
+                    entity_ids.insert(entity.id);
 
                 } catch (const YAML::Exception& e) {
                     std::cerr << "[RealmLoader] Error parsing entity: " << e.what() 
