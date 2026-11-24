@@ -125,7 +125,6 @@ void open_theme_section(GuiFrame& g,ActiveThemeFixture& f,const char* section) {
     CHECK(window->StateStorage.GetInt(window->GetID(section))==1);
     CHECK(g.current->DisabledStackSize==0);
 }
-}
 } // namespace
 TEST_SUITE("EditorCRI007_ThemeEditorPanel") {
     using namespace EditorCri;

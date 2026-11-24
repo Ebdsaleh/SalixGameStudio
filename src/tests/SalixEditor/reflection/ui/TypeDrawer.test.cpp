@@ -143,7 +143,6 @@ void registered_enum_idle(PropertyType kind) {
     CHECK(g.draw([&]{TypeDrawer::get_drawer(kind)(p,nullptr);})>0);
     CHECK(value==static_cast<int>(ProjectionMode::Perspective)); CHECK(writes==0);
 }
-}
 } // namespace
 TEST_SUITE("EditorCRI007_TypeDrawer") {
     using namespace EditorCri;

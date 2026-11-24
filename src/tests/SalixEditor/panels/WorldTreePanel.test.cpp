@@ -115,7 +115,6 @@ void open_root(GuiFrame& g,TreeFixture& f) {
     g.draw([&]{f.panel.content();});
     CHECK(child->StateStorage.GetInt(root_id)==1);
 }
-}
 } // namespace
 TEST_SUITE("EditorCRI007_WorldTreePanel") {
     using namespace EditorCri;
