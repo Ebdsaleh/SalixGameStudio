@@ -140,18 +140,18 @@ struct MediaFixture {
         auto e=element("Sprite2D",21,"{texture_path: old.png, width: 80, height: 40}");e.owner_id=a->id;a->elements.push_back(e);
         f.c.events.subscribe(EventCategory::Editor,&listener); f.select_element(21,11);
         for(std::string key:{"SelectImageFile","SelectAudioFile","SelectSourceFile","SelectFile"}){
-            std::string title=key; REQUIRE(f.c.gui.create_dialog(key,title,DialogType::File,false));
+            std::string title=key; REQUIRE(f.c.gui.create_dialog(key,title,Salix::DialogType::File,false));
         }
     }
     ~MediaFixture(){Salix::g_project_root_path=old_root;}
     ElementArchetype* sprite(){auto* a=f.c.ctx.editor_realm_manager->get_archetype(id(11));return a?a->get_element_by_id(id(21)):nullptr;}
-    DialogBox* choose(UIHint hint,const char* key){
+    Salix::DialogBox* choose(UIHint hint,const char* key){
         auto* s=sprite();REQUIRE(s);Property p{};p.name="texture_path";p.type=PropertyType::String;p.hint=hint;
         PropertyHandleYaml h(p,&s->data);
         f.panel.select_media_for_testing(h,s,ByteMirror::get_type_info_by_name("Sprite2D"));
         CHECK(f.c.gui.shown_dialog==key);auto* d=f.c.gui.get_dialog(key);REQUIRE(d);return d;
     }
-    void result(DialogBox* d,bool ok){FileDialogResult r{};r.is_ok=ok;r.file_path_name=temp.write("fixture");d->get_callback()(r);}
+    void result(Salix::DialogBox* d,bool ok){Salix::FileDialogResult r{};r.is_ok=ok;r.file_path_name=temp.write("fixture");d->get_callback()(r);}
     void drain(){auto& q=f.c.ctx.deferred_commands;for(auto& cmd:q)cmd();q.clear();f.c.events.process_queue();}
 };
 }
