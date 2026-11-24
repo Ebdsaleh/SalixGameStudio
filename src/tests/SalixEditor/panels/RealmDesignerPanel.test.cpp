@@ -313,7 +313,7 @@ struct GizmoFixture {
         std::map<std::string,PropertyValue> values;SimpleGuid owner=SimpleGuid::invalid(),component=SimpleGuid::invalid();
         void on_event(IEvent& e) override {if(e.get_event_type()!=EventType::EditorPropertyValueChanged)return;auto& change=static_cast<PropertyValueChangedEvent&>(e);values[change.property_name]=change.new_value;owner=change.entity_id;component=change.element_id;}
     } listener;
-    GizmoFixture(){pick.add(11,0,0,0);v.f.live(11)->get_transform()->set_id(id(1011));v.f.c.events.process_queue();v.f.c.ctx.selected_entity_id=id(11);v.f.c.events.subscribe(EventCategory::Editor,&listener);}
+    GizmoFixture(){auto a=entity(11,"Gizmo");auto t=element("Transform",1011,"{position: {x: 0,y: 0,z: 0}, rotation: {x: 0,y: 0,z: 0}, scale: {x: 1,y: 1,z: 1}}");t.owner_id=a.id;a.elements.push_back(t);v.f.c.ctx.editor_realm_manager->add_entity(a);v.f.c.events.process_queue();REQUIRE(v.f.live(11));REQUIRE(v.f.live(11)->get_transform());v.f.c.ctx.selected_entity_id=id(11);v.f.c.events.subscribe(EventCategory::Editor,&listener);}
     Transform* transform(){return v.f.live(11)->get_transform();}
     void apply(float x,float y,float z){v.f.panel.apply_gizmo_matrix_for_testing(glm::translate(glm::mat4(1),glm::vec3(x,y,z)));}
 };

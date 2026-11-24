@@ -221,7 +221,7 @@ namespace Salix {
         if (archetype.name == name) return;
         archetype.name = name;
         update_entity_archetype_state(archetype);
-        context->editor_realm_manager->update_ancestor_states(archetype.parent_id);
+        context->editor_realm_manager->update_ancestor_states(archetype.id);
         if (context->preview_realm) {
             if (auto* live = context->preview_realm->get_entity_by_id(archetype.id)) live->set_name(name);
         }
@@ -235,7 +235,7 @@ namespace Salix {
             owner.id, element.id, element.type_name, "name", name));
         update_element_archetype_state(element);
         update_entity_archetype_state(owner);
-        context->editor_realm_manager->update_ancestor_states(owner.parent_id);
+        context->editor_realm_manager->update_ancestor_states(owner.id);
     }
 
 #ifdef SALIX_TESTS_ENABLED

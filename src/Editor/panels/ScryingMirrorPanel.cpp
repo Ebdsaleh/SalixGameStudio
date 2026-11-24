@@ -212,7 +212,7 @@ namespace Salix {
                 a->state = context->editor_realm_manager->get_snapshot()->is_entity_modified(*a)
                     ? ArchetypeState::Modified : ArchetypeState::UnModified;
             }
-            context->editor_realm_manager->update_ancestor_states(a->parent_id);
+            context->editor_realm_manager->update_ancestor_states(a->id);
             if (context->preview_realm) {
                 if (auto* live = context->preview_realm->get_entity_by_id(owner)) live->set_visible(visible);
             }

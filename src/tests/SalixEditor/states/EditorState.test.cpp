@@ -217,6 +217,7 @@ TEST_SUITE("EditorCRI007_EditorState") {
 }
 
 #include <Editor/panels/PanelManager.h>
+#include <Editor/panels/IPanel.h>
 #include <Editor/events/EntitySelectedEvent.h>
 namespace {
 using namespace EditorCri;
