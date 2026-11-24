@@ -40,6 +40,7 @@ namespace Salix {
         std::string name;
         EditorContext* context = nullptr;
         ImGuiIconManager* icon_manager = nullptr;
+        std::shared_ptr<int> callback_lifetime = std::make_shared<int>(0);
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         void handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info);
@@ -109,11 +110,13 @@ namespace Salix {
             const SimpleGuid element_id = element_archetype->id;
             const std::string type_name = type_info->name;
 
-            dialog->set_callback([this, entity_id, element_id, type_name, property_name](const FileDialogResult& result) {
+            std::weak_ptr<int> lifetime = callback_lifetime;
+            dialog->set_callback([this, lifetime, entity_id, element_id, type_name, property_name](const FileDialogResult& result) {
+                if (lifetime.expired() || !context) return;
                 if (result.is_ok) {
                     const std::string selected_path = result.file_path_name;
-                    context->add_deferred_command([this, entity_id, element_id, type_name, property_name, selected_path]() {
-                        if (!context || !context->editor_realm_manager || !context->event_manager) return;
+                    context->add_deferred_command([this, lifetime, entity_id, element_id, type_name, property_name, selected_path]() {
+                        if (lifetime.expired() || !context || !context->editor_realm_manager || !context->event_manager) return;
                         auto* owner = context->editor_realm_manager->get_archetype(entity_id);
                         if (!owner || !owner->get_element_by_id(element_id)) return;
                         std::string relative_path = FileManager::convert_to_relative_path(
@@ -165,13 +168,19 @@ namespace Salix {
 
 
     void ScryingMirrorPanel::Pimpl::handle_camera_activation(const ElementArchetype& archetype, const PropertyHandle& handle) {
-        bool was_just_activated = std::get<bool>(handle.get_value());
+        if (!context) return;
+        const auto value = handle.get_value();
+        const auto* activated = std::get_if<bool>(&value);
+        if (!activated) return;
+        bool was_just_activated = *activated;
 
         if (was_just_activated) {
             Realm* realm = context->preview_realm.get();
             if (realm) {
-                // Tell the Realm which entity is now the main camera.
-                realm->set_main_camera_entity(archetype.owner_id);
+                // Ignore stale owners and components; select the actual live camera.
+                auto* owner = realm->get_entity_by_id(archetype.owner_id);
+                if (!owner || !owner->get_element<Camera>()) return;
+                realm->set_active_camera_entity(archetype.owner_id);
 
                 // Loop through ALL entities to find and deactivate other cameras.
                 for (Entity* entity : realm->get_entities()) {
@@ -423,6 +432,7 @@ namespace Salix {
     SimpleGuid ScryingMirrorPanel::get_selected_element_id_for_testing() const { return pimpl->selected_element_id; }
     void ScryingMirrorPanel::select_media_for_testing(PropertyHandle& handle, ElementArchetype* element, const TypeInfo* type) { pimpl->handle_media_file_selection(handle, element, type); }
     void ScryingMirrorPanel::resize_collider_for_testing(ElementArchetype* collider, const ElementArchetype* source) { pimpl->handle_box_collider_resize_button(collider, source); }
+    void ScryingMirrorPanel::activate_camera_for_testing(const ElementArchetype& archetype, const PropertyHandle& handle) { pimpl->handle_camera_activation(archetype, handle); }
 #endif
 
 }  // namespace Salix

@@ -26,6 +26,7 @@ namespace Salix {
 #ifdef SALIX_TESTS_ENABLED
             void save_theme_for_testing(const std::string& path);
             void load_theme_for_testing(const std::string& name, const std::string& path);
+            void browse_icon_for_testing(const std::string& type_name);
 #endif
         private:
             struct Pimpl;

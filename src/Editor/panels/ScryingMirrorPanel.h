@@ -28,6 +28,7 @@ namespace Salix {
         SimpleGuid get_selected_element_id_for_testing() const;
         void select_media_for_testing(PropertyHandle& handle, ElementArchetype* element, const TypeInfo* type);
         void resize_collider_for_testing(ElementArchetype* collider, const ElementArchetype* source);
+        void activate_camera_for_testing(const ElementArchetype& archetype, const PropertyHandle& handle);
 #endif
         
     protected:

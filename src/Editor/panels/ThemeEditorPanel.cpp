@@ -33,6 +33,9 @@ namespace Salix {
         char theme_name_buffer[256] = {0};
         char theme_path_buffer[512] = {0};
         std::string icon_type_being_edited;
+        std::shared_ptr<int> callback_lifetime = std::make_shared<int>(0);
+        unsigned icon_request = 0;
+        void browse_icon(const std::string& type_name);
         std::string last_icon_directory = ".";
         // Helper functions for rendering UI sections
         void create_dialog_boxes();
@@ -397,6 +400,39 @@ namespace Salix {
     }
 
 
+    void ThemeEditorPanel::Pimpl::browse_icon(const std::string& type_name) {
+        if (!context || !context->gui || !context->theme_manager || type_name.empty()) return;
+        auto* theme = context->theme_manager->get_active_theme();
+        if (!theme) return;
+        auto* dialog = context->gui->get_dialog("SelectIconImage");
+        if (!dialog) return;
+        // Capture the registry key, not a borrowed ImGuiThemeData pointer.
+        const std::string theme_name = theme->get_name();
+        const unsigned request = ++icon_request;
+        std::weak_ptr<int> lifetime = callback_lifetime;
+        icon_type_being_edited = type_name;
+        dialog->set_callback([this, lifetime, theme_name, type_name, request](const FileDialogResult& result) {
+            if (lifetime.expired() || request != icon_request) return;
+            ++icon_request; // Consume this request even when cancelled.
+            icon_type_being_edited.clear();
+            if (!result.is_ok || result.file_path_name.empty() || !context || !context->theme_manager || !context->gui) return;
+            auto* current = dynamic_cast<ImGuiTheme*>(context->theme_manager->get_active_theme());
+            // A selection belongs to the theme that was active when Browse was pressed.
+            if (!current || current->get_name() != theme_name || !current->get_data()) return;
+            auto relative_path = FileManager::convert_to_relative(std::filesystem::current_path().string(), result.file_path_name);
+            current->get_data()->icon_paths[type_name] = relative_path;
+            last_icon_directory = result.folder_path;
+            context->gui->request_theme_reload();
+        });
+        dialog->set_default_path(last_icon_directory);
+        std::string key = "SelectIconImage";
+        context->gui->show_dialog_by_key(key);
+    }
+
+#ifdef SALIX_TESTS_ENABLED
+    void ThemeEditorPanel::browse_icon_for_testing(const std::string& type_name) { pimpl->browse_icon(type_name); }
+#endif
+
     void ThemeEditorPanel::Pimpl::render_edit_icons(ImGuiThemeData* data) {
         
         if (ImGui::CollapsingHeader("Icon Theme")) {
@@ -443,48 +479,7 @@ namespace Salix {
                     ImGui::SameLine();
 
                     if (ImGui::Button(("Browse##" + type_name).c_str())) {
-                        // 1. Set the context for which icon we are editing.
-                        icon_type_being_edited = type_name;
-
-                        DialogBox* dialog = context->gui->get_dialog("SelectIconImage");
-                        if (dialog) {
-                            // 1. Set the context for which icon is being edited
-                            icon_type_being_edited = type_name;
-
-                            // 2. Set the callback HERE, capturing the current 'data' pointer
-                            dialog->set_callback([this, data](const FileDialogResult& result) {
-                            if (!icon_type_being_edited.empty()) {
-                                if (result.is_ok) {
-                                    // 1. Get the absolute path from the dialog.
-                                    std::string absolute_path = result.file_path_name;
-
-                                    // 2. Get the project's current working directory directly.
-                                    std::string project_root = std::filesystem::current_path().string();
-
-                                    // 3. Convert the absolute path to a clean, relative one using your new utility.
-                                    std::string relative_path = FileManager::convert_to_relative(project_root, absolute_path);
-
-                                    // 4. Update the theme data with the portable, RELATIVE path.
-                                    data->icon_paths[icon_type_being_edited] = relative_path;
-                                    
-                                    // 5. Update the last-used directory for a better user experience.
-                                    last_icon_directory = result.folder_path;
-
-                                    // 6. Request a theme reload to make the UI update automatically.
-                                    context->gui->request_theme_reload();
-                                }
-                                
-                                // 7. Clear the state variable.
-                                icon_type_being_edited.clear();
-                            }
-                            });
-                            // 3. Set the dialog's starting path
-                            dialog->set_default_path(last_icon_directory);
-
-                            // 4. Show the dialog
-                            std::string dialog_key = "SelectIconImage";
-                            context->gui->show_dialog_by_key(dialog_key);
-                        }
+                        browse_icon(type_name);
                     }
                 }
                 ImGui::EndTable();

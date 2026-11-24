@@ -231,34 +231,18 @@ namespace Salix {
         // --- Register Dialog Boxes ---
         log_file << "[DEBUG] Creating and registering utility dialog boxes..." << std::endl;
         if (auto* gui = pimpl->editor_context->gui) {
-            // The concrete GUI instance is needed to register the dialogs
-            if (auto* concrete_gui = dynamic_cast<OpenGLImGui*>(gui)) {
-                std::string key;
-                std::string title;
-                
-                // --- Create and REGISTER a dialog for each file type ---
-                key = "SelectImageFile";
-                title = "Select Image File";
-                concrete_gui->register_dialog(std::make_unique<DialogBox>(key, title, DialogType::File, false));
-
-                key = "SelectAudioFile";
-                title = "Select Audio Clip";
-                concrete_gui->register_dialog(std::make_unique<DialogBox>(key, title, DialogType::File, false));
-
-                key = "SelectSourceFile";
-                title = "Select Source File";
-                concrete_gui->register_dialog(std::make_unique<DialogBox>(key, title, DialogType::File, false));
-                
-                key = "SelectFile";
-                title = "Select File";
-                concrete_gui->register_dialog(std::make_unique<DialogBox>(key, title, DialogType::File, false));
-                
-                log_file << "[DEBUG] Utility dialogs registered." << std::endl;
-            } 
-            // Add an 'else if' for SDLImGui if you plan to use it in the editor
-            else {
-                log_file << "[ERROR] Could not cast IGui to concrete type to register dialogs." << std::endl;
+            // Register through IGui so both production backends and headless
+            // fixtures use the same code without invoking ImGuiFileDialog.
+            bool registered = true;
+            for (auto entry : { std::pair<const char*, const char*>{"SelectImageFile", "Select Image File"},
+                                {"SelectAudioFile", "Select Audio Clip"},
+                                {"SelectSourceFile", "Select Source File"},
+                                {"SelectFile", "Select File"} }) {
+                std::string key = entry.first, title = entry.second;
+                if (!gui->create_dialog(key, title, DialogType::File, false)) registered = false;
             }
+            if (registered) log_file << "[DEBUG] Utility dialogs registered." << std::endl;
+            else log_file << "[ERROR] Utility dialog registration incomplete." << std::endl;
         }
 
         // --- Create and initialize the EditorRealmManager ---

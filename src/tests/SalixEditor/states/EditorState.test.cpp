@@ -269,3 +269,54 @@ TEST_SUITE("EditorCRI009_EditorState") {
         FrameFixture f; f.frame(); f.startup.f.init.engine_mode=EngineMode::Game; auto* live=f.context()->preview_realm->get_entity_by_id(id(11)); REQUIRE(live); f.frame(); CHECK(f.context()->preview_realm->get_entity_by_id(id(11))==live); CHECK_FALSE(f.context()->realm_is_dirty);
     }
 }
+
+#include <Salix/gui/DialogBox.h>
+#include <Salix/gui/IGui.h>
+namespace {
+using namespace EditorCri;
+void check_utility_dialog(const char* key,const char* title){
+    StartupFixture s;s.enter();auto* d=s.f.gui.get_dialog(key);REQUIRE(d);CHECK(d->get_key()==key);CHECK(d->get_title()==title);CHECK(d->get_type()==Salix::DialogType::File);CHECK_FALSE((d->get_config().flags&ImGuiFileDialogFlags_ConfirmOverwrite)!=0);
+}
+}
+TEST_SUITE("EditorCRI011_EditorState") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 EditorState: startup registers image utility dialog through GUI interface") {
+        check_utility_dialog("SelectImageFile","Select Image File");
+    }
+
+    TEST_CASE("CRI011 EditorState: startup registers audio utility dialog through GUI interface") {
+        check_utility_dialog("SelectAudioFile","Select Audio Clip");
+    }
+
+    TEST_CASE("CRI011 EditorState: startup registers source utility dialog through GUI interface") {
+        check_utility_dialog("SelectSourceFile","Select Source File");
+    }
+
+    TEST_CASE("CRI011 EditorState: startup registers generic utility dialog through GUI interface") {
+        check_utility_dialog("SelectFile","Select File");
+    }
+
+    TEST_CASE("CRI011 EditorState: utility registration logs success without invoking browser") {
+        StartupFixture s;s.enter();CHECK(s.log().find("Utility dialogs registered.")!=std::string::npos);CHECK(s.f.gui.shown_dialog.empty());CHECK(s.f.gui.dialog_frames==0);
+    }
+
+    TEST_CASE("CRI011 EditorState: existing registered dialog retains callback and identity") {
+        StartupFixture s;std::string k="SelectImageFile",title="Existing";auto* d=s.f.gui.create_dialog(k,title,Salix::DialogType::File,false);REQUIRE(d);d->set_filters("Existing filter");s.enter();CHECK(s.f.gui.get_dialog(k)==d);CHECK(d->get_filters()=="Existing filter");
+    }
+
+    TEST_CASE("CRI011 EditorState: all registered dialogs have independent storage") {
+        StartupFixture s;s.enter();auto* a=s.f.gui.get_dialog("SelectImageFile");auto* b=s.f.gui.get_dialog("SelectAudioFile");REQUIRE(a);REQUIRE(b);CHECK(a!=b);a->set_default_path("images");CHECK(b->get_default_path()==".");
+    }
+
+    TEST_CASE("CRI011 EditorState: failed registration is reported without opening native dialog") {
+        StartupFixture s;struct Reset{~Reset(){SDLImGui::set_force_dialog_insert_failure_for_testing(false);}} reset;SDLImGui::set_force_dialog_insert_failure_for_testing(true);s.enter();CHECK(s.log().find("Utility dialog registration incomplete.")!=std::string::npos);CHECK(s.f.gui.shown_dialog.empty());CHECK(s.f.gui.get_dialog("SelectFile")==nullptr);
+    }
+
+    TEST_CASE("CRI011 EditorState: startup failure does not register utility dialogs") {
+        StartupFixture s;s.f.init.window=nullptr;s.enter();CHECK(s.f.gui.get_dialog("SelectFile")==nullptr);CHECK(s.f.gui.get_dialog("SelectImageFile")==nullptr);
+    }
+
+    TEST_CASE("CRI011 EditorState: frame updates retain registered dialog identity without opening it") {
+        FrameFixture f;auto* d=f.startup.f.gui.get_dialog("SelectSourceFile");REQUIRE(d);f.frame();f.frame();CHECK(f.startup.f.gui.get_dialog("SelectSourceFile")==d);CHECK(f.startup.f.gui.shown_dialog.empty());CHECK(f.startup.f.gui.dialog_frames==2);
+    }
+}

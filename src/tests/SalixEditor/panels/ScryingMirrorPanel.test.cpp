@@ -197,3 +197,57 @@ TEST_SUITE("EditorCRI009_ScryingMirrorPanel") {
         MediaFixture m; auto c=element("BoxCollider",22,"{size: {x: 1,y: 1,z: 1}}"); auto s=element("Sprite2D",21,"{width: 0, height: 40}"); m.f.panel.resize_collider_for_testing(&c,&s); m.f.panel.resize_collider_for_testing(&c,nullptr); m.f.c.events.process_queue(); CHECK(m.listener.calls==0);
     }
 }
+
+#include <Salix/ecs/Camera.h>
+namespace {
+using namespace EditorCri;
+struct InspectorCameraFixture {
+    MirrorFixture f;
+    InspectorCameraFixture(){f.c.ctx.preview_realm=std::make_unique<Realm>("Preview");}
+    Camera* camera(uint64_t n){auto* e=f.c.ctx.preview_realm->create_entity(id(n),"Camera");auto* c=e->add_element<Camera>();REQUIRE(c);return c;}
+    void activate(uint64_t n,bool value=true){auto e=element("Camera",201,"{active: false}");e.owner_id=id(n);e.data["active"]=value;Property p{};p.name="active";p.type=PropertyType::Bool;PropertyHandleYaml h(p,&e.data);f.panel.activate_camera_for_testing(e,h);}
+    SimpleGuid main(){return f.c.ctx.preview_realm->get_main_camera_entity_id();}
+};
+}
+TEST_SUITE("EditorCRI011_ScryingMirrorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 ScryingMirrorPanel: activation sets main live camera identity") {
+        InspectorCameraFixture f;auto* c=f.camera(11);c->deactivate();f.activate(11);CHECK(f.main()==id(11));CHECK(c->get_is_active());
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: activating second camera deactivates first") {
+        InspectorCameraFixture f;auto* a=f.camera(11);auto* b=f.camera(12);f.activate(11);f.activate(12);CHECK_FALSE(a->get_is_active());CHECK(b->get_is_active());CHECK(f.main()==id(12));
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: activation ignores entities without camera") {
+        InspectorCameraFixture f;auto* a=f.camera(11);f.activate(11);f.f.c.ctx.preview_realm->create_entity(id(12),"Other");f.activate(12);CHECK(f.main()==id(11));CHECK(a->get_is_active());
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: activation ignores missing live owner") {
+        InspectorCameraFixture f;auto* a=f.camera(11);f.activate(11);f.activate(99);CHECK(f.main()==id(11));CHECK(a->get_is_active());
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: false activation does not replace existing main camera") {
+        InspectorCameraFixture f;auto* a=f.camera(11);f.camera(12);f.activate(11);f.activate(12,false);CHECK(f.main()==id(11));CHECK(a->get_is_active());
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: absent preview realm is safe") {
+        InspectorCameraFixture f;f.f.c.ctx.preview_realm.reset();CHECK_NOTHROW(f.activate(11));CHECK(f.f.c.ctx.preview_realm==nullptr);
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: camera activation deactivates additional active cameras") {
+        InspectorCameraFixture f;auto* a=f.camera(11);auto* b=f.camera(12);auto* c=f.camera(13);a->activate();b->activate();f.activate(13);CHECK_FALSE(a->get_is_active());CHECK_FALSE(b->get_is_active());CHECK(c->get_is_active());
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: same camera can be selected twice without losing active state") {
+        InspectorCameraFixture f;auto* a=f.camera(11);f.activate(11);f.activate(11);CHECK(a->get_is_active());CHECK(f.main()==id(11));
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: dialog result after panel destruction never queues an update") {
+        MediaFixture m;auto p=std::make_unique<ScryingMirrorPanel>();p->initialize(&m.f.c.ctx);Property prop{};prop.name="texture_path";prop.type=PropertyType::String;prop.hint=UIHint::ImageFile;PropertyHandleYaml h(prop,&m.sprite()->data);p->select_media_for_testing(h,m.sprite(),ByteMirror::get_type_info_by_name("Sprite2D"));auto* d=m.f.c.gui.get_dialog("SelectImageFile");REQUIRE(d);p.reset();m.result(d,true);CHECK(m.f.c.ctx.deferred_commands.empty());
+    }
+
+    TEST_CASE("CRI011 ScryingMirrorPanel: deferred media callback after panel destruction is inert") {
+        MediaFixture m;auto p=std::make_unique<ScryingMirrorPanel>();p->initialize(&m.f.c.ctx);Property prop{};prop.name="texture_path";prop.type=PropertyType::String;prop.hint=UIHint::ImageFile;PropertyHandleYaml h(prop,&m.sprite()->data);p->select_media_for_testing(h,m.sprite(),ByteMirror::get_type_info_by_name("Sprite2D"));auto* d=m.f.c.gui.get_dialog("SelectImageFile");REQUIRE(d);m.result(d,true);REQUIRE(m.f.c.ctx.deferred_commands.size()==1);p.reset();m.drain();CHECK(m.listener.calls==0);
+    }
+}

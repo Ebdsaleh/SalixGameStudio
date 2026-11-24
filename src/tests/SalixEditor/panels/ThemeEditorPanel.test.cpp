@@ -221,3 +221,56 @@ TEST_SUITE("EditorCRI009_ThemeEditorPanel") {
         TempRealm t; ThemeEditorPanel p; CHECK_NOTHROW(p.save_theme_for_testing(t.path())); CHECK_NOTHROW(p.load_theme_for_testing("Missing",t.path())); CHECK_FALSE(std::filesystem::exists(t.path()));
     }
 }
+
+#include <Salix/gui/IGui.h>
+namespace {
+using namespace EditorCri;
+struct IconDialogFixture {
+    TempRealm temp; ScopedWorkingDir cwd; ActiveThemeFixture f;
+    IconDialogFixture():cwd(temp) {f.data()->icon_paths["Entity"]="old.png";f.data()->icon_paths["Camera"]="camera.png";}
+    Salix::DialogBox* browse(const std::string& type){f.panel.browse_icon_for_testing(type);auto* d=f.c.gui.get_dialog("SelectIconImage");REQUIRE(d);REQUIRE(d->get_callback());return d;}
+    Salix::FileDialogResult result(bool accepted=true){Salix::FileDialogResult result{};result.is_ok=accepted;result.file_path_name=temp.write("fixture");result.folder_path=std::filesystem::current_path().string();return result;}
+};
+}
+TEST_SUITE("EditorCRI011_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 ThemeEditorPanel: browse uses registered dialog and default directory") {
+        IconDialogFixture x;auto* d=x.browse("Entity");CHECK(x.f.c.gui.shown_dialog=="SelectIconImage");CHECK(d->get_default_path()==".");
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: accepted icon path is relative and reloads theme") {
+        IconDialogFixture x;auto* d=x.browse("Entity");d->get_callback()(x.result());CHECK(x.f.data()->icon_paths.at("Entity")==std::filesystem::path(x.temp.path()).filename().string());CHECK(x.f.c.gui.theme_reloads==1);
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: cancel preserves authored icon and skips reload") {
+        IconDialogFixture x;auto* d=x.browse("Entity");d->get_callback()(x.result(false));CHECK(x.f.data()->icon_paths.at("Entity")=="old.png");CHECK(x.f.c.gui.theme_reloads==0);
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: next browse remembers last accepted directory") {
+        IconDialogFixture x;auto* d=x.browse("Entity");auto r=x.result();d->get_callback()(r);auto* next=x.browse("Camera");CHECK(next->get_default_path()==r.folder_path);
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: second browse edits only requested icon") {
+        IconDialogFixture x;auto* d=x.browse("Camera");d->get_callback()(x.result());CHECK(x.f.data()->icon_paths.at("Entity")=="old.png");CHECK(x.f.data()->icon_paths.at("Camera")!="camera.png");
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: stale callback cannot overwrite more recent icon request") {
+        IconDialogFixture x;auto previous=x.browse("Entity")->get_callback();auto* d=x.browse("Camera");previous(x.result());CHECK(x.f.c.gui.theme_reloads==0);d->get_callback()(x.result());CHECK(x.f.c.gui.theme_reloads==1);CHECK(x.f.data()->icon_paths.at("Entity")=="old.png");
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: duplicate callback invocation is consumed only once") {
+        IconDialogFixture x;auto cb=x.browse("Entity")->get_callback();cb(x.result());cb(x.result());CHECK(x.f.c.gui.theme_reloads==1);
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: switching active theme discards previous icon result") {
+        IconDialogFixture x;auto cb=x.browse("Entity")->get_callback();REQUIRE(x.f.themes.register_theme(std::make_unique<ImGuiTheme>("Second")));REQUIRE(x.f.themes.set_active_theme("Second"));cb(x.result());CHECK(x.f.c.gui.theme_reloads==0);CHECK(x.f.data()->icon_paths.count("Entity")==0);
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: missing selected file path does not erase icon") {
+        IconDialogFixture x;auto* d=x.browse("Entity");auto r=x.result();r.file_path_name.clear();d->get_callback()(r);CHECK(x.f.data()->icon_paths.at("Entity")=="old.png");CHECK(x.f.c.gui.theme_reloads==0);
+    }
+
+    TEST_CASE("CRI011 ThemeEditorPanel: callback after panel destruction is inert") {
+        IconDialogFixture x;auto p=std::make_unique<ThemeEditorPanel>();p->initialize(&x.f.c.ctx);p->browse_icon_for_testing("Entity");auto* d=x.f.c.gui.get_dialog("SelectIconImage");REQUIRE(d);auto cb=d->get_callback();p.reset();cb(x.result());CHECK(x.f.data()->icon_paths.at("Entity")=="old.png");CHECK(x.f.c.gui.theme_reloads==0);
+    }
+}
