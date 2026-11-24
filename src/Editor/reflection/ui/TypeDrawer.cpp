@@ -24,6 +24,7 @@
 #include <glm/glm.hpp>
 #include <string>
 #include <cassert>
+#include <stdexcept>
 
 
 namespace Salix {
@@ -33,11 +34,18 @@ namespace Salix {
     void draw_nested_object(const Property& prop, Element* element) {
         const TypeInfo* nested_type_info = prop.contained_type_info;
 
+        if (!nested_type_info) {
+            ImGui::Text("%s: (Missing nested metadata)", prop.name.c_str());
+            return;
+        }
         if (ImGui::CollapsingHeader(prop.name.c_str(), ImGuiTreeNodeFlags_DefaultOpen)) {
-            // Iterate through all the properties of the nested object.
             for (const auto& nested_prop : nested_type_info->properties) {
-                // Here is the recursion! We call the TypeDrawer again to draw the nested property.
-                TypeDrawer::get_drawer(nested_prop.type)(nested_prop, element);
+                const DrawFunc* drawer = nullptr;
+                try { drawer = &TypeDrawer::get_drawer(nested_prop.type); }
+                catch (const std::out_of_range&) { ImGui::Text("%s: (Unsupported type)", nested_prop.name.c_str()); continue; }
+                ImGui::BeginDisabled(nested_prop.is_read_only);
+                (*drawer)(nested_prop, element);
+                ImGui::EndDisabled();
             }
         }
     }

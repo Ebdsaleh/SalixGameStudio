@@ -343,3 +343,46 @@ TEST_SUITE("EditorCRI011_TypeDrawer") {
         GuiFrame g;auto n=YAML::Load("{Value: old, other: retained}");auto p=prop(PropertyType::String);replace_text(g,[&]{TypeDrawer::draw_yaml_property(p,n);},"new value");CHECK(n["Value"].as<std::string>()=="new value");CHECK(n["other"].as<std::string>()=="retained");
     }
 }
+
+TEST_SUITE("EditorCRI013_TypeDrawer") {
+    using namespace EditorCri;
+    TEST_CASE("CRI013 TypeDrawer: registered string entry calls reflected setter") {
+        GuiFrame g;TypeDrawer::register_all_type_drawers();std::string value="old";int writes=0;auto p=prop(PropertyType::String,"##Text");p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* v){value=*static_cast<std::string*>(v);++writes;};replace_text(g,[&]{TypeDrawer::get_drawer(p.type)(p,nullptr);},"new name");CHECK(value=="new name");CHECK(writes>0);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: registered point input updates first integer only") {
+        GuiFrame g;TypeDrawer::register_all_type_drawers();Point value{5,-7};int writes=0;auto p=prop(PropertyType::Point,"##Point");p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* v){value=*static_cast<Point*>(v);++writes;};replace_text(g,[&]{TypeDrawer::get_drawer(p.type)(p,nullptr);},"42");CHECK(value.x==42);CHECK(value.y==-7);CHECK(writes>0);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: registered matrix edits last column without replacing other columns") {
+        GuiFrame g;TypeDrawer::register_all_type_drawers();glm::mat4 value(1);int writes=0;auto p=prop(PropertyType::GlmMat4,"##Matrix");p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* v){value=*static_cast<glm::mat4*>(v);++writes;};drag_first_component(g,[&]{TypeDrawer::get_drawer(p.type)(p,nullptr);});CHECK(value[3][0]>0);CHECK(value[0][0]==1);CHECK(value[3][3]==1);CHECK(writes>0);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: multiline text edit updates handle") {
+        GuiFrame g;EditorContext c;auto p=prop(PropertyType::String);p.hint=UIHint::MultilineText;HandleProbe h(p,std::string("old"));replace_text(g,[&]{TypeDrawer::draw_property("##Text",h,&c);},"new text");CHECK(std::get<std::string>(h.value)=="new text");CHECK(h.writes>0);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: registered nested class missing metadata draws fallback") {
+        GuiFrame g;TypeDrawer::register_all_type_drawers();auto p=prop(PropertyType::Class);CHECK(g.draw([&]{TypeDrawer::get_drawer(p.type)(p,nullptr);})>0);CHECK(g.current->DisabledStackSize==0);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: registered nested struct missing metadata draws fallback") {
+        GuiFrame g;TypeDrawer::register_all_type_drawers();auto p=prop(PropertyType::Struct);CHECK(g.draw([&]{TypeDrawer::get_drawer(p.type)(p,nullptr);})>0);CHECK(g.current->DisabledStackSize==0);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: nested unknown drawer does not prevent next supported field") {
+        GuiFrame g;TypeDrawer::register_all_type_drawers();int value=9,reads=0;TypeInfo info{};auto p=prop(PropertyType::Int,"Valid");p.get_data=[&](void*)->void*{++reads;return &value;};p.set_data=[](void*,void*){};info.properties={prop(PropertyType::Rect,"Unsupported"),p};auto outer=prop(PropertyType::Class,"Nested");outer.contained_type_info=&info;CHECK(g.draw([&]{TypeDrawer::get_drawer(outer.type)(outer,nullptr);})>0);CHECK(reads==1);CHECK(value==9);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: unsupported handle point renders without setter") {
+        GuiFrame g;EditorContext c;HandleProbe h(prop(PropertyType::Point),Point{4,5});CHECK(g.draw([&]{CHECK_FALSE(TypeDrawer::draw_property("Point",h,&c));})>0);CHECK(h.writes==0);CHECK(std::get<Point>(h.value).x==4);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: unsupported handle rect renders without setter") {
+        GuiFrame g;EditorContext c;HandleProbe h(prop(PropertyType::Rect),Rect{});CHECK(g.draw([&]{CHECK_FALSE(TypeDrawer::draw_property("Rect",h,&c));})>0);CHECK(h.writes==0);
+    }
+
+    TEST_CASE("CRI013 TypeDrawer: file path hover never changes authored value") {
+        GuiFrame g;EditorContext c;auto p=prop(PropertyType::String);p.hint=UIHint::FilePath;HandleProbe h(p,std::string("Assets/fixture.txt"));ImVec2 point{};auto frame=[&]{g.draw([&]{auto a=ImGui::GetCursorScreenPos();point=ImVec2(a.x+30,a.y+ImGui::GetFrameHeight()*.5f);CHECK_FALSE(TypeDrawer::draw_property("##Path",h,&c));});};frame();frame();ImGui::GetIO().AddMousePosEvent(point.x,point.y);frame();CHECK(h.writes==0);CHECK(std::get<std::string>(h.value)=="Assets/fixture.txt");
+    }
+}
