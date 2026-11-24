@@ -118,6 +118,8 @@ TEST_SUITE("EditorCRI006_EditorState") {
 #include <Salix/rendering/opengl/OpenGLRenderer.h>
 #include <Editor/camera/EditorCamera.h>
 #include <Salix/ecs/Camera.h>
+#include <sstream>
+#include <iostream>
 namespace {
 using namespace EditorCri;
 struct WindowProbe : IWindow {
@@ -142,8 +144,9 @@ struct StartupRenderer : OpenGLRenderer {
     void delete_framebuffer(uint32_t)override{}
 };
 struct StartupFixture {
-    StateFixture f; WindowProbe window; StartupRenderer renderer; ApplicationConfig app{};
+    WindowProbe window; StartupRenderer renderer; ApplicationConfig app{};
     IconProbe icons;
+    StateFixture f;
     StartupFixture() {
         f.gui.icons=&icons; f.init.icon_manager=&icons; f.init.window=&window;
         f.init.app_config=&app; f.init.renderer=&renderer;
@@ -161,6 +164,7 @@ struct StartupFixture {
     void enter(){f.state.on_enter(f.init);}
     std::string log(){return read_text("editor_init.log");}
 };
+} // namespace
 TEST_SUITE("EditorCRI007_EditorState") {
     using namespace EditorCri;
     TEST_CASE("CRI007 EditorState: entry rejects missing application configuration") {

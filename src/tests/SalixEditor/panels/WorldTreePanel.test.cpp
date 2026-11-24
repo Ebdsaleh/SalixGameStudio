@@ -116,6 +116,7 @@ void open_root(GuiFrame& g,TreeFixture& f) {
     CHECK(child->StateStorage.GetInt(root_id)==1);
 }
 }
+} // namespace
 TEST_SUITE("EditorCRI007_WorldTreePanel") {
     using namespace EditorCri;
     TEST_CASE("CRI007 WorldTreePanel: expanded root renders original component without dirtying snapshot") {

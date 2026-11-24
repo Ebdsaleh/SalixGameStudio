@@ -144,6 +144,7 @@ void registered_enum_idle(PropertyType kind) {
     CHECK(value==static_cast<int>(ProjectionMode::Perspective)); CHECK(writes==0);
 }
 }
+} // namespace
 TEST_SUITE("EditorCRI007_TypeDrawer") {
     using namespace EditorCri;
     TEST_CASE("CRI007 TypeDrawer: checkbox interaction changes typed handle exactly once") {

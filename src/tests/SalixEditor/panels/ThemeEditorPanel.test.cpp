@@ -126,6 +126,7 @@ void open_theme_section(GuiFrame& g,ActiveThemeFixture& f,const char* section) {
     CHECK(g.current->DisabledStackSize==0);
 }
 }
+} // namespace
 TEST_SUITE("EditorCRI007_ThemeEditorPanel") {
     using namespace EditorCri;
     TEST_CASE("CRI007 ThemeEditorPanel: expanded colors preserve theme and current style without edits") {
