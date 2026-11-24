@@ -39,8 +39,6 @@ namespace Salix {
     struct ScryingMirrorPanel::Pimpl {
         std::string name;
         EditorContext* context = nullptr;
-        bool is_visible = true;
-        bool is_locked = false;
         ImGuiIconManager* icon_manager = nullptr;
         SimpleGuid selected_entity_id = SimpleGuid::invalid();
         SimpleGuid selected_element_id = SimpleGuid::invalid();
@@ -196,7 +194,7 @@ namespace Salix {
 
 
     void ScryingMirrorPanel::on_panel_gui_update() {
-        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->editor_realm_manager) {
+        if (!get_visibility() || !pimpl->context || !pimpl->context->editor_realm_manager) {
             return;
         }
 
