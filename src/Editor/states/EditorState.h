@@ -9,9 +9,11 @@
 #include <Salix/events/IEventListener.h>
 
 #include <memory>
+#include <string>
 
 namespace Salix {
     struct EditorContext;
+    class IPanel;
 
     class EDITOR_API EditorState : public IAppState, public IEventListener{
     public:
@@ -26,6 +28,10 @@ namespace Salix {
         void on_event(IEvent& event) override;
 #ifdef SALIX_TESTS_ENABLED
         EditorContext* get_context_for_testing() const;
+        void show_panel_for_testing(const std::string& name);
+        IPanel* get_panel_for_testing(const std::string& name) const;
+        void choose_projection_for_testing(bool orthographic);
+        void request_exit_for_testing();
 #endif
     private:
         // Using the Pimpl idiom to hide implementation details

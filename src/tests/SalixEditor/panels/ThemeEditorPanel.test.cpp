@@ -274,3 +274,61 @@ TEST_SUITE("EditorCRI011_ThemeEditorPanel") {
         IconDialogFixture x;auto p=std::make_unique<ThemeEditorPanel>();p->initialize(&x.f.c.ctx);p->browse_icon_for_testing("Entity");auto* d=x.f.c.gui.get_dialog("SelectIconImage");REQUIRE(d);auto cb=d->get_callback();p.reset();cb(x.result());CHECK(x.f.data()->icon_paths.at("Entity")=="old.png");CHECK(x.f.c.gui.theme_reloads==0);
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct FontChoices : ImGuiFontManager {
+    std::vector<std::string> get_unique_font_families() const override {return {"Alpha","Beta","Empty"};}
+    std::vector<float> get_font_sizes_for_font_family(const std::string& name) const override {
+        if(name=="Alpha")return {12,18,24};
+        if(name=="Beta")return {16,20};
+        return {};
+    }
+};
+struct ThemeFonts {
+    FontChoices fonts; ActiveThemeFixture f;
+    ThemeFonts(){f.c.ctx.font_manager=&fonts;f.data()->font_family="Alpha";f.data()->font_size=18;}
+};
+}
+TEST_SUITE("EditorCRI013_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI013 ThemeEditorPanel: populated font section renders without changing selected size") {
+        GuiFrame g;ThemeFonts v;open_theme_section(g,v.f,"Fonts");CHECK(v.f.data()->font_family=="Alpha");CHECK(v.f.data()->font_size==18);
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: selecting another family chooses its first available size") {
+        ThemeFonts v;CHECK(v.f.panel.choose_font_family_for_testing("Beta"));CHECK(v.f.data()->font_family=="Beta");CHECK(v.f.data()->font_size==16);
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: family with no sizes preserves current size") {
+        ThemeFonts v;CHECK(v.f.panel.choose_font_family_for_testing("Empty"));CHECK(v.f.data()->font_family=="Empty");CHECK(v.f.data()->font_size==18);
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: unknown family cannot modify current theme") {
+        ThemeFonts v;CHECK_FALSE(v.f.panel.choose_font_family_for_testing("Unknown"));CHECK(v.f.data()->font_family=="Alpha");CHECK(v.f.data()->font_size==18);
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: registered font size changes only size") {
+        ThemeFonts v;CHECK(v.f.panel.choose_font_size_for_testing(24));CHECK(v.f.data()->font_size==24);CHECK(v.f.data()->font_family=="Alpha");
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: size from unrelated family is rejected") {
+        ThemeFonts v;CHECK_FALSE(v.f.panel.choose_font_size_for_testing(20));CHECK(v.f.data()->font_size==18);
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: changing font choices waits for explicit reload request") {
+        ThemeFonts v;REQUIRE(v.f.panel.choose_font_family_for_testing("Beta"));REQUIRE(v.f.panel.choose_font_size_for_testing(20));CHECK(v.f.c.gui.theme_reloads==0);v.f.panel.apply_font_changes_for_testing();CHECK(v.f.c.gui.theme_reloads==1);CHECK(v.f.data()->font_size==20);
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: locked panel rejects font changes and reload") {
+        ThemeFonts v;v.f.panel.lock();CHECK_FALSE(v.f.panel.choose_font_family_for_testing("Beta"));CHECK_FALSE(v.f.panel.choose_font_size_for_testing(24));v.f.panel.apply_font_changes_for_testing();CHECK(v.f.data()->font_size==18);CHECK(v.f.c.gui.theme_reloads==0);
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: missing font manager rejects family and size safely") {
+        ThemeFonts v;v.f.c.ctx.font_manager=nullptr;CHECK_FALSE(v.f.panel.choose_font_family_for_testing("Beta"));CHECK_FALSE(v.f.panel.choose_font_size_for_testing(24));CHECK(v.f.data()->font_family=="Alpha");
+    }
+
+    TEST_CASE("CRI013 ThemeEditorPanel: uninitialized panel font actions are inert") {
+        ThemeEditorPanel p;CHECK_FALSE(p.choose_font_family_for_testing("Beta"));CHECK_FALSE(p.choose_font_size_for_testing(24));CHECK_NOTHROW(p.apply_font_changes_for_testing());
+    }
+}

@@ -27,6 +27,9 @@ namespace Salix {
             void save_theme_for_testing(const std::string& path);
             void load_theme_for_testing(const std::string& name, const std::string& path);
             void browse_icon_for_testing(const std::string& type_name);
+            bool choose_font_family_for_testing(const std::string& family);
+            bool choose_font_size_for_testing(float size);
+            void apply_font_changes_for_testing();
 #endif
         private:
             struct Pimpl;

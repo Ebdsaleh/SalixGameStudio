@@ -20,6 +20,7 @@
 #include <memory>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 
 namespace Salix {
@@ -45,6 +46,10 @@ namespace Salix {
         void render_edit_colors(ImGuiThemeData* data);
         void render_edit_sizing_and_spacing(ImGuiThemeData* data);
         void render_edit_fonts(ImGuiThemeData* data);
+        bool choose_font_family(ImGuiThemeData* data, const std::string& family);
+        bool choose_font_size(ImGuiThemeData* data, float size);
+        void apply_font_changes();
+        ImGuiThemeData* active_data();
         void render_edit_icons(ImGuiThemeData* data);
     };
 
@@ -332,6 +337,40 @@ namespace Salix {
         }
     }
 
+    ImGuiThemeData* ThemeEditorPanel::Pimpl::active_data() {
+        if (!context || !context->theme_manager) return nullptr;
+        auto* theme = dynamic_cast<ImGuiTheme*>(context->theme_manager->get_active_theme());
+        return theme ? theme->get_data() : nullptr;
+    }
+
+    bool ThemeEditorPanel::Pimpl::choose_font_family(ImGuiThemeData* data, const std::string& family) {
+        if (!data || !context || !context->font_manager || is_locked) return false;
+        const auto families = context->font_manager->get_unique_font_families();
+        if (std::find(families.begin(), families.end(), family) == families.end()) return false;
+        data->font_family = family;
+        const auto sizes = context->font_manager->get_font_sizes_for_font_family(family);
+        if (!sizes.empty()) data->font_size = sizes.front();
+        return true;
+    }
+
+    bool ThemeEditorPanel::Pimpl::choose_font_size(ImGuiThemeData* data, float size) {
+        if (!data || !context || !context->font_manager || is_locked) return false;
+        const auto sizes = context->font_manager->get_font_sizes_for_font_family(data->font_family);
+        if (std::find(sizes.begin(), sizes.end(), size) == sizes.end()) return false;
+        data->font_size = size;
+        return true;
+    }
+
+    void ThemeEditorPanel::Pimpl::apply_font_changes() {
+        if (!is_locked && context && context->gui && active_data()) context->gui->request_theme_reload();
+    }
+
+#ifdef SALIX_TESTS_ENABLED
+    bool ThemeEditorPanel::choose_font_family_for_testing(const std::string& family) { return pimpl->choose_font_family(pimpl->active_data(), family); }
+    bool ThemeEditorPanel::choose_font_size_for_testing(float size) { return pimpl->choose_font_size(pimpl->active_data(), size); }
+    void ThemeEditorPanel::apply_font_changes_for_testing() { pimpl->apply_font_changes(); }
+#endif
+
     void ThemeEditorPanel::Pimpl::render_edit_fonts(ImGuiThemeData* data) {
         if (ImGui::TreeNode("Fonts")) {
             ImGuiFontManager* font_manager = dynamic_cast<ImGuiFontManager*>(context->font_manager);
@@ -359,11 +398,7 @@ namespace Salix {
             };
 
             if (ImGui::Combo("Font Family", &family_idx, family_getter, static_cast<void*>(&families), families.size())) {
-                data->font_family = families[family_idx];
-                std::vector<float> available_sizes = font_manager->get_font_sizes_for_font_family(data->font_family);
-                if (!available_sizes.empty()) {
-                    data->font_size = available_sizes[0];
-                }
+                if (family_idx >= 0 && static_cast<size_t>(family_idx) < families.size()) choose_font_family(data, families[family_idx]);
             }
 
             // --- FONT SIZE DROPDOWN ---
@@ -386,13 +421,11 @@ namespace Salix {
             }
 
             if (ImGui::Combo("Font Size", &size_idx, size_c_strs.data(), size_c_strs.size())) {
-                data->font_size = sizes[size_idx];
+                if (size_idx >= 0 && static_cast<size_t>(size_idx) < sizes.size()) choose_font_size(data, sizes[size_idx]);
             }
 
             // --- APPLY BUTTON ---
-            if (ImGui::Button("Apply Font Changes")) {
-                context->gui->request_theme_reload();
-            }
+            if (ImGui::Button("Apply Font Changes")) apply_font_changes();
             ImGui::TextDisabled("Changes apply on next frame after applying.");
             
             ImGui::TreePop();

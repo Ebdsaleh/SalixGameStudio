@@ -87,6 +87,9 @@ namespace Salix {
         void handle_first_frame_setup();
         void begin_dockspace();
         void update_menu_bar_and_panels();
+        void show_panel(const std::string& name);
+        void choose_projection(bool orthographic);
+        void request_exit();
         void render_menu_bar_and_panels();
         void end_dockspace();
         // for testing
@@ -615,6 +618,39 @@ namespace Salix {
     }
 
 
+    void EditorState::Pimpl::show_panel(const std::string& name) {
+        if (!panel_manager) return;
+        IPanel* panel = nullptr;
+        if (name == "Realm Designer") panel = realm_designer;
+        else if (name == "Realm Portal") panel = realm_portal;
+        else panel = panel_manager->get_panel(name);
+        if (!panel) return;
+        panel->set_visibility(true);
+        if (name == "Theme Editor Panel") show_theme_editor = true;
+        if (name == "Project Settings Panel") show_project_settings = true;
+    }
+
+    void EditorState::Pimpl::choose_projection(bool orthographic) {
+        if (!editor_context || !editor_context->editor_camera) return;
+        editor_context->editor_camera->set_projection_mode(orthographic ? ProjectionMode::Orthographic : ProjectionMode::Perspective);
+    }
+
+    void EditorState::Pimpl::request_exit() {
+        if (editor_context && editor_context->init_context && editor_context->init_context->engine)
+            editor_context->init_context->engine->is_running(false);
+    }
+
+#ifdef SALIX_TESTS_ENABLED
+    void EditorState::show_panel_for_testing(const std::string& name) { pimpl->show_panel(name); }
+    IPanel* EditorState::get_panel_for_testing(const std::string& name) const {
+        if (name == "Realm Designer") return pimpl->realm_designer;
+        if (name == "Realm Portal") return pimpl->realm_portal;
+        return pimpl->panel_manager ? pimpl->panel_manager->get_panel(name) : nullptr;
+    }
+    void EditorState::choose_projection_for_testing(bool orthographic) { pimpl->choose_projection(orthographic); }
+    void EditorState::request_exit_for_testing() { pimpl->request_exit(); }
+#endif
+
     void EditorState::Pimpl::update_menu_bar_and_panels() {
         ImGuiID dockspace_id = ImGui::GetID("EditorDockSpace");
         // This flag tells ImGui that if the central node is empty,
@@ -635,23 +671,17 @@ namespace Salix {
                 if (ImGui::MenuItem("New Project...")) { /* TODO */ }
                 if (ImGui::MenuItem("Open Project...")) { /* TODO */ }
                 ImGui::Separator();
-                if (ImGui::MenuItem("Exit")) { editor_context->init_context->engine->is_running(false);}
+                if (ImGui::MenuItem("Exit")) request_exit();
                 ImGui::EndMenu();
             }
             if (ImGui::BeginMenu("Edit"))
             {
             if (ImGui::MenuItem("Preferences")) { /* TODO: Open preferences window */ }
             if (ImGui::MenuItem("Theme")) {
-                show_theme_editor = true;
-                if( IPanel* theme_panel = panel_manager->get_panel(std::string("Theme Editor Panel"))) {
-                    theme_panel->set_visibility(true);
-                }
+                show_panel("Theme Editor Panel");
                 }
             if (ImGui::MenuItem("Project Settings")) {
-                    show_project_settings = true;
-                    if( IPanel* project_settings_panel = panel_manager->get_panel(std::string("Project Settings Panel"))) {
-                        project_settings_panel->set_visibility(true);
-                    }
+                    show_panel("Project Settings Panel");
                 }
                 ImGui::EndMenu();
             }
@@ -660,10 +690,10 @@ namespace Salix {
                                 
                     ImGui::SeparatorText("Projection Mode");
                     if (ImGui::MenuItem("Perspective")) {
-                        editor_context->editor_camera->set_projection_mode(ProjectionMode::Perspective);
+                        choose_projection(false);
                     }
                     if (ImGui::MenuItem("Orthographic")) {
-                        editor_context->editor_camera->set_projection_mode(ProjectionMode::Orthographic);
+                        choose_projection(true);
                     }
                     ImGui::SeparatorText("Debug");
                     if (ImGui::MenuItem("Debug Window")) {
@@ -675,16 +705,16 @@ namespace Salix {
                 if (ImGui::BeginMenu("Panels")) {
                     ImGui::SeparatorText("Workflow");
                     if (ImGui::MenuItem("World Tree")) {
-                        panel_manager->get_panel("World Tree Panel")->set_visibility(true);
+                        show_panel("World Tree Panel");
                     }
                     if (ImGui::MenuItem("Scrying Mirror")) {
-                        panel_manager->get_panel("Scrying Mirror Panel")->set_visibility(true);
+                        show_panel("Scrying Mirror Panel");
                     }
                     if (ImGui::MenuItem("Realm Designer")) {
-                        realm_designer->set_visibility(true);
+                        show_panel("Realm Designer");
                     }
                     if (ImGui::MenuItem("Realm Portal")) {
-                        realm_portal->set_visibility(true);
+                        show_panel("Realm Portal");
                     }
                     ImGui::EndMenu();
                 }

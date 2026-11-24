@@ -320,3 +320,55 @@ TEST_SUITE("EditorCRI011_EditorState") {
         FrameFixture f;auto* d=f.startup.f.gui.get_dialog("SelectSourceFile");REQUIRE(d);f.frame();f.frame();CHECK(f.startup.f.gui.get_dialog("SelectSourceFile")==d);CHECK(f.startup.f.gui.shown_dialog.empty());CHECK(f.startup.f.gui.dialog_frames==2);
     }
 }
+
+namespace {
+using namespace EditorCri;
+void open_workflow_panel(const char* name){
+    StartupFixture s;s.enter();auto* panel=s.f.state.get_panel_for_testing(name);REQUIRE(panel);
+    panel->set_visibility(false);CHECK_FALSE(panel->get_visibility());
+    s.f.state.show_panel_for_testing(name);CHECK(panel->get_visibility());
+    CHECK(s.f.state.get_panel_for_testing(name)==panel);
+}
+}
+TEST_SUITE("EditorCRI013_EditorState") {
+    using namespace EditorCri;
+    TEST_CASE("CRI013 EditorState: theme menu reveals existing theme editor") {
+        open_workflow_panel("Theme Editor Panel");
+    }
+
+    TEST_CASE("CRI013 EditorState: settings menu reveals existing project settings") {
+        open_workflow_panel("Project Settings Panel");
+    }
+
+    TEST_CASE("CRI013 EditorState: view menu reveals existing world tree") {
+        open_workflow_panel("World Tree Panel");
+    }
+
+    TEST_CASE("CRI013 EditorState: view menu reveals existing inspector") {
+        open_workflow_panel("Scrying Mirror Panel");
+    }
+
+    TEST_CASE("CRI013 EditorState: view menu reveals existing designer viewport") {
+        open_workflow_panel("Realm Designer");
+    }
+
+    TEST_CASE("CRI013 EditorState: view menu reveals existing portal viewport") {
+        open_workflow_panel("Realm Portal");
+    }
+
+    TEST_CASE("CRI013 EditorState: projection menu changes the live editor camera") {
+        StartupFixture s;s.enter();auto* ctx=s.f.state.get_context_for_testing();REQUIRE(ctx);REQUIRE(ctx->editor_camera);s.f.state.choose_projection_for_testing(true);CHECK(ctx->editor_camera->get_projection_mode()==ProjectionMode::Orthographic);s.f.state.choose_projection_for_testing(false);CHECK(ctx->editor_camera->get_projection_mode()==ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("CRI013 EditorState: exit menu requests engine shutdown without destroying context") {
+        StartupFixture s;s.enter();s.f.engine.is_running(true);auto* context=s.f.state.get_context_for_testing();REQUIRE(context);s.f.state.request_exit_for_testing();CHECK_FALSE(s.f.engine.is_running());CHECK(s.f.state.get_context_for_testing()==context);
+    }
+
+    TEST_CASE("CRI013 EditorState: unknown panel action leaves existing panel unchanged") {
+        StartupFixture s;s.enter();auto* p=s.f.state.get_panel_for_testing("World Tree Panel");REQUIRE(p);p->set_visibility(false);s.f.state.show_panel_for_testing("Missing");CHECK_FALSE(p->get_visibility());CHECK(s.f.state.get_panel_for_testing("Missing")==nullptr);
+    }
+
+    TEST_CASE("CRI013 EditorState: menu actions before startup are harmless") {
+        EditorState s;CHECK_NOTHROW(s.show_panel_for_testing("Theme Editor Panel"));CHECK_NOTHROW(s.choose_projection_for_testing(true));CHECK_NOTHROW(s.request_exit_for_testing());CHECK(s.get_panel_for_testing("World Tree Panel")==nullptr);
+    }
+}
