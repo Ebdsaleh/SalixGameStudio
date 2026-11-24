@@ -35,6 +35,7 @@ namespace Salix {
         }
         if (this->owner_id != other.owner_id) {
             std::cout << "  [MODIFIED] Owner ID is different ('" << this->owner_id.get_value() << "' vs '" << other.owner_id.get_value() << "')" << std::endl;
+            return true;
         }
         else {
             std::cout << "  [UNMODIFIED] Owner ID is the same." << std::endl;
