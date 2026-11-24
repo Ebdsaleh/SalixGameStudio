@@ -8,6 +8,7 @@
 #include <Editor/panels/LockablePanel.h>
 #include <Editor/EditorAPI.h>
 #include <memory>
+#include <Salix/core/SimpleGuid.h>
 
 namespace Salix {
     class Entity;
@@ -23,6 +24,9 @@ namespace Salix {
         void initialize(EditorContext* context) override;
         bool is_panel_derived() const override { return true; }
         void on_event(IEvent& event) override;
+#ifdef SALIX_TESTS_ENABLED
+        void process_entity_drop_for_testing(SimpleGuid dragged_id, SimpleGuid target_id);
+#endif
     protected:
         void on_panel_gui_update() override; // Main content
         ImGuiWindowFlags get_window_flags() const override;

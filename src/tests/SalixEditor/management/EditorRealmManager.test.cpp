@@ -155,3 +155,48 @@ TEST_SUITE("EditorCRI006_EditorRealmManager") {
         FamilyFixture f; f.family(); f.services.ctx.preview_realm.reset(); f.manager.sync_preview_realm(); CHECK(f.services.ctx.preview_realm==nullptr); CHECK(f.manager.get_realm_size()==4);
     }
 }
+
+
+
+TEST_SUITE("EditorCRI009_EditorRealmManager") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 EditorRealmManager: invalid starting ancestor ID does not dirty model") {
+        FamilyFixture f; f.family(); f.manager.update_ancestor_states(SimpleGuid::invalid()); CHECK_FALSE(f.manager.is_dirty());
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: unknown starting ancestor ID leaves hierarchy intact") {
+        FamilyFixture f; f.family(); f.manager.update_ancestor_states(id(99)); CHECK(f.manager.get_realm_size()==4); CHECK_FALSE(f.manager.is_dirty());
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: missing ancestor reference terminates traversal safely") {
+        FamilyFixture f; f.family(); f.get(12)->parent_id=id(99); f.manager.update_ancestor_states(id(12)); CHECK(f.get(12)->parent_id==id(99)); CHECK(f.get(11)!=nullptr);
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: same parent reparent cannot duplicate child entries") {
+        FamilyFixture f; f.family(); f.manager.reparent_entity(id(12),id(11)); REQUIRE(f.get(11)->child_ids.size()==1); CHECK(f.get(11)->child_ids[0]==id(12)); CHECK_FALSE(f.manager.is_dirty());
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: missing child reparent does not alter root count") {
+        FamilyFixture f; f.family(); f.manager.reparent_entity(id(99),id(11)); CHECK(f.manager.get_hierarchy().size()==2); CHECK_FALSE(f.manager.is_dirty());
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: missing target rejected by model boundary") {
+        FamilyFixture f; f.family(); f.manager.reparent_entity(id(12),id(99)); CHECK(f.get(12)->parent_id==id(11)); CHECK_FALSE(f.manager.is_dirty());
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: self parenting rejected by model boundary") {
+        FamilyFixture f; f.family(); f.manager.reparent_entity(id(11),id(11)); CHECK_FALSE(f.get(11)->parent_id.is_valid()); CHECK_FALSE(f.manager.is_dirty());
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: direct cycle rejected by model boundary") {
+        FamilyFixture f; f.family(); f.manager.reparent_entity(id(11),id(12)); CHECK_FALSE(f.get(11)->parent_id.is_valid()); CHECK(f.get(12)->parent_id==id(11));
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: transitive cycle rejected by model boundary") {
+        FamilyFixture f; f.family(); f.manager.reparent_entity(id(11),id(13)); CHECK_FALSE(f.get(11)->parent_id.is_valid()); CHECK(f.get(13)->parent_id==id(12)); CHECK_FALSE(f.manager.is_dirty());
+    }
+
+    TEST_CASE("CRI009 EditorRealmManager: valid reparent moves subtree without changing descendant parent") {
+        FamilyFixture f; f.family(); f.manager.reparent_entity(id(12),id(14)); CHECK(f.get(12)->parent_id==id(14)); CHECK(f.get(13)->parent_id==id(12)); CHECK(f.get(11)->child_ids.empty()); REQUIRE(f.get(14)->child_ids.size()==1); CHECK(f.get(14)->child_ids[0]==id(12));
+    }
+}

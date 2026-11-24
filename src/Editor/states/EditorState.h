@@ -11,6 +11,7 @@
 #include <memory>
 
 namespace Salix {
+    struct EditorContext;
 
     class EDITOR_API EditorState : public IAppState, public IEventListener{
     public:
@@ -23,6 +24,9 @@ namespace Salix {
         void update(float delta_time) override;
         void render(IRenderer* renderer_param) override;
         void on_event(IEvent& event) override;
+#ifdef SALIX_TESTS_ENABLED
+        EditorContext* get_context_for_testing() const;
+#endif
     private:
         // Using the Pimpl idiom to hide implementation details
         struct Pimpl;

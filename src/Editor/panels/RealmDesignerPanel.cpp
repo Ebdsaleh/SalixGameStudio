@@ -305,7 +305,7 @@ namespace Salix {
 
     // MODIFIED: The main update loop now calls the new handle_input function.
     void RealmDesignerPanel::on_gui_update() {
-        if (!pimpl->is_visible) return;
+        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->init_context || !pimpl->icon_manager || !pimpl->context->editor_camera) return;
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
         if (ImGui::Begin("Realm Designer", &pimpl->is_visible)) {
@@ -710,7 +710,7 @@ namespace Salix {
 
 
     void RealmDesignerPanel::on_render() {
-        if (!pimpl->is_visible || !pimpl->context) {
+        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->renderer || !pimpl->context->editor_camera || pimpl->framebuffer_id == 0) {
             return;
         }
         if (pimpl->context->data_mode == EditorDataMode::Live) {
@@ -1240,6 +1240,7 @@ namespace Salix {
             active_realm = context->preview_realm.get();
         }
 
+        if (!active_realm) return;
         for (Entity* entity : active_realm->get_entities()) {
             if (!entity || entity->is_purged()) continue;
             Transform* transform = entity->get_transform(); 

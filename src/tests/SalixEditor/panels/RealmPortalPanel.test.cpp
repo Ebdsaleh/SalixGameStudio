@@ -131,3 +131,57 @@ TEST_SUITE("EditorCRI006_RealmPortalPanel") {
         PortalFixture f; auto* camera=f.add_camera(11); REQUIRE(camera); f.select(11); camera->deactivate(); f.panel.on_render(); REQUIRE(f.c.renderer.camera); CHECK(f.c.renderer.camera!=camera); CHECK(f.c.renderer.begins==f.c.renderer.ends);
     }
 }
+
+
+namespace {
+using namespace EditorCri;
+struct PortalSprites {
+    AssetManager assets; PortalFixture fixture;
+    PortalSprites(){assets.initialize(&fixture.c.renderer); REQUIRE(fixture.add_camera(11)); fixture.select(11);}
+    Sprite2D* sprite(uint64_t n,const char* path){return add_textured_sprite(fixture.realm,assets,n,path);}
+    void render(){fixture.panel.on_render(); CHECK(fixture.c.renderer.begins==fixture.c.renderer.ends);}
+    auto& draws(){return fixture.c.renderer.sprites;}
+};
+}
+TEST_SUITE("EditorCRI009_RealmPortalPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 RealmPortalPanel: textured sprite produces expected scaled model matrix") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].texture==s->get_texture()); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(.8)); CHECK(v.draws()[0].matrix[1][1]==doctest::Approx(.4));
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: sorting layers control texture draw order") {
+        PortalSprites v; auto* a=v.sprite(21,"a.png"); auto* b=v.sprite(22,"b.png"); a->sorting_layer=7; b->sorting_layer=-2; v.render(); REQUIRE(v.draws().size()==2); CHECK(v.draws()[0].texture==b->get_texture()); CHECK(v.draws()[1].texture==a->get_texture());
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: hidden entity excludes textured sprite") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); s->get_owner()->set_visible(false); v.sprite(22,"b.png"); v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].texture!=s->get_texture());
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: hidden component is excluded independently of entity") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); s->set_visibility(false); v.render(); CHECK(v.draws().empty()); CHECK(s->get_owner()->is_visible());
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: component with no texture is excluded") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); s->load_texture(&v.assets,""); CHECK(s->get_texture()==nullptr); v.render(); CHECK(v.draws().empty());
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: flip flags reverse local matrix axes") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); s->flip_h=true; s->flip_v=true; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(-.8)); CHECK(v.draws()[0].matrix[1][1]==doctest::Approx(-.4));
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: sprite offset combines with entity position") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); s->get_owner()->get_transform()->set_position(3,4,5); s->offset=Vector2(2,-1); v.render(); REQUIRE(v.draws().size()==1); const auto& m=v.draws()[0].matrix; CHECK(m[3][0]==doctest::Approx(5)); CHECK(m[3][1]==doctest::Approx(3)); CHECK(m[3][2]==doctest::Approx(5));
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: pivot shifts local geometry before translation") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); s->pivot=Vector2(0,1); v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[3][0]==doctest::Approx(.4)); CHECK(v.draws()[0].matrix[3][1]==doctest::Approx(-.2));
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: local rotation and tint reach renderer") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); s->local_rotation=90; s->color=Color(.2f,.3f,.4f,.5f); v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][1]==doctest::Approx(.8)); CHECK(v.draws()[0].matrix[1][0]==doctest::Approx(-.4)); CHECK(v.draws()[0].color==s->color);
+    }
+
+    TEST_CASE("CRI009 RealmPortalPanel: entity scale only applied when full entity transform requested") {
+        PortalSprites v; auto* s=v.sprite(21,"a.png"); s->get_owner()->get_transform()->set_scale(2,3,1); s->use_entity_rotation=true; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(1.6)); CHECK(v.draws()[0].matrix[1][1]==doctest::Approx(1.2)); v.draws().clear(); s->use_entity_rotation=false; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(.8));
+    }
+}

@@ -1,6 +1,7 @@
 // Editor/management/EditorRealmManager.cpp
 #include <Salix/serialization/YamlConverters.h>
 #include <Editor/management/EditorRealmManager.h>
+#include <unordered_set>
 #include <Editor/management/RealmLoader.h>
 #include <Editor/management/RealmSnapshot.h>
 #include <Editor/EditorContext.h>
@@ -428,7 +429,16 @@ namespace Salix {
 
     void EditorRealmManager::reparent_entity(SimpleGuid child_id, SimpleGuid new_parent_id) {
         EntityArchetype* child_archetype = get_archetype(child_id);
-        if (!child_archetype) return;
+        if (!child_archetype || child_id == new_parent_id || child_archetype->parent_id == new_parent_id) return;
+
+        // Reject absent parents and cycles even for callers outside the World Tree UI.
+        std::unordered_set<SimpleGuid> visited;
+        for (auto current = new_parent_id; current.is_valid();) {
+            if (current == child_id || !visited.insert(current).second) return;
+            const auto* ancestor = get_archetype(current);
+            if (!ancestor) return;
+            current = ancestor->parent_id;
+        }
 
         if (child_archetype->parent_id.is_valid()) {
             EntityArchetype* old_parent_archetype = get_archetype(child_archetype->parent_id);

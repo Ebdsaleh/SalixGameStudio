@@ -158,3 +158,56 @@ TEST_SUITE("EditorCRI007_WorldTreePanel") {
         TreeProbe p; EntitySelectedEvent e(id(11)); p.on_event(e); PropertyValueChangedEvent change(id(11),id(12),"Transform","name",std::string("A")); p.on_event(change); CHECK(p.get_name()=="World Tree Panel");
     }
 }
+
+
+namespace {
+using namespace EditorCri;
+struct DropFixture {
+    PanelContext c; TreeProbe panel; TempRealm file;
+    DropFixture(){c.ctx.editor_realm_manager->load_realm_from_file(file.write("Entities: [{name: Root, id: 11}, {name: Child, id: 12, parent: 11}, {name: Grandchild, id: 13, parent: 12}, {name: Other, id: 14}]"));panel.initialize(&c.ctx);}
+    auto* get(uint64_t n){return c.ctx.editor_realm_manager->get_archetype(id(n));}
+    void drop(uint64_t a,uint64_t b){panel.process_entity_drop_for_testing(id(a),id(b));}
+};
+}
+TEST_SUITE("EditorCRI009_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 WorldTreePanel: missing dragged ID queues no action") {
+        DropFixture f; f.drop(99,14); CHECK(f.c.events.is_queue_empty()); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: same parent drop preserves clean model") {
+        DropFixture f; f.drop(12,11); CHECK(f.get(12)->parent_id==id(11)); CHECK(f.c.events.is_queue_empty()); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: self drop does not create a cycle") {
+        DropFixture f; f.drop(11,11); CHECK_FALSE(f.get(11)->parent_id.is_valid()); CHECK(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: direct descendant drop rejected") {
+        DropFixture f; f.drop(11,12); CHECK_FALSE(f.get(11)->parent_id.is_valid()); CHECK(f.get(12)->parent_id==id(11)); CHECK(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: deep descendant drop rejected") {
+        DropFixture f; f.drop(11,13); CHECK_FALSE(f.get(11)->parent_id.is_valid()); CHECK(f.get(13)->parent_id==id(12)); CHECK(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: missing target leaves original hierarchy intact") {
+        DropFixture f; f.drop(12,99); CHECK(f.get(12)->parent_id==id(11)); CHECK(f.c.events.is_queue_empty()); CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: valid drop marks old parent new parent and child modified") {
+        DropFixture f; f.drop(12,14); CHECK(f.get(12)->parent_id==id(14)); CHECK(f.get(11)->state==ArchetypeState::Modified); CHECK(f.get(14)->state==ArchetypeState::Modified); CHECK(f.get(12)->state==ArchetypeState::Modified); CHECK_FALSE(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: drop to root keeps child subtree intact") {
+        DropFixture f; f.drop(12,0); CHECK_FALSE(f.get(12)->parent_id.is_valid()); CHECK(f.get(13)->parent_id==id(12)); CHECK(f.get(11)->child_ids.empty()); CHECK(f.c.ctx.editor_realm_manager->get_hierarchy().size()==3);
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: drop preserves new unsaved entity and parent states") {
+        DropFixture f; f.get(12)->state=ArchetypeState::New; f.get(14)->state=ArchetypeState::New; f.drop(12,14); CHECK(f.get(12)->state==ArchetypeState::New); CHECK(f.get(14)->state==ArchetypeState::New); CHECK(f.get(12)->parent_id==id(14));
+    }
+
+    TEST_CASE("CRI009 WorldTreePanel: drop before initialization performs no work") {
+        TreeProbe p; CHECK_NOTHROW(p.process_entity_drop_for_testing(id(11),id(14))); CHECK(p.get_name()=="World Tree Panel");
+    }
+}

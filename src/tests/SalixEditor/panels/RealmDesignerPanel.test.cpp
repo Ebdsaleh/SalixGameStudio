@@ -178,3 +178,57 @@ TEST_SUITE("EditorCRI007_RealmDesignerPanel") {
     }
 }
 }
+
+
+namespace {
+using namespace EditorCri;
+struct DesignerSprites {
+    AssetManager assets; DesignerViewportFixture viewport;
+    DesignerSprites(){assets.initialize(&viewport.f.c.renderer);viewport.f.c.ctx.grid_settings.snap_enabled=false;}
+    Sprite2D* sprite(uint64_t n,const char* path){return add_textured_sprite(*viewport.f.c.ctx.preview_realm,assets,n,path);}
+    void render(){viewport.f.panel.on_render(); CHECK(viewport.f.c.renderer.begins==viewport.f.c.renderer.ends);}
+    auto& draws(){return viewport.f.c.renderer.sprites;}
+};
+}
+TEST_SUITE("EditorCRI009_RealmDesignerPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 RealmDesignerPanel: textured sprite produces expected scaled model matrix") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].texture==s->get_texture()); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(.8)); CHECK(v.draws()[0].matrix[1][1]==doctest::Approx(.4));
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: sorting layers control texture draw order") {
+        DesignerSprites v; auto* a=v.sprite(21,"a.png"); auto* b=v.sprite(22,"b.png"); a->sorting_layer=7; b->sorting_layer=-2; v.render(); REQUIRE(v.draws().size()==2); CHECK(v.draws()[0].texture==b->get_texture()); CHECK(v.draws()[1].texture==a->get_texture());
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: hidden entity excludes textured sprite") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->get_owner()->set_visible(false); v.sprite(22,"b.png"); v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].texture!=s->get_texture());
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: hidden component is excluded independently of entity") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->set_visibility(false); v.render(); CHECK(v.draws().empty()); CHECK(s->get_owner()->is_visible());
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: component with no texture is excluded") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->load_texture(&v.assets,""); CHECK(s->get_texture()==nullptr); v.render(); CHECK(v.draws().empty());
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: flip flags reverse local matrix axes") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->flip_h=true; s->flip_v=true; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(-.8)); CHECK(v.draws()[0].matrix[1][1]==doctest::Approx(-.4));
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: sprite offset combines with entity position") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->get_owner()->get_transform()->set_position(3,4,5); s->offset=Vector2(2,-1); v.render(); REQUIRE(v.draws().size()==1); const auto& m=v.draws()[0].matrix; CHECK(m[3][0]==doctest::Approx(5)); CHECK(m[3][1]==doctest::Approx(3)); CHECK(m[3][2]==doctest::Approx(5));
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: pivot shifts local geometry before translation") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->pivot=Vector2(0,1); v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[3][0]==doctest::Approx(.4)); CHECK(v.draws()[0].matrix[3][1]==doctest::Approx(-.2));
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: local rotation and tint reach renderer") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->local_rotation=90; s->color=Color(.2f,.3f,.4f,.5f); v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][1]==doctest::Approx(.8)); CHECK(v.draws()[0].matrix[1][0]==doctest::Approx(-.4)); CHECK(v.draws()[0].color==s->color);
+    }
+
+    TEST_CASE("CRI009 RealmDesignerPanel: entity scale only applied when full entity transform requested") {
+        DesignerSprites v; auto* s=v.sprite(21,"a.png"); s->get_owner()->get_transform()->set_scale(2,3,1); s->use_entity_rotation=true; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(1.6)); CHECK(v.draws()[0].matrix[1][1]==doctest::Approx(1.2)); v.draws().clear(); s->use_entity_rotation=false; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(.8));
+    }
+}

@@ -135,6 +135,14 @@ struct WindowProbe : IWindow {
 };
 struct StartupRenderer : OpenGLRenderer {
     int creates=0,resize_calls=0,width=0,height=0;
+    int begins=0,ends=0,clears=0,depth_clears=0;
+    OpenGLRenderer* as_opengl_renderer() override {return nullptr;}
+    void begin_render_pass(uint32_t) override {++begins;}
+    void end_render_pass() override {++ends;}
+    void clear() override {++clears;}
+    void clear_depth_buffer() override {++depth_clears;}
+    void set_viewport(int,int,int,int) override {}
+    void draw_line(const glm::vec3&,const glm::vec3&,const Color&) override {}
     ICamera* camera=nullptr;
     uint32_t create_framebuffer(int,int)override{return static_cast<uint32_t>(++creates);}
     void on_window_resize(int w,int h)override{++resize_calls;width=w;height=h;}
@@ -205,5 +213,59 @@ TEST_SUITE("EditorCRI007_EditorState") {
 
     TEST_CASE("CRI007 EditorState: purge notification leaves unrelated renderer camera intact") {
         StartupFixture s; s.enter(); Entity a,b; auto* cam=a.add_element<Camera>(); REQUIRE(cam); s.renderer.set_active_camera(cam); BeforeEntityPurgedEvent event(&b); s.f.state.on_event(event); CHECK(s.renderer.camera==cam); s.renderer.set_active_camera(nullptr);
+    }
+}
+
+#include <Editor/panels/PanelManager.h>
+#include <Editor/events/EntitySelectedEvent.h>
+namespace {
+using namespace EditorCri;
+struct FrameFixture {
+    GuiFrame gui; StartupFixture startup;
+    FrameFixture(){ImGui::GetIO().ConfigFlags|=ImGuiConfigFlags_DockingEnable; startup.enter(); REQUIRE(context()); context()->grid_settings.snap_enabled=false;}
+    EditorContext* context(){return startup.f.state.get_context_for_testing();}
+    void frame(){gui.frame([&]{startup.f.state.update(.016f);});}
+};
+}
+TEST_SUITE("EditorCRI009_EditorState") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 EditorState: initial frame rebuilds authored preview exactly once") {
+        FrameFixture f; REQUIRE(f.context()->preview_realm); CHECK(f.context()->preview_realm->get_entity_by_id(id(11))==nullptr); f.frame(); auto* live=f.context()->preview_realm->get_entity_by_id(id(11)); REQUIRE(live); CHECK(live->get_name()=="Startup"); CHECK_FALSE(f.context()->realm_is_dirty); f.frame(); CHECK(f.context()->preview_realm->get_entity_by_id(id(11))==live);
+    }
+
+    TEST_CASE("CRI009 EditorState: frame drains deferred commands in order") {
+        FrameFixture f; std::vector<int> calls; f.context()->add_deferred_command([&]{calls.push_back(1);}); f.context()->add_deferred_command([&]{calls.push_back(2);}); f.frame(); REQUIRE(calls.size()==2); CHECK(calls[0]==1); CHECK(calls[1]==2); CHECK(f.context()->deferred_commands.empty());
+    }
+
+    TEST_CASE("CRI009 EditorState: second frame processes queued entity selection") {
+        FrameFixture f; f.frame(); EntitySelectedEvent e(id(11)); f.startup.f.events.dispatch(e); f.frame(); CHECK(f.context()->selected_entity_id==id(11)); CHECK(f.startup.f.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI009 EditorState: render invokes two balanced passes then GUI and depth clear") {
+        FrameFixture f; f.frame(); f.startup.f.state.render(&f.startup.renderer); CHECK(f.startup.renderer.begins==2); CHECK(f.startup.renderer.ends==2); CHECK(f.startup.renderer.clears==3); CHECK(f.startup.renderer.depth_clears==1); CHECK(f.startup.f.gui.renders==1); CHECK(f.startup.f.gui.platforms==1);
+    }
+
+    TEST_CASE("CRI009 EditorState: null render argument does not invoke renderer or GUI") {
+        FrameFixture f; f.startup.f.state.render(nullptr); CHECK(f.startup.renderer.begins==0); CHECK(f.startup.renderer.clears==0); CHECK(f.startup.f.gui.renders==0);
+    }
+
+    TEST_CASE("CRI009 EditorState: each frame displays dialogs without native rendering") {
+        FrameFixture f; f.frame(); f.frame(); CHECK(f.startup.f.gui.dialog_frames==2); CHECK(f.gui.current->StyleVarStack.Size==0); CHECK(f.gui.current->DisabledStackSize==0);
+    }
+
+    TEST_CASE("CRI009 EditorState: dirty preview rebuild replaces authored entity data") {
+        FrameFixture f; f.frame(); auto* a=f.context()->editor_realm_manager->get_archetype(id(11)); REQUIRE(a); a->name="Edited"; f.context()->realm_is_dirty=true; f.frame(); REQUIRE(f.context()->preview_realm->get_entity_by_id(id(11))); CHECK(f.context()->preview_realm->get_entity_by_id(id(11))->get_name()=="Edited"); CHECK_FALSE(f.context()->realm_is_dirty);
+    }
+
+    TEST_CASE("CRI009 EditorState: selected element purge clears pointer and stable ID") {
+        FrameFixture f; f.frame(); auto* live=f.context()->preview_realm->get_entity_by_id(id(11)); REQUIRE(live); f.context()->selected_element=live->get_transform(); f.context()->selected_element_id=live->get_transform()->get_id(); BeforeElementPurgedEvent e(f.context()->selected_element_id,id(11)); f.startup.f.state.on_event(e); CHECK(f.context()->selected_element==nullptr); CHECK_FALSE(f.context()->selected_element_id.is_valid());
+    }
+
+    TEST_CASE("CRI009 EditorState: selected entity purge clears borrowed live pointer") {
+        FrameFixture f; f.frame(); auto* live=f.context()->preview_realm->get_entity_by_id(id(11)); REQUIRE(live); f.context()->selected_entity=live; BeforeEntityPurgedEvent e(live); f.startup.f.state.on_event(e); CHECK(f.context()->selected_entity==nullptr);
+    }
+
+    TEST_CASE("CRI009 EditorState: game mode frame updates preview without reloading authored model") {
+        FrameFixture f; f.frame(); f.startup.f.init.engine_mode=EngineMode::Game; auto* live=f.context()->preview_realm->get_entity_by_id(id(11)); REQUIRE(live); f.frame(); CHECK(f.context()->preview_realm->get_entity_by_id(id(11))==live); CHECK_FALSE(f.context()->realm_is_dirty);
     }
 }

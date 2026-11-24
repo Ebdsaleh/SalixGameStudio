@@ -99,6 +99,9 @@ namespace Salix {
 
     EditorState::EditorState() : pimpl(std::make_unique<Pimpl>()) {}
     EditorState::~EditorState() {}
+#ifdef SALIX_TESTS_ENABLED
+    EditorContext* EditorState::get_context_for_testing() const { return pimpl->editor_context.get(); }
+#endif
 
     void EditorState::on_enter(const InitContext& engine_context) {
         // Open a log file to trace the initialization steps

@@ -13,6 +13,11 @@
 #include <Salix/gui/imgui/ImGuiIconManager.h>
 #include <Salix/gui/imgui/sdl/SDLImGui.h>
 #include <Salix/rendering/sdl/SDLRenderer.h>
+#include <Salix/rendering/ITexture.h>
+#include <Salix/assets/AssetManager.h>
+#include <Salix/ecs/Sprite2D.h>
+#include <Salix/ecs/Entity.h>
+#include <Salix/ecs/Transform.h>
 #include <imgui/imgui_internal.h>
 #include <iterator>
 
@@ -71,10 +76,30 @@ namespace EditorCri {
         }
     };
     struct GuiProbe : SDLImGui {
+        int renders=0, platforms=0, dialog_frames=0, theme_reloads=0;
+        std::string shown_dialog;
+        void render() override {++renders;}
+        void update_and_render_platform_windows() override {++platforms;}
+        void display_dialogs() override {++dialog_frames;}
+        void request_theme_reload() override {++theme_reloads;}
+        void show_dialog_by_key(std::string& key) override {shown_dialog=key;}
         Salix::IIconManager* icons=nullptr;
         Salix::IIconManager* get_icon_manager() override { return icons; }
     };
+    struct FixtureTexture : ITexture {
+        int get_width() const override {return 80;}
+        int get_height() const override {return 40;}
+        ImTextureID get_imgui_texture_id() const override {return ImTextureID(7);}
+    };
+    struct SpriteDraw { ITexture* texture; glm::mat4 matrix; Color color; };
     struct RenderProbe : SDLRenderer {
+        float ppu=100.0f;
+        ImTextureID framebuffer_texture=0;
+        std::vector<SpriteDraw> sprites;
+        int texture_loads=0;
+        ITexture* load_texture(const char*) override {++texture_loads;return new FixtureTexture;}
+        float get_pixels_per_unit() const override {return ppu;}
+        void draw_sprite(ITexture* t,const glm::mat4& m,const Color& c) override {sprites.push_back({t,m,c});}
         uint32_t result=73, last_id=0;
         int creates=0, deletes=0, begins=0, ends=0, clears=0, width=0,height=0;
         int lines=0;
@@ -82,7 +107,7 @@ namespace EditorCri {
         ICamera* camera=nullptr;
         uint32_t create_framebuffer(int w,int h) override { ++creates;width=w;height=h;return result; }
         void delete_framebuffer(uint32_t) override { ++deletes; }
-        ImTextureID get_framebuffer_texture_id(uint32_t) override { return ImTextureID(0); }
+        ImTextureID get_framebuffer_texture_id(uint32_t) override { return framebuffer_texture; }
         void begin_render_pass(uint32_t id) override { ++begins;last_id=id; }
         void end_render_pass() override { ++ends; }
         void set_viewport(int,int,int w,int h) override { width=w;height=h; }
@@ -90,6 +115,15 @@ namespace EditorCri {
         void set_active_camera(ICamera* c) override { camera=c; }
         ICamera* get_active_camera() override { return camera; }
     };
+    inline Sprite2D* add_textured_sprite(Realm& realm, AssetManager& assets, uint64_t value, const char* path) {
+        auto* e=realm.create_entity(id(value),"Sprite fixture");
+        auto* s=e->add_element<Sprite2D>();
+        REQUIRE(s);
+        s->load_texture(&assets,path);
+        REQUIRE(s->get_texture());
+        s->pivot=Vector2(.5f,.5f);
+        return s;
+    }
     struct PanelContext {
         IconProbe icons; GuiProbe gui; RenderProbe renderer; EventManager events;
         InitContext init{}; EditorContext ctx;

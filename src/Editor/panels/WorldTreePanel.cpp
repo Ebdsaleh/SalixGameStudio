@@ -620,6 +620,7 @@ namespace Salix {
         // --- STEP 1: PRE-FLIGHT CHECKS (UI-level validation) ---
         EntityArchetype* dragged_archetype = context->editor_realm_manager->get_archetype(dragged_id);
         if (!dragged_archetype) return;
+        if (target_id.is_valid() && !context->editor_realm_manager->get_archetype(target_id)) return;
 
         // Check for invalid operations
         if (dragged_archetype->parent_id == target_id) return; // Dropped on current parent
@@ -637,6 +638,8 @@ namespace Salix {
             }
         }
 
+        const SimpleGuid old_parent_id = dragged_archetype->parent_id;
+
         // --- STEP 2: COMMAND THE DATA CHANGE ---
         // Tell the manager to perform the raw data update and its internal synchronization.
         context->editor_realm_manager->reparent_entity(dragged_id, target_id);
@@ -648,7 +651,6 @@ namespace Salix {
         }
         
         // Update states of old and new parents if they exist
-        SimpleGuid old_parent_id = dragged_archetype->parent_id; // Note: this is the *old* parent id before reparenting
         if (old_parent_id.is_valid()) {
             EntityArchetype* old_parent = context->editor_realm_manager->get_archetype(old_parent_id);
             if (old_parent && old_parent->state != ArchetypeState::New) {
@@ -669,6 +671,12 @@ namespace Salix {
             std::make_unique<OnHierarchyChangedEvent>(dragged_id, target_id)
         );
     }
+#ifdef SALIX_TESTS_ENABLED
+    void WorldTreePanel::process_entity_drop_for_testing(SimpleGuid dragged_id, SimpleGuid target_id) {
+        if (pimpl->context && pimpl->context->editor_realm_manager && pimpl->context->event_manager)
+            pimpl->process_entity_drop(dragged_id, target_id);
+    }
+#endif
     // --- END TEST CODE ---
 
 
