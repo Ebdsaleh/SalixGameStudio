@@ -117,7 +117,27 @@ TEST_SUITE("EditorCRI003_LockablePanel") {
     }
 
     TEST_CASE("CRI003 LockablePanel: collapsed window keeps frame balanced") {
-        GuiFrame g;PanelContext c;PanelProbe p;p.initialize(&c.ctx);for(int i=0;i<2;++i)g.frame([&]{ImGui::SetNextWindowCollapsed(true,ImGuiCond_Always);p.on_gui_update();});CHECK(p.calls==0);CHECK(p.get_visibility());
+        GuiFrame g; PanelContext c; PanelProbe p; p.initialize(&c.ctx);
+        // New auto-sized ImGui windows can execute content once for layout measurement.
+        // Establish an explicitly sized, open window before testing the collapsed state.
+        for(int i=0;i<2;++i) g.frame([&]{
+            ImGui::SetNextWindowSize(ImVec2(400,300),ImGuiCond_Always);
+            ImGui::SetNextWindowCollapsed(false,ImGuiCond_Always);
+            p.on_gui_update();
+        });
+        REQUIRE(p.calls>0);
+        const int before=p.calls;
+        for(int i=0;i<2;++i) g.frame([&]{
+            ImGui::SetNextWindowCollapsed(true,ImGuiCond_Always);
+            p.on_gui_update();
+            REQUIRE(ImGui::FindWindowByName(p.get_title().c_str()));
+            CHECK(ImGui::FindWindowByName(p.get_title().c_str())->Collapsed);
+            CHECK(g.current->DisabledStackSize==0);
+        });
+        CHECK(p.calls==before);
+        CHECK(p.get_visibility());
+        g.frame([&]{ImGui::SetNextWindowCollapsed(false,ImGuiCond_Always);p.on_gui_update();});
+        CHECK(p.calls==before+1);
     }
 
     TEST_CASE("CRI003 LockablePanel: hidden panel does not draw even with valid context") {
