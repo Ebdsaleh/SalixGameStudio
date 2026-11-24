@@ -202,7 +202,8 @@ template<class F> void drag_widget(GuiFrame& g,F draw) {
 void file_button(UIHint hint){
     GuiFrame g; EditorContext c; auto p=prop(PropertyType::String);p.hint=hint;
     HandleProbe h(p,std::string("Assets/example.txt"));int changes=0;
-    click_drawn_item(g,[&]{if(TypeDrawer::draw_property("Value",h,&c))++changes;});
+    // The inspector uses hidden labels; keep the browse button within the allotted width.
+    click_drawn_item(g,[&]{if(TypeDrawer::draw_property("##Value",h,&c))++changes;});
     CHECK(changes==1);CHECK(h.writes==0);CHECK(std::get<std::string>(h.value)=="Assets/example.txt");
 }
 template<class T> void drag_registered(PropertyType type,T initial){
