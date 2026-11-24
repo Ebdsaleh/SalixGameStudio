@@ -21,6 +21,10 @@ namespace Salix {
         bool is_panel_derived() const override { return true; }
 
         void on_event(IEvent& event) override;
+#ifdef SALIX_TESTS_ENABLED
+        SimpleGuid get_selected_entity_id_for_testing() const;
+        SimpleGuid get_selected_element_id_for_testing() const;
+#endif
         
     protected:
         void on_panel_gui_update() override; // Main content

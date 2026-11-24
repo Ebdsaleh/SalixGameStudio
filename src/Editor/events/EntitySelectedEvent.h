@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <Editor/EditorAPI.h>
 #include <Salix/events/IEvent.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/core/SimpleGuid.h>
@@ -22,7 +23,7 @@ namespace Salix {
 class EntitySelectedEvent : public IEvent { 
     public:
         
-        static bool block_selection;
+        static EDITOR_API bool block_selection;
         EntitySelectedEvent(SimpleGuid id, Entity* live_entity = nullptr)
             : selected_id(id), entity(live_entity) {}
 

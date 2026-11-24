@@ -419,4 +419,9 @@ namespace Salix {
         
     }
 
+#ifdef SALIX_TESTS_ENABLED
+    SimpleGuid ScryingMirrorPanel::get_selected_entity_id_for_testing() const { return pimpl->selected_entity_id; }
+    SimpleGuid ScryingMirrorPanel::get_selected_element_id_for_testing() const { return pimpl->selected_element_id; }
+#endif
+
 }  // namespace Salix
