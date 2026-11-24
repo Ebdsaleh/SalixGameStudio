@@ -28,6 +28,8 @@ namespace Salix {
 #ifdef SALIX_TESTS_ENABLED
         void process_entity_drop_for_testing(SimpleGuid dragged_id, SimpleGuid target_id);
         void queue_add_root_for_testing();
+        void rename_entity_for_testing(SimpleGuid owner, const std::string& name);
+        void rename_element_for_testing(SimpleGuid owner, SimpleGuid component, const std::string& name);
         void queue_add_element_for_testing(SimpleGuid owner_id, const std::string& type);
 #endif
     protected:

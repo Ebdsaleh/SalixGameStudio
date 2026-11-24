@@ -251,3 +251,57 @@ TEST_SUITE("EditorCRI011_ScryingMirrorPanel") {
         MediaFixture m;auto p=std::make_unique<ScryingMirrorPanel>();p->initialize(&m.f.c.ctx);Property prop{};prop.name="texture_path";prop.type=PropertyType::String;prop.hint=UIHint::ImageFile;PropertyHandleYaml h(prop,&m.sprite()->data);p->select_media_for_testing(h,m.sprite(),ByteMirror::get_type_info_by_name("Sprite2D"));auto* d=m.f.c.gui.get_dialog("SelectImageFile");REQUIRE(d);m.result(d,true);REQUIRE(m.f.c.ctx.deferred_commands.size()==1);p.reset();m.drain();CHECK(m.listener.calls==0);
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct VisibilityFixture {
+    MirrorFixture f;
+    VisibilityFixture(){f.c.ctx.preview_realm=std::make_unique<Realm>("Preview");f.c.ctx.preview_realm->create_entity(id(11),"Root");}
+    auto* model(){return f.c.ctx.editor_realm_manager->get_archetype(id(11));}
+    auto* live(){return f.c.ctx.preview_realm->get_entity_by_id(id(11));}
+    void queue(bool visible){f.panel.queue_visibility_for_testing(id(11),visible);}
+    void drain(){auto q=std::move(f.c.ctx.deferred_commands);f.c.ctx.deferred_commands.clear();for(auto& command:q)command();}
+};
+}
+TEST_SUITE("EditorCRI013_ScryingMirrorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI013 ScryingMirrorPanel: visibility command is deferred until frame processing") {
+        VisibilityFixture v;v.queue(false);REQUIRE(v.f.c.ctx.deferred_commands.size()==1);CHECK(v.model()->is_visible);CHECK(v.live()->is_visible());v.drain();CHECK_FALSE(v.model()->is_visible);CHECK_FALSE(v.live()->is_visible());
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: visibility toggle marks saved entity modified") {
+        VisibilityFixture v;v.queue(false);v.drain();CHECK(v.model()->state==ArchetypeState::Modified);CHECK(v.f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: restored visibility clears dirty state") {
+        VisibilityFixture v;v.queue(false);v.drain();v.queue(true);v.drain();CHECK(v.model()->is_visible);CHECK(v.live()->is_visible());CHECK_FALSE(v.f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: visibility of unsaved entity preserves New state") {
+        VisibilityFixture v;v.model()->state=ArchetypeState::New;v.queue(false);v.drain();CHECK(v.model()->state==ArchetypeState::New);CHECK_FALSE(v.model()->is_visible);
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: reallocated archetype vector does not invalidate queued visibility") {
+        VisibilityFixture v;v.queue(false);for(uint64_t n=50;n<90;++n)v.f.c.ctx.editor_realm_manager->add_entity(entity(n));v.drain();CHECK_FALSE(v.model()->is_visible);CHECK_FALSE(v.live()->is_visible());
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: removed owner cannot receive queued visibility update") {
+        VisibilityFixture v;v.queue(false);v.f.c.ctx.editor_realm_manager->purge_entity(id(11));v.drain();CHECK(v.model()==nullptr);
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: missing preview realm still updates authored visibility") {
+        VisibilityFixture v;v.f.c.ctx.preview_realm.reset();v.queue(false);v.drain();CHECK_FALSE(v.model()->is_visible);
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: changed selection cannot redirect queued visibility") {
+        VisibilityFixture v;v.f.c.ctx.editor_realm_manager->add_entity(entity(21));v.queue(false);v.f.select(21);v.drain();CHECK_FALSE(v.model()->is_visible);CHECK(v.f.c.ctx.editor_realm_manager->get_archetype(id(21))->is_visible);
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: destroyed panel cannot execute queued visibility callback") {
+        VisibilityFixture v;auto p=std::make_unique<ScryingMirrorPanel>();p->initialize(&v.f.c.ctx);p->queue_visibility_for_testing(id(11),false);REQUIRE(v.f.c.ctx.deferred_commands.size()==1);p.reset();v.drain();CHECK(v.model()->is_visible);CHECK(v.live()->is_visible());
+    }
+
+    TEST_CASE("CRI013 ScryingMirrorPanel: uninitialized inspector cannot queue visibility command") {
+        ScryingMirrorPanel p;CHECK_NOTHROW(p.queue_visibility_for_testing(id(11),false));
+    }
+}

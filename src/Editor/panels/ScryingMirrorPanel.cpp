@@ -1,3 +1,4 @@
+#include <Editor/management/RealmSnapshot.h>
 // Editor/panels/ScryingMirrorPanel.cpp
 #include <Salix/serialization/YamlConverters.h>
 #include <Editor/panels/ScryingMirrorPanel.h>
@@ -46,6 +47,7 @@ namespace Salix {
         void handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info);
         void handle_box_collider_resize_button(ElementArchetype* box_collider_archetype, const ElementArchetype* source_renderable);
         void handle_camera_activation(const ElementArchetype& archetype, const PropertyHandle& handle);
+        void queue_visibility(SimpleGuid owner, bool visible);
     };
 
     ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
@@ -198,6 +200,29 @@ namespace Salix {
 
 
 
+    void ScryingMirrorPanel::Pimpl::queue_visibility(SimpleGuid owner, bool visible) {
+        if (!context || !context->editor_realm_manager) return;
+        std::weak_ptr<int> lifetime = callback_lifetime;
+        context->add_deferred_command([this, lifetime, owner, visible]() {
+            if (lifetime.expired() || !context || !context->editor_realm_manager) return;
+            auto* a = context->editor_realm_manager->get_archetype(owner);
+            if (!a) return;
+            a->is_visible = visible;
+            if (a->state != ArchetypeState::New) {
+                a->state = context->editor_realm_manager->get_snapshot()->is_entity_modified(*a)
+                    ? ArchetypeState::Modified : ArchetypeState::UnModified;
+            }
+            context->editor_realm_manager->update_ancestor_states(a->parent_id);
+            if (context->preview_realm) {
+                if (auto* live = context->preview_realm->get_entity_by_id(owner)) live->set_visible(visible);
+            }
+        });
+    }
+
+#ifdef SALIX_TESTS_ENABLED
+    void ScryingMirrorPanel::queue_visibility_for_testing(SimpleGuid owner, bool visible) { pimpl->queue_visibility(owner, visible); }
+#endif
+
     void ScryingMirrorPanel::on_panel_gui_update() {
         if (!get_visibility() || !pimpl->context || !pimpl->context->editor_realm_manager) {
             return;
@@ -237,17 +262,7 @@ namespace Salix {
                 if (!pimpl->selected_element_id.is_valid()) {
                     bool is_visible = selected_archetype->is_visible;
                     if (ImGui::Checkbox("Visible", &is_visible)) {
-                        // Defer the change to happen at a safe time
-                        pimpl->context->add_deferred_command([this, selected_archetype, is_visible]() {
-                            // Update the archetype's data
-                            selected_archetype->is_visible = is_visible;
-
-                            // Also update the live entity in the preview realm for immediate feedback
-                            Entity* live_entity = pimpl->context->preview_realm->get_entity_by_id(selected_archetype->id);
-                            if (live_entity) {
-                                live_entity->set_visible(is_visible);
-                            }
-                        });
+                        pimpl->queue_visibility(selected_archetype->id, is_visible);
                     }
 
                     ImGui::Separator();

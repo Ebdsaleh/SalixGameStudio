@@ -43,6 +43,8 @@ namespace Salix {
         void show_empty_space_context_menu();
         void queue_add_element(SimpleGuid owner_id, const std::string& type);
         void queue_add_root();
+        void rename_entity(EntityArchetype& archetype, const std::string& name);
+        void rename_element(EntityArchetype& owner, ElementArchetype& element, const std::string& name);
         void show_entity_context_menu(EntityArchetype& archetype);
         void show_element_context_menu(EntityArchetype& parent_archetype, ElementArchetype& element_archetype);
         void setup_entity_drag_source(EntityArchetype& archetype);
@@ -116,18 +118,8 @@ namespace Salix {
             bool rename_confirmed = ImGui::InputText("##RenameBox", rename_buffer, sizeof(rename_buffer), ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
             bool rename_deactivated = ImGui::IsItemDeactivatedAfterEdit();
 
-            if (rename_confirmed || rename_deactivated) {
-                EntityArchetype temp_archetype = archetype;
-                temp_archetype.name = rename_buffer;
-                
-                // Use the manager to get the snapshot for comparison
-                if (context->editor_realm_manager->get_snapshot()->is_entity_modified(temp_archetype)) {
-                    archetype.state = ArchetypeState::Modified;
-                } else {
-                    archetype.state = ArchetypeState::UnModified;
-                }
-                
-                archetype.name = rename_buffer;
+            if (entity_to_rename_id.is_valid() && (rename_confirmed || rename_deactivated)) {
+                rename_entity(archetype, rename_buffer);
                 entity_to_rename_id = SimpleGuid::invalid();
             }
         } else {
@@ -146,8 +138,8 @@ namespace Salix {
                 );
             }
             if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-                Entity* live_entity_to_focus = context->preview_realm->get_entity_by_id(archetype.id);
-                if (live_entity_to_focus && live_entity_to_focus->get_transform()) {
+                Entity* live_entity_to_focus = context->preview_realm ? context->preview_realm->get_entity_by_id(archetype.id) : nullptr;
+                if (context->editor_camera && live_entity_to_focus && live_entity_to_focus->get_transform()) {
                     context->editor_camera->focus_on(live_entity_to_focus->get_transform(), 3.0f);
                 }
             }
@@ -178,36 +170,8 @@ namespace Salix {
                         // Check if the user clicked away, which also confirms the edit
                         bool rename_deactivated = ImGui::IsItemDeactivatedAfterEdit();
 
-                        if (rename_confirmed || rename_deactivated) {
-                            const std::string new_name = rename_buffer;
-                            element.name = new_name;
-                            element.data["name"] = new_name;
-                            
-                            context->event_manager->dispatch(
-                                std::make_unique<PropertyValueChangedEvent>(
-                                archetype.id,
-                                element.id,
-                                element.type_name,
-                                "name",
-                                new_name)
-                            );
-                            //  Update the ElementArchetype state.
-                            if(context->editor_realm_manager->get_snapshot()->is_element_modified(element)){
-                                element.state = ArchetypeState::Modified;
-                            }
-                            else {
-                                element.state = ArchetypeState::UnModified;
-                            }
-                            
-                            // Update the EntityArchetype state.
-                            if (context->editor_realm_manager->get_snapshot()->is_entity_modified(archetype)) {
-                                archetype.state = ArchetypeState::Modified;
-                            }
-                            else {
-                                if (archetype.state == ArchetypeState::Modified) {
-                                    archetype.state = ArchetypeState::UnModified;
-                                }
-                            }
+                        if (element_to_rename_id.is_valid() && (rename_confirmed || rename_deactivated)) {
+                            rename_element(archetype, element, rename_buffer);
                             element_to_rename_id = SimpleGuid::invalid(); // End renaming
                             
                         }
@@ -252,6 +216,39 @@ namespace Salix {
         }
         ImGui::PopID();
     }
+
+    void WorldTreePanel::Pimpl::rename_entity(EntityArchetype& archetype, const std::string& name) {
+        if (archetype.name == name) return;
+        archetype.name = name;
+        update_entity_archetype_state(archetype);
+        context->editor_realm_manager->update_ancestor_states(archetype.parent_id);
+        if (context->preview_realm) {
+            if (auto* live = context->preview_realm->get_entity_by_id(archetype.id)) live->set_name(name);
+        }
+    }
+
+    void WorldTreePanel::Pimpl::rename_element(EntityArchetype& owner, ElementArchetype& element, const std::string& name) {
+        if (element.name == name) return;
+        element.name = name;
+        element.data["name"] = name;
+        context->event_manager->dispatch(std::make_unique<PropertyValueChangedEvent>(
+            owner.id, element.id, element.type_name, "name", name));
+        update_element_archetype_state(element);
+        update_entity_archetype_state(owner);
+        context->editor_realm_manager->update_ancestor_states(owner.parent_id);
+    }
+
+#ifdef SALIX_TESTS_ENABLED
+    void WorldTreePanel::rename_entity_for_testing(SimpleGuid owner, const std::string& name) {
+        if (!pimpl->context || !pimpl->context->editor_realm_manager) return;
+        if (auto* a = pimpl->context->editor_realm_manager->get_archetype(owner)) pimpl->rename_entity(*a, name);
+    }
+    void WorldTreePanel::rename_element_for_testing(SimpleGuid owner, SimpleGuid component, const std::string& name) {
+        if (!pimpl->context || !pimpl->context->editor_realm_manager || !pimpl->context->event_manager) return;
+        auto* a = pimpl->context->editor_realm_manager->get_archetype(owner);
+        if (a) if (auto* e = a->get_element_by_id(component)) pimpl->rename_element(*a, *e, name);
+    }
+#endif
 
     void WorldTreePanel::Pimpl::queue_add_root() {
         if (!context || !context->editor_realm_manager || !context->event_manager) return;

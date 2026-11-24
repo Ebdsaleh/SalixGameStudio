@@ -278,3 +278,47 @@ TEST_SUITE("EditorCRI011_WorldTreePanel") {
         TreeProbe p; CHECK_NOTHROW(p.queue_add_root_for_testing()); CHECK_NOTHROW(p.queue_add_element_for_testing(id(11),"Camera"));
     }
 }
+
+
+TEST_SUITE("EditorCRI013_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI013 WorldTreePanel: entity rename updates model and dirty state") {
+        TreeFixture f;f.panel.rename_entity_for_testing(id(11),"Renamed");CHECK(f.root()->name=="Renamed");CHECK(f.root()->state==ArchetypeState::Modified);CHECK(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: entity rename restoration clears dirty state") {
+        TreeFixture f;f.panel.rename_entity_for_testing(id(11),"Changed");f.panel.rename_entity_for_testing(id(11),"Root");CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());CHECK(f.root()->state==ArchetypeState::UnModified);
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: new entity keeps unsaved indicator when renamed") {
+        TreeFixture f;f.root()->state=ArchetypeState::New;f.panel.rename_entity_for_testing(id(11),"New name");CHECK(f.root()->state==ArchetypeState::New);CHECK(f.root()->name=="New name");
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: entity rename updates existing preview instance") {
+        TreeFixture f;f.c.ctx.preview_realm=std::make_unique<Realm>("Preview");auto* e=f.c.ctx.preview_realm->create_entity(id(11),"Root");f.panel.rename_entity_for_testing(id(11),"Preview name");CHECK(e->get_name()=="Preview name");
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: component rename updates YAML and dispatches change") {
+        TreeFixture f;f.panel.rename_element_for_testing(id(11),id(12),"Renamed");CHECK(f.root()->elements[0].name=="Renamed");CHECK(f.root()->elements[0].data["name"].as<std::string>()=="Renamed");CHECK_FALSE(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: component rename restoration clears owner and component state") {
+        TreeFixture f;f.panel.rename_element_for_testing(id(11),id(12),"Changed");f.panel.rename_element_for_testing(id(11),id(12),"Original");CHECK(f.root()->elements[0].state==ArchetypeState::UnModified);CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: new component keeps unsaved indicator during rename") {
+        TreeFixture f;f.root()->elements[0].state=ArchetypeState::New;f.panel.rename_element_for_testing(id(11),id(12),"New component");CHECK(f.root()->elements[0].state==ArchetypeState::New);CHECK(f.root()->state==ArchetypeState::Modified);
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: identical names do not enqueue property changes") {
+        TreeFixture f;f.panel.rename_entity_for_testing(id(11),"Root");f.panel.rename_element_for_testing(id(11),id(12),"Original");CHECK(f.c.events.is_queue_empty());CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: missing owner and component cannot mutate existing record") {
+        TreeFixture f;f.panel.rename_entity_for_testing(id(99),"Absent");f.panel.rename_element_for_testing(id(11),id(99),"Absent");f.panel.rename_element_for_testing(id(99),id(12),"Absent");CHECK(f.root()->name=="Root");CHECK(f.root()->elements[0].name=="Original");CHECK(f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI013 WorldTreePanel: rename before initialization is safe") {
+        TreeProbe p;CHECK_NOTHROW(p.rename_entity_for_testing(id(11),"Absent"));CHECK_NOTHROW(p.rename_element_for_testing(id(11),id(12),"Absent"));
+    }
+}
