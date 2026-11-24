@@ -273,3 +273,73 @@ TEST_SUITE("EditorCRI009_TypeDrawer") {
         GuiFrame g;EditorContext c;auto p=prop(PropertyType::Int);p.is_read_only=true;HandleProbe h(p,19);drag_widget(g,[&]{TypeDrawer::draw_property("Value",h,&c);});CHECK(std::get<int>(h.value)==19);CHECK(h.writes==0);
     }
 }
+
+#include <Salix/serialization/YamlConverters.h>
+namespace {
+using namespace EditorCri;
+// Select the first component of a composite widget rather than the label/group centre.
+template<class F> void drag_first_component(GuiFrame& g,F draw) {
+    ImVec2 point{};
+    auto frame=[&]{g.draw([&]{draw();auto a=ImGui::GetItemRectMin();point=ImVec2(a.x+20,a.y+ImGui::GetFrameHeight()*.5f);});};
+    frame();frame();const auto start=point;
+    auto& io=ImGui::GetIO();io.AddMousePosEvent(start.x,start.y);frame();
+    io.AddMouseButtonEvent(0,true);frame();io.AddMousePosEvent(start.x+55,start.y);frame();
+    io.AddMouseButtonEvent(0,false);frame();
+}
+template<class F> void replace_text(GuiFrame& g,F draw,const char* text) {
+    ImVec2 input{};
+    auto frame=[&]{g.draw([&]{draw();auto a=ImGui::GetItemRectMin();input=ImVec2(a.x+20,a.y+ImGui::GetFrameHeight()*.5f);});};
+    frame();frame();auto& io=ImGui::GetIO();io.AddMousePosEvent(input.x,input.y);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();
+    io.AddKeyEvent(ImGuiMod_Ctrl,true);io.AddKeyEvent(ImGuiKey_A,true);frame();
+    io.AddKeyEvent(ImGuiKey_A,false);io.AddKeyEvent(ImGuiMod_Ctrl,false);frame();
+    io.AddInputCharactersUTF8(text);frame();
+}
+template<class T> T registered_vector(PropertyType type,T value){
+    GuiFrame g;TypeDrawer::register_all_type_drawers();int writes=0;
+    auto p=prop(type,"##Vector");p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* v){value=*static_cast<T*>(v);++writes;};
+    drag_first_component(g,[&]{TypeDrawer::get_drawer(type)(p,nullptr);});
+    CHECK(writes>0);return value;
+}
+}
+TEST_SUITE("EditorCRI011_TypeDrawer") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 TypeDrawer: handle Vector2 drag edits first coordinate only") {
+        GuiFrame g;EditorContext c;HandleProbe h(prop(PropertyType::Vector2),Vector2(1,2));drag_first_component(g,[&]{TypeDrawer::draw_property("##Vector",h,&c);});auto v=std::get<Vector2>(h.value);CHECK(v.x>1);CHECK(v.y==2);CHECK(h.writes>0);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: handle Vector3 drag preserves other coordinates") {
+        GuiFrame g;EditorContext c;HandleProbe h(prop(PropertyType::Vector3),Vector3(1,2,3));drag_first_component(g,[&]{TypeDrawer::draw_property("##Vector",h,&c);});auto v=std::get<Vector3>(h.value);CHECK(v.x>1);CHECK(v.y==2);CHECK(v.z==3);CHECK(h.writes>0);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: registered Vector2 drag calls typed setter") {
+        auto v=registered_vector(PropertyType::Vector2,Vector2(1,2));CHECK(v.x>1);CHECK(v.y==2);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: registered Vector3 drag calls typed setter") {
+        auto v=registered_vector(PropertyType::Vector3,Vector3(1,2,3));CHECK(v.x>1);CHECK(v.y==2);CHECK(v.z==3);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: YAML integer drag persists edited scalar") {
+        GuiFrame g;auto n=YAML::Load("{Value: 3, other: 8}");auto p=prop(PropertyType::Int);drag_first_component(g,[&]{TypeDrawer::draw_yaml_property(p,n);});CHECK(n["Value"].as<int>()>3);CHECK(n["other"].as<int>()==8);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: YAML float drag persists edited scalar") {
+        GuiFrame g;auto n=YAML::Load("{Value: 2.5}");auto p=prop(PropertyType::Float);drag_first_component(g,[&]{TypeDrawer::draw_yaml_property(p,n);});CHECK(n["Value"].as<float>()>2.5f);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: YAML Vector2 drag persists structured coordinates") {
+        GuiFrame g;auto n=YAML::Load("{Value: {x: 1,y: 2}}");auto p=prop(PropertyType::Vector2);drag_first_component(g,[&]{TypeDrawer::draw_yaml_property(p,n);});auto v=n["Value"].as<Vector2>();CHECK(v.x>1);CHECK(v.y==2);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: YAML Vector3 drag preserves other coordinates") {
+        GuiFrame g;auto n=YAML::Load("{Value: {x: 1,y: 2,z: 3}}");auto p=prop(PropertyType::Vector3);drag_first_component(g,[&]{TypeDrawer::draw_yaml_property(p,n);});auto v=n["Value"].as<Vector3>();CHECK(v.x>1);CHECK(v.y==2);CHECK(v.z==3);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: plain string handle records typed text entry") {
+        GuiFrame g;EditorContext c;HandleProbe h(prop(PropertyType::String),std::string("old"));replace_text(g,[&]{TypeDrawer::draw_property("##Text",h,&c);},"new value");CHECK(std::get<std::string>(h.value)=="new value");CHECK(h.writes>0);
+    }
+
+    TEST_CASE("CRI011 TypeDrawer: YAML string edit changes only requested field") {
+        GuiFrame g;auto n=YAML::Load("{Value: old, other: retained}");auto p=prop(PropertyType::String);replace_text(g,[&]{TypeDrawer::draw_yaml_property(p,n);},"new value");CHECK(n["Value"].as<std::string>()=="new value");CHECK(n["other"].as<std::string>()=="retained");
+    }
+}

@@ -150,3 +150,57 @@ TEST_SUITE("EditorCRI003_LockablePanel") {
 }
 } // namespace coverage_batch_003
 } // namespace
+
+
+namespace {
+using namespace EditorCri;
+using coverage_batch_003::PanelProbe;
+struct LockInteraction {
+    GuiFrame gui;PanelContext c;PanelProbe p;ImVec2 point{};
+    LockInteraction(){p.initialize(&c.ctx);}
+    void frame(){gui.draw([&]{p.draw_lock_ui_for_testing();auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();point=ImVec2((a.x+b.x)*.5f,(a.y+b.y)*.5f);});}
+    void click(bool inside=true){frame();frame();auto& io=ImGui::GetIO();io.AddMousePosEvent(inside?point.x:point.x+200,point.y);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();}
+};
+}
+TEST_SUITE("EditorCRI011_LockablePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 LockablePanel: clicking unlocked icon switches state and registry texture") {
+        LockInteraction x;x.click();CHECK(x.p.is_locked());CHECK(x.p.get_current_lock_icon_path()=="locked.png");
+    }
+
+    TEST_CASE("CRI011 LockablePanel: clicking locked icon switches state and registry texture") {
+        LockInteraction x;x.p.lock();x.click();CHECK_FALSE(x.p.is_locked());CHECK(x.p.get_current_lock_icon_path()=="unlocked.png");
+    }
+
+    TEST_CASE("CRI011 LockablePanel: repeated input toggles remain consistent across frames") {
+        LockInteraction x;for(int i=0;i<4;++i){x.click();CHECK(x.p.is_locked()==(i%2==0));}CHECK(x.p.get_current_lock_icon_path()=="unlocked.png");
+    }
+
+    TEST_CASE("CRI011 LockablePanel: mouse outside icon leaves panel state unchanged") {
+        LockInteraction x;x.click(false);CHECK_FALSE(x.p.is_locked());CHECK(x.p.get_current_lock_icon_path()=="unlocked.png");
+    }
+
+    TEST_CASE("CRI011 LockablePanel: icon hit area follows configured geometry") {
+        LockInteraction x;x.p.set_lock_icon_size(ImVec2(32,28));x.click();CHECK(x.p.is_locked());CHECK(x.p.get_lock_icon_size().x==32);CHECK(x.p.get_lock_icon_size().y==28);
+    }
+
+    TEST_CASE("CRI011 LockablePanel: hovering lock button does not toggle until click") {
+        LockInteraction x;x.frame();x.frame();ImGui::GetIO().AddMousePosEvent(x.point.x,x.point.y);x.frame();CHECK_FALSE(x.p.is_locked());CHECK(x.gui.current->HoveredId!=0);
+    }
+
+    TEST_CASE("CRI011 LockablePanel: hovering locked icon preserves locked state") {
+        LockInteraction x;x.p.lock();x.frame();x.frame();ImGui::GetIO().AddMousePosEvent(x.point.x,x.point.y);x.frame();CHECK(x.p.is_locked());CHECK(x.gui.current->HoveredId!=0);
+    }
+
+    TEST_CASE("CRI011 LockablePanel: click preserves configured title and visibility") {
+        LockInteraction x;x.p.set_title("Custom title");x.p.set_name("Custom name");x.click();CHECK(x.p.get_title()=="Custom title");CHECK(x.p.get_name()=="Custom name");CHECK(x.p.get_visibility());
+    }
+
+    TEST_CASE("CRI011 LockablePanel: two panels maintain independent lock state") {
+        LockInteraction x;PanelProbe other;other.initialize(&x.c.ctx);x.click();CHECK(x.p.is_locked());CHECK_FALSE(other.is_locked());CHECK(other.get_current_lock_icon_path()=="unlocked.png");
+    }
+
+    TEST_CASE("CRI011 LockablePanel: lock button with zero texture does not alter lock state") {
+        LockInteraction x;x.p.set_lock_icon("Unknown");x.frame();x.frame();CHECK_FALSE(x.p.is_locked());CHECK(x.p.get_current_lock_icon_path().empty());
+    }
+}

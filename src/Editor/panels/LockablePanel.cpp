@@ -90,6 +90,10 @@ namespace Salix {
     }
 
 
+#ifdef SALIX_TESTS_ENABLED
+    void LockablePanel::draw_lock_ui_for_testing() { draw_lock_ui(); }
+#endif
+
     bool LockablePanel::begin() {
         return ImGui::Begin(
             pimpl->title.c_str(), 

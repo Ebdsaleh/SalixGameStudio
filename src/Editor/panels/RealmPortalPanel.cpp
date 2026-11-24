@@ -47,6 +47,7 @@ namespace Salix {
         std::unique_ptr<DummyCamera> failsafe_camera;
         ICamera* game_camera = nullptr;  
         void draw_realm();
+        void draw_lock_button();
         
     };
 
@@ -97,6 +98,44 @@ namespace Salix {
 
 
 
+    void RealmPortalPanel::Pimpl::draw_lock_button() {
+        if (!icon_manager) return;
+        // handle icon adjustment for OpenGL rendering
+        ImVec2 icon_size = ImVec2(16, 16);
+        ImVec2 top_left = ImVec2(0, 0);
+        ImVec2 bottom_right = ImVec2(1, 1);
+        
+
+        ImGui::Separator();
+        // --- PANEL LOCK/UNLOCK BUTTON ---
+        ImGui::AlignTextToFramePadding();
+        // ImGui::SameLine(
+
+        const IconInfo& lock_icon = is_locked ? 
+            icon_manager->get_icon_by_name("Panel Locked") :
+            icon_manager->get_icon_by_name("Panel Unlocked");
+
+        ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
+        if (is_locked) {
+            tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
+        }
+
+        // Only attempt to draw if the icon texture ID is valid
+        if (lock_icon.texture_id != 0) {
+            if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
+                // Button was clicked, toggle the lock state
+                is_locked = !is_locked; 
+                std::cout << "Realm Portal Panel lock toggled to: " << (is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
+            }
+        } 
+        
+    }
+
+#ifdef SALIX_TESTS_ENABLED
+    void RealmPortalPanel::draw_lock_button_for_testing() { pimpl->draw_lock_button(); }
+    ICamera* RealmPortalPanel::get_game_camera_for_testing() const { return pimpl->game_camera; }
+#endif
+
     void RealmPortalPanel::on_gui_update() {
         if (!pimpl->is_visible || !pimpl->context || !pimpl->context->init_context || !pimpl->icon_manager) return;
         
@@ -111,35 +150,8 @@ namespace Salix {
             }
 
             
-            // handle icon adjustment for OpenGL rendering
-            ImVec2 icon_size = ImVec2(16, 16);
-            ImVec2 top_left = ImVec2(0, 0);
-            ImVec2 bottom_right = ImVec2(1, 1);
-            
+            pimpl->draw_lock_button();
 
-            ImGui::Separator();
-            // --- PANEL LOCK/UNLOCK BUTTON ---
-            ImGui::AlignTextToFramePadding();
-            // ImGui::SameLine(
-
-            const IconInfo& lock_icon = pimpl->is_locked ? 
-                pimpl->icon_manager->get_icon_by_name("Panel Locked") :
-                pimpl->icon_manager->get_icon_by_name("Panel Unlocked");
-
-            ImVec4 tint_color = ImVec4(1.0f, 1.0f, 1.0f, 1.0f); // Default to white (no tint)
-            if (pimpl->is_locked) {
-                tint_color = ImVec4(0.50f, 0.0f, 0.0f, 1.0f); // Red tint when locked
-            }
-
-            // Only attempt to draw if the icon texture ID is valid
-            if (lock_icon.texture_id != 0) {
-                if (ImGui::ImageButton("##PanelLockBtn", lock_icon.texture_id, icon_size, top_left, bottom_right, ImVec4(0,0,0,0), tint_color)) {
-                    // Button was clicked, toggle the lock state
-                    pimpl->is_locked = !pimpl->is_locked; 
-                    std::cout << "Realm Portal Panel lock toggled to: " << (pimpl->is_locked ? "LOCKED" : "UNLOCKED") << std::endl;
-                }
-            } 
-            
             if (pimpl->is_locked) {
                 ImGui::BeginDisabled(); // Disable all interactive widgets below this point
             }

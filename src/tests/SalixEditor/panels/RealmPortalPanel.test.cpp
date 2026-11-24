@@ -185,3 +185,55 @@ TEST_SUITE("EditorCRI009_RealmPortalPanel") {
         PortalSprites v; auto* s=v.sprite(21,"a.png"); s->get_owner()->get_transform()->set_scale(2,3,1); s->use_entity_rotation=true; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(1.6)); CHECK(v.draws()[0].matrix[1][1]==doctest::Approx(1.2)); v.draws().clear(); s->use_entity_rotation=false; v.render(); REQUIRE(v.draws().size()==1); CHECK(v.draws()[0].matrix[0][0]==doctest::Approx(.8));
     }
 }
+
+
+namespace {
+using namespace EditorCri;
+struct PortalLockFixture {
+    GuiFrame g; PortalFixture f; ImVec2 target{};
+    void frame() {g.draw([&]{f.panel.draw_lock_button_for_testing();auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();target=ImVec2((a.x+b.x)*.5f,(a.y+b.y)*.5f);});}
+    void click(){frame();frame();auto pos=target;auto& io=ImGui::GetIO();io.AddMousePosEvent(pos.x,pos.y);frame();io.AddMouseButtonEvent(0,true);frame();io.AddMouseButtonEvent(0,false);frame();}
+};
+}
+TEST_SUITE("EditorCRI011_RealmPortalPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI011 RealmPortalPanel: main-camera event without active realm cannot alter previous selection") {
+        PortalFixture f;auto* c=f.add_camera(11);f.select(11);f.c.ctx.active_realm=nullptr;f.select(99);CHECK(f.panel.get_game_camera_for_testing()==c);CHECK(f.realm.get_main_camera_entity_id()==id(11));
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: matching entity purge clears borrowed camera pointer") {
+        PortalFixture f;auto* c=f.add_camera(11);f.select(11);REQUIRE(f.panel.get_game_camera_for_testing()==c);BeforeEntityPurgedEvent e(c->get_owner());f.panel.on_event(e);CHECK(f.panel.get_game_camera_for_testing()==nullptr);
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: matching element purge clears borrowed camera pointer") {
+        PortalFixture f;auto* c=f.add_camera(11);f.select(11);REQUIRE(f.panel.get_game_camera_for_testing()==c);BeforeElementPurgedEvent e(c->get_id(),id(11));f.panel.on_event(e);CHECK(f.panel.get_game_camera_for_testing()==nullptr);
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: purge events without current camera remain inert") {
+        PortalFixture f;auto* e=f.realm.create_entity(id(11),"Other");BeforeEntityPurgedEvent a(e);BeforeElementPurgedEvent b(id(99),id(11));f.panel.on_event(a);f.panel.on_event(b);CHECK(f.panel.get_game_camera_for_testing()==nullptr);CHECK_FALSE(f.realm.get_main_camera_entity_id().is_valid());
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: camera pointer updates to new active realm on render") {
+        PortalFixture f;auto* a=f.add_camera(11);f.select(11);Realm other;auto* b=other.create_entity(id(12),"Camera")->add_element<Camera>();REQUIRE(b);other.set_active_camera_entity(id(12));f.c.ctx.active_realm=&other;f.panel.on_render();CHECK(f.panel.get_game_camera_for_testing()==b);CHECK(f.c.renderer.camera==b);CHECK(f.c.renderer.camera!=a);f.c.ctx.active_realm=&f.realm;
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: lock button click locks panel") {
+        PortalLockFixture x;x.click();CHECK(x.f.panel.is_locked());CHECK(x.f.panel.get_visibility());
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: second lock button click unlocks panel") {
+        PortalLockFixture x;x.click();REQUIRE(x.f.panel.is_locked());x.click();CHECK_FALSE(x.f.panel.is_locked());
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: locked portal can unlock through its own button") {
+        PortalLockFixture x;x.f.panel.lock();x.click();CHECK_FALSE(x.f.panel.is_locked());
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: lock input does not start render pass or reallocate framebuffer") {
+        PortalLockFixture x;x.click();CHECK(x.f.c.renderer.creates==1);CHECK(x.f.c.renderer.begins==0);CHECK(x.f.panel.get_framebuffer_id()==73);
+    }
+
+    TEST_CASE("CRI011 RealmPortalPanel: valid framebuffer texture is submitted to ImGui draw list") {
+        GuiFrame g;PortalFixture f;f.c.renderer.framebuffer_texture=ImTextureID(77);for(int i=0;i<2;++i)g.frame([&]{ImGui::SetNextWindowPos(ImVec2(20,20),ImGuiCond_Always);ImGui::SetNextWindowSize(ImVec2(500,400),ImGuiCond_Always);f.panel.on_gui_update();});auto* data=ImGui::GetDrawData();REQUIRE(data);bool found=false;for(int i=0;i<data->CmdListsCount;++i)for(const auto& cmd:data->CmdLists[i]->CmdBuffer)if(cmd.GetTexID()==ImTextureID(77))found=true;CHECK(found);CHECK(g.current->StyleVarStack.Size==0);
+    }
+}

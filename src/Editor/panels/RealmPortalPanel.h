@@ -32,6 +32,10 @@ namespace Salix {
 
             uint32_t get_framebuffer_id() const;
             ImVec2 get_viewport_size() const;
+#ifdef SALIX_TESTS_ENABLED
+            void draw_lock_button_for_testing();
+            ICamera* get_game_camera_for_testing() const;
+#endif
 
         private:
         struct Pimpl;

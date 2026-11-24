@@ -69,6 +69,9 @@ namespace Salix {
             const std::string& get_current_lock_icon_path() const;
 
             const std::string& get_name() override;
+#ifdef SALIX_TESTS_ENABLED
+            void draw_lock_ui_for_testing();
+#endif
 
         protected:
         virtual void on_panel_gui_update() {}  // For derived classes
