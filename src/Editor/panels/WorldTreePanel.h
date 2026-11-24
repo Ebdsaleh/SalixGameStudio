@@ -17,6 +17,8 @@ namespace Salix {
     class Scene;
     struct EditorContext;
 
+    enum class TreeEntityAction { AddChild, Release, Duplicate, DuplicateSibling, DuplicateFamily, DuplicateFamilySibling, Purge, PurgeDescendants, PurgeFamily, PurgeBloodline };
+
     class EDITOR_API WorldTreePanel : public LockablePanel {
     public:
         WorldTreePanel();
@@ -28,6 +30,7 @@ namespace Salix {
 #ifdef SALIX_TESTS_ENABLED
         void process_entity_drop_for_testing(SimpleGuid dragged_id, SimpleGuid target_id);
         void queue_add_root_for_testing();
+        void queue_entity_action_for_testing(SimpleGuid owner, TreeEntityAction action);
         void rename_entity_for_testing(SimpleGuid owner, const std::string& name);
         void rename_element_for_testing(SimpleGuid owner, SimpleGuid component, const std::string& name);
         void queue_add_element_for_testing(SimpleGuid owner_id, const std::string& type);

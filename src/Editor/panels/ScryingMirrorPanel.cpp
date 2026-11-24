@@ -48,6 +48,7 @@ namespace Salix {
         void handle_box_collider_resize_button(ElementArchetype* box_collider_archetype, const ElementArchetype* source_renderable);
         void handle_camera_activation(const ElementArchetype& archetype, const PropertyHandle& handle);
         void queue_visibility(SimpleGuid owner, bool visible);
+        void queue_collider_resize(SimpleGuid owner, SimpleGuid collider, SimpleGuid source);
     };
 
     ScryingMirrorPanel::ScryingMirrorPanel() : pimpl(std::make_unique<Pimpl>() ) {
@@ -199,6 +200,25 @@ namespace Salix {
     }
 
 
+
+    void ScryingMirrorPanel::Pimpl::queue_collider_resize(SimpleGuid owner, SimpleGuid collider, SimpleGuid source) {
+        if (!context || !context->editor_realm_manager) return;
+        std::weak_ptr<int> lifetime = callback_lifetime;
+        context->add_deferred_command([this, lifetime, owner, collider, source]() {
+            if (lifetime.expired() || !context || !context->editor_realm_manager) return;
+            auto* entity = context->editor_realm_manager->get_archetype(owner);
+            if (!entity) return;
+            auto* target = entity->get_element_by_id(collider);
+            auto* texture = entity->get_element_by_id(source);
+            if (!target || !texture || target->type_name != "BoxCollider") return;
+            handle_box_collider_resize_button(target, texture);
+        });
+    }
+#ifdef SALIX_TESTS_ENABLED
+    void ScryingMirrorPanel::queue_collider_resize_for_testing(SimpleGuid owner, SimpleGuid collider, SimpleGuid source) {
+        pimpl->queue_collider_resize(owner, collider, source);
+    }
+#endif
 
     void ScryingMirrorPanel::Pimpl::queue_visibility(SimpleGuid owner, bool visible) {
         if (!context || !context->editor_realm_manager) return;
@@ -374,9 +394,7 @@ namespace Salix {
                                     ImGui::PopItemWidth();
 
                                     if (ImGui::Button("Apply Resize", ImVec2(-1, 0))) {
-                                        pimpl->context->add_deferred_command([this, element_archetype, selected_sibling = suitable_siblings[selected_sibling_index]]() {
-                                            pimpl->handle_box_collider_resize_button(element_archetype, selected_sibling);
-                                        });
+                                        pimpl->queue_collider_resize(owner_id, element_archetype->id, suitable_siblings[selected_sibling_index]->id);
                                     }
 
                                     // Pop the unique ID scope

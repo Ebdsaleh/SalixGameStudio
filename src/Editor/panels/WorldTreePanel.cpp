@@ -43,6 +43,8 @@ namespace Salix {
         void show_empty_space_context_menu();
         void queue_add_element(SimpleGuid owner_id, const std::string& type);
         void queue_add_root();
+        std::shared_ptr<int> command_lifetime = std::make_shared<int>(0);
+        void queue_entity_action(SimpleGuid owner, TreeEntityAction action);
         void rename_entity(EntityArchetype& archetype, const std::string& name);
         void rename_element(EntityArchetype& owner, ElementArchetype& element, const std::string& name);
         void show_entity_context_menu(EntityArchetype& archetype);
@@ -250,6 +252,43 @@ namespace Salix {
     }
 #endif
 
+    void WorldTreePanel::Pimpl::queue_entity_action(SimpleGuid owner, TreeEntityAction action) {
+        if (!context || !context->editor_realm_manager) return;
+        std::weak_ptr<int> lifetime = command_lifetime;
+        context->add_deferred_command([this, lifetime, owner, action]() {
+            if (lifetime.expired() || !context || !context->editor_realm_manager) return;
+            auto& manager = *context->editor_realm_manager;
+            if (!manager.get_archetype(owner)) return;
+            switch (action) {
+                case TreeEntityAction::AddChild: {
+                    auto child = ArchetypeFactory::create_entity_archetype("New Child");
+                    child.parent_id = owner;
+                    manager.add_child_entity(std::move(child));
+                    break;
+                }
+                case TreeEntityAction::Release: manager.release_from_parent(owner); break;
+                case TreeEntityAction::Duplicate: manager.duplicate_entity(owner); break;
+                case TreeEntityAction::DuplicateSibling: manager.duplicate_entity_as_sibling(owner); break;
+                case TreeEntityAction::DuplicateFamily: manager.duplicate_entity_with_children(owner); break;
+                case TreeEntityAction::DuplicateFamilySibling: manager.duplicate_family_as_sibling(owner); break;
+                case TreeEntityAction::Purge: manager.purge_entity(owner); break;
+                case TreeEntityAction::PurgeDescendants: manager.purge_entity_descendants(owner); break;
+                case TreeEntityAction::PurgeFamily: manager.purge_entity_and_family(owner); break;
+                case TreeEntityAction::PurgeBloodline: manager.purge_entity_bloodline(owner); break;
+            }
+            if (context->selected_entity_id.is_valid() && !manager.get_archetype(context->selected_entity_id)) {
+                context->selected_entity_id = SimpleGuid::invalid();
+                context->selected_element_id = SimpleGuid::invalid();
+            }
+        });
+    }
+
+#ifdef SALIX_TESTS_ENABLED
+    void WorldTreePanel::queue_entity_action_for_testing(SimpleGuid owner, TreeEntityAction action) {
+        pimpl->queue_entity_action(owner, action);
+    }
+#endif
+
     void WorldTreePanel::Pimpl::queue_add_root() {
         if (!context || !context->editor_realm_manager || !context->event_manager) return;
         context->add_deferred_command([this]() {
@@ -359,20 +398,12 @@ namespace Salix {
             // Hierarchy Operations
             if (archetype.parent_id.is_valid()) {
                 if (ImGui::MenuItem("Release From Parent##ReleaseFromParent")) {
-                    context->add_deferred_command([this, archetype_id = archetype.id]() {
-                        // Just send the command to the manager
-                        context->editor_realm_manager->release_from_parent(archetype_id);
-                    });
+                    queue_entity_action(archetype.id, TreeEntityAction::Release);
                 }
             }
             
             if (ImGui::MenuItem("Add Child Entity##AddChildEntity")) {
-                context->add_deferred_command([this, parent_id = archetype.id]() {
-                    EntityArchetype new_child = ArchetypeFactory::create_entity_archetype("New Child");
-                    new_child.parent_id = parent_id;
-                    // Just send the command to the manager
-                    context->editor_realm_manager->add_child_entity(std::move(new_child));
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::AddChild);
             }
             ImGui::Separator();
 
@@ -384,61 +415,38 @@ namespace Salix {
             }
 
             if (ImGui::MenuItem("Duplicate##DuplicateEntity", "Ctrl+D")) {
-                context->add_deferred_command([this, source_id = archetype.id]() {
-                    context->editor_realm_manager->duplicate_entity(source_id);
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::Duplicate);
             }
 
             if (ImGui::MenuItem("Duplicate As Sibling##DuplicateEntityAsSibling", "Ctrl+Alt+D")) {
-                context->add_deferred_command([this, source_id = archetype.id]() {
-                    context->editor_realm_manager->duplicate_entity_as_sibling(source_id);
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::DuplicateSibling);
             }
 
 
              if (ImGui::MenuItem("Duplicate With Children##DuplicateEntityWithChildren", "Ctrl+Shift+D")) {
-                context->add_deferred_command([this, source_id = archetype.id]() {
-                    context->editor_realm_manager->duplicate_entity_with_children(source_id);
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::DuplicateFamily);
             }
 
             if (ImGui::MenuItem("Duplicate Family As Sibling##DuplicateFamilyAsSibling", "Ctrl+Alt+Shift+D")) {
-                context->add_deferred_command([this, source_id = archetype.id]() {
-                    context->editor_realm_manager->duplicate_family_as_sibling(source_id);
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::DuplicateFamilySibling);
             }
             
 
             if (ImGui::MenuItem("Purge##PurgeEntity", "Del")) {
-                context->add_deferred_command([this, archetype_id = archetype.id]() {
-                    context->editor_realm_manager->purge_entity(archetype_id);
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::Purge);
             }
 
             if (ImGui::MenuItem("Purge Entity Descendants##PurgeEntityDescendants", "Ctrl+Shift+Del")) {
-                context->add_deferred_command([this, archetype_id = archetype.id]() {
-                    // Just send the command. The manager handles all the complex work.
-                    context->editor_realm_manager->purge_entity_descendants(archetype_id);
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::PurgeDescendants);
             }
              
             if (ImGui::MenuItem("Purge Entity And Family##PurgeEntityAndFamily", "Shift+Del")) {
-                context->add_deferred_command([this, archetype_id = archetype.id]() {
-                    context->editor_realm_manager->purge_entity_and_family(archetype_id);
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::PurgeFamily);
             }
 
             
             if (ImGui::MenuItem("Purge Entity Bloodline##PurgeEntityBloodline", "Alt+Shift+Del")) {
-                context->add_deferred_command([this, archetype_id = archetype.id]() {
-                    // Just send the command. The manager handles all the complex work.
-                    context->editor_realm_manager->purge_entity_bloodline(archetype_id);
-
-                    // If the selected entity was part of the purged family, clear the selection.
-                    if (context->selected_entity_id == archetype_id) {
-                        context->selected_entity_id = SimpleGuid::invalid();
-                    }
-                });
+                queue_entity_action(archetype.id, TreeEntityAction::PurgeBloodline);
             }
             ImGui::EndPopup();
         }

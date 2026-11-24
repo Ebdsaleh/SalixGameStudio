@@ -305,3 +305,56 @@ TEST_SUITE("EditorCRI013_ScryingMirrorPanel") {
         ScryingMirrorPanel p;CHECK_NOTHROW(p.queue_visibility_for_testing(id(11),false));
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct ResizeQueueFixture {
+    MediaFixture m;
+    ResizeQueueFixture(){auto* owner=m.f.c.ctx.editor_realm_manager->get_archetype(id(11));REQUIRE(owner);auto c=element("BoxCollider",22,"{size: {x: 1,y: 1,z: 2}}");c.owner_id=id(11);owner->elements.push_back(c);}
+    void queue(){m.f.panel.queue_collider_resize_for_testing(id(11),id(22),id(21));}
+    auto* owner(){return m.f.c.ctx.editor_realm_manager->get_archetype(id(11));}
+    void drain(){m.drain();}
+};
+}
+TEST_SUITE("EditorCRI014_ScryingMirrorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI014 ScryingMirrorPanel: queued collider resize dispatches only after deferred execution") {
+        ResizeQueueFixture x;x.queue();REQUIRE(x.m.f.c.ctx.deferred_commands.size()==1);CHECK(x.m.listener.calls==0);x.drain();REQUIRE(x.m.listener.calls==1);CHECK(x.m.listener.component==id(22));auto v=std::get<Vector3>(x.m.listener.value);CHECK(v.x==doctest::Approx(.8));CHECK(v.y==doctest::Approx(.4));CHECK(v.z==2);
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: collider resize reacquires pointers after component vector grows") {
+        ResizeQueueFixture x;x.queue();for(uint64_t n=100;n<150;++n)x.owner()->elements.push_back(element("Transform",n));x.drain();REQUIRE(x.m.listener.calls==1);CHECK(x.m.listener.component==id(22));
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: collider resize reacquires owner after realm vector grows") {
+        ResizeQueueFixture x;x.queue();for(uint64_t n=100;n<150;++n)x.m.f.c.ctx.editor_realm_manager->add_entity(entity(n));x.drain();CHECK(x.m.listener.calls==1);CHECK(x.m.listener.owner==id(11));
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: removed target collider cancels queued resize") {
+        ResizeQueueFixture x;x.queue();x.m.f.c.ctx.editor_realm_manager->purge_element(id(11),id(22));x.drain();CHECK(x.m.listener.calls==0);
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: removed texture cancels queued resize") {
+        ResizeQueueFixture x;x.queue();x.m.f.c.ctx.editor_realm_manager->purge_element(id(11),id(21));x.drain();CHECK(x.m.listener.calls==0);
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: removed owner cancels queued resize") {
+        ResizeQueueFixture x;x.queue();x.m.f.c.ctx.editor_realm_manager->purge_entity(id(11));x.drain();CHECK(x.m.listener.calls==0);
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: changed selection cannot redirect resize") {
+        ResizeQueueFixture x;x.queue();x.m.f.select(99);x.drain();CHECK(x.m.listener.calls==1);CHECK(x.m.listener.owner==id(11));
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: queued resize uses current texture dimensions") {
+        ResizeQueueFixture x;x.queue();x.m.sprite()->data["width"]=200;x.m.sprite()->data["height"]=50;x.drain();REQUIRE(x.m.listener.calls==1);auto v=std::get<Vector3>(x.m.listener.value);CHECK(v.x==doctest::Approx(2));CHECK(v.y==doctest::Approx(.5));
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: non collider target rejects queued resize") {
+        ResizeQueueFixture x;x.queue();x.owner()->get_element_by_id(id(22))->type_name="Transform";x.drain();CHECK(x.m.listener.calls==0);
+    }
+
+    TEST_CASE("CRI014 ScryingMirrorPanel: uninitialized panel cannot queue resize") {
+        ScryingMirrorPanel p;CHECK_NOTHROW(p.queue_collider_resize_for_testing(id(11),id(22),id(21)));
+    }
+}

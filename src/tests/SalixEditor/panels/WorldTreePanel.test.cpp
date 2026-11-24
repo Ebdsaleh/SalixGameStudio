@@ -322,3 +322,59 @@ TEST_SUITE("EditorCRI013_WorldTreePanel") {
         TreeProbe p;CHECK_NOTHROW(p.rename_entity_for_testing(id(11),"Absent"));CHECK_NOTHROW(p.rename_element_for_testing(id(11),id(12),"Absent"));
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct TreeActionFixture {
+    TreeFixture f;
+    TreeActionFixture(){
+        f.c.ctx.editor_realm_manager->load_realm_from_file(f.file.write("Entities: [{name: Root, id: 11, elements: {Transform: {id: 21}}}, {name: Child, id: 12, parent_id: 11, elements: {Transform: {id: 22}}}, {name: Grandchild, id: 13, parent_id: 12, elements: {Transform: {id: 23}}}, {name: Other, id: 14, elements: {Transform: {id: 24}}}]"));
+        SimpleGuid::update_next_id(200000);
+    }
+    EditorRealmManager& manager(){return *f.c.ctx.editor_realm_manager;}
+    void act(uint64_t n,TreeEntityAction a){auto count=manager().get_realm_size();f.panel.queue_entity_action_for_testing(id(n),a);REQUIRE(f.c.ctx.deferred_commands.size()==1);CHECK(manager().get_realm_size()==count);run_tree_commands(f);}
+    EntityArchetype* get(uint64_t n){return manager().get_archetype(id(n));}
+};
+}
+TEST_SUITE("EditorCRI014_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI014 WorldTreePanel: add child command creates a child of original owner") {
+        TreeActionFixture x;x.act(11,TreeEntityAction::AddChild);REQUIRE(x.manager().get_realm_size()==5);CHECK(x.manager().get_realm().back().parent_id==id(11));CHECK(x.get(11)->child_ids.size()==2);
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: release command detaches only requested child") {
+        TreeActionFixture x;x.act(12,TreeEntityAction::Release);CHECK_FALSE(x.get(12)->parent_id.is_valid());CHECK(x.get(13)->parent_id==id(12));
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: duplicate command creates independent root") {
+        TreeActionFixture x;x.act(11,TreeEntityAction::Duplicate);REQUIRE(x.manager().get_realm_size()==5);CHECK(x.manager().get_realm().back().id!=id(11));CHECK_FALSE(x.manager().get_realm().back().parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: duplicate sibling preserves source parent") {
+        TreeActionFixture x;x.act(12,TreeEntityAction::DuplicateSibling);REQUIRE(x.manager().get_realm_size()==5);CHECK(x.manager().get_realm().back().parent_id==id(11));
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: duplicate family copies the descendant chain") {
+        TreeActionFixture x;x.act(11,TreeEntityAction::DuplicateFamily);CHECK(x.manager().get_realm_size()==7);CHECK(x.get(13)->parent_id==id(12));
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: duplicate family as sibling retains original parent") {
+        TreeActionFixture x;x.act(12,TreeEntityAction::DuplicateFamilySibling);CHECK(x.manager().get_realm_size()==6);CHECK(x.get(11)->child_ids.size()==2);
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: purge single entity retains and releases its child") {
+        TreeActionFixture x;x.act(12,TreeEntityAction::Purge);CHECK(x.get(12)==nullptr);REQUIRE(x.get(13));CHECK_FALSE(x.get(13)->parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: purge descendants retains requested owner") {
+        TreeActionFixture x;x.act(11,TreeEntityAction::PurgeDescendants);REQUIRE(x.get(11));CHECK(x.get(11)->child_ids.empty());CHECK(x.get(12)==nullptr);CHECK(x.get(13)==nullptr);CHECK(x.get(14)!=nullptr);
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: purge family clears selected descendant and preserves other roots") {
+        TreeActionFixture x;x.f.c.ctx.selected_entity_id=id(13);x.f.c.ctx.selected_element_id=id(23);x.act(12,TreeEntityAction::PurgeFamily);CHECK(x.get(12)==nullptr);CHECK(x.get(13)==nullptr);CHECK(x.get(11)!=nullptr);CHECK_FALSE(x.f.c.ctx.selected_entity_id.is_valid());CHECK_FALSE(x.f.c.ctx.selected_element_id.is_valid());
+    }
+
+    TEST_CASE("CRI014 WorldTreePanel: purge bloodline removes selected family but not independent root") {
+        TreeActionFixture x;x.f.c.ctx.selected_entity_id=id(11);x.act(13,TreeEntityAction::PurgeBloodline);CHECK(x.manager().get_realm_size()==1);CHECK(x.get(14)!=nullptr);CHECK_FALSE(x.f.c.ctx.selected_entity_id.is_valid());
+    }
+}

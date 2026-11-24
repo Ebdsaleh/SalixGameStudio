@@ -26,6 +26,7 @@ namespace Salix {
 #ifdef SALIX_TESTS_ENABLED
         SimpleGuid get_selected_entity_id_for_testing() const;
         void queue_visibility_for_testing(SimpleGuid owner, bool visible);
+        void queue_collider_resize_for_testing(SimpleGuid owner, SimpleGuid collider, SimpleGuid source);
         SimpleGuid get_selected_element_id_for_testing() const;
         void select_media_for_testing(PropertyHandle& handle, ElementArchetype* element, const TypeInfo* type);
         void resize_collider_for_testing(ElementArchetype* collider, const ElementArchetype* source);
