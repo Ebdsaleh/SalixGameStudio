@@ -102,7 +102,7 @@ namespace Salix {
             // We need a temporary buffer.
             char text_buffer[256];
             // This is the correct way to copy the string into the buffer.
-            strcpy_s(text_buffer, sizeof(text_buffer), value.c_str());
+            strncpy_s(text_buffer, sizeof(text_buffer), value.c_str(), _TRUNCATE);
 
             // The InputText function takes a char* buffer and its size.
             if (ImGui::InputText(prop.name.c_str(), text_buffer, sizeof(text_buffer))) {
@@ -311,17 +311,23 @@ namespace Salix {
 
             case PropertyType::Enum: {
                 int current_value_int = std::get<int>(handle.get_value());
-                auto enum_data = EnumRegistry::get_enum_data_as_ptr(handle.get_contained_type_info()->type_index.value());
+                const TypeInfo* enum_type = handle.get_contained_type_info();
+                if (!enum_type || !enum_type->type_index.has_value()) {
+                    ImGui::Text("%s: (Missing enum metadata)", label);
+                    break;
+                }
+                auto enum_data = EnumRegistry::get_enum_data_as_ptr(*enum_type->type_index);
 
                 if (enum_data) {
                     // Get the string name for the currently selected integer value.
-                    const char* current_item_name = enum_data->get_name(current_value_int).c_str();
+                    const std::string current_item_name_str = enum_data->get_name(current_value_int);
+                    const char* current_item_name = current_item_name_str.c_str();
                     
                     // Start the combo box, displaying the current name.
                     if (ImGui::BeginCombo(label, current_item_name)) {
                         // Loop through all possible enum names from the registry.
                         for (const auto& name : enum_data->get_names()) {
-                            bool is_selected = (current_item_name == name);
+                            bool is_selected = (current_item_name_str == name);
                             
                             // Draw a selectable item for this name.
                             if (ImGui::Selectable(name.c_str(), is_selected)) {
@@ -342,7 +348,12 @@ namespace Salix {
             }
             case PropertyType::EnumClass: {
     int current_value_int = std::get<int>(handle.get_value());
-    auto enum_data = EnumRegistry::get_enum_data_as_ptr(handle.get_contained_type_info()->type_index.value());
+    const TypeInfo* enum_type = handle.get_contained_type_info();
+                if (!enum_type || !enum_type->type_index.has_value()) {
+                    ImGui::Text("%s: (Missing enum metadata)", label);
+                    break;
+                }
+                auto enum_data = EnumRegistry::get_enum_data_as_ptr(*enum_type->type_index);
 
     if (enum_data) {
         

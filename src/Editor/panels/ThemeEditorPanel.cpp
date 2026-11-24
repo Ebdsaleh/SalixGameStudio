@@ -54,13 +54,14 @@ namespace Salix {
             return;
         }
         pimpl->context = context;
+        if (!context->gui) return;
         pimpl->icon_manager = dynamic_cast<ImGuiIconManager*>(pimpl->context->gui->get_icon_manager());
         if (!pimpl->icon_manager) { return; }
         pimpl->create_dialog_boxes();
     }
     
     void ThemeEditorPanel::on_gui_update() {
-        if (!pimpl->is_visible) return;
+        if (!pimpl->is_visible || !pimpl->context || !pimpl->context->theme_manager) return;
 
         // Use RAII to handle disabled state safely
         struct DisabledGuard {
@@ -90,6 +91,11 @@ namespace Salix {
         
         
         
+        // A valid theme can outlive the GUI icon service.
+        if (!pimpl->icon_manager) {
+            ImGui::TextUnformatted("Theme icon service is unavailable.");
+            return;
+        }
         // Main panel rendering
         pimpl->render_layout();
     }
@@ -116,6 +122,7 @@ namespace Salix {
             DialogType::File,
             false);
 
+        if (!select_icon_image_dialog) return;
         select_icon_image_dialog->set_filters(std::string("Image File (*.png){.png},All files (*.*){.*}"));
 
         
@@ -174,6 +181,7 @@ namespace Salix {
             ImGuiThemeData* data = active_imgui_theme->get_data();
             if (!data) {
                 ImGui::Text("Active theme has no data.");
+                if (is_locked) ImGui::EndDisabled();
                 ImGui::End();
                 return;
             }

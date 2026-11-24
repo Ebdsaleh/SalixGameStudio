@@ -120,6 +120,12 @@ namespace Salix {
         if (!engine_context.theme_manager) { log_file << "[FATAL] engine_context.theme_manager is NULL!" << std::endl; return; }
         if (!engine_context.font_manager) { log_file << "[FATAL] engine_context.font_manager is NULL!" << std::endl; return; }
         
+        if (!engine_context.window) { log_file << "[FATAL] engine_context.window is NULL!" << std::endl; return; }
+        if (!engine_context.app_config) { log_file << "[FATAL] engine_context.app_config is NULL!" << std::endl; return; }
+        if (!dynamic_cast<OpenGLRenderer*>(engine_context.renderer)) {
+            log_file << "[FATAL] Editor requires an OpenGL renderer." << std::endl;
+            return;
+        }
         log_file << "[DEBUG] All pointers in engine_context are valid." << std::endl;
 
         // 1. Create the editor's systems
@@ -405,6 +411,7 @@ namespace Salix {
     // --- TEST CODE ---
 
     void EditorState::update(float delta_time) {
+        if (!pimpl->editor_context) return;
         // ====================================================================
         // 1. BEGINNING-OF-FRAME SETUP
         // ====================================================================
@@ -492,6 +499,7 @@ namespace Salix {
 
 
     void EditorState::render(IRenderer* renderer_param) {
+        if (!pimpl->editor_context) return;
         if (renderer_param) {
             // 1. CRITICAL: Clear BOTH the color and depth buffers for the new frame.
             renderer_param->clear(); 
@@ -524,6 +532,7 @@ namespace Salix {
 
 
     void EditorState::on_event(IEvent& event) {
+        if (!pimpl->editor_context) return;
 
         // Check if the event is the one we care about
         if (event.get_event_type() == EventType::BeforeEntityPurged) {

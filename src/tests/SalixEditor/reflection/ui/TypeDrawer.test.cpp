@@ -55,3 +55,58 @@ TEST_SUITE("EditorCRI002_TypeDrawer") {
         GuiFrame g;auto n=YAML::Load("{Value: 3}");auto before=YAML::Dump(n);CHECK(g.draw([&]{TypeDrawer::draw_yaml_property(prop(PropertyType::Rect),n);})>0);CHECK(YAML::Dump(n)==before);TypeDrawer::register_all_type_drawers();CHECK(static_cast<bool>(TypeDrawer::get_drawer(PropertyType::Int)));CHECK(static_cast<bool>(TypeDrawer::get_drawer(PropertyType::Vector3)));CHECK(static_cast<bool>(TypeDrawer::get_drawer(PropertyType::Class)));
     }
 }
+
+#include <Salix/reflection/EnumRegistry.h>
+#include <Salix/ecs/Camera.h>
+namespace {
+template<class T> void draw_registered(PropertyType type, T value) {
+    GuiFrame g; TypeDrawer::register_all_type_drawers();
+    const T original=value; int reads=0,writes=0;
+    auto p=prop(type); p.get_data=[&](void*)->void*{++reads;return &value;};
+    p.set_data=[&](void*,void* v){++writes;value=*static_cast<T*>(v);};
+    CHECK(g.draw([&]{TypeDrawer::get_drawer(type)(p,nullptr);})>0);
+    CHECK(reads==1); CHECK(writes==0); CHECK(value==original);
+}
+}
+TEST_SUITE("EditorCRI006_TypeDrawer") {
+    using namespace EditorCri;
+    TEST_CASE("CRI006 TypeDrawer: registered scalar drawers read without editing") {
+        draw_registered(PropertyType::Int,9); draw_registered(PropertyType::Float,3.25f); draw_registered(PropertyType::Bool,true);
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: registered vector drawers preserve live coordinates") {
+        draw_registered(PropertyType::Vector2,Vector2(3,4)); draw_registered(PropertyType::Vector3,Vector3(1,2,3));
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: registered color drawer preserves live channels") {
+        draw_registered(PropertyType::Color,Color(.1f,.2f,.3f,.4f));
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: registered string drawer safely displays long live value") {
+        draw_registered(PropertyType::String,std::string(600,'x'));
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: registered matrix drawer reads four columns") {
+        draw_registered(PropertyType::GlmMat4,glm::mat4(2.0f));
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: plain enum drawer keeps registered projection selection") {
+        EnumRegistry::register_all_enums(); TypeInfo info{}; info.type_index=typeid(ProjectionMode); auto p=prop(PropertyType::Enum); p.contained_type_info=&info; idle_draw(p,static_cast<int>(ProjectionMode::Orthographic));
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: enum class drawer keeps registered selection") {
+        EnumRegistry::register_all_enums(); TypeInfo info{}; info.type_index=typeid(ProjectionMode); auto p=prop(PropertyType::EnumClass); p.contained_type_info=&info; idle_draw(p,static_cast<int>(ProjectionMode::Perspective));
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: missing enum metadata does not dereference null") {
+        idle_draw(prop(PropertyType::Enum),0); idle_draw(prop(PropertyType::EnumClass),0);
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: enum type without type index remains read-only fallback") {
+        TypeInfo info{}; auto p=prop(PropertyType::EnumClass); p.contained_type_info=&info; idle_draw(p,1);
+    }
+
+    TEST_CASE("CRI006 TypeDrawer: all file hints preserve paths without opening a dialog") {
+        for(auto hint:{UIHint::ImageFile,UIHint::AudioFile,UIHint::TextFile,UIHint::SourceFile,UIHint::FilePath}){auto p=prop(PropertyType::String);p.hint=hint;idle_draw(p,std::string("Assets/fixture.txt"));}
+    }
+}
