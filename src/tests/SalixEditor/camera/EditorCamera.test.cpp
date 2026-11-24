@@ -120,3 +120,53 @@ TEST_SUITE("EditorCRI003_EditorCamera") {
 }
 } // namespace coverage_batch_003
 } // namespace
+
+
+namespace {
+namespace cri007_camera {
+using namespace EditorCri;
+using coverage_batch_003::CameraFixture;
+
+TEST_SUITE("EditorCRI007_EditorCamera") {
+    TEST_CASE("CRI007 EditorCamera: left strafe moves opposite right axis") {
+        CameraFixture f; f.input.right=true; f.input.a=true; auto axis=f.cam.get_transform()->get_right(); f.step(); CHECK(glm::dot(f.pos(),axis)<0);
+    }
+
+    TEST_CASE("CRI007 EditorCamera: space moves along local up axis") {
+        CameraFixture f; f.input.right=true; f.input.space=true; auto axis=f.cam.get_transform()->get_up(); f.step(); CHECK(glm::dot(f.pos(),axis)>0);
+    }
+
+    TEST_CASE("CRI007 EditorCamera: C moves along negative local up axis") {
+        CameraFixture f; f.input.right=true; f.input.c=true; auto axis=f.cam.get_transform()->get_up(); f.step(); CHECK(glm::dot(f.pos(),axis)<0);
+    }
+
+    TEST_CASE("CRI007 EditorCamera: orthographic zoom clamps to minimum height") {
+        CameraFixture f; f.cam.set_projection_mode(ProjectionMode::Orthographic); f.cam.set_orthographic_size(.1f); f.input.forward=true; f.step(); CHECK(f.cam.get_projection_matrix()[1][1]==doctest::Approx(20));
+    }
+
+    TEST_CASE("CRI007 EditorCamera: shift accelerates panning rather than camera rotation") {
+        CameraFixture f; f.input.middle=true; f.input.shift=true; f.step(100,100); f.step(120,100); CHECK(glm::length(f.pos())==doctest::Approx(3));
+    }
+
+    TEST_CASE("CRI007 EditorCamera: shift perspective scroll accelerates translation") {
+        CameraFixture f; f.input.shift=true; f.input.forward=true; f.step(); CHECK(glm::length(f.pos())==doctest::Approx(1));
+    }
+
+    TEST_CASE("CRI007 EditorCamera: releasing rotation resets mouse origin") {
+        CameraFixture f; f.cam.set_2D_mode(false); f.input.right=true; f.step(100,100); f.step(120,110); auto rot=f.cam.get_transform()->get_rotation(); f.input.right=false; f.step(200,200); f.input.right=true; f.step(400,400); CHECK(f.cam.get_transform()->get_rotation()==rot);
+    }
+
+    TEST_CASE("CRI007 EditorCamera: initialization without context leaves camera usable") {
+        EditorCamera c; c.initialize(nullptr); c.on_update(.1f); CHECK(c.get_transform()!=nullptr); CHECK(c.get_is_active());
+    }
+
+    TEST_CASE("CRI007 EditorCamera: missing InitContext does not access input") {
+        EditorContext ctx; EditorCamera c; c.initialize(&ctx); c.set_mouse_inside_scene(true); c.on_update(.1f); CHECK(c.get_transform()!=nullptr);
+    }
+
+    TEST_CASE("CRI007 EditorCamera: disabled bounds preserve outlying position") {
+        CameraFixture f; f.ctx.realm_settings.use_realm_bounds=false; f.cam.get_transform()->set_position(4000,3,-4000); f.cam.check_scene_bounds(); CHECK_FALSE(f.cam.get_should_draw_boundary_warning()); CHECK(f.pos().x==4000); CHECK(f.pos().z==-4000);
+    }
+}
+}
+}

@@ -75,6 +75,8 @@ namespace EditorCri {
     struct RenderProbe : SDLRenderer {
         uint32_t result=73, last_id=0;
         int creates=0, deletes=0, begins=0, ends=0, clears=0, width=0,height=0;
+        int lines=0;
+        void draw_line(const glm::vec3&,const glm::vec3&,const Color&) override { ++lines; }
         ICamera* camera=nullptr;
         uint32_t create_framebuffer(int w,int h) override { ++creates;width=w;height=h;return result; }
         void delete_framebuffer(uint32_t) override { ++deletes; }

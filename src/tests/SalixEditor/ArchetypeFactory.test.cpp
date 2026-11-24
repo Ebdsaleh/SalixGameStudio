@@ -107,3 +107,58 @@ TEST_SUITE("EditorCRI003_ArchetypeFactory") {
 }
 } // namespace coverage_batch_003
 } // namespace
+
+#include <Salix/ecs/Element.h>
+namespace {
+namespace cri007_factory {
+using namespace EditorCri;
+struct UnreflectedProbe : Element {
+    std::shared_ptr<int> destroyed;
+    explicit UnreflectedProbe(std::shared_ptr<int> count):destroyed(std::move(count)){}
+    ~UnreflectedProbe() override {++*destroyed;}
+    const char* get_class_name()const override{return "CRI007Unreflected";}
+};
+
+TEST_SUITE("EditorCRI007_ArchetypeFactory") {
+    TEST_CASE("CRI007 ArchetypeFactory: constructor without reflection is destroyed and yields invalid archetype") {
+        register_types(); auto destroyed=std::make_shared<int>(0); ByteMirror::register_constructor("CRI007Unreflected",[destroyed]()->Element*{return new UnreflectedProbe(destroyed);}); auto a=ArchetypeFactory::create_element_archetype("CRI007Unreflected"); CHECK_FALSE(a.id.is_valid()); CHECK(*destroyed==1);
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: constructor returning null produces no authored component") {
+        ByteMirror::register_constructor("CRI007Null",[]()->Element*{return nullptr;}); auto a=ArchetypeFactory::create_element_archetype("CRI007Null"); CHECK_FALSE(a.id.is_valid()); CHECK(a.type_name.empty());
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: duplication without preview realm retains authored transform") {
+        FamilyFixture f; f.services.ctx.preview_realm.reset(); auto a=entity(); a.elements.push_back(element("Transform",201,"{position: {x: 1, y: 2, z: 3}}")); auto b=ArchetypeFactory::duplicate_entity_archetype(a,&f.manager,&f.services.ctx); REQUIRE(b.elements.size()==1); CHECK(b.elements[0].data["position"]["z"].as<int>()==3);
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: hidden entity duplicate retains authored visibility") {
+        FamilyFixture f; auto a=entity(); a.is_visible=false; auto b=ArchetypeFactory::duplicate_entity_archetype(a,&f.manager,&f.services.ctx); CHECK_FALSE(b.is_visible); CHECK(b.id!=a.id);
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: standalone component copy belongs to supplied parent") {
+        auto a=entity(11); auto e=element("Sprite2D",21); auto b=ArchetypeFactory::duplicate_element_archetype(e,a); CHECK(b.owner_id==a.id); CHECK(b.id!=e.id);
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: standalone component copy retains visibility") {
+        auto a=entity(); auto e=element(); e.is_visible=false; auto b=ArchetypeFactory::duplicate_element_archetype(e,a); CHECK_FALSE(b.is_visible);
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: standalone copy preserves source display order") {
+        auto a=entity(); auto e=element(); e.display_order=7; auto b=ArchetypeFactory::duplicate_element_archetype(e,a); CHECK(b.display_order==7);
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: duplicate family skips missing child references") {
+        FamilyFixture f; f.root(11,"Root"); f.get(11)->child_ids={id(99)}; auto copy=ArchetypeFactory::duplicate_entity_archetype_and_children(id(11),&f.services.ctx); REQUIRE(copy.size()==1); CHECK(copy[0].child_ids.empty());
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: duplicate family handles absent preview for all descendants") {
+        FamilyFixture f; f.family(); f.services.ctx.preview_realm.reset(); auto copy=ArchetypeFactory::duplicate_entity_archetype_and_children(id(11),&f.services.ctx); REQUIRE(copy.size()==3); CHECK(copy[1].parent_id==copy[0].id); CHECK(copy[2].parent_id==copy[1].id);
+    }
+
+    TEST_CASE("CRI007 ArchetypeFactory: recursive copy ignores repeated child reference") {
+        FamilyFixture f; f.root(11,"Root"); f.child(12,11,"Child"); f.get(11)->child_ids.push_back(id(12)); auto copy=ArchetypeFactory::duplicate_entity_archetype_and_children(id(11),&f.services.ctx); REQUIRE(copy.size()==2); REQUIRE(copy[0].child_ids.size()==1); CHECK(copy[0].child_ids[0]==copy[1].id);
+    }
+}
+}
+}

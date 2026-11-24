@@ -17,6 +17,7 @@ namespace Salix {
         
         // 1. Create the live entity. Its constructor adds the default Transform and BoxCollider.
         Salix::Entity* live_entity = realm->create_entity(archetype.id, archetype.name);
+        live_entity->set_visible(archetype.is_visible);
         // Debug prints
         std::cout << "[DEBUG] --- Instantiating Archetype: " << archetype.name << " (Archetype ID: " << archetype.id.get_value() << ") ---" << std::endl;
         std::cout << "[DEBUG] >>> Live Entity created with ID: " << live_entity->get_id().get_value() << std::endl;
@@ -32,11 +33,6 @@ namespace Salix {
         for (const auto& element_archetype : archetype.elements) {
             Element* live_element = nullptr;
 
-            // DEBUG PRINTS
-            if (live_element) {
-                std::cout << "[DEBUG]  - Archetype Element '" << element_archetype.name << "' (Archetype ID: " << element_archetype.id.get_value() << ")" << std::endl;
-                std::cout << "[DEBUG]    >>> Live Element '" << live_element->get_class_name() << "' created with ID: " << live_element->get_id().get_value() << std::endl;
-            }
             // --- CORRECTED LOGIC ---
             // Check if this archetype is for a default element that we haven't processed yet.
             if (element_archetype.type_name == "Transform" && !has_applied_default_transform) {
@@ -61,6 +57,12 @@ namespace Salix {
             }
 
             if (!live_element) continue; // Skip if element couldn't be found or created.
+            live_element->set_visibility(element_archetype.is_visible);
+            // DEBUG PRINTS
+            if (live_element) {
+                std::cout << "[DEBUG]  - Archetype Element '" << element_archetype.name << "' (Archetype ID: " << element_archetype.id.get_value() << ")" << std::endl;
+                std::cout << "[DEBUG]    >>> Live Element '" << live_element->get_class_name() << "' created with ID: " << live_element->get_id().get_value() << std::endl;
+            }
 
             // 3. Use reflection to set the properties on the live_element.
             const Salix::TypeInfo* type_info = Salix::ByteMirror::get_type_info_by_name(element_archetype.type_name);

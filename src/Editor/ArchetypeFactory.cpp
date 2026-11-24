@@ -105,6 +105,7 @@ namespace Salix {
         new_archetype.name = source.name;
         new_archetype.id = SimpleGuid::generate();
         new_archetype.state = ArchetypeState::New;
+        new_archetype.is_visible = source.is_visible;
 
         // 2. Deep copy all elements, giving each a new ID.
         for (const auto& source_element : source.elements) {
@@ -121,7 +122,8 @@ namespace Salix {
         }
 
         // 3. --- World Transform Preservation using Live Entity ---
-        Entity* source_live_entity = context->preview_realm->get_entity_by_id(source.id);
+        Entity* source_live_entity = context && context->preview_realm
+            ? context->preview_realm->get_entity_by_id(source.id) : nullptr;
         if (source_live_entity && source_live_entity->get_transform()) {
             Transform* source_transform = source_live_entity->get_transform();
             Vector3 world_pos = source_transform->get_world_position();
@@ -166,6 +168,7 @@ namespace Salix {
         std::map<SimpleGuid, SimpleGuid>& out_id_map) {
         // --- Method Start ---
         // 1. Use the manager for a fast, direct lookup of the original archetype.
+        if (out_id_map.count(source_id)) return;
         const EntityArchetype* source_archetype = realm_manager->get_archetype(source_id);
         if (!source_archetype) {
             return; // Safety check in case an ID is invalid.
@@ -237,7 +240,9 @@ namespace Salix {
             new_archetype.child_ids.clear();
             for (const auto& old_child_id : original_archetype->child_ids) {
                 if (id_map.count(old_child_id)) {
-                    new_archetype.child_ids.push_back(id_map.at(old_child_id));
+                    const auto new_child_id = id_map.at(old_child_id);
+                    if (std::find(new_archetype.child_ids.begin(), new_archetype.child_ids.end(), new_child_id) == new_archetype.child_ids.end())
+                        new_archetype.child_ids.push_back(new_child_id);
                 }
             }
         }
@@ -298,7 +303,9 @@ namespace Salix {
             new_archetype.child_ids.clear();
             for (const auto& old_child_id : original_archetype->child_ids) {
                 if (id_map.count(old_child_id)) {
-                    new_archetype.child_ids.push_back(id_map.at(old_child_id));
+                    const auto new_child_id = id_map.at(old_child_id);
+                    if (std::find(new_archetype.child_ids.begin(), new_archetype.child_ids.end(), new_child_id) == new_archetype.child_ids.end())
+                        new_archetype.child_ids.push_back(new_child_id);
                 }
             }
         }
@@ -312,6 +319,9 @@ namespace Salix {
         new_element.id = SimpleGuid::generate();
         new_element.state = ArchetypeState::New;
         new_element.allows_duplication = source.allows_duplication;
+        new_element.owner_id = parent.id;
+        new_element.is_visible = source.is_visible;
+        new_element.display_order = source.display_order;
 
         // --- START: Robust Name Generation Logic ---
         std::string base_name = source.name;

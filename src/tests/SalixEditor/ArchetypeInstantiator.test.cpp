@@ -114,3 +114,52 @@ TEST_SUITE("EditorCRI003_ArchetypeInstantiator") {
 }
 } // namespace coverage_batch_003
 } // namespace
+
+#include <Editor/ArchetypeFactory.h>
+namespace {
+namespace cri007_instantiator {
+using namespace EditorCri;
+
+TEST_SUITE("EditorCRI007_ArchetypeInstantiator") {
+    TEST_CASE("CRI007 ArchetypeInstantiator: null realm accepts single and multiple authored requests safely") {
+        register_types(); InitContext c{}; auto a=entity(); a.elements.push_back(element()); CHECK_NOTHROW(ArchetypeInstantiator::instantiate(a,nullptr,c)); CHECK_NOTHROW(ArchetypeInstantiator::instantiate_realm({a},nullptr,c));
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: single entity visibility matches multi pass") {
+        register_types(); InitContext c{}; Realm one,many; auto a=entity(); a.is_visible=false; ArchetypeInstantiator::instantiate(a,&one,c); ArchetypeInstantiator::instantiate_realm({a},&many,c); REQUIRE(one.get_entity_by_id(a.id)); REQUIRE(many.get_entity_by_id(a.id)); CHECK_FALSE(one.get_entity_by_id(a.id)->is_visible()); CHECK(one.get_entity_by_id(a.id)->is_visible()==many.get_entity_by_id(a.id)->is_visible());
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: single element visibility applied independently of entity") {
+        register_types(); InitContext c{}; Realm r; auto a=entity(); a.elements.push_back(element("Transform",201,"{}")); a.elements[0].is_visible=false; ArchetypeInstantiator::instantiate(a,&r,c); auto* live=r.get_entity_by_id(a.id); REQUIRE(live); CHECK(live->is_visible()); CHECK_FALSE(live->get_transform()->is_visible());
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: single collider authored visibility retained") {
+        register_types(); InitContext c{}; Realm r; auto a=entity(); a.elements.push_back(element("BoxCollider",201,"{}")); a.elements[0].is_visible=false; ArchetypeInstantiator::instantiate(a,&r,c); auto* live=r.get_entity_by_id(a.id); REQUIRE(live); REQUIRE(live->get_element_by_id(id(201))); CHECK_FALSE(live->get_element_by_id(id(201))->is_visible());
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: single sprite authored visibility retained") {
+        register_types(); InitContext c{}; Realm r; auto a=entity(); a.elements.push_back(element("Sprite2D",201,"{}")); a.elements[0].is_visible=false; ArchetypeInstantiator::instantiate(a,&r,c); auto* live=r.get_entity_by_id(a.id); REQUIRE(live); REQUIRE(live->get_element_by_id(id(201))); CHECK_FALSE(live->get_element_by_id(id(201))->is_visible());
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: debug logs report actual created element ID") {
+        register_types(); InitContext c{}; Realm r; auto a=entity(); a.elements.push_back(element("Transform",201,"{}")); CoutCapture out; ArchetypeInstantiator::instantiate(a,&r,c); CHECK(out.str().find("Live Element 'Transform' created with ID: 201")!=std::string::npos);
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: single factory archetype round trips default collider and transform IDs") {
+        register_types(); EnumRegistry::register_all_enums(); InitContext c{}; Realm r; auto a=ArchetypeFactory::create_entity_archetype("Roundtrip"); ArchetypeInstantiator::instantiate(a,&r,c); auto* live=r.get_entity_by_id(a.id); REQUIRE(live); REQUIRE(a.elements.size()==2); CHECK(live->get_element_by_id(a.elements[0].id)==live->get_transform()); CHECK(live->get_element_by_id(a.elements[1].id)!=nullptr);
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: multi pass applies authored sprite pivot and tint") {
+        register_types(); InitContext c{}; Realm r; auto a=entity(); a.elements.push_back(element("Sprite2D",201,"{pivot: {x: 0.2, y: 0.8}, color: {r: 0.1, g: 0.2, b: 0.3, a: 0.4}}")); ArchetypeInstantiator::instantiate_realm({a},&r,c); auto* live=r.get_entity_by_id(a.id); REQUIRE(live); auto* s=live->get_element<Sprite2D>(); REQUIRE(s); CHECK(s->pivot.x==doctest::Approx(.2)); CHECK(s->color.a==doctest::Approx(.4));
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: multi pass skips unknown components but applies later known element") {
+        register_types(); InitContext c{}; Realm r; auto a=entity(); a.elements={element("CRI007Unknown",201,"{}"),element("Transform",202,"{position: {x: 2, y: 3, z: 4}}")}; ArchetypeInstantiator::instantiate_realm({a},&r,c); auto* live=r.get_entity_by_id(a.id); REQUIRE(live); CHECK(live->get_element_by_id(id(201))==nullptr); CHECK(live->get_transform()->get_position().z==4);
+    }
+
+    TEST_CASE("CRI007 ArchetypeInstantiator: single path preserves entity ID after reflected component ID") {
+        register_types(); InitContext c{}; Realm r; auto a=entity(11); a.elements.push_back(element("Transform",201,"{name: Authored}")); ArchetypeInstantiator::instantiate(a,&r,c); auto* live=r.get_entity_by_id(id(11)); REQUIRE(live); CHECK(live->get_transform()->get_id()==id(201)); CHECK(live->get_transform()->get_name()=="Authored");
+    }
+}
+}
+}

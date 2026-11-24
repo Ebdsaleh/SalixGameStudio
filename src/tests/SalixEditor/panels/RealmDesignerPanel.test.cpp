@@ -125,3 +125,56 @@ TEST_SUITE("EditorCRI006_RealmDesignerPanel") {
         DesignerFixture f; f.add(11); WindowResizeEvent e(20,30); f.panel.on_event(e); f.panel.on_gui_render(); CHECK(f.panel.get_framebuffer_id()==73); CHECK(f.live(11)!=nullptr); CHECK(f.c.renderer.begins==0);
     }
 }
+
+#include <Editor/camera/EditorCamera.h>
+#include <Salix/ecs/Sprite2D.h>
+namespace {
+using namespace EditorCri;
+struct DesignerViewportFixture {
+    GuiFrame gui; DesignerFixture f; EditorCamera camera;
+    DesignerViewportFixture() { camera.initialize(&f.c.ctx); f.c.ctx.editor_camera=&camera; f.c.ctx.grid_settings.size=2; f.c.ctx.grid_settings.major_division=1; f.c.ctx.grid_settings.minor_division=.5f; }
+    void frame(int width=600,int height=400) { gui.frame([&]{ImGui::SetNextWindowPos(ImVec2(20,20),ImGuiCond_Always); ImGui::SetNextWindowSize(ImVec2((float)width,(float)height),ImGuiCond_Always); f.panel.on_gui_update();}); }
+};
+
+TEST_SUITE("EditorCRI007_RealmDesignerPanel") {
+    TEST_CASE("CRI007 RealmDesignerPanel: viewport resize recreates framebuffer with positive dimensions") {
+        DesignerViewportFixture v; v.frame(); CHECK(v.f.c.renderer.deletes>=1); CHECK(v.f.c.renderer.creates>=2); CHECK(v.f.panel.get_viewport_size().x>0); CHECK(v.f.panel.get_viewport_size().x<1280);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: second viewport size changes camera projection") {
+        DesignerViewportFixture v; v.frame(600,400); auto before=v.camera.get_projection_matrix()[0][0]; v.frame(800,300); CHECK(v.camera.get_projection_matrix()[0][0]!=before);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: YAML viewport drains sync commands in insertion order") {
+        DesignerViewportFixture v; std::vector<int> calls; v.f.c.ctx.sync_queue.push_back([&]{calls.push_back(1);}); v.f.c.ctx.sync_queue.push_back([&]{calls.push_back(2);}); v.frame(); REQUIRE(calls.size()==2); CHECK(calls[0]==1); CHECK(calls[1]==2); CHECK(v.f.c.ctx.sync_queue.empty()); v.frame(); CHECK(calls.size()==2);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: live viewport does not drain YAML sync commands") {
+        DesignerViewportFixture v; v.f.c.ctx.data_mode=EditorDataMode::Live; int calls=0; v.f.c.ctx.sync_queue.push_back([&]{++calls;}); v.frame(); CHECK(calls==0); CHECK(v.f.c.ctx.sync_queue.size()==1);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: hidden viewport does not resize or drain commands") {
+        DesignerViewportFixture v; v.f.panel.set_visibility(false); int calls=0; v.f.c.ctx.sync_queue.push_back([&]{++calls;}); v.frame(); CHECK(calls==0); CHECK(v.f.c.renderer.creates==1);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: missing renderer during update leaves viewport unchanged") {
+        DesignerViewportFixture v; v.f.c.init.renderer=nullptr; v.frame(); CHECK(v.f.c.renderer.creates==1); CHECK(v.f.panel.get_viewport_size().x==1280); CHECK(v.gui.current->StyleVarStack.Size==0);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: headless empty preview renders balanced pass") {
+        DesignerViewportFixture v; v.f.c.ctx.grid_settings.snap_enabled=false; v.f.panel.on_render(); CHECK(v.f.c.renderer.begins==1); CHECK(v.f.c.renderer.ends==1); CHECK(v.f.c.renderer.clears==1); CHECK(v.f.c.renderer.camera==&v.camera);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: grid disabled draws only picking ray") {
+        DesignerViewportFixture v; v.f.c.ctx.grid_settings.snap_enabled=false; v.f.panel.on_render(); CHECK(v.f.c.renderer.lines==1); CHECK(v.f.c.renderer.ends==1);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: grid enabled draws major and minor lines") {
+        DesignerViewportFixture v; v.f.c.ctx.grid_settings.snap_enabled=true; v.f.panel.on_render(); CHECK(v.f.c.renderer.lines>11); CHECK(v.f.c.renderer.begins==v.f.c.renderer.ends);
+    }
+
+    TEST_CASE("CRI007 RealmDesignerPanel: grid without minor divisions draws fewer lines") {
+        DesignerViewportFixture v; v.f.c.ctx.grid_settings.snap_enabled=true; v.f.c.ctx.grid_settings.minor_division=1; v.f.panel.on_render(); const auto major=v.f.c.renderer.lines; CHECK(major==11); v.f.c.renderer.lines=0; v.f.c.ctx.grid_settings.minor_division=.5f; v.f.panel.on_render(); CHECK(v.f.c.renderer.lines>major);
+    }
+}
+}

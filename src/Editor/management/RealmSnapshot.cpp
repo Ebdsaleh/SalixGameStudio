@@ -80,13 +80,10 @@ namespace Salix {
 
 
     RealmSnapshot RealmSnapshot::load_from_file(const std::string& file_path) {
-        RealmSnapshot snapshot; // Create a new object
-        snapshot.pimpl->source_file_path = file_path;
         auto archetypes = load_archetypes_from_file(file_path);
-        for (auto& archetype : archetypes) {
-            snapshot.pimpl->entity_archetype_map[archetype.id] = std::move(archetype);
-        }
-        return snapshot; // Return the new object by move
+        auto snapshot = load_from_entity_archetype_vector(archetypes);
+        snapshot.set_source_file_path(file_path);
+        return snapshot;
     }
 
 

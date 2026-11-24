@@ -106,3 +106,52 @@ TEST_SUITE("EditorCRI003_RealmSnapshot") {
 }
 } // namespace coverage_batch_003
 } // namespace
+
+#include <Editor/management/RealmLoader.h>
+namespace {
+namespace cri007_snapshot {
+using namespace EditorCri;
+
+TEST_SUITE("EditorCRI007_RealmSnapshot") {
+    TEST_CASE("CRI007 RealmSnapshot: file snapshot indexes each element by authored ID") {
+        register_types(); TempRealm f; auto p=f.write("Entities: [{name: Root, id: 11, elements: {Transform: {id: 21, name: Local}}}]"); auto s=RealmSnapshot::load_from_file(p); REQUIRE(s.get_element_by_id(id(21))); CHECK(s.get_element_by_id(id(21))->owner_id==id(11)); CHECK(s.get_source_file_path()==p);
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: file snapshot fossilizes reflected values") {
+        register_types(); TempRealm f; auto s=RealmSnapshot::load_from_file(f.write("Entities: [{name: Root, id: 11, elements: {Transform: {id: 21, name: Local}}}]")); REQUIRE(s.get_fossilized_data_for_element(id(21))); CHECK_FALSE(s.has_element_property_changed(id(21),"name",std::string("Local"))); CHECK(s.has_element_property_changed(id(21),"name",std::string("Edited")));
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: file snapshot stores original component YAML") {
+        register_types(); TempRealm f; auto s=RealmSnapshot::load_from_file(f.write("Entities: [{name: Root, id: 11, elements: {Transform: {id: 21, name: Local}}}]")); auto* original=s.get_initial_element_data_as_string(id(21)); REQUIRE(original); CHECK(YAML::Load(*original)["name"].as<std::string>()=="Local");
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: file snapshot agrees with independently parsed model") {
+        register_types(); TempRealm f; auto p=f.write("Entities: [{name: Parent, id: 11}, {name: Child, id: 12, parent: 11, elements: {Transform: {id: 21, name: Local}}}]"); auto s=RealmSnapshot::load_from_file(p); auto model=load_archetypes_from_file(p); CHECK(s.validate_snapshot(model)); CHECK_FALSE(s.is_entity_modified(model[1]));
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: file snapshot remains immutable after file is rewritten") {
+        register_types(); TempRealm f; auto p=f.write("Entities: [{name: Old, id: 11}]"); auto s=RealmSnapshot::load_from_file(p); f.write("Entities: [{name: New, id: 11}]"); REQUIRE(s.get_entity_by_id(id(11))); CHECK(s.get_entity_by_id(id(11))->name=="Old"); CHECK_FALSE(s.validate_snapshot(load_archetypes_from_file(p)));
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: file snapshot keeps unknown component original YAML") {
+        register_types(); TempRealm f; auto s=RealmSnapshot::load_from_file(f.write("Entities: [{name: E, id: 11, elements: {Future: {id: 21, payload: [1, 2]}}}]")); REQUIRE(s.get_element_by_id(id(21))); REQUIRE(s.get_initial_element_data_as_string(id(21))); CHECK(YAML::Load(*s.get_initial_element_data_as_string(id(21)))["payload"][1].as<int>()==2); CHECK(s.get_fossilized_data_for_element(id(21))==nullptr);
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: moving file snapshot preserves indexed element identity") {
+        register_types(); TempRealm f; auto s=RealmSnapshot::load_from_file(f.write("Entities: [{name: E, id: 11, elements: {Transform: {id: 21}}}]")); auto* e=s.get_element_by_id(id(21)); REQUIRE(e); RealmSnapshot moved(std::move(s)); CHECK(moved.get_element_by_id(id(21))==e);
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: missing file retains source path but has no indexes") {
+        TempRealm f; auto s=RealmSnapshot::load_from_file(f.path()); CHECK(s.get_source_file_path()==f.path()); CHECK(s.get_entity_map().empty()); CHECK(s.get_element_by_id(id(21))==nullptr);
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: multiple elements indexed separately across owners") {
+        register_types(); TempRealm f; auto s=RealmSnapshot::load_from_file(f.write("Entities: [{name: A, id: 11, elements: {Transform: {id: 21}}}, {name: B, id: 12, elements: {Transform: {id: 22}}}]")); REQUIRE(s.get_element_by_id(id(21))); REQUIRE(s.get_element_by_id(id(22))); CHECK(s.get_element_by_id(id(21))->owner_id==id(11)); CHECK(s.get_element_by_id(id(22))->owner_id==id(12));
+    }
+
+    TEST_CASE("CRI007 RealmSnapshot: duplicate source IDs cannot masquerade as identical snapshot") {
+        auto a=entity(11),b=entity(12); auto s=RealmSnapshot::load_from_entity_archetype_vector({a,b}); CHECK_FALSE(s.validate_snapshot({a,a}));
+    }
+}
+}
+}
