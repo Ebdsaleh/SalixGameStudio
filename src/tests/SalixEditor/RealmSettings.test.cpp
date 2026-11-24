@@ -1,5 +1,5 @@
-// CRI relay 003: RealmSettings; uncovered paths and behavioral regressions.
-#include "CriRelay003Fixtures.h"
+// Tests for Editor/RealmSettings.
+#include "fixtures/RealmFixtures.h"
 #include <Editor/RealmSettings.h>
 namespace {
 using namespace EditorCri;

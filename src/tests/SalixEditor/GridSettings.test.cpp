@@ -1,5 +1,5 @@
-// CRI relay 003: GridSettings; uncovered paths and behavioral regressions.
-#include "CriRelay003Fixtures.h"
+// Tests for Editor/GridSettings.
+#include "fixtures/RealmFixtures.h"
 #include <Editor/GridSettings.h>
 #include <limits>
 namespace {

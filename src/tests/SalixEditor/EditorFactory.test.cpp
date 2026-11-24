@@ -1,5 +1,5 @@
-// CRI relay 002: EditorFactory; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/EditorFactory.
+#include "fixtures/HeadlessGuiFixtures.h"
 #include <Editor/states/EditorState.h>
 #include <Editor/reflection/ui/TypeDrawer.h>
 #include <Salix/states/IAppState.h>

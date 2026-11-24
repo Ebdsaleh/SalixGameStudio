@@ -1,5 +1,5 @@
-// CRI relay 002: EntitySelectedEvent; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/events/EntitySelectedEvent.
+#include "../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/events/IEventListener.h>

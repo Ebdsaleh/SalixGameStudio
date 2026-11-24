@@ -1,5 +1,5 @@
-// CRI relay 003: WorldTreeNode; uncovered paths and behavioral regressions.
-#include "CriRelay003Fixtures.h"
+// Tests for Editor/panels/WorldTreeNode.
+#include "../fixtures/RealmFixtures.h"
 #include <Editor/panels/WorldTreeNode.h>
 namespace {
 using namespace EditorCri;

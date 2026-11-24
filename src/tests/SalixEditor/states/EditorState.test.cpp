@@ -1,5 +1,5 @@
-// CRI relay 002: EditorState; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/states/EditorState.
+#include "../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/states/EditorState.h>
 #include <Salix/core/EngineInterface.h>
 #include <Salix/assets/AssetManager.h>

@@ -1,5 +1,5 @@
-// CRI relay 003: EditorContext; uncovered paths and behavioral regressions.
-#include "CriRelay003Fixtures.h"
+// Tests for Editor/EditorContext.
+#include "fixtures/RealmFixtures.h"
 
 namespace {
 using namespace EditorCri;
