@@ -360,3 +360,61 @@ TEST_SUITE("EditorCRI013_RealmDesignerPanel") {
         DesignerFixture f;f.add(11);f.add(12);f.live(12)->set_parent(f.live(11));OnHierarchyChangedEvent event(id(12),id(99));f.panel.on_event(event);CHECK(f.live(12)->get_parent()==f.live(11));
     }
 }
+
+#include "../fixtures/EditorEventFixtures.h"
+namespace {
+using namespace EditorCri;
+bool contains_designer_texture(int n){auto* d=ImGui::GetDrawData();if(!d)return false;for(int i=0;i<d->CmdListsCount;++i)for(const auto& cmd:d->CmdLists[i]->CmdBuffer)if(cmd.GetTexID()==ImTextureID(n))return true;return false;}
+struct ReloadFixture {
+    DesignerSprites v;
+    Sprite2D* sprite;
+    EditorEventCapture<PropertyValueChangedEvent> capture;
+    ReloadFixture():sprite(v.sprite(21,"old.png")){
+        v.viewport.f.c.init.asset_manager=&v.assets;
+        v.viewport.f.c.events.subscribe(EventCategory::Editor,&capture);
+    }
+    void change(const char* path,bool reload){PropertyValueChangedEvent e(id(21),sprite->get_id(),"Sprite2D","texture_path",std::string(path),reload);v.viewport.f.panel.on_event(e);}
+};
+}
+TEST_SUITE("EditorCRI014_RealmDesignerPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI014 RealmDesignerPanel: visible framebuffer is submitted as image in headless viewport") {
+        DesignerViewportFixture v;v.f.c.renderer.framebuffer_texture=ImTextureID(77);v.frame();v.frame();CHECK(contains_designer_texture(77));CHECK(v.gui.current->StyleVarStack.Size==0);
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: locked viewport still submits framebuffer without selection") {
+        DesignerViewportFixture v;v.f.c.renderer.framebuffer_texture=ImTextureID(77);v.f.panel.lock();v.frame();v.frame();CHECK(contains_designer_texture(77));CHECK(v.f.panel.is_locked());CHECK_FALSE(v.f.c.ctx.selected_entity_id.is_valid());
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: live viewport presents framebuffer without authored selection") {
+        DesignerViewportFixture v;v.f.c.ctx.data_mode=EditorDataMode::Live;v.f.c.renderer.framebuffer_texture=ImTextureID(77);v.frame();v.frame();CHECK(contains_designer_texture(77));CHECK_FALSE(v.f.c.ctx.selected_entity_id.is_valid());
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: missing preview realm cannot start render pass") {
+        DesignerViewportFixture v;v.f.c.ctx.preview_realm.reset();v.f.panel.on_render();CHECK(v.f.c.renderer.begins==0);CHECK(v.f.c.renderer.ends==0);
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: live mode without active realm cannot start render pass") {
+        DesignerViewportFixture v;v.f.c.ctx.data_mode=EditorDataMode::Live;v.f.c.ctx.active_realm=nullptr;v.f.panel.on_render();CHECK(v.f.c.renderer.begins==0);CHECK(v.f.c.renderer.ends==0);
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: texture reload applies reflected path and reloads synthetic texture") {
+        ReloadFixture f;f.change("new.png",true);CHECK(f.sprite->texture_path=="new.png");REQUIRE(f.sprite->get_texture());CHECK(f.sprite->get_texture_width()==80);CHECK(f.sprite->get_texture_height()==40);CHECK(f.v.viewport.f.c.renderer.texture_loads==2);
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: reload emits width and height derived property notifications") {
+        ReloadFixture f;f.change("new.png",true);f.v.viewport.f.c.events.process_queue();REQUIRE(f.capture.count()==2);std::map<std::string,int> dims;for(size_t i=0;i<f.capture.count();++i){auto& e=f.capture.at(i);CHECK(e.entity_id==id(21));CHECK(e.element_id==f.sprite->get_id());dims[e.property_name]=std::get<int>(e.new_value);}CHECK(dims.at("width")==80);CHECK(dims.at("height")==40);
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: nonreload property change does not reload texture or derive dimensions") {
+        ReloadFixture f;f.change("new.png",false);CHECK(f.sprite->texture_path=="new.png");CHECK(f.v.viewport.f.c.renderer.texture_loads==1);CHECK(f.v.viewport.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: read-only derived width notification does not change live dimensions") {
+        ReloadFixture f;PropertyValueChangedEvent e(id(21),f.sprite->get_id(),"Sprite2D","width",999);f.v.viewport.f.panel.on_event(e);CHECK(f.sprite->get_texture_width()==80);CHECK(f.v.viewport.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI014 RealmDesignerPanel: reload to empty texture clears live size and derived values") {
+        ReloadFixture f;f.sprite->load_texture(&f.v.assets,"");f.change("",true);f.v.viewport.f.c.events.process_queue();CHECK(f.sprite->get_texture()==nullptr);REQUIRE(f.capture.count()==2);for(size_t i=0;i<f.capture.count();++i)CHECK(std::get<int>(f.capture.at(i).new_value)==0);
+    }
+}

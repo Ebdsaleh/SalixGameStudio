@@ -328,7 +328,7 @@ using namespace EditorCri;
 struct TreeActionFixture {
     TreeFixture f;
     TreeActionFixture(){
-        f.c.ctx.editor_realm_manager->load_realm_from_file(f.file.write("Entities: [{name: Root, id: 11, elements: {Transform: {id: 21}}}, {name: Child, id: 12, parent_id: 11, elements: {Transform: {id: 22}}}, {name: Grandchild, id: 13, parent_id: 12, elements: {Transform: {id: 23}}}, {name: Other, id: 14, elements: {Transform: {id: 24}}}]"));
+        f.c.ctx.editor_realm_manager->load_realm_from_file(f.file.write("Entities: [{name: Root, id: 11, elements: {Transform: {id: 21}}}, {name: Child, id: 12, parent: 11, elements: {Transform: {id: 22}}}, {name: Grandchild, id: 13, parent: 12, elements: {Transform: {id: 23}}}, {name: Other, id: 14, elements: {Transform: {id: 24}}}]"));
         SimpleGuid::update_next_id(200000);
     }
     EditorRealmManager& manager(){return *f.c.ctx.editor_realm_manager;}

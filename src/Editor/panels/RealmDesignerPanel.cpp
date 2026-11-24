@@ -271,14 +271,14 @@ namespace Salix {
         
         // --- NEW: Handle the 'F' to Focus keyboard shortcut ---
         // We check if the window is focused so this shortcut only applies to this panel.
-        if (ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) {
+        if (!is_locked && ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow)) {
             if (!context->is_editing_property && ImGui::IsKeyPressed(ImGuiKey_F)) {
                 // Check if there is a selected entity
                 if (context->selected_entity_id.is_valid()) {
                     Entity* selected_entity = nullptr;
 
                     // Find the selected entity in the correct scene (Preview or Live)
-                    if (context->data_mode == EditorDataMode::Yaml) {
+                    if (context->data_mode == EditorDataMode::Yaml && context->preview_realm) {
                         selected_entity = context->preview_realm->get_entity_by_id(context->selected_entity_id);
                     }
                     /*
@@ -746,7 +746,7 @@ namespace Salix {
             if (!pimpl->context->active_realm) return;
         }
         else if (pimpl->context->data_mode == EditorDataMode::Yaml) {
-            assert(pimpl->context->preview_realm != nullptr && "Cannot render, preview_scene is nullptr");
+            if (!pimpl->context->preview_realm) return;
             
         }
         
@@ -935,6 +935,7 @@ namespace Salix {
         // 2. Apply the incoming property change to the live element.
         for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
             if (prop.name == e.property_name) {
+                if (prop.is_read_only || !prop.set_data) break;
                 std::visit([&](auto&& arg) {
                     auto value_copy = arg;
                     prop.set_data(element_to_update, &value_copy);
