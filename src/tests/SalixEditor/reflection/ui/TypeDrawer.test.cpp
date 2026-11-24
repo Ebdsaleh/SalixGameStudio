@@ -208,8 +208,20 @@ void file_button(UIHint hint){
 }
 template<class T> void drag_registered(PropertyType type,T initial){
     GuiFrame g;TypeDrawer::register_all_type_drawers();T value=initial;int writes=0;
-    auto p=prop(type);p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* ptr){value=*static_cast<T*>(ptr);++writes;};
-    drag_widget(g,[&]{TypeDrawer::get_drawer(type)(p,nullptr);});
+    // Registered numeric drawers use InputInt/InputFloat, not DragInt/DragFloat.
+    // With a hidden label the rightmost part of their group is the '+' step button.
+    auto p=prop(type,"##RegisteredValue");p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* ptr){value=*static_cast<T*>(ptr);++writes;};
+    ImVec2 plus{};
+    auto frame=[&]{g.draw([&]{
+        TypeDrawer::get_drawer(type)(p,nullptr);
+        const auto a=ImGui::GetItemRectMin(), b=ImGui::GetItemRectMax();
+        plus=ImVec2(b.x-ImGui::GetFrameHeight()*.5f,(a.y+b.y)*.5f);
+    });};
+    frame();frame();
+    const auto target=plus;
+    ImGui::GetIO().AddMousePosEvent(target.x,target.y);frame();
+    ImGui::GetIO().AddMouseButtonEvent(0,true);frame();
+    ImGui::GetIO().AddMouseButtonEvent(0,false);frame();
     CHECK(value>initial);CHECK(writes>0);
 }
 }
