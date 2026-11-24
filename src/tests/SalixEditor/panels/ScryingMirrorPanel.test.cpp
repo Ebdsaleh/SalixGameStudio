@@ -1,5 +1,5 @@
-// CRI relay 002: ScryingMirrorPanel; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/panels/ScryingMirrorPanel.
+#include "../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/panels/ScryingMirrorPanel.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>

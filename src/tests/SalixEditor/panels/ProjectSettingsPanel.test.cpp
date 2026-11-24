@@ -1,5 +1,5 @@
-// CRI relay 002: ProjectSettingsPanel; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/panels/ProjectSettingsPanel.
+#include "../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/panels/ProjectSettingsPanel.h>
 namespace {
 using namespace EditorCri;

@@ -1,5 +1,5 @@
-// CRI relay 002: ThemeEditorPanel; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/panels/ThemeEditorPanel.
+#include "../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/panels/ThemeEditorPanel.h>
 #include <Salix/gui/imgui/ImGuiThemeManager.h>
 #include <Salix/gui/imgui/ImGuiTheme.h>

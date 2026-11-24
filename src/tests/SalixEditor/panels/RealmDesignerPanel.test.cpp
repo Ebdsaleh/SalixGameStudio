@@ -1,5 +1,5 @@
-// CRI relay 002: RealmDesignerPanel; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/panels/RealmDesignerPanel.
+#include "../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/panels/RealmDesignerPanel.h>
 #include <Editor/events/OnRootEntityAddedEvent.h>
 #include <Editor/events/OnEntityAddedEvent.h>

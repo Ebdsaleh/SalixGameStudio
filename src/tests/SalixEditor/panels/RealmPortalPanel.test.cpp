@@ -1,5 +1,5 @@
-// CRI relay 002: RealmPortalPanel; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/panels/RealmPortalPanel.
+#include "../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/panels/RealmPortalPanel.h>
 #include <Editor/events/OnMainCameraChangedEvent.h>
 #include <Salix/events/BeforeEntityPurgedEvent.h>

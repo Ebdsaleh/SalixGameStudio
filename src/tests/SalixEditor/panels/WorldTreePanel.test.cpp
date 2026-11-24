@@ -1,5 +1,5 @@
-// CRI relay 002: WorldTreePanel; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/panels/WorldTreePanel.
+#include "../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/panels/WorldTreePanel.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>

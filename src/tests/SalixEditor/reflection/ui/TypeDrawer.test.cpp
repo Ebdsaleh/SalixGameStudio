@@ -1,5 +1,5 @@
-// CRI relay 002: TypeDrawer; off-screen and observable behavior.
-#include "CriRelay002Fixtures.h"
+// Tests for Editor/reflection/ui/TypeDrawer.
+#include "../../fixtures/HeadlessGuiFixtures.h"
 #include <Editor/reflection/ui/TypeDrawer.h>
 #include <Salix/reflection/PropertyHandle.h>
 namespace {
