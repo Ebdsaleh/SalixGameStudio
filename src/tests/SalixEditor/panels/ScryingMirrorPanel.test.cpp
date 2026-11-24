@@ -115,3 +115,85 @@ TEST_SUITE("EditorCRI006_ScryingMirrorPanel") {
         GuiFrame g; MirrorFixture f; auto a=entity(20,"Second"); a.elements.push_back(element("Transform",21,"{name: Other}")); f.c.ctx.editor_realm_manager->add_entity(a); f.select(11); CHECK(g.draw([&]{f.panel.content();})>0); f.select_element(21,20); CHECK(g.draw([&]{f.panel.content();})>0); CHECK(f.c.ctx.editor_realm_manager->get_archetype(id(20))->elements[0].name=="Transform"); CHECK(f.panel.get_selected_element_id_for_testing()==id(21));
     }
 }
+
+#include <Salix/gui/DialogBox.h>
+#include <Salix/gui/IGui.h>
+#include <Salix/reflection/PropertyHandleYaml.h>
+#include <Editor/events/PropertyValueChangedEvent.h>
+namespace {
+using namespace EditorCri;
+struct MediaFixture {
+    MirrorFixture f; TempRealm temp;
+    std::filesystem::path old_root=Salix::g_project_root_path;
+    struct Listener:IEventListener {
+        int calls=0; SimpleGuid owner=SimpleGuid::invalid(),component=SimpleGuid::invalid();
+        PropertyValue value=0; bool reload=false; std::string name;
+        void on_event(IEvent& event) override {
+            if(event.get_event_type()!=EventType::EditorPropertyValueChanged)return;
+            auto& e=static_cast<PropertyValueChangedEvent&>(event);
+            ++calls; owner=e.entity_id; component=e.element_id; value=e.new_value; reload=e.requires_reload;name=e.property_name;
+        }
+    } listener;
+    MediaFixture(){
+        Salix::g_project_root_path=std::filesystem::path(temp.path()).parent_path();
+        auto* a=f.c.ctx.editor_realm_manager->get_archetype(id(11)); REQUIRE(a);
+        auto e=element("Sprite2D",21,"{texture_path: old.png, width: 80, height: 40}");e.owner_id=a->id;a->elements.push_back(e);
+        f.c.events.subscribe(EventCategory::Editor,&listener); f.select_element(21,11);
+        for(std::string key:{"SelectImageFile","SelectAudioFile","SelectSourceFile","SelectFile"}){
+            std::string title=key; REQUIRE(f.c.gui.create_dialog(key,title,DialogType::File,false));
+        }
+    }
+    ~MediaFixture(){Salix::g_project_root_path=old_root;}
+    ElementArchetype* sprite(){auto* a=f.c.ctx.editor_realm_manager->get_archetype(id(11));return a?a->get_element_by_id(id(21)):nullptr;}
+    DialogBox* choose(UIHint hint,const char* key){
+        auto* s=sprite();REQUIRE(s);Property p{};p.name="texture_path";p.type=PropertyType::String;p.hint=hint;
+        PropertyHandleYaml h(p,&s->data);
+        f.panel.select_media_for_testing(h,s,ByteMirror::get_type_info_by_name("Sprite2D"));
+        CHECK(f.c.gui.shown_dialog==key);auto* d=f.c.gui.get_dialog(key);REQUIRE(d);return d;
+    }
+    void result(DialogBox* d,bool ok){FileDialogResult r{};r.is_ok=ok;r.file_path_name=temp.write("fixture");d->get_callback()(r);}
+    void drain(){auto& q=f.c.ctx.deferred_commands;for(auto& cmd:q)cmd();q.clear();f.c.events.process_queue();}
+};
+}
+TEST_SUITE("EditorCRI009_ScryingMirrorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 ScryingMirrorPanel: image selector configures image filters") {
+        MediaFixture m; auto* d=m.choose(UIHint::ImageFile,"SelectImageFile"); CHECK(d->get_filters().find(".png")!=std::string::npos); CHECK(d->get_default_path()==Salix::g_project_root_path.string());
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: audio selector configures audio filters") {
+        MediaFixture m; auto* d=m.choose(UIHint::AudioFile,"SelectAudioFile"); CHECK(d->get_filters().find(".wav")!=std::string::npos);
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: source selector configures source filters") {
+        MediaFixture m; auto* d=m.choose(UIHint::SourceFile,"SelectSourceFile"); CHECK(d->get_filters().find(".cpp")!=std::string::npos);
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: generic selector configures all files") {
+        MediaFixture m; auto* d=m.choose(UIHint::FilePath,"SelectFile"); CHECK(d->get_filters().find("All Files")!=std::string::npos);
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: cancelled dialog does not queue mutation") {
+        MediaFixture m; auto* d=m.choose(UIHint::ImageFile,"SelectImageFile"); m.result(d,false); CHECK(m.f.c.ctx.deferred_commands.empty()); CHECK(m.listener.calls==0);
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: accepted file applies to original owner despite changed selection") {
+        MediaFixture m; auto* d=m.choose(UIHint::ImageFile,"SelectImageFile"); m.f.select(99); m.result(d,true); REQUIRE(m.f.c.ctx.deferred_commands.size()==1); m.drain(); CHECK(m.listener.calls==1); CHECK(m.listener.owner==id(11)); CHECK(m.listener.component==id(21)); CHECK(m.listener.reload); CHECK(m.listener.name=="texture_path"); CHECK(std::get<std::string>(m.listener.value)=="fixture.realm");
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: removed component invalidates deferred file selection safely") {
+        MediaFixture m; auto* d=m.choose(UIHint::ImageFile,"SelectImageFile"); m.result(d,true); m.f.c.ctx.editor_realm_manager->purge_element(id(11),id(21)); m.drain(); CHECK(m.listener.calls==0); CHECK(m.sprite()==nullptr);
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: collider resize computes world units and preserves depth") {
+        MediaFixture m; auto c=element("BoxCollider",22,"{size: {x: 1,y: 1,z: 2}}"); c.owner_id=id(11); m.f.panel.resize_collider_for_testing(&c,m.sprite()); m.f.c.events.process_queue(); REQUIRE(m.listener.calls==1); auto v=std::get<Vector3>(m.listener.value); CHECK(v.x==doctest::Approx(.8)); CHECK(v.y==doctest::Approx(.4)); CHECK(v.z==2); CHECK(m.listener.component==id(22));
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: collider resize falls back for invalid pixel scale and clamps depth") {
+        MediaFixture m; m.f.c.renderer.ppu=0; auto c=element("BoxCollider",22,"{size: {x: 1,y: 1,z: 0}}"); m.f.panel.resize_collider_for_testing(&c,m.sprite()); m.f.c.events.process_queue(); REQUIRE(m.listener.calls==1); auto v=std::get<Vector3>(m.listener.value); CHECK(v.x==doctest::Approx(.8)); CHECK(v.z==doctest::Approx(.1));
+    }
+
+    TEST_CASE("CRI009 ScryingMirrorPanel: collider resize ignores missing or zero dimensions") {
+        MediaFixture m; auto c=element("BoxCollider",22,"{size: {x: 1,y: 1,z: 1}}"); auto s=element("Sprite2D",21,"{width: 0, height: 40}"); m.f.panel.resize_collider_for_testing(&c,&s); m.f.panel.resize_collider_for_testing(&c,nullptr); m.f.c.events.process_queue(); CHECK(m.listener.calls==0);
+    }
+}

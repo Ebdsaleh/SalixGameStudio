@@ -77,6 +77,7 @@ namespace Salix {
 
 
     void ScryingMirrorPanel::Pimpl::handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info) {
+        if (!context || !context->gui || !context->event_manager || !element_archetype || !type_info) return;
         UIHint hint = handle.get_hint();
         std::string dialog_key, filters;
 
@@ -103,28 +104,23 @@ namespace Salix {
             dialog->set_default_path(Salix::g_project_root_path.string());
             dialog->set_filters(filters);
 
-            std::string property_name = handle.get_name();
+            const std::string property_name = handle.get_name();
+            const SimpleGuid entity_id = element_archetype->owner_id;
+            const SimpleGuid element_id = element_archetype->id;
+            const std::string type_name = type_info->name;
 
-            dialog->set_callback([this, element_archetype, type_info, property_name](const FileDialogResult& result) {
+            dialog->set_callback([this, entity_id, element_id, type_name, property_name](const FileDialogResult& result) {
                 if (result.is_ok) {
-                    std::function<void()> command = [=]() {
+                    const std::string selected_path = result.file_path_name;
+                    context->add_deferred_command([this, entity_id, element_id, type_name, property_name, selected_path]() {
+                        if (!context || !context->editor_realm_manager || !context->event_manager) return;
+                        auto* owner = context->editor_realm_manager->get_archetype(entity_id);
+                        if (!owner || !owner->get_element_by_id(element_id)) return;
                         std::string relative_path = FileManager::convert_to_relative_path(
-                            Salix::g_project_root_path.string(),
-                            result.file_path_name
-                        );
-                        
-                        this->context->event_manager->dispatch(
-                            std::make_unique<PropertyValueChangedEvent>(
-                            this->selected_entity_id, // 'this' now refers to the Pimpl struct
-                            element_archetype->id,
-                            type_info->name,
-                            property_name,
-                            relative_path,
-                            true
-                        )
-                        ); 
-                    };
-                    this->context->add_deferred_command(command); // 'this' now refers to the Pimpl struct
+                            Salix::g_project_root_path.string(), selected_path);
+                        context->event_manager->dispatch(std::make_unique<PropertyValueChangedEvent>(
+                            entity_id, element_id, type_name, property_name, relative_path, true));
+                    });
                 }
             });
             context->gui->show_dialog_by_key(dialog_key);
@@ -134,7 +130,7 @@ namespace Salix {
  
     
     void ScryingMirrorPanel::Pimpl::handle_box_collider_resize_button(ElementArchetype* box_collider_archetype, const ElementArchetype* source_renderable) {
-        if (!box_collider_archetype || !source_renderable || !context) {
+        if (!box_collider_archetype || !source_renderable || !context || !context->renderer || !context->event_manager) {
             return;
         }
 
@@ -425,6 +421,8 @@ namespace Salix {
 #ifdef SALIX_TESTS_ENABLED
     SimpleGuid ScryingMirrorPanel::get_selected_entity_id_for_testing() const { return pimpl->selected_entity_id; }
     SimpleGuid ScryingMirrorPanel::get_selected_element_id_for_testing() const { return pimpl->selected_element_id; }
+    void ScryingMirrorPanel::select_media_for_testing(PropertyHandle& handle, ElementArchetype* element, const TypeInfo* type) { pimpl->handle_media_file_selection(handle, element, type); }
+    void ScryingMirrorPanel::resize_collider_for_testing(ElementArchetype* collider, const ElementArchetype* source) { pimpl->handle_box_collider_resize_button(collider, source); }
 #endif
 
 }  // namespace Salix

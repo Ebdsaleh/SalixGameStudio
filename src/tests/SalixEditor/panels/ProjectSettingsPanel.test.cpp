@@ -48,3 +48,73 @@ TEST_SUITE("EditorCRI002_ProjectSettingsPanel") {
         GuiFrame g; SettingsFixture f; auto before=f.c.ctx.grid_settings; g.draw([&]{ImGui::SetNextItemOpen(false,ImGuiCond_Always);f.panel.content();}); unchanged(before,f.c.ctx.grid_settings); CHECK(f.c.ctx.deferred_commands.empty());
     }
 }
+
+
+namespace {
+using namespace EditorCri;
+struct SettingsInteraction {
+    GuiFrame gui; SettingsFixture f; ImVec2 checkbox{},save{};
+    void frame(bool disabled=false,bool collapse=false) {
+        gui.draw([&]{
+            ImGui::SetNextItemOpen(!collapse,ImGuiCond_Always);
+            auto top=ImGui::GetCursorScreenPos();float h=ImGui::GetFrameHeight();
+            checkbox=ImVec2(top.x+h*.5f,top.y+h+ImGui::GetStyle().ItemSpacing.y+h*.5f);
+            if(disabled)ImGui::BeginDisabled();
+            f.panel.content();
+            if(disabled)ImGui::EndDisabled();
+            if(f.panel.has_pending_changes_for_testing()){
+                auto t=ImGui::GetItemRectMin();
+                save=ImVec2(t.x-ImGui::GetStyle().ItemSpacing.x-60,t.y+ImGui::GetTextLineHeight()*.5f);
+            }
+        });
+    }
+    void click(ImVec2 pos,bool disabled=false) {
+        ImGui::GetIO().AddMousePosEvent(pos.x,pos.y);frame(disabled);
+        ImGui::GetIO().AddMouseButtonEvent(0,true);frame(disabled);
+        ImGui::GetIO().AddMouseButtonEvent(0,false);frame(disabled);
+    }
+    void toggle(){frame();frame();click(checkbox);}
+};
+}
+TEST_SUITE("EditorCRI009_ProjectSettingsPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 ProjectSettingsPanel: uninitialized content does not require grid context") {
+        GuiFrame g;SettingsProbe p;CHECK(g.draw([&]{p.content();})==0);CHECK_FALSE(p.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: initial drawing keeps pending flag clear") {
+        SettingsInteraction s;s.frame();s.frame();CHECK_FALSE(s.f.panel.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: grid enable checkbox updates model and pending flag") {
+        SettingsInteraction s;bool old=s.f.c.ctx.grid_settings.snap_enabled;s.toggle();CHECK(s.f.c.ctx.grid_settings.snap_enabled!=old);CHECK(s.f.panel.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: pending changes survive frames without input") {
+        SettingsInteraction s;s.toggle();REQUIRE(s.f.panel.has_pending_changes_for_testing());s.frame();s.frame();CHECK(s.f.panel.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: second checkbox edit restores value but remains pending") {
+        SettingsInteraction s;bool old=s.f.c.ctx.grid_settings.snap_enabled;s.toggle();s.click(s.checkbox);CHECK(s.f.c.ctx.grid_settings.snap_enabled==old);CHECK(s.f.panel.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: apply validates grid and clears pending changes") {
+        SettingsInteraction s;s.toggle();REQUIRE(s.f.panel.has_pending_changes_for_testing());s.f.c.ctx.grid_settings.size=5000;s.frame();s.click(s.save);CHECK(s.f.c.ctx.grid_settings.size==1000);CHECK_FALSE(s.f.panel.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: collapsed grid section retains pending edits") {
+        SettingsInteraction s;s.toggle();REQUIRE(s.f.panel.has_pending_changes_for_testing());s.frame(false,true);CHECK(s.f.panel.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: disabled widgets cannot change grid or pending flag") {
+        SettingsInteraction s;bool old=s.f.c.ctx.grid_settings.snap_enabled;s.frame(true);s.frame(true);s.click(s.checkbox,true);CHECK(s.f.c.ctx.grid_settings.snap_enabled==old);CHECK_FALSE(s.f.panel.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: panel hide and show retains pending changes") {
+        SettingsInteraction s;s.toggle();REQUIRE(s.f.panel.has_pending_changes_for_testing());s.f.panel.set_visibility(false);s.f.panel.set_visibility(true);s.frame();CHECK(s.f.panel.has_pending_changes_for_testing());
+    }
+
+    TEST_CASE("CRI009 ProjectSettingsPanel: pending settings isolated between contexts") {
+        SettingsInteraction s;s.toggle();REQUIRE(s.f.panel.has_pending_changes_for_testing());SettingsFixture other;CHECK_FALSE(other.panel.has_pending_changes_for_testing());CHECK(other.c.ctx.grid_settings.snap_enabled!=s.f.c.ctx.grid_settings.snap_enabled);
+    }
+}

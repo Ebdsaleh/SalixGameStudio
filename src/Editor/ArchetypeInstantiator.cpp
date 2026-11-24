@@ -69,6 +69,7 @@ namespace Salix {
             if (!type_info) continue;
 
             for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
+                if (prop.is_read_only || !prop.set_data) continue;
                 const YAML::Node& property_node = element_archetype.data[prop.name];
                 if (!property_node) continue;
 
@@ -226,6 +227,7 @@ namespace Salix {
             if (!type_info) continue;
 
             for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
+                if (prop.is_read_only || !prop.set_data) continue;
                 const YAML::Node& property_node = element_archetype.data[prop.name];
                 if (!property_node) continue;
                 

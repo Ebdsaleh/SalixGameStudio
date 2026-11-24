@@ -186,3 +186,71 @@ TEST_SUITE("EditorCRI007_TypeDrawer") {
         GuiFrame g; EditorContext c; HandleProbe h(prop(PropertyType::GlmMat4),glm::mat4(2)); CHECK(g.draw([&]{CHECK_FALSE(TypeDrawer::draw_property("Matrix",h,&c));})>0); CHECK(h.writes==0); CHECK(std::get<glm::mat4>(h.value)==glm::mat4(2));
     }
 }
+
+
+namespace {
+using namespace EditorCri;
+template<class F> void drag_widget(GuiFrame& g,F draw) {
+    ImVec2 center{};
+    auto frame=[&]{g.draw([&]{draw();auto a=ImGui::GetItemRectMin(),b=ImGui::GetItemRectMax();center=ImVec2((a.x+b.x)*.5f,(a.y+b.y)*.5f);});};
+    frame();frame();const ImVec2 start=center;
+    ImGui::GetIO().AddMousePosEvent(start.x,start.y);frame();
+    ImGui::GetIO().AddMouseButtonEvent(0,true);frame();
+    ImGui::GetIO().AddMousePosEvent(start.x+60,start.y);frame();
+    ImGui::GetIO().AddMouseButtonEvent(0,false);frame();
+}
+void file_button(UIHint hint){
+    GuiFrame g; EditorContext c; auto p=prop(PropertyType::String);p.hint=hint;
+    HandleProbe h(p,std::string("Assets/example.txt"));int changes=0;
+    click_drawn_item(g,[&]{if(TypeDrawer::draw_property("Value",h,&c))++changes;});
+    CHECK(changes==1);CHECK(h.writes==0);CHECK(std::get<std::string>(h.value)=="Assets/example.txt");
+}
+template<class T> void drag_registered(PropertyType type,T initial){
+    GuiFrame g;TypeDrawer::register_all_type_drawers();T value=initial;int writes=0;
+    auto p=prop(type);p.get_data=[&](void*)->void*{return &value;};p.set_data=[&](void*,void* ptr){value=*static_cast<T*>(ptr);++writes;};
+    drag_widget(g,[&]{TypeDrawer::get_drawer(type)(p,nullptr);});
+    CHECK(value>initial);CHECK(writes>0);
+}
+}
+TEST_SUITE("EditorCRI009_TypeDrawer") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 TypeDrawer: image file button requests selection without rewriting path") {
+        file_button(UIHint::ImageFile);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: audio file button requests selection without rewriting path") {
+        file_button(UIHint::AudioFile);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: source file button requests selection without rewriting path") {
+        file_button(UIHint::SourceFile);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: generic file button requests selection without rewriting path") {
+        file_button(UIHint::FilePath);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: text file button requests selection without rewriting path") {
+        file_button(UIHint::TextFile);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: integer drag writes typed value") {
+        GuiFrame g;EditorContext c;HandleProbe h(prop(PropertyType::Int),7);drag_widget(g,[&]{TypeDrawer::draw_property("Value",h,&c);});CHECK(std::get<int>(h.value)>7);CHECK(h.writes>0);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: float drag writes typed value") {
+        GuiFrame g;EditorContext c;HandleProbe h(prop(PropertyType::Float),2.f);drag_widget(g,[&]{TypeDrawer::draw_property("Value",h,&c);});CHECK(std::get<float>(h.value)>2);CHECK(h.writes>0);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: registered integer drag calls live setter") {
+        drag_registered(PropertyType::Int,3);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: registered float drag calls live setter") {
+        drag_registered(PropertyType::Float,1.f);
+    }
+
+    TEST_CASE("CRI009 TypeDrawer: read-only integer remains unchanged under drag") {
+        GuiFrame g;EditorContext c;auto p=prop(PropertyType::Int);p.is_read_only=true;HandleProbe h(p,19);drag_widget(g,[&]{TypeDrawer::draw_property("Value",h,&c);});CHECK(std::get<int>(h.value)==19);CHECK(h.writes==0);
+    }
+}

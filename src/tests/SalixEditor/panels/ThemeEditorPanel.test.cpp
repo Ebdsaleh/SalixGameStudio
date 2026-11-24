@@ -168,3 +168,56 @@ TEST_SUITE("EditorCRI007_ThemeEditorPanel") {
         GuiFrame g; ActiveThemeFixture f; open_theme_section(g,f,"Colors"); auto t=std::make_unique<ImGuiTheme>("Second", "second.yaml"); REQUIRE(f.themes.register_theme(std::move(t))); REQUIRE(f.themes.set_active_theme("Second")); f.draw(g); CHECK(f.themes.get_active_theme()->get_name()=="Second"); CHECK(f.themes.get_active_theme()->get_file_path()=="second.yaml");
     }
 }
+
+
+namespace {
+using namespace EditorCri;
+struct ThemeFiles {
+    TempRealm temp; ActiveThemeFixture f;
+    std::string write(const std::string& yaml){return temp.write(yaml);}
+    void save(){f.panel.save_theme_for_testing(temp.path());}
+    void load(const char* name){f.panel.load_theme_for_testing(name,temp.path());}
+};
+}
+TEST_SUITE("EditorCRI009_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 ThemeEditorPanel: save writes active theme metadata to isolated path") {
+        ThemeFiles v; v.save(); REQUIRE(std::filesystem::exists(v.temp.path())); auto n=YAML::LoadFile(v.temp.path()); CHECK(n["name"].as<std::string>()==v.f.data()->name);
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: save serializes authored font selection") {
+        ThemeFiles v; v.f.data()->font_family="FixtureFamily"; v.f.data()->font_size=19; v.save(); auto n=YAML::LoadFile(v.temp.path()); CHECK(n["Font"]["font_family"].as<std::string>()=="FixtureFamily"); CHECK(n["Font"]["font_size"].as<float>()==19);
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: save does not change active theme or request reload") {
+        ThemeFiles v; auto* old=v.f.themes.get_active_theme(); v.save(); CHECK(v.f.themes.get_active_theme()==old); CHECK(v.f.c.gui.theme_reloads==0);
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: missing active theme cannot create file") {
+        TempRealm t; ThemeFixture f; f.panel.save_theme_for_testing(t.path()); CHECK_FALSE(std::filesystem::exists(t.path()));
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: missing load path retains old theme and reload count") {
+        ThemeFiles v; auto* old=v.f.themes.get_active_theme(); v.load("Missing"); CHECK(v.f.themes.get_active_theme()==old); CHECK(v.f.c.gui.theme_reloads==0);
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: malformed load retains current theme") {
+        ThemeFiles v; auto* old=v.f.themes.get_active_theme(); v.write("name: ["); v.load("Broken"); CHECK(v.f.themes.get_active_theme()==old); CHECK(v.f.c.gui.theme_reloads==0);
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: valid load switches registry identity and requests reload") {
+        ThemeFiles v; v.write("name: Loaded\nFont: {font_family: FixtureFamily, font_size: 20}"); v.load("Loaded"); REQUIRE(v.f.themes.get_active_theme()); CHECK(v.f.themes.get_active_theme()->get_name()=="Loaded"); CHECK(v.f.data()->font_family=="FixtureFamily"); CHECK(v.f.c.gui.theme_reloads==1);
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: reloading same key replaces data safely") {
+        ThemeFiles v; v.write("name: CRI006\nFont: {font_family: Changed, font_size: 23}"); v.load("CRI006"); REQUIRE(v.f.data()); CHECK(v.f.data()->font_family=="Changed"); CHECK(v.f.c.gui.theme_reloads==1); GuiFrame g; v.f.draw(g); CHECK(g.current->DisabledStackSize==0);
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: saved theme round trips font data under new registry key") {
+        ThemeFiles v; v.f.data()->font_family="RoundTrip"; v.f.data()->font_size=21; v.save(); v.load("Copy"); REQUIRE(v.f.data()); CHECK(v.f.themes.get_active_theme()->get_name()=="Copy"); CHECK(v.f.data()->font_family=="RoundTrip"); CHECK(v.f.data()->font_size==21);
+    }
+
+    TEST_CASE("CRI009 ThemeEditorPanel: uninitialized panel file operations are harmless") {
+        TempRealm t; ThemeEditorPanel p; CHECK_NOTHROW(p.save_theme_for_testing(t.path())); CHECK_NOTHROW(p.load_theme_for_testing("Missing",t.path())); CHECK_FALSE(std::filesystem::exists(t.path()));
+    }
+}

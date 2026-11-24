@@ -23,6 +23,10 @@ namespace Salix {
             bool is_locked()override;
             void unlock() override;
             void lock() override;
+#ifdef SALIX_TESTS_ENABLED
+            void save_theme_for_testing(const std::string& path);
+            void load_theme_for_testing(const std::string& name, const std::string& path);
+#endif
         private:
             struct Pimpl;
             std::unique_ptr<Pimpl> pimpl;

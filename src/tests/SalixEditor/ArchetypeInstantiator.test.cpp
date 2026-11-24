@@ -163,3 +163,61 @@ TEST_SUITE("EditorCRI007_ArchetypeInstantiator") {
 }
 }
 }
+
+#include <Salix/assets/AssetManager.h>
+#include <Salix/ecs/Sprite2D.h>
+namespace {
+using namespace EditorCri;
+struct TexturedInstantiation {
+    RenderProbe renderer; AssetManager assets; InitContext init{}; Realm realm;
+    TexturedInstantiation(){register_types();assets.initialize(&renderer);init.asset_manager=&assets;}
+    Sprite2D* run(const char* yaml,bool multi){
+        auto a=entity(11);auto s=element("Sprite2D",21,yaml);s.owner_id=a.id;a.elements.push_back(s);
+        if(multi)ArchetypeInstantiator::instantiate_realm({a},&realm,init);
+        else ArchetypeInstantiator::instantiate(a,&realm,init);
+        auto* live=realm.get_entity_by_id(id(11));REQUIRE(live);auto* sprite=live->get_element<Sprite2D>();REQUIRE(sprite);return sprite;
+    }
+};
+}
+TEST_SUITE("EditorCRI009_ArchetypeInstantiator") {
+    using namespace EditorCri;
+    TEST_CASE("CRI009 ArchetypeInstantiator: single authored ID property cannot overwrite metadata identity") {
+        TexturedInstantiation f;auto* s=f.run("{id: 999, name: Sprite, texture_path: 'a.png'}",false);CHECK(s->get_id()==id(21));CHECK(s->get_name()=="Sprite");
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: multi authored ID property cannot overwrite metadata identity") {
+        TexturedInstantiation f;auto* s=f.run("{id: 999, name: Sprite, texture_path: 'a.png'}",true);CHECK(s->get_id()==id(21));CHECK(s->get_name()=="Sprite");
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: single sprite dimensions derive from actual loaded texture") {
+        TexturedInstantiation f;auto* s=f.run("{texture_path: 'a.png', width: 5, height: 9}",false);REQUIRE(s->get_texture());CHECK(s->get_texture_width()==80);CHECK(s->get_texture_height()==40);
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: multi sprite dimensions derive from actual loaded texture") {
+        TexturedInstantiation f;auto* s=f.run("{texture_path: 'a.png', width: 5, height: 9}",true);REQUIRE(s->get_texture());CHECK(s->get_texture_width()==80);CHECK(s->get_texture_height()==40);
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: single sprite ignores malformed read-only dimensions") {
+        TexturedInstantiation f;auto* s=f.run("{texture_path: 'a.png', width: [bad], height: bad}",false);CHECK(s->get_texture_width()==80);CHECK(s->get_texture_height()==40);
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: multi sprite ignores malformed read-only dimensions") {
+        TexturedInstantiation f;auto* s=f.run("{texture_path: 'a.png', width: [bad], height: bad}",true);CHECK(s->get_texture_width()==80);CHECK(s->get_texture_height()==40);
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: single sprite applies texture offset and sorting alongside load") {
+        TexturedInstantiation f;auto* s=f.run("{texture_path: 'a.png', offset: {x: 2,y: 3}, sorting_layer: -5}",false);CHECK(s->get_texture()!=nullptr);CHECK(s->offset.x==2);CHECK(s->sorting_layer==-5);
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: multi sprite applies texture pivot and flip alongside load") {
+        TexturedInstantiation f;auto* s=f.run("{texture_path: 'a.png', pivot: {x: 0.2,y: 0.8}, flip_h: true}",true);CHECK(s->get_texture()!=nullptr);CHECK(s->pivot.y==doctest::Approx(.8));CHECK(s->flip_h);
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: same texture path shared across independently authored entities") {
+        TexturedInstantiation f;auto a=entity(11),b=entity(12);a.elements.push_back(element("Sprite2D",21,"{texture_path: 'shared.png'}"));b.elements.push_back(element("Sprite2D",22,"{texture_path: 'shared.png'}"));ArchetypeInstantiator::instantiate_realm({a,b},&f.realm,f.init);auto* sa=f.realm.get_entity_by_id(id(11))->get_element<Sprite2D>();auto* sb=f.realm.get_entity_by_id(id(12))->get_element<Sprite2D>();REQUIRE(sa);REQUIRE(sb);REQUIRE(sa->get_texture());CHECK(sa->get_texture()==sb->get_texture());CHECK(f.renderer.texture_loads==1);
+    }
+
+    TEST_CASE("CRI009 ArchetypeInstantiator: empty path cannot create mock texture or fake dimensions") {
+        TexturedInstantiation f;auto* s=f.run("{texture_path: '', width: 80, height: 40}",true);CHECK(s->get_texture()==nullptr);CHECK(s->get_texture_width()==0);CHECK(s->get_texture_height()==0);CHECK(f.renderer.texture_loads==0);
+    }
+}

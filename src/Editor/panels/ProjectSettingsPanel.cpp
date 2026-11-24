@@ -8,6 +8,7 @@
 namespace Salix {
     struct ProjectSettingsPanel::Pimpl {
         EditorContext* context = nullptr;
+        bool settings_changed = false;
         void show_project_settings();
     };
 
@@ -19,6 +20,9 @@ namespace Salix {
 
 
     ProjectSettingsPanel::~ProjectSettingsPanel() = default;
+#ifdef SALIX_TESTS_ENABLED
+    bool ProjectSettingsPanel::has_pending_changes_for_testing() const { return pimpl->settings_changed; }
+#endif
 
 
     void ProjectSettingsPanel::initialize(EditorContext* context) {
@@ -41,7 +45,7 @@ namespace Salix {
 
     void ProjectSettingsPanel::on_panel_gui_update() {
 
-        pimpl->show_project_settings();
+        if (pimpl->context) pimpl->show_project_settings();
     } 
 
    
@@ -49,7 +53,6 @@ namespace Salix {
     void ProjectSettingsPanel::Pimpl::show_project_settings() {
         
         GridSettings& grid = context->grid_settings;
-        bool settings_changed = false;
         
         // Grid Settings Section
         if (ImGui::CollapsingHeader("Grid Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
@@ -88,6 +91,7 @@ namespace Salix {
             if (ImGui::Button("Save Changes", ImVec2(120, 0))) {
                 // TODO: Save settings to project file
                 grid.validate();
+                settings_changed = false;
             }
             
             // Show asterisk to indicate unsaved changes

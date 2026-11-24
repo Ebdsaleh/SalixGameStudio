@@ -11,6 +11,8 @@
 
 namespace Salix {
 
+    class PropertyHandle;
+    struct TypeInfo;
     class EDITOR_API ScryingMirrorPanel : public LockablePanel {
     
     public:
@@ -24,6 +26,8 @@ namespace Salix {
 #ifdef SALIX_TESTS_ENABLED
         SimpleGuid get_selected_entity_id_for_testing() const;
         SimpleGuid get_selected_element_id_for_testing() const;
+        void select_media_for_testing(PropertyHandle& handle, ElementArchetype* element, const TypeInfo* type);
+        void resize_collider_for_testing(ElementArchetype* collider, const ElementArchetype* source);
 #endif
         
     protected:

@@ -14,6 +14,9 @@ namespace Salix {
 
             void initialize(EditorContext* context) override;
             bool is_panel_derived() const override { return true; }
+#ifdef SALIX_TESTS_ENABLED
+            bool has_pending_changes_for_testing() const;
+#endif
 
         protected:
             void on_panel_gui_update() override; // Main content

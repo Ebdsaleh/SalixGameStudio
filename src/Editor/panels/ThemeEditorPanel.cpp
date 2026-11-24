@@ -100,6 +100,20 @@ namespace Salix {
         pimpl->render_layout();
     }
 
+#ifdef SALIX_TESTS_ENABLED
+    void ThemeEditorPanel::save_theme_for_testing(const std::string& path) {
+        if (!pimpl->context || !pimpl->context->theme_manager) return;
+        auto* theme = dynamic_cast<ImGuiTheme*>(pimpl->context->theme_manager->get_active_theme());
+        strncpy_s(pimpl->theme_path_buffer, sizeof(pimpl->theme_path_buffer), path.c_str(), _TRUNCATE);
+        pimpl->save_current_theme(theme ? theme->get_data() : nullptr);
+    }
+    void ThemeEditorPanel::load_theme_for_testing(const std::string& name, const std::string& path) {
+        strncpy_s(pimpl->theme_name_buffer, sizeof(pimpl->theme_name_buffer), name.c_str(), _TRUNCATE);
+        strncpy_s(pimpl->theme_path_buffer, sizeof(pimpl->theme_path_buffer), path.c_str(), _TRUNCATE);
+        pimpl->load_selected_theme(nullptr);
+    }
+#endif
+
     void ThemeEditorPanel::on_gui_render() {
 
     }
@@ -207,6 +221,14 @@ namespace Salix {
 
             if (ImGui::Button("Load Theme")) {
                 load_selected_theme(data);
+                // Loading can replace the registered theme and invalidate the previous data.
+                auto* current_theme = dynamic_cast<ImGuiTheme*>(context->theme_manager->get_active_theme());
+                data = current_theme ? current_theme->get_data() : nullptr;
+                if (!data) {
+                    if (is_locked) ImGui::EndDisabled();
+                    ImGui::End();
+                    return;
+                }
             }
             ImGui::Separator();
 
@@ -230,10 +252,10 @@ namespace Salix {
 
         if (context->theme_manager->load_theme_from_file(theme_name, file_path, false)) {
             context->theme_manager->set_active_theme(theme_name);
-            context->gui->request_theme_reload(); 
+            if (context->gui) context->gui->request_theme_reload(); 
             // After loading, get the newly active theme to refresh the UI text fields
             ImGuiTheme* new_active_theme = dynamic_cast<ImGuiTheme*>(context->theme_manager->get_active_theme());
-            if (new_active_theme) {
+            if (new_active_theme && new_active_theme->get_data()) {
                 data = new_active_theme->get_data();
                 // Safely copy the new theme's actual name and path into the buffers
                 strncpy_s(theme_name_buffer, sizeof(theme_name_buffer), new_active_theme->get_data()->name.c_str(), _TRUNCATE);
