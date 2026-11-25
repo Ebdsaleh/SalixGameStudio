@@ -28,6 +28,7 @@
 #include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Transform.h> // Needed for focus_on
 #include <memory>
+#include <functional>
 #include <vector>
 #include <algorithm>
 #include <iostream>
@@ -45,6 +46,7 @@ namespace Salix {
         void queue_add_root();
         std::shared_ptr<int> command_lifetime = std::make_shared<int>(0);
         void queue_entity_action(SimpleGuid owner, TreeEntityAction action);
+        void defer(std::function<void()> command);
         void rename_entity(EntityArchetype& archetype, const std::string& name);
         void rename_element(EntityArchetype& owner, ElementArchetype& element, const std::string& name);
         void show_entity_context_menu(EntityArchetype& archetype);
@@ -78,6 +80,7 @@ namespace Salix {
     void WorldTreePanel::initialize(EditorContext* context) {
         if (!context) return;
         LockablePanel::initialize(context);
+        if (pimpl->context != context) pimpl->command_lifetime = std::make_shared<int>(0);
         pimpl->context = context;
         set_visibility(true);
         set_locked_state_tint_color(ImVec4(0.5f, 0.0f, 0.0f, 1.0f));
@@ -252,11 +255,18 @@ namespace Salix {
     }
 #endif
 
+    void WorldTreePanel::Pimpl::defer(std::function<void()> command) {
+        if (!context || !context->editor_realm_manager || !context->event_manager) return;
+        std::weak_ptr<int> lifetime = command_lifetime;
+        context->add_deferred_command([this, lifetime, command = std::move(command)]() {
+            if (lifetime.expired() || !context || !context->editor_realm_manager || !context->event_manager) return;
+            command();
+        });
+    }
+
     void WorldTreePanel::Pimpl::queue_entity_action(SimpleGuid owner, TreeEntityAction action) {
         if (!context || !context->editor_realm_manager) return;
-        std::weak_ptr<int> lifetime = command_lifetime;
-        context->add_deferred_command([this, lifetime, owner, action]() {
-            if (lifetime.expired() || !context || !context->editor_realm_manager) return;
+        defer([this, owner, action]() {
             auto& manager = *context->editor_realm_manager;
             if (!manager.get_archetype(owner)) return;
             switch (action) {
@@ -291,7 +301,7 @@ namespace Salix {
 
     void WorldTreePanel::Pimpl::queue_add_root() {
         if (!context || !context->editor_realm_manager || !context->event_manager) return;
-        context->add_deferred_command([this]() {
+        defer([this]() {
             auto new_entity = ArchetypeFactory::create_entity_archetype("Entity");
             if (!new_entity.id.is_valid()) return;
             context->editor_realm_manager->add_entity(new_entity);
@@ -303,7 +313,7 @@ namespace Salix {
 
     void WorldTreePanel::Pimpl::queue_add_element(SimpleGuid owner_id, const std::string& type) {
         if (!context || !context->editor_realm_manager || !context->event_manager) return;
-        context->add_deferred_command([this, owner_id, type]() {
+        defer([this, owner_id, type]() {
             if (!context->editor_realm_manager->get_archetype(owner_id)) return;
             auto new_element = ArchetypeFactory::create_element_archetype(type);
             if (!new_element.id.is_valid()) return;
@@ -350,7 +360,7 @@ namespace Salix {
 
             if (archetype.has_element_of_type("Camera")) {
                 if (ImGui::MenuItem("Set As Realm Camera##SetAsRealmCamera")) {
-                    context->add_deferred_command([this, owner_id = archetype.id]() {
+                    defer([this, owner_id = archetype.id]() {
                         
                         context->event_manager->dispatch(
                             std::make_unique<OnMainCameraChangedEvent>(owner_id)
@@ -461,7 +471,7 @@ namespace Salix {
             if (element_archetype.type_name == "Camera") {
                 ImGui::Separator();
                 if (ImGui::MenuItem("Set As Realm Camera##SetAsRealmCamera")) {
-                    context->add_deferred_command([this, owner_id = parent_archetype.id]() {
+                    defer([this, owner_id = parent_archetype.id]() {
                         // Dispatch the new event with the owner entity's ID
                         
                         context->event_manager->dispatch(
@@ -480,7 +490,7 @@ namespace Salix {
             if (element_archetype.allows_duplication) {
                 if (ImGui::MenuItem("Duplicate##DuplicateElement", "Ctrl+D")) {
                     // Defer the command to call the manager.
-                    context->add_deferred_command([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
+                    defer([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
                         context->editor_realm_manager->duplicate_element(parent_id, element_id);
                     });
                 }
@@ -489,7 +499,7 @@ namespace Salix {
 
             if (ImGui::MenuItem("Purge##PurgeElement", "Del")) {
                 // Defer the command to call the manager.
-                context->add_deferred_command([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
+                defer([this, parent_id = parent_archetype.id, element_id = element_archetype.id]() {
                     context->editor_realm_manager->purge_element(parent_id, element_id);
                 });
             }
@@ -511,7 +521,7 @@ namespace Salix {
             if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DND_GUID")) {
                 SimpleGuid dragged_id = *(const SimpleGuid*)payload->Data;
                 if (dragged_id != target.id) {
-                    context->add_deferred_command([this, dragged_id, target_id = target.id]() {
+                    defer([this, dragged_id, target_id = target.id]() {
                         // Use the captured 'target_id' instead of 'target.id'
                         process_entity_drop(dragged_id, target_id);
                     });
@@ -531,7 +541,7 @@ namespace Salix {
                 draw_list->AddLine(ImVec2(rect_min.x, rect_min.y), ImVec2(rect_max.x, rect_min.y), ImGui::GetColorU32(ImGuiCol_DragDropTarget), 2.0f);
                 if (ImGui::IsMouseReleased(0)) {
                     SimpleGuid dragged_id = *(SimpleGuid*)payload->Data;
-                    context->add_deferred_command([this, dragged_id, parent_id = anchor.parent_id]() {
+                    defer([this, dragged_id, parent_id = anchor.parent_id]() {
                         // Use the captured 'parent_id' instead of 'anchor.parent_id'
                         process_entity_drop(dragged_id, parent_id);
                     });
