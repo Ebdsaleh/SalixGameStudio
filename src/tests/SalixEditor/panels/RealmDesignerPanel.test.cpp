@@ -578,3 +578,166 @@ TEST_SUITE("EditorCRI016_RealmDesignerPanel") {
         CHECK(x.f.c.events.is_queue_empty());
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct ColliderDrawFixture {
+    DesignerViewportFixture v;
+    ColliderDrawFixture() { v.f.c.ctx.grid_settings.snap_enabled = false; }
+    Entity* add(uint64_t n) {
+        auto* e = v.f.c.ctx.preview_realm->create_entity(id(n), "Collider");
+        REQUIRE(e);
+        auto* c = e->get_element<BoxCollider>();
+        REQUIRE(c);
+        c->set_visibility(true);
+        c->set_size(Vector3(2, 4, 6));
+        return e;
+    }
+    void render() {
+        v.f.panel.on_render();
+        CHECK(v.f.c.renderer.begins == v.f.c.renderer.ends);
+    }
+    auto& boxes() { return v.f.c.renderer.wire_boxes; }
+};
+}
+TEST_SUITE("EditorCRI017_RealmDesignerPanel") {
+    using namespace EditorCri;
+
+    TEST_CASE("CRI017 RealmDesignerPanel: sync callback enqueues work for the next GUI frame") {
+        DesignerViewportFixture v;
+        std::vector<int> calls;
+        v.f.c.ctx.sync_queue.push_back([&] {
+            calls.push_back(1);
+            v.f.c.ctx.sync_queue.push_back([&] { calls.push_back(3); });
+        });
+        v.f.c.ctx.sync_queue.push_back([&] { calls.push_back(2); });
+        v.frame();
+        CHECK((calls == std::vector<int>{1, 2}));
+        REQUIRE(v.f.c.ctx.sync_queue.size() == 1);
+        v.frame();
+        CHECK((calls == std::vector<int>{1, 2, 3}));
+        CHECK(v.f.c.ctx.sync_queue.empty());
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: sync callback can append a large next-frame batch") {
+        DesignerViewportFixture v;
+        int calls = 0;
+        v.f.c.ctx.sync_queue.push_back([&] {
+            for (int i = 0; i < 64; ++i)
+                v.f.c.ctx.sync_queue.push_back([&] { ++calls; });
+        });
+        v.frame();
+        CHECK(calls == 0);
+        REQUIRE(v.f.c.ctx.sync_queue.size() == 64);
+        v.frame();
+        CHECK(calls == 64);
+        CHECK(v.f.c.ctx.sync_queue.empty());
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: clearing newly queued sync work preserves current batch") {
+        DesignerViewportFixture v;
+        int calls = 0;
+        v.f.c.ctx.sync_queue.push_back([&] {
+            v.f.c.ctx.sync_queue.push_back([&] { calls += 100; });
+            v.f.c.ctx.sync_queue.clear();
+        });
+        v.f.c.ctx.sync_queue.push_back([&] { ++calls; });
+        v.frame();
+        CHECK(calls == 1);
+        v.frame();
+        CHECK(calls == 1);
+        CHECK(v.f.c.ctx.sync_queue.empty());
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: nested sync waits while data mode is live") {
+        DesignerViewportFixture v;
+        int calls = 0;
+        v.f.c.ctx.sync_queue.push_back([&] {
+            ++calls;
+            v.f.c.ctx.sync_queue.push_back([&] { ++calls; });
+        });
+        v.frame();
+        REQUIRE(calls == 1);
+        v.f.c.ctx.data_mode = EditorDataMode::Live;
+        v.frame();
+        CHECK(calls == 1);
+        REQUIRE(v.f.c.ctx.sync_queue.size() == 1);
+        v.f.c.ctx.data_mode = EditorDataMode::Yaml;
+        v.frame();
+        CHECK(calls == 2);
+        CHECK(v.f.c.ctx.sync_queue.empty());
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: visible collider submits full size and green debug color") {
+        ColliderDrawFixture f;
+        f.add(21);
+        f.render();
+        REQUIRE(f.boxes().size() == 1);
+        const auto& b = f.boxes()[0];
+        CHECK(b.matrix[0][0] == doctest::Approx(2));
+        CHECK(b.matrix[1][1] == doctest::Approx(4));
+        CHECK(b.matrix[2][2] == doctest::Approx(6));
+        CHECK(b.color == Color(0, 1, 0, 1));
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: collider box composes world translation and scale") {
+        ColliderDrawFixture f;
+        auto* t = f.add(21)->get_transform();
+        REQUIRE(t);
+        t->set_position(3, 4, 5);
+        t->set_scale(2, 3, 4);
+        f.render();
+        REQUIRE(f.boxes().size() == 1);
+        const auto& m = f.boxes()[0].matrix;
+        CHECK(m[0][0] == doctest::Approx(4));
+        CHECK(m[1][1] == doctest::Approx(12));
+        CHECK(m[2][2] == doctest::Approx(24));
+        CHECK(m[3][0] == doctest::Approx(3));
+        CHECK(m[3][1] == doctest::Approx(4));
+        CHECK(m[3][2] == doctest::Approx(5));
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: hidden collider is excluded from debug drawing") {
+        ColliderDrawFixture f;
+        f.add(21)->get_element<BoxCollider>()->set_visibility(false);
+        f.add(22)->get_transform()->set_position(7, 0, 0);
+        f.render();
+        REQUIRE(f.boxes().size() == 1);
+        CHECK(f.boxes()[0].matrix[3][0] == doctest::Approx(7));
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: purged preview entity submits no collider box") {
+        ColliderDrawFixture f;
+        f.add(21)->simple_purge();
+        f.add(22)->get_transform()->set_position(8, 0, 0);
+        f.render();
+        REQUIRE(f.boxes().size() == 1);
+        CHECK(f.boxes()[0].matrix[3][0] == doctest::Approx(8));
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: live mode does not draw authored preview collider boxes") {
+        ColliderDrawFixture f;
+        f.add(21);
+        Realm live("Live");
+        f.v.f.c.ctx.active_realm = &live;
+        f.v.f.c.ctx.data_mode = EditorDataMode::Live;
+        f.render();
+        CHECK(f.boxes().empty());
+        CHECK(f.v.f.c.renderer.begins == 1);
+        f.v.f.c.ctx.active_realm = nullptr;
+    }
+
+    TEST_CASE("CRI017 RealmDesignerPanel: collider debug drawing uses updated live size on next render") {
+        ColliderDrawFixture f;
+        auto* c = f.add(21)->get_element<BoxCollider>();
+        f.render();
+        REQUIRE(f.boxes().size() == 1);
+        f.boxes().clear();
+        c->set_size(Vector3(1, 3, 5));
+        f.render();
+        REQUIRE(f.boxes().size() == 1);
+        CHECK(f.boxes()[0].matrix[0][0] == doctest::Approx(1));
+        CHECK(f.boxes()[0].matrix[1][1] == doctest::Approx(3));
+        CHECK(f.boxes()[0].matrix[2][2] == doctest::Approx(5));
+    }
+}
