@@ -856,10 +856,14 @@ struct TreeInteractionFixture : TreeMenuActionFixture {
     void hover_row(bool component) {
         auto pos = child->DC.CursorStartPos;
         const auto& style = ImGui::GetStyle();
-        const float root_height = ImGui::GetFontSize() + 2.0f * style.FramePadding.y;
+        // Use the child window's measured font height; outside Begin/End
+        // the global current font size need not match that child.
+        const float font_size = child->FontRefSize;
+        REQUIRE(font_size > 0.f);
+        const float root_height = font_size + 2.0f * style.FramePadding.y;
         pos.x += 100.f;
         pos.y += 4.f + style.ItemSpacing.y + root_height * .5f;
-        if (component) pos.y += root_height * .5f + style.ItemSpacing.y + ImGui::GetFontSize() * .5f;
+        if (component) pos.y += root_height * .5f + style.ItemSpacing.y + font_size * .5f;
         ImGui::GetIO().AddMousePosEvent(pos.x, pos.y);
         frame();
         REQUIRE(gui.current->HoveredId == (component ? node_id(12, component_seed()) : root_node()));
