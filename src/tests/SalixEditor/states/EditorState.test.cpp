@@ -539,3 +539,21 @@ TEST_SUITE("EditorCRI017_EditorState") {
         CHECK(camera->get_projection_mode() == ProjectionMode::Orthographic);
     }
 }
+
+TEST_SUITE("EditorCRI018_EditorState") {
+    TEST_CASE("CRI018 EditorState: actual camera debug menu renders diagnostic window without changing projection") {
+        StateMenuActionFixture f;
+        auto* context = f.startup.f.state.get_context_for_testing();
+        REQUIRE(context);
+        REQUIRE(context->editor_camera);
+        const auto projection = context->editor_camera->get_projection_mode();
+        f.open("View");
+        f.submenu("Editor Camera");
+        f.activate("Debug Window");
+        auto* window = ImGui::FindWindowByName("Camera Debug Info");
+        REQUIRE(window);
+        CHECK(window->WasActive || window->Active);
+        CHECK(context->editor_camera->get_projection_mode() == projection);
+        CHECK(f.startup.f.engine.is_running());
+    }
+}
