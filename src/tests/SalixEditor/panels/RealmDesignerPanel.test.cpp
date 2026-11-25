@@ -900,3 +900,32 @@ TEST_SUITE("EditorCRI018_RealmDesignerPanel") {
         CHECK_FALSE(f.selected().is_valid());
     }
 }
+
+namespace {
+using namespace EditorCri;
+void activate_designer_lock(DesignerInputFixture& f) {
+    auto* window = ImGui::FindWindowByName("Realm Designer");
+    REQUIRE(window);
+    ImGui::ActivateItemByID(window->GetID("##PanelLockBtn"));
+    f.v.frame();
+}
+}
+TEST_SUITE("EditorCRI018_RealmDesignerToolbar") {
+    TEST_CASE("CRI018 RealmDesignerPanel: actual toolbar lock button locks viewport") {
+        DesignerInputFixture f;
+        f.show();
+        CHECK_FALSE(f.v.f.panel.is_locked());
+        activate_designer_lock(f);
+        CHECK(f.v.f.panel.is_locked());
+        CHECK(f.v.f.panel.get_visibility());
+    }
+    TEST_CASE("CRI018 RealmDesignerPanel: actual toolbar lock button unlocks viewport") {
+        DesignerInputFixture f;
+        f.v.f.panel.lock();
+        f.show();
+        CHECK(f.v.f.panel.is_locked());
+        activate_designer_lock(f);
+        CHECK_FALSE(f.v.f.panel.is_locked());
+        CHECK(f.v.f.panel.get_visibility());
+    }
+}
