@@ -418,3 +418,163 @@ TEST_SUITE("EditorCRI014_RealmDesignerPanel") {
         ReloadFixture f;f.sprite->load_texture(&f.v.assets,"");f.change("",true);f.v.viewport.f.c.events.process_queue();CHECK(f.sprite->get_texture()==nullptr);REQUIRE(f.capture.count()==2);for(size_t i=0;i<f.capture.count();++i)CHECK(std::get<int>(f.capture.at(i).new_value)==0);
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct DesignerHierarchyFixture {
+    DesignerFixture f;
+    TempRealm file;
+    EditorEventCapture<PropertyValueChangedEvent> changes;
+    DesignerHierarchyFixture() {
+        f.c.ctx.editor_realm_manager->load_realm_from_file(file.write(
+            "Entities: [{name: Root, id: 11, elements: {Transform: {id: 1011}}}, "
+            "{name: Child, id: 12, parent: 11, elements: {Transform: {id: 1012}}}, "
+            "{name: Grandchild, id: 13, parent: 12, elements: {Transform: {id: 1013}}}, "
+            "{name: Target, id: 14, elements: {Transform: {id: 1014}}}, "
+            "{name: Other, id: 15, elements: {Transform: {id: 1015}}}]"));
+        OnEntityFamilyAddedEvent added(f.c.ctx.editor_realm_manager->get_realm());
+        f.panel.on_event(added);
+        REQUIRE(f.live(11));
+        REQUIRE(f.live(12));
+        REQUIRE(f.live(13));
+        REQUIRE(f.live(14));
+        REQUIRE(f.live(15));
+        REQUIRE(f.live(12)->get_parent() == f.live(11));
+        REQUIRE(f.live(13)->get_parent() == f.live(12));
+        f.c.events.subscribe(EventCategory::Editor, &changes);
+    }
+    void move(uint64_t owner, uint64_t target) {
+        OnHierarchyChangedEvent event(id(owner), id(target));
+        f.panel.on_event(event);
+    }
+    void drain() { f.c.events.process_queue(); }
+    void check_properties(uint64_t owner) {
+        std::map<std::string, Vector3> values;
+        for (size_t i = 0; i < changes.count(); ++i) {
+            auto& e = changes.at(i);
+            if (e.entity_id != id(owner)) continue;
+            CHECK(e.element_id == id(1000 + owner));
+            CHECK(e.element_type_name == "Transform");
+            REQUIRE(std::holds_alternative<Vector3>(e.new_value));
+            values.emplace(e.property_name, std::get<Vector3>(e.new_value));
+        }
+        REQUIRE(values.size() == 3);
+        auto* t = f.live(owner)->get_transform();
+        REQUIRE(t);
+        CHECK(values.at("position") == t->get_position());
+        CHECK(values.at("rotation") == t->get_rotation());
+        CHECK(values.at("scale") == t->get_scale());
+    }
+};
+}
+TEST_SUITE("EditorCRI016_RealmDesignerPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI016 RealmDesignerPanel: moving authored root preserves live descendant chain") {
+        DesignerHierarchyFixture x;
+        x.move(11, 14);
+        CHECK(x.f.live(11)->get_parent() == x.f.live(14));
+        CHECK(x.f.live(12)->get_parent() == x.f.live(11));
+        CHECK(x.f.live(13)->get_parent() == x.f.live(12));
+        CHECK(x.f.live(15)->get_parent() == nullptr);
+        x.drain();
+        REQUIRE(x.changes.count() == 9);
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: moved root publishes all local transform properties") {
+        DesignerHierarchyFixture x;
+        x.f.live(11)->get_transform()->set_position(2, 3, 4);
+        x.f.live(14)->get_transform()->set_position(5, 6, 7);
+        x.move(11, 14);
+        x.drain();
+        x.check_properties(11);
+        x.check_properties(12);
+        x.check_properties(13);
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: reparenting child publishes only its subtree") {
+        DesignerHierarchyFixture x;
+        x.move(12, 14);
+        x.drain();
+        REQUIRE(x.changes.count() == 6);
+        x.check_properties(12);
+        x.check_properties(13);
+        CHECK(x.f.live(12)->get_parent() == x.f.live(14));
+        CHECK(x.f.live(11)->get_parent() == nullptr);
+        for (size_t i = 0; i < x.changes.count(); ++i)
+            CHECK(x.changes.at(i).entity_id != id(11));
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: releasing child publishes subtree transforms") {
+        DesignerHierarchyFixture x;
+        x.move(12, 0);
+        x.drain();
+        REQUIRE(x.changes.count() == 6);
+        CHECK(x.f.live(12)->get_parent() == nullptr);
+        CHECK(x.f.live(13)->get_parent() == x.f.live(12));
+        x.check_properties(12);
+        x.check_properties(13);
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: absent authored transform does not suppress descendant synchronization") {
+        DesignerHierarchyFixture x;
+        auto* child = x.f.c.ctx.editor_realm_manager->get_archetype(id(12));
+        REQUIRE(child);
+        child->elements.clear();
+        x.move(11, 14);
+        x.drain();
+        REQUIRE(x.changes.count() == 6);
+        x.check_properties(11);
+        x.check_properties(13);
+        for (size_t i = 0; i < x.changes.count(); ++i)
+            CHECK(x.changes.at(i).entity_id != id(12));
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: live only descendants do not publish nonexistent authored components") {
+        DesignerHierarchyFixture x;
+        x.f.add(16);
+        REQUIRE(x.f.live(16));
+        x.f.live(16)->set_parent(x.f.live(13));
+        x.move(11, 14);
+        x.drain();
+        REQUIRE(x.changes.count() == 9);
+        CHECK(x.f.live(16)->get_parent() == x.f.live(13));
+        for (size_t i = 0; i < x.changes.count(); ++i)
+            CHECK(x.changes.at(i).entity_id != id(16));
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: descendant target cannot cause preview cycle") {
+        DesignerHierarchyFixture x;
+        x.move(11, 13);
+        CHECK(x.f.live(11)->get_parent() == nullptr);
+        CHECK(x.f.live(12)->get_parent() == x.f.live(11));
+        CHECK(x.f.live(13)->get_parent() == x.f.live(12));
+        CHECK(x.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: live mode ignores authored hierarchy notification") {
+        DesignerHierarchyFixture x;
+        x.f.c.ctx.data_mode = EditorDataMode::Live;
+        x.move(11, 14);
+        CHECK(x.f.live(11)->get_parent() == nullptr);
+        CHECK(x.f.live(12)->get_parent() == x.f.live(11));
+        CHECK(x.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: missing model service prevents preview reparent") {
+        DesignerHierarchyFixture x;
+        auto manager = std::move(x.f.c.ctx.editor_realm_manager);
+        x.move(11, 14);
+        x.f.c.ctx.editor_realm_manager = std::move(manager);
+        CHECK(x.f.live(11)->get_parent() == nullptr);
+        CHECK(x.f.c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI016 RealmDesignerPanel: missing event service prevents unsynchronized preview reparent") {
+        DesignerHierarchyFixture x;
+        x.f.c.ctx.event_manager = nullptr;
+        x.move(11, 14);
+        x.f.c.ctx.event_manager = &x.f.c.events;
+        CHECK(x.f.live(11)->get_parent() == nullptr);
+        CHECK(x.f.c.events.is_queue_empty());
+    }
+}
