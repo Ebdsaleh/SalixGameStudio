@@ -102,6 +102,9 @@ namespace EditorCri {
         void draw_sprite(ITexture* t,const glm::mat4& m,const Color& c) override {sprites.push_back({t,m,c});}
         uint32_t result=73, last_id=0;
         int creates=0, deletes=0, begins=0, ends=0, clears=0, width=0,height=0;
+        struct WireBoxDraw { glm::mat4 matrix; Color color; };
+        std::vector<WireBoxDraw> wire_boxes;
+        void draw_wire_box(const glm::mat4& m, const Color& c) override { wire_boxes.push_back({m,c}); }
         int lines=0;
         void draw_line(const glm::vec3&,const glm::vec3&,const Color&) override { ++lines; }
         ICamera* camera=nullptr;
