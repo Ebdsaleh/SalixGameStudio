@@ -1,3 +1,4 @@
+#include <utility>
 // Editor/panels/RealmDesignerPanel.cpp
 #include <Salix/serialization/YamlConverters.h>
 #include <Editor/panels/RealmDesignerPanel.h>
@@ -320,10 +321,13 @@ namespace Salix {
             if (pimpl->context->data_mode == EditorDataMode::Yaml) {
                 // --- Process the sync queue ---
                 if (!pimpl->context->sync_queue.empty()) {
-                    for (const auto& command : pimpl->context->sync_queue) {
-                        command(); // Execute the re-instantiation command
-                    }
+                    // Detach this frame's batch before invoking callbacks.
+                    // Newly enqueued synchronization work belongs to the next frame.
+                    auto pending = std::move(pimpl->context->sync_queue);
                     pimpl->context->sync_queue.clear();
+                    for (const auto& command : pending) {
+                        command();
+                    }
                 }
                 // --- TEST CODE COMMENTING OUT ---
                 /*
@@ -1263,7 +1267,7 @@ namespace Salix {
     }   
 
     void RealmDesignerPanel::Pimpl::draw_bounding_boxes() {
-        OpenGLRenderer* renderer = context->renderer->as_opengl_renderer();
+        IRenderer* renderer = context->renderer;
         if (!renderer) return;
         // Define a color for the bounding boxes
         Color box_color = {0.0f, 1.0f, 0.0f, 1.0f}; // Green
