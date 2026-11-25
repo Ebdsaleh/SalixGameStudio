@@ -8,6 +8,7 @@
 #include <Salix/events/EventManager.h>
 #include "../fixtures/RealmFixtures.h"
 #include <Salix/ecs/Camera.h>
+#include <iterator>
 
 namespace {
 namespace coverage_batch_001 {
@@ -293,5 +294,131 @@ TEST_SUITE("EditorCRI015_EditorRealmManager") {
         CHECK(m.get_archetype(id(14)) != nullptr);
         CHECK(m.is_dirty());
         CHECK_FALSE(events.is_queue_empty());
+    }
+}
+
+namespace {
+using namespace EditorCri;
+struct LoadedHierarchyFixture {
+    TempRealm file;
+    EventManager events;
+    EditorContext context;
+    EditorRealmManager manager;
+    LoadedHierarchyFixture(): manager(&context) { context.event_manager = &events; }
+    void load(const char* yaml) { manager.load_realm_from_file(file.write(yaml)); }
+    EntityArchetype* get(uint64_t n) {
+        auto* record = manager.get_archetype(id(n));
+        REQUIRE(record);
+        return record;
+    }
+    void root(uint64_t n) { CHECK_FALSE(get(n)->parent_id.is_valid()); }
+    void child(uint64_t n, uint64_t parent) { CHECK(get(n)->parent_id == id(parent)); }
+};
+}
+TEST_SUITE("EditorCRI016_EditorRealmManager") {
+    using namespace EditorCri;
+    TEST_CASE("CRI016 EditorRealmManager: two entity cycle preserves both records as roots") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: A, id: 11, parent: 12}, {name: B, id: 12, parent: 11}]");
+        REQUIRE(f.manager.get_realm_size() == 2);
+        f.root(11); f.root(12);
+        CHECK(f.get(11)->child_ids.empty());
+        CHECK(f.get(12)->child_ids.empty());
+        REQUIRE(f.manager.get_hierarchy().size() == 2);
+        CHECK(f.manager.get_hierarchy()[0]->entity_id == id(11));
+        CHECK(f.manager.get_hierarchy()[1]->entity_id == id(12));
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: longer cycle preserves entity and component metadata") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: A, id: 11, parent: 12, elements: {Transform: {id: 21}}}, {name: B, id: 12, parent: 13}, {name: C, id: 13, parent: 11}]");
+        f.root(11); f.root(12); f.root(13);
+        CHECK(f.get(11)->name == "A");
+        REQUIRE(f.get(11)->elements.size() == 1);
+        CHECK(f.get(11)->elements[0].id == id(21));
+        CHECK(f.manager.get_hierarchy().size() == 3);
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: tail leading into cycle retains its valid parent") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: Tail, id: 13, parent: 11}, {name: A, id: 11, parent: 12}, {name: B, id: 12, parent: 11}]");
+        f.child(13, 11); f.root(11); f.root(12);
+        REQUIRE(f.get(11)->child_ids.size() == 1);
+        CHECK(f.get(11)->child_ids[0] == id(13));
+        CHECK(f.get(12)->child_ids.empty());
+        CHECK(f.manager.get_hierarchy().size() == 2);
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: independent descendant chain survives cycle repair") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: A, id: 11, parent: 12}, {name: B, id: 12, parent: 11}, {name: Root, id: 14}, {name: Child, id: 15, parent: 14}, {name: Grandchild, id: 16, parent: 15}]");
+        f.root(11); f.root(12); f.root(14);
+        f.child(15, 14); f.child(16, 15);
+        REQUIRE(f.get(14)->child_ids.size() == 1);
+        CHECK(f.get(14)->child_ids[0] == id(15));
+        REQUIRE(f.get(15)->child_ids.size() == 1);
+        CHECK(f.get(15)->child_ids[0] == id(16));
+        CHECK(f.manager.get_hierarchy().size() == 3);
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: disjoint cycles normalize independently") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: A, id: 11, parent: 12}, {name: C, id: 13, parent: 14}, {name: B, id: 12, parent: 11}, {name: D, id: 14, parent: 13}]");
+        for (uint64_t n : {11, 12, 13, 14}) {
+            f.root(n);
+            CHECK(f.get(n)->child_ids.empty());
+        }
+        CHECK(f.manager.get_hierarchy().size() == 4);
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: reversing YAML order does not choose a different cycle root policy") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: B, id: 12, parent: 11}, {name: A, id: 11, parent: 12}, {name: Child, id: 13, parent: 12}]");
+        f.root(11); f.root(12); f.child(13, 12);
+        REQUIRE(f.get(12)->child_ids.size() == 1);
+        CHECK(f.get(12)->child_ids[0] == id(13));
+        CHECK(f.get(11)->child_ids.empty());
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: orphan reference remains unchanged beside a malformed cycle") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: A, id: 11, parent: 12}, {name: B, id: 12, parent: 11}, {name: Orphan, id: 13, parent: 99}, {name: Child, id: 14, parent: 13}]");
+        f.root(11); f.root(12); f.child(13, 99); f.child(14, 13);
+        REQUIRE(f.get(13)->child_ids.size() == 1);
+        CHECK(f.get(13)->child_ids[0] == id(14));
+        CHECK(f.manager.get_archetype(id(99)) == nullptr);
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: clean snapshot describes normalized in-memory hierarchy") {
+        LoadedHierarchyFixture f;
+        const char* yaml = "Entities: [{name: A, id: 11, parent: 12}, {name: B, id: 12, parent: 11}]";
+        f.load(yaml);
+        REQUIRE(f.manager.get_snapshot());
+        CHECK_FALSE(f.manager.is_dirty());
+        std::ifstream original(f.file.path());
+        std::string contents((std::istreambuf_iterator<char>(original)), std::istreambuf_iterator<char>());
+        CHECK(contents == yaml);
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: normalized cycle permits descendant purge without deleting former peer") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: A, id: 11, parent: 12}, {name: B, id: 12, parent: 11}, {name: Child, id: 13, parent: 11}]");
+        f.manager.purge_entity_descendants(id(11));
+        CHECK(f.manager.get_realm_size() == 2);
+        CHECK(f.manager.get_archetype(id(13)) == nullptr);
+        f.root(11); f.root(12);
+        CHECK(f.get(11)->child_ids.empty());
+        CHECK(f.manager.is_dirty());
+    }
+
+    TEST_CASE("CRI016 EditorRealmManager: subsequent valid reload restores intended hierarchy") {
+        LoadedHierarchyFixture f;
+        f.load("Entities: [{name: A, id: 11, parent: 12}, {name: B, id: 12, parent: 11}]");
+        f.load("Entities: [{name: A, id: 11}, {name: B, id: 12, parent: 11}]");
+        f.root(11); f.child(12, 11);
+        REQUIRE(f.get(11)->child_ids.size() == 1);
+        CHECK(f.get(11)->child_ids[0] == id(12));
+        CHECK(f.manager.get_hierarchy().size() == 1);
+        CHECK_FALSE(f.manager.is_dirty());
     }
 }
