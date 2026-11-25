@@ -412,11 +412,11 @@ TEST_SUITE("EditorCRI014_EditorState") {
     }
 
     TEST_CASE("CRI014 EditorState: active synthetic font is pushed and popped in actual frame") {
-        FrameFixture f;auto font=std::make_unique<ImGuiFont>("","FixtureFont",13);font->set_imgui_font_ptr(ImGui::GetIO().Fonts->Fonts[0]);REQUIRE(f.startup.f.fonts.register_font(std::move(font)));REQUIRE(f.startup.f.fonts.set_active_font("FixtureFont"));f.frame();f.frame();CHECK(f.gui.current->FontStack.Size==0);CHECK(f.startup.f.gui.dialog_frames==2);
+        FrameFixture f;auto font=std::make_unique<ImGuiFont>("","FixtureFont",13.0f);font->set_imgui_font_ptr(ImGui::GetIO().Fonts->Fonts[0]);REQUIRE(f.startup.f.fonts.register_font(std::move(font)));REQUIRE(f.startup.f.fonts.set_active_font("FixtureFont"));f.frame();f.frame();CHECK(f.gui.current->FontStack.Size==0);CHECK(f.startup.f.gui.dialog_frames==2);
     }
 
     TEST_CASE("CRI014 EditorState: font metadata without atlas pointer leaves font stack balanced") {
-        FrameFixture f;auto font=std::make_unique<ImGuiFont>("","Unloaded",13);REQUIRE(f.startup.f.fonts.register_font(std::move(font)));REQUIRE(f.startup.f.fonts.set_active_font("Unloaded"));f.frame();CHECK(f.gui.current->FontStack.Size==0);CHECK(f.startup.f.gui.dialog_frames==1);
+        FrameFixture f;auto font=std::make_unique<ImGuiFont>("","Unloaded",13.0f);REQUIRE(f.startup.f.fonts.register_font(std::move(font)));REQUIRE(f.startup.f.fonts.set_active_font("Unloaded"));f.frame();CHECK(f.gui.current->FontStack.Size==0);CHECK(f.startup.f.gui.dialog_frames==1);
     }
 
     TEST_CASE("CRI014 EditorState: File menu renders actual popup without stopping engine") {
@@ -552,7 +552,7 @@ TEST_SUITE("EditorCRI018_EditorState") {
         f.activate("Debug Window");
         auto* window = ImGui::FindWindowByName("Camera Debug Info");
         REQUIRE(window);
-        CHECK(window->WasActive || window->Active);
+        CHECK((window->WasActive || window->Active));
         CHECK(context->editor_camera->get_projection_mode() == projection);
         CHECK(f.startup.f.engine.is_running());
     }
