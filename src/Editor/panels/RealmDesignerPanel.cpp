@@ -308,6 +308,10 @@ namespace Salix {
 
     // MODIFIED: The main update loop now calls the new handle_input function.
     void RealmDesignerPanel::on_gui_update() {
+        // The gizmo owns this transient selection block for the current frame.
+        // A hidden/locked viewport, missing framebuffer, or missing selection
+        // must not retain the previous frame's hover/drag state.
+        EntitySelectedEvent::block_selection = false;
         if (!pimpl->is_visible || !pimpl->context || !pimpl->context->init_context || !pimpl->icon_manager || !pimpl->context->editor_camera) return;
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
