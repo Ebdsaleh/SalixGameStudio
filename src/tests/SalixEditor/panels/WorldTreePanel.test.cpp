@@ -810,3 +810,160 @@ TEST_SUITE("EditorCRI017_WorldTreeComponentMenus") {
         add_through_actual_tree_menu("Camera", "Camera##AddCamera");
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct TreeInteractionFixture : TreeMenuActionFixture {
+    ImGuiID node_id(int n, ImGuiID seed) {
+        void* ptr = reinterpret_cast<void*>(static_cast<uintptr_t>(n));
+        return ImHashData(&ptr, sizeof(ptr), seed);
+    }
+    ImGuiID root_seed() { return child->GetID(11); }
+    ImGuiID root_node() { return node_id(11, root_seed()); }
+    ImGuiID component_seed() {
+        int n = 12;
+        return ImHashData(&n, sizeof(n), root_node());
+    }
+    void child_menu() {
+        family();
+        prepare(true);
+        int n = 12;
+        open(ImHashStr("EntityContextMenu", 0, ImHashData(&n, sizeof(n), root_node())));
+    }
+    void begin_rename(bool component) {
+        prepare(component);
+        open(component ? element_popup(12) : entity_popup(false));
+        activate(component ? "Rename##RenameElement" : "Rename##RenameEntity");
+        frame();
+        frame();
+        REQUIRE(gui.current->ActiveId == ImHashStr("##RenameBox", 0,
+            component ? component_seed() : root_seed()));
+    }
+    void key(ImGuiKey key, bool down) {
+        ImGui::GetIO().AddKeyEvent(key, down);
+        frame();
+    }
+    void replace_text(const char* value) {
+        auto& io = ImGui::GetIO();
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        key(ImGuiKey_A, true);
+        key(ImGuiKey_A, false);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        frame();
+        io.AddInputCharactersUTF8(value);
+        frame();
+    }
+    void hover_row(bool component) {
+        auto pos = child->DC.CursorStartPos;
+        const auto& style = ImGui::GetStyle();
+        const float root_height = ImGui::GetFontSize() + 2.0f * style.FramePadding.y;
+        pos.x += 100.f;
+        pos.y += 4.f + style.ItemSpacing.y + root_height * .5f;
+        if (component) pos.y += root_height * .5f + style.ItemSpacing.y + ImGui::GetFontSize() * .5f;
+        ImGui::GetIO().AddMousePosEvent(pos.x, pos.y);
+        frame();
+        REQUIRE(gui.current->HoveredId == (component ? node_id(12, component_seed()) : root_node()));
+    }
+    void mouse(int button, bool down) {
+        ImGui::GetIO().AddMouseButtonEvent(button, down);
+        frame();
+    }
+};
+}
+TEST_SUITE("EditorCRI018_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI018 WorldTreePanel: actual child release menu detaches subtree") {
+        TreeInteractionFixture f;
+        f.child_menu(); f.queue("Release From Parent##ReleaseFromParent");
+        CHECK(f.manager().get_archetype(id(12))->parent_id == id(11));
+        f.run();
+        CHECK_FALSE(f.manager().get_archetype(id(12))->parent_id.is_valid());
+        CHECK(f.manager().get_archetype(id(13))->parent_id == id(12));
+        CHECK(f.tree.root()->child_ids.empty());
+        CHECK(f.manager().get_hierarchy().size() == 3);
+    }
+    TEST_CASE("CRI018 WorldTreePanel: actual sibling duplicate menu preserves external parent") {
+        TreeInteractionFixture f;
+        f.child_menu(); f.queue("Duplicate As Sibling##DuplicateEntityAsSibling"); f.run();
+        REQUIRE(f.manager().get_realm_size() == 5);
+        const auto& copy = f.manager().get_realm().back();
+        CHECK(copy.parent_id == id(11)); CHECK(copy.id != id(12));
+        CHECK(copy.child_ids.empty()); CHECK(f.tree.root()->child_ids.size() == 2);
+    }
+    TEST_CASE("CRI018 WorldTreePanel: actual sibling family duplicate retains both branches") {
+        TreeInteractionFixture f;
+        f.child_menu(); f.queue("Duplicate Family As Sibling##DuplicateFamilyAsSibling"); f.run();
+        REQUIRE(f.manager().get_realm_size() == 6);
+        const auto& copy = f.manager().get_realm()[4];
+        CHECK(copy.parent_id == id(11)); REQUIRE(copy.child_ids.size() == 1);
+        REQUIRE(f.manager().get_archetype(copy.child_ids[0]));
+        CHECK(f.manager().get_archetype(copy.child_ids[0])->parent_id == copy.id);
+        CHECK(f.manager().get_archetype(id(13))->parent_id == id(12));
+    }
+    TEST_CASE("CRI018 WorldTreePanel: actual single purge menu orphans rather than deletes descendants") {
+        TreeInteractionFixture f;
+        f.child_menu(); f.queue("Purge##PurgeEntity"); f.run();
+        CHECK(f.manager().get_realm_size() == 3);
+        CHECK(f.manager().get_archetype(id(12)) == nullptr);
+        REQUIRE(f.manager().get_archetype(id(13)));
+        CHECK_FALSE(f.manager().get_archetype(id(13))->parent_id.is_valid());
+        CHECK(f.tree.root()->child_ids.empty());
+    }
+    TEST_CASE("CRI018 WorldTreePanel: actual bloodline purge preserves independent root") {
+        TreeInteractionFixture f;
+        f.child_menu(); f.queue("Purge Entity Bloodline##PurgeEntityBloodline"); f.run();
+        REQUIRE(f.manager().get_realm_size() == 1);
+        CHECK(f.manager().get_realm()[0].id == id(14));
+    }
+    TEST_CASE("CRI018 WorldTreePanel: real entity rename confirms typed text on Enter") {
+        TreeInteractionFixture f;
+        f.begin_rename(false); f.replace_text("Renamed Root");
+        CHECK(f.tree.root()->name == "Root");
+        f.key(ImGuiKey_Enter, true); f.key(ImGuiKey_Enter, false);
+        CHECK(f.tree.root()->name == "Renamed Root");
+        CHECK(f.tree.root()->state == ArchetypeState::Modified); CHECK(f.manager().is_dirty());
+    }
+    TEST_CASE("CRI018 WorldTreePanel: real entity rename Escape cancels typed text") {
+        TreeInteractionFixture f;
+        f.begin_rename(false); f.replace_text("Cancelled");
+        f.key(ImGuiKey_Escape, true); f.key(ImGuiKey_Escape, false);
+        CHECK(f.tree.root()->name == "Root"); CHECK_FALSE(f.manager().is_dirty());
+    }
+    TEST_CASE("CRI018 WorldTreePanel: real component rename confirms typed text and mirrored YAML") {
+        TreeInteractionFixture f;
+        f.begin_rename(true); f.replace_text("New Transform");
+        CHECK(f.tree.root()->elements[0].name == "Original");
+        f.key(ImGuiKey_Enter, true); f.key(ImGuiKey_Enter, false);
+        CHECK(f.tree.root()->elements[0].name == "New Transform");
+        CHECK(f.tree.root()->elements[0].data["name"].as<std::string>() == "New Transform");
+        CHECK(f.manager().is_dirty()); CHECK_FALSE(f.tree.c.events.is_queue_empty());
+    }
+    TEST_CASE("CRI018 WorldTreePanel: real component rename Escape preserves YAML and clean snapshot") {
+        TreeInteractionFixture f;
+        f.begin_rename(true); f.replace_text("Cancelled");
+        f.key(ImGuiKey_Escape, true); f.key(ImGuiKey_Escape, false);
+        CHECK(f.tree.root()->elements[0].name == "Original");
+        CHECK(f.tree.root()->elements[0].data["name"].as<std::string>() == "Original");
+        CHECK_FALSE(f.manager().is_dirty());
+    }
+    TEST_CASE("CRI018 WorldTreePanel: actual entity click clears prior component selection") {
+        TreeInteractionFixture f;
+        EditorEventCapture<EntitySelectedEvent> capture;
+        f.tree.c.events.subscribe(EventCategory::Editor, &capture);
+        f.tree.c.ctx.selected_element_id = id(12);
+        f.prepare(); f.hover_row(false); f.mouse(0, true); f.mouse(0, false);
+        CHECK(f.tree.c.ctx.selected_entity_id == id(11));
+        CHECK_FALSE(f.tree.c.ctx.selected_element_id.is_valid());
+        f.tree.c.events.process_queue(); REQUIRE(capture.count() == 1);
+        CHECK_FALSE(f.manager().is_dirty());
+    }
+    TEST_CASE("CRI018 WorldTreePanel: actual component click selects component and owner") {
+        TreeInteractionFixture f;
+        EditorEventCapture<ElementSelectedEvent> capture;
+        f.tree.c.events.subscribe(EventCategory::Editor, &capture);
+        f.prepare(true); f.hover_row(true); f.mouse(0, true); f.mouse(0, false);
+        CHECK(f.tree.c.ctx.selected_entity_id == id(11)); CHECK(f.tree.c.ctx.selected_element_id == id(12));
+        f.tree.c.events.process_queue(); REQUIRE(capture.count() == 1);
+        CHECK_FALSE(f.manager().is_dirty());
+    }
+}
