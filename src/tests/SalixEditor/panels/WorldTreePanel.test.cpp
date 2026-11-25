@@ -967,3 +967,60 @@ TEST_SUITE("EditorCRI018_WorldTreePanel") {
         CHECK_FALSE(f.manager().is_dirty());
     }
 }
+
+#include <Editor/camera/EditorCamera.h>
+TEST_SUITE("EditorCRI018_WorldTreeExtraInteractions") {
+    using namespace EditorCri;
+    TEST_CASE("CRI018 WorldTreePanel: actual nested Script menu creates reflected CppScript") {
+        add_through_actual_tree_menu("CppScript", "C++ Script##AddCPPScript", "Script##AddScriptMenu");
+    }
+    TEST_CASE("CRI018 WorldTreePanel: unregistered Python Script menu cannot insert invalid component") {
+        TreeMenuActionFixture f;
+        REQUIRE(ByteMirror::get_type_info_by_name("PythonScript") == nullptr);
+        f.entity_menu();
+        f.submenu("Add Element##AddElementMenu");
+        f.submenu("Script##AddScriptMenu");
+        f.queue("Python Script##AddPythonScript");
+        f.run();
+        REQUIRE(f.tree.root()->elements.size() == 1);
+        CHECK_FALSE(f.manager().is_dirty());
+        CHECK(f.tree.c.events.is_queue_empty());
+    }
+    TEST_CASE("CRI018 WorldTreePanel: actual entity right click selects owner and opens context menu") {
+        TreeInteractionFixture f;
+        f.tree.c.ctx.selected_element_id = id(12);
+        f.prepare();
+        f.hover_row(false);
+        f.mouse(1, true);
+        CHECK(f.tree.c.ctx.selected_entity_id == id(11));
+        CHECK_FALSE(f.tree.c.ctx.selected_element_id.is_valid());
+        f.mouse(1, false);
+        f.frame();
+        REQUIRE(f.gui.current->OpenPopupStack.Size == 1);
+        CHECK(f.gui.current->OpenPopupStack[0].PopupId == f.entity_popup(false));
+        CHECK_FALSE(f.manager().is_dirty());
+    }
+    TEST_CASE("CRI018 WorldTreePanel: actual entity double click focuses live preview transform") {
+        TreeInteractionFixture f;
+        EditorCamera camera;
+        camera.initialize(&f.tree.c.ctx);
+        camera.get_transform()->set_position(0, 0, 10);
+        f.tree.c.ctx.editor_camera = &camera;
+        f.tree.c.ctx.preview_realm = std::make_unique<Realm>("Preview");
+        auto* live = f.tree.c.ctx.preview_realm->create_entity(id(11), "Root");
+        REQUIRE(live);
+        live->get_transform()->set_position(2, 3, 4);
+        f.prepare();
+        f.hover_row(false);
+        f.mouse(0, true);
+        f.mouse(0, false);
+        f.mouse(0, true);
+        const auto delta = camera.get_transform()->get_position().to_glm() -
+            live->get_transform()->get_world_position().to_glm();
+        CHECK(glm::length(delta) == doctest::Approx(3));
+        f.mouse(0, false);
+        CHECK(f.tree.c.ctx.selected_entity_id == id(11));
+        CHECK_FALSE(f.manager().is_dirty());
+        f.tree.c.ctx.editor_camera = nullptr;
+    }
+}
