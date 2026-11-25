@@ -129,6 +129,17 @@ namespace Salix {
     void EditorRealmManager::load_realm_from_file(const std::string& filepath) {
         pimpl->realm = load_archetypes_from_file(filepath);
         synchronize(); // Sync map and hierarchy after loading
+
+        // The file stores parent IDs, not the inverse child lists. Rebuild
+        // those lists once all accepted entities are indexed, before taking
+        // the clean snapshot. Family operations traverse these child IDs.
+        for (const auto& child : pimpl->realm) {
+            if (!child.parent_id.is_valid()) continue;
+            if (auto* parent = get_archetype(child.parent_id)) {
+                parent->child_ids.push_back(child.id);
+            }
+        }
+
         take_snapshot(); // Take a new snapshot of the freshly loaded realm
     }
 
