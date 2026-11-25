@@ -128,6 +128,36 @@ namespace Salix {
 
     void EditorRealmManager::load_realm_from_file(const std::string& filepath) {
         pimpl->realm = load_archetypes_from_file(filepath);
+
+        // Like a self-parent, a cycle is not a valid entity hierarchy.
+        // Preserve every entity and its data, but make each member of a
+        // cycle a root. Descendants outside the cycle retain their parents.
+        // Resolve before building shared WorldTreeNodes or inverse links.
+        std::unordered_map<SimpleGuid, EntityArchetype*> by_id;
+        for (auto& archetype : pimpl->realm) by_id.emplace(archetype.id, &archetype);
+        std::unordered_set<SimpleGuid> complete;
+        for (auto& archetype : pimpl->realm) {
+            if (complete.count(archetype.id)) continue;
+            std::vector<EntityArchetype*> path;
+            std::unordered_map<SimpleGuid, size_t> path_index;
+            auto* current = &archetype;
+            while (current && !complete.count(current->id)) {
+                auto inserted = path_index.emplace(current->id, path.size());
+                if (!inserted.second) {
+                    for (size_t i = inserted.first->second; i < path.size(); ++i) {
+                        std::cerr << "[EditorRealmManager] Cyclic parent reference for entity "
+                                  << path[i]->id.get_value() << "; treating as root.\n";
+                        path[i]->parent_id = SimpleGuid::invalid();
+                    }
+                    break;
+                }
+                path.push_back(current);
+                auto parent = by_id.find(current->parent_id);
+                current = parent == by_id.end() ? nullptr : parent->second;
+            }
+            for (auto* member : path) complete.insert(member->id);
+        }
+
         synchronize(); // Sync map and hierarchy after loading
 
         // The file stores parent IDs, not the inverse child lists. Rebuild
