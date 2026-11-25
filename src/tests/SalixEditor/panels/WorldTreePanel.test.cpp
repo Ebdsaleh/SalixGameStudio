@@ -378,3 +378,188 @@ TEST_SUITE("EditorCRI014_WorldTreePanel") {
         TreeActionFixture x;x.f.c.ctx.selected_entity_id=id(11);x.act(13,TreeEntityAction::PurgeBloodline);CHECK(x.manager().get_realm_size()==1);CHECK(x.get(14)!=nullptr);CHECK_FALSE(x.f.c.ctx.selected_entity_id.is_valid());
     }
 }
+
+namespace {
+using namespace EditorCri;
+void drain_tree_context(EditorContext& c) {
+    auto pending = std::move(c.deferred_commands);
+    c.deferred_commands.clear();
+    for (auto& command : pending) command();
+}
+struct TreePopupFixture {
+    GuiFrame gui;
+    TreeFixture tree;
+    ImGuiWindow* child = nullptr;
+    void frame(ImGuiID popup = 0) {
+        gui.draw([&] {
+            if (popup) ImGui::OpenPopupEx(popup, ImGuiPopupFlags_None);
+            tree.panel.content();
+        });
+    }
+    void prepare(bool expanded = false) {
+        if (expanded) open_root(gui, tree);
+        else { frame(); frame(); }
+        for (auto* w : gui.current->Windows)
+            if (std::string(w->Name).find("WorldTreeContent") != std::string::npos) child = w;
+        REQUIRE(child);
+    }
+    ImGuiID entity_popup(bool expanded) {
+        ImGuiID seed = child->GetID(11);
+        if (expanded) {
+            void* ptr = reinterpret_cast<void*>(static_cast<uintptr_t>(11));
+            seed = ImHashData(&ptr, sizeof(ptr), seed);
+        }
+        return ImHashStr("EntityContextMenu", 0, seed);
+    }
+    ImGuiID element_popup(int component) {
+        void* ptr = reinterpret_cast<void*>(static_cast<uintptr_t>(11));
+        const ImGuiID root = ImHashData(&ptr, sizeof(ptr), child->GetID(11));
+        const ImGuiID seed = ImHashData(&component, sizeof(component), root);
+        return ImHashStr("ElementContextMenu", 0, seed);
+    }
+    void open(ImGuiID popup) {
+        frame(popup);
+        frame();
+        REQUIRE(gui.current->OpenPopupStack.Size == 1);
+        CHECK(gui.current->OpenPopupStack[0].PopupId == popup);
+        auto* window = gui.current->OpenPopupStack[0].Window;
+        REQUIRE(window);
+        CHECK((window->Flags & ImGuiWindowFlags_Popup) != 0);
+        CHECK(window->DC.CursorMaxPos.y > window->DC.CursorStartPos.y);
+    }
+};
+}
+TEST_SUITE("EditorCRI016_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI016 WorldTreePanel: destroyed panel cancels pending root creation") {
+        PanelContext c;
+        {
+            TreeProbe panel;
+            panel.initialize(&c.ctx);
+            panel.queue_add_root_for_testing();
+            REQUIRE(c.ctx.deferred_commands.size() == 1);
+        }
+        drain_tree_context(c.ctx);
+        CHECK(c.ctx.editor_realm_manager->realm_is_empty());
+        CHECK(c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: destroyed panel cancels pending component creation") {
+        PanelContext c;
+        TempRealm file;
+        c.ctx.editor_realm_manager->load_realm_from_file(file.write("Entities: [{name: Root, id: 11}]"));
+        {
+            TreeProbe panel;
+            panel.initialize(&c.ctx);
+            panel.queue_add_element_for_testing(id(11), "Camera");
+            REQUIRE(c.ctx.deferred_commands.size() == 1);
+        }
+        drain_tree_context(c.ctx);
+        REQUIRE(c.ctx.editor_realm_manager->get_archetype(id(11)));
+        CHECK(c.ctx.editor_realm_manager->get_archetype(id(11))->elements.empty());
+        CHECK(c.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: destroyed panel cancels pending family purge") {
+        PanelContext c;
+        TempRealm file;
+        c.ctx.editor_realm_manager->load_realm_from_file(file.write("Entities: [{name: Root, id: 11}, {name: Child, id: 12, parent: 11}]"));
+        {
+            TreeProbe panel;
+            panel.initialize(&c.ctx);
+            panel.queue_entity_action_for_testing(id(11), TreeEntityAction::PurgeFamily);
+            REQUIRE(c.ctx.deferred_commands.size() == 1);
+        }
+        drain_tree_context(c.ctx);
+        CHECK(c.ctx.editor_realm_manager->get_realm_size() == 2);
+        CHECK_FALSE(c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: reinitialization invalidates commands from previous context") {
+        PanelContext old_context, new_context;
+        TreeProbe panel;
+        panel.initialize(&old_context.ctx);
+        panel.queue_add_root_for_testing();
+        REQUIRE(old_context.ctx.deferred_commands.size() == 1);
+        panel.initialize(&new_context.ctx);
+        drain_tree_context(old_context.ctx);
+        CHECK(old_context.ctx.editor_realm_manager->realm_is_empty());
+        CHECK(new_context.ctx.editor_realm_manager->realm_is_empty());
+        CHECK(old_context.events.is_queue_empty());
+        CHECK(new_context.events.is_queue_empty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: missing event manager at execution prevents partial mutation") {
+        TreeFixture f;
+        f.panel.queue_add_root_for_testing();
+        f.panel.queue_add_element_for_testing(id(11), "Camera");
+        REQUIRE(f.c.ctx.deferred_commands.size() == 2);
+        f.c.ctx.event_manager = nullptr;
+        run_tree_commands(f);
+        f.c.ctx.event_manager = &f.c.events;
+        CHECK(f.c.ctx.editor_realm_manager->get_realm_size() == 1);
+        REQUIRE(f.root());
+        CHECK(f.root()->elements.size() == 1);
+        CHECK(f.c.events.is_queue_empty());
+        CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: missing realm manager at execution cancels all commands") {
+        TreeFixture f;
+        f.panel.queue_add_root_for_testing();
+        f.panel.queue_add_element_for_testing(id(11), "Camera");
+        f.panel.queue_entity_action_for_testing(id(11), TreeEntityAction::Purge);
+        REQUIRE(f.c.ctx.deferred_commands.size() == 3);
+        auto manager = std::move(f.c.ctx.editor_realm_manager);
+        run_tree_commands(f);
+        f.c.ctx.editor_realm_manager = std::move(manager);
+        CHECK(f.c.ctx.editor_realm_manager->get_realm_size() == 1);
+        CHECK(f.root()->elements.size() == 1);
+        CHECK_FALSE(f.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: real empty space popup does not add entity until chosen") {
+        TreePopupFixture f;
+        f.prepare();
+        f.open(f.child->GetID("WorldTreeContextMenu"));
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+        CHECK(f.tree.c.ctx.editor_realm_manager->get_realm_size() == 1);
+        CHECK_FALSE(f.tree.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: real collapsed entity popup preserves authored selection") {
+        TreePopupFixture f;
+        f.tree.c.ctx.selected_entity_id = id(11);
+        f.prepare();
+        f.open(f.entity_popup(false));
+        CHECK(f.tree.c.ctx.selected_entity_id == id(11));
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+        CHECK_FALSE(f.tree.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: real expanded camera entity popup preserves camera component") {
+        TreePopupFixture f;
+        auto camera = element("Camera", 21);
+        f.tree.root()->elements.push_back(camera);
+        f.tree.c.ctx.editor_realm_manager->take_snapshot();
+        f.prepare(true);
+        f.open(f.entity_popup(true));
+        CHECK(f.tree.root()->has_element_of_type("Camera"));
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+        CHECK_FALSE(f.tree.c.ctx.editor_realm_manager->is_dirty());
+    }
+
+    TEST_CASE("CRI016 WorldTreePanel: real camera component popup does not activate or purge without choice") {
+        TreePopupFixture f;
+        auto camera = element("Camera", 21);
+        camera.allows_duplication = true;
+        f.tree.root()->elements.push_back(camera);
+        f.tree.c.ctx.editor_realm_manager->take_snapshot();
+        f.prepare(true);
+        f.open(f.element_popup(21));
+        REQUIRE(f.tree.root()->get_element_by_id(id(21)));
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+        CHECK(f.tree.c.events.is_queue_empty());
+        CHECK_FALSE(f.tree.c.ctx.editor_realm_manager->is_dirty());
+    }
+}
