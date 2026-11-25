@@ -563,3 +563,204 @@ TEST_SUITE("EditorCRI016_WorldTreePanel") {
         CHECK_FALSE(f.tree.c.ctx.editor_realm_manager->is_dirty());
     }
 }
+
+#include "../fixtures/EditorEventFixtures.h"
+#include <Editor/events/OnMainCameraChangedEvent.h>
+namespace {
+using namespace EditorCri;
+// This uses the actual ImGui navigation activation path, not a simulated
+// MenuItem result. In the vendored ImGui MenuItemEx, PushID(label) wraps
+// Selectable(""), so the selectable ID is the hash of the label's ID.
+struct TreeMenuActionFixture : TreePopupFixture {
+    void activate(const char* label) {
+        REQUIRE(gui.current->OpenPopupStack.Size == 1);
+        auto* popup = gui.current->OpenPopupStack[0].Window;
+        REQUIRE(popup);
+        const ImGuiID item = ImHashStr("", 0, popup->GetID(label));
+        ImGui::ActivateItemByID(item);
+        frame();
+    }
+    void queue(const char* label) {
+        REQUIRE(tree.c.ctx.deferred_commands.empty());
+        activate(label);
+        REQUIRE(tree.c.ctx.deferred_commands.size() == 1);
+    }
+    void run() { run_tree_commands(tree); }
+    auto& manager() { return *tree.c.ctx.editor_realm_manager; }
+    void family() {
+        manager().load_realm_from_file(tree.file.write(
+            "Entities: [{name: Root, id: 11}, {name: Child, id: 12, parent: 11}, {name: Grandchild, id: 13, parent: 12}, {name: Other, id: 14}]"));
+        SimpleGuid::update_next_id(300000);
+    }
+    void camera() {
+        auto c = element("Camera", 21);
+        c.owner_id = id(11);
+        c.allows_duplication = true;
+        tree.root()->elements.push_back(c);
+        manager().take_snapshot();
+        SimpleGuid::update_next_id(300000);
+    }
+    void entity_menu() { prepare(); open(entity_popup(false)); }
+    void camera_menu() { camera(); prepare(true); open(element_popup(21)); }
+};
+}
+TEST_SUITE("EditorCRI017_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI017 WorldTreePanel: actual root popup action creates root only after deferred processing") {
+        TreeMenuActionFixture f;
+        SimpleGuid::update_next_id(300000);
+        f.prepare();
+        f.open(f.child->GetID("WorldTreeContextMenu"));
+        f.queue("Add Entity##AddRootEntity");
+        CHECK(f.manager().get_realm_size() == 1);
+        f.run();
+        REQUIRE(f.manager().get_realm_size() == 2);
+        auto selected = f.tree.c.ctx.selected_entity_id;
+        REQUIRE(f.manager().get_archetype(selected));
+        CHECK(selected != id(11));
+        CHECK_FALSE(f.manager().get_archetype(selected)->parent_id.is_valid());
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: disabled refresh menu cannot queue model work") {
+        TreeMenuActionFixture f;
+        f.prepare();
+        f.open(f.child->GetID("WorldTreeContextMenu"));
+        f.activate("Refresh View##RefreshWorldTree");
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+        CHECK_FALSE(f.manager().is_dirty());
+        CHECK(f.manager().get_realm_size() == 1);
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual entity menu adds child to original root") {
+        TreeMenuActionFixture f;
+        f.family();
+        f.entity_menu();
+        f.queue("Add Child Entity##AddChildEntity");
+        CHECK(f.manager().get_realm_size() == 4);
+        f.run();
+        REQUIRE(f.manager().get_realm_size() == 5);
+        CHECK(f.manager().get_realm().back().parent_id == id(11));
+        REQUIRE(f.tree.root());
+        CHECK(f.tree.root()->child_ids.size() == 2);
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual duplicate menu creates detached copy") {
+        TreeMenuActionFixture f;
+        f.family();
+        f.entity_menu();
+        f.queue("Duplicate##DuplicateEntity");
+        CHECK(f.manager().get_realm_size() == 4);
+        f.run();
+        REQUIRE(f.manager().get_realm_size() == 5);
+        const auto& copy = f.manager().get_realm().back();
+        CHECK(copy.id != id(11));
+        CHECK_FALSE(copy.parent_id.is_valid());
+        CHECK(copy.child_ids.empty());
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual family duplicate menu retains original descendants") {
+        TreeMenuActionFixture f;
+        f.family();
+        f.entity_menu();
+        f.queue("Duplicate With Children##DuplicateEntityWithChildren");
+        CHECK(f.manager().get_realm_size() == 4);
+        f.run();
+        REQUIRE(f.manager().get_realm_size() == 7);
+        CHECK(f.manager().get_archetype(id(12))->parent_id == id(11));
+        CHECK(f.manager().get_archetype(id(13))->parent_id == id(12));
+        CHECK(f.manager().get_realm()[5].parent_id == f.manager().get_realm()[4].id);
+        CHECK(f.manager().get_realm()[6].parent_id == f.manager().get_realm()[5].id);
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual descendants purge menu preserves owner and independent root") {
+        TreeMenuActionFixture f;
+        f.family();
+        f.entity_menu();
+        f.queue("Purge Entity Descendants##PurgeEntityDescendants");
+        CHECK(f.manager().get_realm_size() == 4);
+        f.run();
+        CHECK(f.manager().get_realm_size() == 2);
+        REQUIRE(f.tree.root());
+        CHECK(f.tree.root()->child_ids.empty());
+        CHECK(f.manager().get_archetype(id(12)) == nullptr);
+        CHECK(f.manager().get_archetype(id(13)) == nullptr);
+        CHECK(f.manager().get_archetype(id(14)) != nullptr);
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual family purge menu clears selection of removed descendant") {
+        TreeMenuActionFixture f;
+        f.family();
+        f.tree.c.ctx.selected_entity_id = id(13);
+        f.entity_menu();
+        f.queue("Purge Entity And Family##PurgeEntityAndFamily");
+        CHECK(f.manager().get_realm_size() == 4);
+        f.run();
+        CHECK(f.manager().get_realm_size() == 1);
+        CHECK(f.manager().get_archetype(id(14)) != nullptr);
+        CHECK_FALSE(f.tree.c.ctx.selected_entity_id.is_valid());
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual entity camera menu dispatches selected owner") {
+        TreeMenuActionFixture f;
+        EditorEventCapture<OnMainCameraChangedEvent> capture;
+        f.tree.c.events.subscribe(EventCategory::Editor, &capture);
+        f.camera();
+        f.entity_menu();
+        f.queue("Set As Realm Camera##SetAsRealmCamera");
+        CHECK(f.tree.c.events.is_queue_empty());
+        f.run();
+        f.tree.c.events.process_queue();
+        REQUIRE(capture.count() == 1);
+        CHECK(capture.at(0).entity_id == id(11));
+        CHECK_FALSE(f.manager().is_dirty());
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual component camera menu publishes owning entity identity") {
+        TreeMenuActionFixture f;
+        EditorEventCapture<OnMainCameraChangedEvent> capture;
+        f.tree.c.events.subscribe(EventCategory::Editor, &capture);
+        f.camera_menu();
+        f.queue("Set As Realm Camera##SetAsRealmCamera");
+        CHECK(f.tree.c.events.is_queue_empty());
+        f.run();
+        f.tree.c.events.process_queue();
+        REQUIRE(capture.count() == 1);
+        CHECK(capture.at(0).entity_id == id(11));
+        CHECK_FALSE(f.manager().is_dirty());
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual component duplicate menu creates a fresh component ID") {
+        TreeMenuActionFixture f;
+        f.camera_menu();
+        f.queue("Duplicate##DuplicateElement");
+        REQUIRE(f.tree.root()->elements.size() == 2);
+        f.run();
+        REQUIRE(f.tree.root()->elements.size() == 3);
+        const auto& copy = f.tree.root()->elements.back();
+        CHECK(copy.type_name == "Camera");
+        CHECK(copy.owner_id == id(11));
+        CHECK(copy.id != id(21));
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual component purge menu removes only selected component") {
+        TreeMenuActionFixture f;
+        f.camera_menu();
+        f.queue("Purge##PurgeElement");
+        REQUIRE(f.tree.root()->elements.size() == 2);
+        f.run();
+        REQUIRE(f.tree.root()->elements.size() == 1);
+        CHECK(f.tree.root()->elements[0].id == id(12));
+        CHECK(f.tree.root()->get_element_by_id(id(21)) == nullptr);
+        CHECK(f.manager().is_dirty());
+    }
+
+    TEST_CASE("CRI017 WorldTreePanel: actual rename menu enters edit mode without changing stored name") {
+        TreeMenuActionFixture f;
+        f.entity_menu();
+        f.activate("Rename##RenameEntity");
+        CHECK(f.tree.c.ctx.is_editing_property);
+        CHECK(f.tree.root()->name == "Root");
+        CHECK_FALSE(f.manager().is_dirty());
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+    }
+}
