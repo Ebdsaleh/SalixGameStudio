@@ -358,3 +358,78 @@ TEST_SUITE("EditorCRI014_ScryingMirrorPanel") {
         ScryingMirrorPanel p;CHECK_NOTHROW(p.queue_collider_resize_for_testing(id(11),id(22),id(21)));
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct MirrorInputFixture {
+    GuiFrame gui;
+    MirrorFixture& f;
+    explicit MirrorInputFixture(MirrorFixture& fixture):f(fixture){}
+    void frame(){gui.draw([&]{f.panel.content();});}
+    ImGuiWindow* window(){
+        auto* w=ImGui::FindWindowByName("CRI002 offscreen host");
+        REQUIRE(w);return w;
+    }
+    void show(){frame();frame();ImGui::FocusWindow(window());frame();}
+    void activate(ImGuiID id){ImGui::ActivateItemByID(id);frame();}
+    ImGuiID component_seed(ElementArchetype* e){
+        REQUIRE(e);
+        return window()->GetID(static_cast<void*>(e));
+    }
+    void resize(ElementArchetype* collider){
+        const auto seed=component_seed(collider);
+        int n=static_cast<int>(collider->id.get_value());
+        activate(ImHashStr("Apply Resize",0,ImHashData(&n,sizeof(n),seed)));
+    }
+};
+}
+TEST_SUITE("EditorCRI020_ScryingMirrorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI020 ScryingMirrorPanel: actual visibility checkbox queues authored and preview update"){
+        VisibilityFixture v;v.f.select(11);
+        MirrorInputFixture ui(v.f);ui.show();
+        ui.activate(ui.window()->GetID("Visible"));
+        REQUIRE(v.f.c.ctx.deferred_commands.size()==1);
+        CHECK(v.model()->is_visible);CHECK(v.live()->is_visible());
+        v.drain();
+        CHECK_FALSE(v.model()->is_visible);CHECK_FALSE(v.live()->is_visible());
+        CHECK(v.f.c.ctx.editor_realm_manager->is_dirty());
+    }
+    TEST_CASE("CRI020 ScryingMirrorPanel: second actual visibility toggle restores clean snapshot"){
+        VisibilityFixture v;v.f.select(11);
+        MirrorInputFixture ui(v.f);ui.show();
+        auto id=ui.window()->GetID("Visible");
+        ui.activate(id);REQUIRE(v.f.c.ctx.deferred_commands.size()==1);v.drain();
+        CHECK_FALSE(v.model()->is_visible);
+        ui.frame();ui.activate(id);REQUIRE(v.f.c.ctx.deferred_commands.size()==1);v.drain();
+        CHECK(v.model()->is_visible);CHECK(v.live()->is_visible());
+        CHECK_FALSE(v.f.c.ctx.editor_realm_manager->is_dirty());
+    }
+    TEST_CASE("CRI020 ScryingMirrorPanel: element-only view cannot queue whole entity visibility"){
+        VisibilityFixture v;v.f.select_element(12,11);
+        MirrorInputFixture ui(v.f);ui.show();
+        ui.activate(ui.window()->GetID("Visible"));
+        CHECK(v.f.c.ctx.deferred_commands.empty());
+        CHECK(v.model()->is_visible);CHECK(v.live()->is_visible());
+    }
+    TEST_CASE("CRI020 ScryingMirrorPanel: actual Apply Resize button defers texture-based collider update"){
+        ResizeQueueFixture x;x.m.f.select_element(22,11);
+        MirrorInputFixture ui(x.m.f);ui.show();
+        ui.resize(x.owner()->get_element_by_id(id(22)));
+        REQUIRE(x.m.f.c.ctx.deferred_commands.size()==1);
+        CHECK(x.m.listener.calls==0);
+        x.drain();REQUIRE(x.m.listener.calls==1);
+        CHECK(x.m.listener.owner==id(11));CHECK(x.m.listener.component==id(22));
+        auto v=std::get<Vector3>(x.m.listener.value);
+        CHECK(v.x==doctest::Approx(.8));CHECK(v.y==doctest::Approx(.4));CHECK(v.z==2);
+    }
+    TEST_CASE("CRI020 ScryingMirrorPanel: no texture sibling means actual resize control cannot queue work"){
+        ResizeQueueFixture x;
+        x.m.f.c.ctx.editor_realm_manager->purge_element(id(11),id(21));
+        x.m.f.select_element(22,11);
+        MirrorInputFixture ui(x.m.f);ui.show();
+        ui.resize(x.owner()->get_element_by_id(id(22)));
+        CHECK(x.m.f.c.ctx.deferred_commands.empty());
+        CHECK(x.m.listener.calls==0);
+    }
+}
