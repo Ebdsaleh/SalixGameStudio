@@ -573,12 +573,21 @@ using namespace EditorCri;
 // Selectable(""), so the selectable ID is the hash of the label's ID.
 struct TreeMenuActionFixture : TreePopupFixture {
     void activate(const char* label) {
-        REQUIRE(gui.current->OpenPopupStack.Size == 1);
-        auto* popup = gui.current->OpenPopupStack[0].Window;
+        REQUIRE(gui.current->OpenPopupStack.Size > 0);
+        auto* popup = gui.current->OpenPopupStack.back().Window;
         REQUIRE(popup);
         const ImGuiID item = ImHashStr("", 0, popup->GetID(label));
         ImGui::ActivateItemByID(item);
         frame();
+    }
+    void submenu(const char* label) {
+        const int old_depth = gui.current->OpenPopupStack.Size;
+        activate(label);
+        frame();
+        frame();
+        REQUIRE(gui.current->OpenPopupStack.Size == old_depth + 1);
+        REQUIRE(gui.current->OpenPopupStack.back().Window);
+        CHECK((gui.current->OpenPopupStack.back().Window->Flags & ImGuiWindowFlags_ChildMenu) != 0);
     }
     void queue(const char* label) {
         REQUIRE(tree.c.ctx.deferred_commands.empty());
@@ -762,5 +771,42 @@ TEST_SUITE("EditorCRI017_WorldTreePanel") {
         CHECK(f.tree.root()->name == "Root");
         CHECK_FALSE(f.manager().is_dirty());
         CHECK(f.tree.c.ctx.deferred_commands.empty());
+    }
+}
+
+namespace {
+using namespace EditorCri;
+void add_through_actual_tree_menu(const char* type, const char* entry, const char* nested = nullptr) {
+    TreeMenuActionFixture f;
+    SimpleGuid::update_next_id(300000);
+    f.entity_menu();
+    f.submenu("Add Element##AddElementMenu");
+    if (nested) f.submenu(nested);
+    REQUIRE(f.tree.root()->elements.size() == 1);
+    f.queue(entry);
+    CHECK(f.tree.root()->elements.size() == 1);
+    f.run();
+    REQUIRE(f.tree.root()->elements.size() == 2);
+    const auto& component = f.tree.root()->elements.back();
+    CHECK(component.type_name == type);
+    CHECK(component.owner_id == id(11));
+    CHECK(component.id.is_valid());
+    CHECK(component.id != id(12));
+    CHECK(f.tree.c.ctx.selected_entity_id == id(11));
+    CHECK(f.manager().is_dirty());
+}
+}
+TEST_SUITE("EditorCRI017_WorldTreeComponentMenus") {
+    TEST_CASE("CRI017 WorldTreePanel: actual Add Element submenu creates reflected transform") {
+        add_through_actual_tree_menu("Transform", "Transform##AddTransform");
+    }
+    TEST_CASE("CRI017 WorldTreePanel: actual nested Collider submenu creates reflected box collider") {
+        add_through_actual_tree_menu("BoxCollider", "Box Collider##AddBoxCollider", "Collider##AddColliderMenu");
+    }
+    TEST_CASE("CRI017 WorldTreePanel: actual Add Element submenu creates reflected sprite") {
+        add_through_actual_tree_menu("Sprite2D", "Sprite2D##AddSprite2D");
+    }
+    TEST_CASE("CRI017 WorldTreePanel: actual Add Element submenu creates reflected camera") {
+        add_through_actual_tree_menu("Camera", "Camera##AddCamera");
     }
 }
