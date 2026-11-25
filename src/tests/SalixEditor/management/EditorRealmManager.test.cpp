@@ -200,3 +200,98 @@ TEST_SUITE("EditorCRI009_EditorRealmManager") {
         FamilyFixture f; f.family(); f.manager.reparent_entity(id(12),id(14)); CHECK(f.get(12)->parent_id==id(14)); CHECK(f.get(13)->parent_id==id(12)); CHECK(f.get(11)->child_ids.empty()); REQUIRE(f.get(14)->child_ids.size()==1); CHECK(f.get(14)->child_ids[0]==id(12));
     }
 }
+
+TEST_SUITE("EditorCRI015_EditorRealmManager") {
+    using namespace EditorCri;
+
+    TEST_CASE("CRI015 EditorRealmManager: loaded parent and child links agree before snapshot") {
+        TempRealm f;
+        EditorRealmManager m;
+        m.load_realm_from_file(f.write("Entities: [{name: Root, id: 11}, {name: Child, id: 12, parent: 11}, {name: Grandchild, id: 13, parent: 12}]"));
+        const auto* root = m.get_archetype(id(11));
+        const auto* child = m.get_archetype(id(12));
+        const auto* grandchild = m.get_archetype(id(13));
+        REQUIRE(root);
+        REQUIRE(child);
+        REQUIRE(grandchild);
+        REQUIRE(root->child_ids.size() == 1);
+        CHECK(root->child_ids[0] == child->id);
+        CHECK(child->parent_id == root->id);
+        REQUIRE(child->child_ids.size() == 1);
+        CHECK(child->child_ids[0] == grandchild->id);
+        CHECK(grandchild->parent_id == child->id);
+        CHECK(grandchild->child_ids.empty());
+        REQUIRE(m.get_snapshot());
+        CHECK_FALSE(m.is_dirty());
+    }
+
+    TEST_CASE("CRI015 EditorRealmManager: out of order YAML preserves sibling membership and order") {
+        TempRealm f;
+        EditorRealmManager m;
+        m.load_realm_from_file(f.write("Entities: [{name: First, id: 14, parent: 11}, {name: Second, id: 12, parent: 11}, {name: Root, id: 11}, {name: Other, id: 15}]"));
+        const auto* root = m.get_archetype(id(11));
+        REQUIRE(root);
+        REQUIRE(root->child_ids.size() == 2);
+        CHECK(root->child_ids[0] == id(14));
+        CHECK(root->child_ids[1] == id(12));
+        REQUIRE(m.get_archetype(id(15)));
+        CHECK(m.get_archetype(id(15))->child_ids.empty());
+        REQUIRE(m.get_hierarchy().size() == 2);
+        REQUIRE(m.get_hierarchy()[0]->children.size() == 2);
+        CHECK(m.get_hierarchy()[0]->children[0]->entity_id == root->child_ids[0]);
+        CHECK(m.get_hierarchy()[0]->children[1]->entity_id == root->child_ids[1]);
+    }
+
+    TEST_CASE("CRI015 EditorRealmManager: reloading replaces child links without accumulation") {
+        TempRealm f;
+        EditorRealmManager m;
+        const auto file = f.write("Entities: [{name: Root, id: 11}, {name: Child, id: 12, parent: 11}]");
+        m.load_realm_from_file(file);
+        m.load_realm_from_file(file);
+        REQUIRE(m.get_archetype(id(11)));
+        REQUIRE(m.get_archetype(id(11))->child_ids.size() == 1);
+        CHECK(m.get_archetype(id(11))->child_ids[0] == id(12));
+        m.load_realm_from_file(f.write("Entities: [{name: Root, id: 11}, {name: Replacement, id: 13, parent: 11}]"));
+        REQUIRE(m.get_archetype(id(11)));
+        REQUIRE(m.get_archetype(id(11))->child_ids.size() == 1);
+        CHECK(m.get_archetype(id(11))->child_ids[0] == id(13));
+        CHECK(m.get_archetype(id(12)) == nullptr);
+        CHECK_FALSE(m.is_dirty());
+    }
+
+    TEST_CASE("CRI015 EditorRealmManager: rejected duplicate and missing parent do not create child links") {
+        TempRealm f;
+        EditorRealmManager m;
+        m.load_realm_from_file(f.write("Entities: [{name: Root, id: 11}, {name: Child, id: 12, parent: 11}, {name: Duplicate, id: 12, parent: 11}, {name: Orphan, id: 13, parent: 99}, {name: Self, id: 14, parent: 14}]"));
+        REQUIRE(m.get_realm_size() == 4);
+        REQUIRE(m.get_archetype(id(11)));
+        REQUIRE(m.get_archetype(id(11))->child_ids.size() == 1);
+        CHECK(m.get_archetype(id(11))->child_ids[0] == id(12));
+        REQUIRE(m.get_archetype(id(13)));
+        CHECK(m.get_archetype(id(13))->parent_id == id(99));
+        CHECK(m.get_archetype(id(13))->child_ids.empty());
+        REQUIRE(m.get_archetype(id(14)));
+        CHECK_FALSE(m.get_archetype(id(14))->parent_id.is_valid());
+        CHECK(m.get_archetype(id(14))->child_ids.empty());
+        CHECK(m.get_archetype(id(99)) == nullptr);
+        CHECK_FALSE(m.is_dirty());
+    }
+
+    TEST_CASE("CRI015 EditorRealmManager: loaded descendants can be purged without manual link repair") {
+        TempRealm f;
+        EventManager events;
+        EditorContext c;
+        c.event_manager = &events;
+        EditorRealmManager m(&c);
+        m.load_realm_from_file(f.write("Entities: [{name: Root, id: 11}, {name: Child, id: 12, parent: 11}, {name: Grandchild, id: 13, parent: 12}, {name: Other, id: 14}]"));
+        m.purge_entity_descendants(id(11));
+        CHECK(m.get_realm_size() == 2);
+        REQUIRE(m.get_archetype(id(11)));
+        CHECK(m.get_archetype(id(11))->child_ids.empty());
+        CHECK(m.get_archetype(id(12)) == nullptr);
+        CHECK(m.get_archetype(id(13)) == nullptr);
+        CHECK(m.get_archetype(id(14)) != nullptr);
+        CHECK(m.is_dirty());
+        CHECK_FALSE(events.is_queue_empty());
+    }
+}
