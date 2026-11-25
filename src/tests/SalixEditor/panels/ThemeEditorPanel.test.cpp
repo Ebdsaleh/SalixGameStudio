@@ -383,3 +383,140 @@ TEST_SUITE("EditorCRI014_ThemeEditorPanel") {
         ThemeFiles v;v.f.data()->name="Renamed";v.f.data()->font_size=23;v.save();v.load("Renamed");REQUIRE(v.f.themes.get_active_theme());CHECK(v.f.themes.get_active_theme()->get_name()=="Renamed");CHECK(v.f.data()->font_size==23);
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct ThemeInputFixture {
+    GuiFrame gui;
+    ActiveThemeFixture& f;
+    explicit ThemeInputFixture(ActiveThemeFixture& fixture):f(fixture){}
+    void frame(){
+        gui.frame([&]{
+            ImGui::SetNextWindowPos(ImVec2(20,20),ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(900,650),ImGuiCond_Always);
+            f.panel.on_gui_update();
+        });
+    }
+    ImGuiWindow* window(){
+        auto* w=ImGui::FindWindowByName(f.panel.get_name().c_str());
+        REQUIRE(w); return w;
+    }
+    void show(){frame();frame();ImGui::FocusWindow(window());frame();}
+    void section(const char* name){
+        window()->StateStorage.SetInt(window()->GetID(name),1);
+        frame();frame();
+    }
+    void activate(ImGuiID id){ImGui::ActivateItemByID(id);frame();}
+    void activate(const char* label){activate(window()->GetID(label));}
+    void replace(const char* label,const std::string& value){
+        const auto id=window()->GetID(label);
+        activate(id);
+        REQUIRE(gui.current->ActiveId==id);
+        auto& io=ImGui::GetIO();
+        io.AddKeyEvent(ImGuiMod_Ctrl,true);
+        io.AddKeyEvent(ImGuiKey_A,true);frame();
+        io.AddKeyEvent(ImGuiKey_A,false);
+        io.AddKeyEvent(ImGuiMod_Ctrl,false);frame();
+        io.AddInputCharactersUTF8(value.c_str());frame();
+        io.AddKeyEvent(ImGuiKey_Enter,true);frame();
+        io.AddKeyEvent(ImGuiKey_Enter,false);frame();
+    }
+    void combo(const char* label,int index,const char* choice){
+        const auto seed=window()->GetID("Fonts");
+        activate(ImHashStr(label,0,seed));
+        frame();
+        REQUIRE(gui.current->OpenPopupStack.Size==1);
+        auto* popup=gui.current->OpenPopupStack.back().Window;
+        REQUIRE(popup);
+        activate(ImHashStr(choice,0,popup->GetID(index)));
+        CHECK(gui.current->OpenPopupStack.Size==0);
+    }
+};
+}
+TEST_SUITE("EditorCRI020_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI020 ThemeEditorPanel: real name input changes metadata but not registry key"){
+        ActiveThemeFixture f;
+        ThemeInputFixture ui(f);ui.show();
+        ui.replace("Name","Edited Theme");
+        CHECK(f.data()->name=="Edited Theme");
+        CHECK(f.themes.get_active_theme()->get_name()=="CRI006");
+        CHECK(f.c.gui.theme_reloads==0);
+    }
+    TEST_CASE("CRI020 ThemeEditorPanel: real Save button writes edited theme to isolated path"){
+        ThemeFiles files;
+        ThemeInputFixture ui(files.f);ui.show();
+        ui.replace("Name","Saved Through UI");
+        ui.replace("File Path",files.temp.path());
+        CHECK_FALSE(std::filesystem::exists(files.temp.path()));
+        ui.activate("Save Theme");
+        REQUIRE(std::filesystem::exists(files.temp.path()));
+        CHECK(YAML::LoadFile(files.temp.path())["name"].as<std::string>()=="Saved Through UI");
+        CHECK(files.f.themes.get_active_theme()->get_name()=="CRI006");
+    }
+    TEST_CASE("CRI020 ThemeEditorPanel: real Load button replaces theme and refreshes layout"){
+        ThemeFiles files;
+        files.write("name: LoadedUI\nFont: {font_family: FixtureFamily, font_size: 23}");
+        ThemeInputFixture ui(files.f);ui.show();
+        ui.replace("Name","LoadedUI");
+        ui.replace("File Path",files.temp.path());
+        ui.activate("Load Theme");ui.frame();
+        REQUIRE(files.f.data());
+        CHECK(files.f.themes.get_active_theme()->get_name()=="LoadedUI");
+        CHECK(files.f.data()->font_family=="FixtureFamily");
+        CHECK(files.f.data()->font_size==23);
+        CHECK(files.f.c.gui.theme_reloads==1);
+        CHECK(ui.gui.current->DisabledStackSize==0);
+    }
+    TEST_CASE("CRI020 ThemeEditorPanel: invalid path through real Load preserves active data"){
+        ThemeFiles files;
+        auto* original=files.f.themes.get_active_theme();
+        ThemeInputFixture ui(files.f);ui.show();
+        ui.replace("File Path",files.temp.path());
+        ui.activate("Load Theme");
+        CHECK(files.f.themes.get_active_theme()==original);
+        CHECK(files.f.c.gui.theme_reloads==0);
+        CHECK(ui.gui.current->DisabledStackSize==0);
+    }
+    TEST_CASE("CRI020 ThemeEditorPanel: locked real Save button cannot write"){
+        ThemeFiles files;
+        ThemeInputFixture ui(files.f);ui.show();
+        ui.replace("File Path",files.temp.path());
+        files.f.panel.lock();
+        ui.frame();ui.activate("Save Theme");
+        CHECK_FALSE(std::filesystem::exists(files.temp.path()));
+        CHECK(ui.gui.current->DisabledStackSize==0);
+    }
+    TEST_CASE("CRI020 ThemeEditorPanel: actual family dropdown selects Beta and default size"){
+        ThemeFonts fonts;
+        ThemeInputFixture ui(fonts.f);ui.show();ui.section("Fonts");
+        ui.combo("Font Family",1,"Beta");
+        CHECK(fonts.f.data()->font_family=="Beta");
+        CHECK(fonts.f.data()->font_size==16);
+        CHECK(fonts.f.c.gui.theme_reloads==0);
+    }
+    TEST_CASE("CRI020 ThemeEditorPanel: actual size dropdown changes size without changing family"){
+        ThemeFonts fonts;
+        ThemeInputFixture ui(fonts.f);ui.show();ui.section("Fonts");
+        ui.combo("Font Size",2,"24px");
+        CHECK(fonts.f.data()->font_family=="Alpha");
+        CHECK(fonts.f.data()->font_size==24);
+        CHECK(fonts.f.c.gui.theme_reloads==0);
+    }
+    TEST_CASE("CRI020 ThemeEditorPanel: actual Apply Font Changes requests one reload"){
+        ThemeFonts fonts;
+        ThemeInputFixture ui(fonts.f);ui.show();ui.section("Fonts");
+        ui.activate(ImHashStr("Apply Font Changes",0,ui.window()->GetID("Fonts")));
+        CHECK(fonts.f.c.gui.theme_reloads==1);
+        CHECK(fonts.f.data()->font_family=="Alpha");
+        CHECK(fonts.f.data()->font_size==18);
+    }
+    TEST_CASE("CRI020 ThemeEditorPanel: locked window without active theme keeps disabled stack balanced"){
+        GuiFrame g; PanelContext c; ImGuiThemeManager themes; ThemeEditorPanel p;
+        c.ctx.theme_manager=&themes;p.initialize(&c.ctx);p.set_visibility(true);p.lock();
+        g.frame([&]{ImGui::SetNextWindowSize(ImVec2(500,400));p.on_gui_update();});
+        CHECK(g.current->DisabledStackSize==0);
+        CHECK(p.is_locked());
+        CHECK(themes.get_active_theme()==nullptr);
+    }
+}
