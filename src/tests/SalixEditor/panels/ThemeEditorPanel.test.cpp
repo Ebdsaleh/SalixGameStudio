@@ -410,7 +410,11 @@ struct ThemeInputFixture {
     void activate(const char* label){activate(window()->GetID(label));}
     void replace(const char* label,const std::string& value){
         const auto id=window()->GetID(label);
-        activate(id);
+        ImGui::ActivateItemByID(id);
+        // Match Enter-key navigation: text fields need input activation,
+        // not the default button-style activation.
+        gui.current->NavNextActivateFlags=ImGuiActivateFlags_PreferInput;
+        frame();
         REQUIRE(gui.current->ActiveId==id);
         auto& io=ImGui::GetIO();
         io.AddKeyEvent(ImGuiMod_Ctrl,true);
