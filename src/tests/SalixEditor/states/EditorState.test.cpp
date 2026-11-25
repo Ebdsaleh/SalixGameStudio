@@ -439,3 +439,103 @@ TEST_SUITE("EditorCRI014_EditorState") {
         FrameFixture f;f.frame();auto* e=f.context()->preview_realm->create_entity(id(21),"Camera");auto* c=e->add_element<Camera>();REQUIRE(c);f.context()->main_camera=c;auto* other=f.context()->preview_realm->get_entity_by_id(id(11));REQUIRE(other);BeforeEntityPurgedEvent event(other);f.startup.f.state.on_event(event);CHECK(f.context()->main_camera==c);
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct StateMenuActionFixture : StateMenuFixture {
+    void activate(const char* label) {
+        REQUIRE(gui.current->OpenPopupStack.Size > 0);
+        auto* popup = gui.current->OpenPopupStack.back().Window;
+        REQUIRE(popup);
+        // MenuItemEx and BeginMenuEx both use PushID(label) + Selectable("").
+        ImGui::ActivateItemByID(ImHashStr("", 0, popup->GetID(label)));
+        frame();
+    }
+    void submenu(const char* label) {
+        activate(label);
+        frame();
+        frame();
+        REQUIRE(gui.current->OpenPopupStack.Size == 2);
+        REQUIRE(gui.current->OpenPopupStack.back().Window);
+        CHECK((gui.current->OpenPopupStack.back().Window->Flags & ImGuiWindowFlags_ChildMenu) != 0);
+    }
+    void reveal(const char* parent, const char* entry, const char* panel, const char* child = nullptr) {
+        auto* p = startup.f.state.get_panel_for_testing(panel);
+        REQUIRE(p);
+        p->set_visibility(false);
+        open(parent);
+        if (child) submenu(child);
+        CHECK_FALSE(p->get_visibility());
+        activate(entry);
+        CHECK(p->get_visibility());
+        CHECK(startup.f.state.get_panel_for_testing(panel) == p);
+    }
+};
+}
+TEST_SUITE("EditorCRI017_EditorState") {
+    using namespace EditorCri;
+    TEST_CASE("CRI017 EditorState: actual Edit Theme menu reveals registered theme panel") {
+        StateMenuActionFixture f;
+        f.reveal("Edit", "Theme", "Theme Editor Panel");
+    }
+
+    TEST_CASE("CRI017 EditorState: actual Edit Project Settings menu reveals registered settings panel") {
+        StateMenuActionFixture f;
+        f.reveal("Edit", "Project Settings", "Project Settings Panel");
+    }
+
+    TEST_CASE("CRI017 EditorState: actual File Exit menu stops engine without replacing editor context") {
+        StateMenuActionFixture f;
+        auto* context = f.startup.f.state.get_context_for_testing();
+        REQUIRE(context);
+        f.open("File");
+        REQUIRE(f.startup.f.engine.is_running());
+        f.activate("Exit");
+        CHECK_FALSE(f.startup.f.engine.is_running());
+        CHECK(f.startup.f.state.get_context_for_testing() == context);
+    }
+
+    TEST_CASE("CRI017 EditorState: actual View Panels submenu reveals World Tree") {
+        StateMenuActionFixture f;
+        f.reveal("View", "World Tree", "World Tree Panel", "Panels");
+    }
+
+    TEST_CASE("CRI017 EditorState: actual View Panels submenu reveals Scrying Mirror") {
+        StateMenuActionFixture f;
+        f.reveal("View", "Scrying Mirror", "Scrying Mirror Panel", "Panels");
+    }
+
+    TEST_CASE("CRI017 EditorState: actual View Panels submenu reveals Realm Designer") {
+        StateMenuActionFixture f;
+        f.reveal("View", "Realm Designer", "Realm Designer", "Panels");
+    }
+
+    TEST_CASE("CRI017 EditorState: actual View Panels submenu reveals Realm Portal") {
+        StateMenuActionFixture f;
+        f.reveal("View", "Realm Portal", "Realm Portal", "Panels");
+    }
+
+    TEST_CASE("CRI017 EditorState: actual camera menu selects perspective projection") {
+        StateMenuActionFixture f;
+        auto* camera = f.startup.f.state.get_context_for_testing()->editor_camera;
+        REQUIRE(camera);
+        camera->set_projection_mode(ProjectionMode::Orthographic);
+        f.open("View");
+        f.submenu("Editor Camera");
+        CHECK(camera->get_projection_mode() == ProjectionMode::Orthographic);
+        f.activate("Perspective");
+        CHECK(camera->get_projection_mode() == ProjectionMode::Perspective);
+    }
+
+    TEST_CASE("CRI017 EditorState: actual camera menu selects orthographic projection") {
+        StateMenuActionFixture f;
+        auto* camera = f.startup.f.state.get_context_for_testing()->editor_camera;
+        REQUIRE(camera);
+        camera->set_projection_mode(ProjectionMode::Perspective);
+        f.open("View");
+        f.submenu("Editor Camera");
+        CHECK(camera->get_projection_mode() == ProjectionMode::Perspective);
+        f.activate("Orthographic");
+        CHECK(camera->get_projection_mode() == ProjectionMode::Orthographic);
+    }
+}
