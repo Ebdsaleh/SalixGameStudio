@@ -741,3 +741,162 @@ TEST_SUITE("EditorCRI017_RealmDesignerPanel") {
         CHECK(f.boxes()[0].matrix[2][2] == doctest::Approx(5));
     }
 }
+
+#include <Editor/events/EntitySelectedEvent.h>
+namespace {
+using namespace EditorCri;
+struct DesignerInputFixture : PickingFixture {
+    const bool previous_block = EntitySelectedEvent::block_selection;
+    DesignerInputFixture() {
+        v.camera.set_projection_mode(ProjectionMode::Orthographic);
+        v.f.c.renderer.framebuffer_texture = ImTextureID(77);
+        EntitySelectedEvent::block_selection = false;
+    }
+    ~DesignerInputFixture() { EntitySelectedEvent::block_selection = previous_block; }
+    void show() {
+        v.frame(); v.frame();
+        auto* w = ImGui::FindWindowByName("Realm Designer");
+        REQUIRE(w);
+        ImGui::FocusWindow(w);
+        v.frame();
+        REQUIRE(contains_designer_texture(77));
+    }
+    void focus_key() {
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_F, true);
+        v.frame();
+        ImGui::GetIO().AddKeyEvent(ImGuiKey_F, false);
+        v.frame();
+    }
+    glm::vec3 position() { return v.camera.get_transform()->get_position().to_glm(); }
+    void select(uint64_t n) { v.f.c.ctx.selected_entity_id = id(n); }
+    void hover_image() {
+        auto* w = ImGui::FindWindowByName("Realm Designer");
+        REQUIRE(w);
+        const auto size = v.f.panel.get_viewport_size();
+        auto p = w->DC.CursorMaxPos;
+        ImGui::GetIO().AddMousePosEvent(p.x - size.x * .5f, p.y - size.y * .5f);
+        v.frame();
+        REQUIRE(v.gui.current->HoveredWindow == w);
+    }
+};
+}
+TEST_SUITE("EditorCRI018_RealmDesignerPanel") {
+    using namespace EditorCri;
+
+    TEST_CASE("CRI018 RealmDesignerPanel: actual focus shortcut places camera three units from selected preview entity") {
+        DesignerInputFixture f;
+        f.add(11, 2, 3, 0);
+        f.select(11);
+        f.show();
+        f.focus_key();
+        auto target = f.v.f.live(11)->get_transform()->get_world_position().to_glm();
+        CHECK(glm::length(f.position() - target) == doctest::Approx(3));
+        CHECK(f.selected() == id(11));
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: focus shortcut suppressed while editing a property") {
+        DesignerInputFixture f;
+        f.add(11, 2, 3, 0);
+        f.select(11);
+        f.v.f.c.ctx.is_editing_property = true;
+        f.show();
+        const auto before = f.position();
+        f.focus_key();
+        CHECK(f.position() == before);
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: focus shortcut suppressed while locked") {
+        DesignerInputFixture f;
+        f.add(11, 2, 3, 0);
+        f.select(11);
+        f.v.f.panel.lock();
+        f.show();
+        const auto before = f.position();
+        f.focus_key();
+        CHECK(f.position() == before);
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: focus shortcut with missing selected preview leaves camera intact") {
+        DesignerInputFixture f;
+        f.v.f.c.ctx.editor_realm_manager->add_entity(entity(11, "Missing preview"));
+        f.select(11);
+        f.show();
+        const auto before = f.position();
+        f.focus_key();
+        CHECK(f.position() == before);
+        CHECK(f.selected() == id(11));
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: actual viewport left click picks central authored collider") {
+        DesignerInputFixture f;
+        f.add(11, 0, 0, 0);
+        f.show();
+        f.hover_image();
+        ImGui::GetIO().AddMouseButtonEvent(0, true);
+        f.v.frame();
+        CHECK(f.selected() == id(11));
+        CHECK(f.v.f.c.ctx.selected_entity == f.v.f.live(11));
+        ImGui::GetIO().AddMouseButtonEvent(0, false);
+        f.v.frame();
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: locked viewport releases previous gizmo selection block") {
+        DesignerInputFixture f;
+        f.v.f.panel.lock();
+        EntitySelectedEvent::block_selection = true;
+        f.v.frame();
+        CHECK_FALSE(EntitySelectedEvent::block_selection);
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: hidden viewport releases previous gizmo selection block") {
+        DesignerInputFixture f;
+        f.v.f.panel.set_visibility(false);
+        EntitySelectedEvent::block_selection = true;
+        f.v.frame();
+        CHECK_FALSE(EntitySelectedEvent::block_selection);
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: missing selected archetype releases previous gizmo selection block") {
+        DesignerInputFixture f;
+        f.select(99);
+        EntitySelectedEvent::block_selection = true;
+        f.v.frame();
+        CHECK_FALSE(EntitySelectedEvent::block_selection);
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: missing framebuffer texture releases previous gizmo selection block") {
+        DesignerInputFixture f;
+        f.v.f.c.renderer.framebuffer_texture = 0;
+        EntitySelectedEvent::block_selection = true;
+        f.v.frame();
+        CHECK_FALSE(EntitySelectedEvent::block_selection);
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: live mode releases authored gizmo selection block") {
+        DesignerInputFixture f;
+        f.v.f.c.ctx.data_mode = EditorDataMode::Live;
+        EntitySelectedEvent::block_selection = true;
+        f.v.frame();
+        CHECK_FALSE(EntitySelectedEvent::block_selection);
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: orthographic collider without transform uses identity placement") {
+        PickingFixture f;
+        f.add(11, 0, 0, 0);
+        auto* a = f.v.f.c.ctx.editor_realm_manager->get_archetype(id(11));
+        REQUIRE(a);
+        a->elements.erase(a->elements.begin());
+        f.pick(ProjectionMode::Orthographic);
+        CHECK(f.selected() == id(11));
+    }
+
+    TEST_CASE("CRI018 RealmDesignerPanel: perspective collider without transform is skipped") {
+        PickingFixture f;
+        f.add(11, 0, 0, 0);
+        auto* a = f.v.f.c.ctx.editor_realm_manager->get_archetype(id(11));
+        REQUIRE(a);
+        a->elements.erase(a->elements.begin());
+        f.pick(ProjectionMode::Perspective);
+        CHECK_FALSE(f.selected().is_valid());
+    }
+}
