@@ -974,7 +974,7 @@ namespace Salix {
 
     
     void RealmDesignerPanel::Pimpl::handle_hierarchy_changed_event(const OnHierarchyChangedEvent& e) {
-        if (!context->preview_realm || !context->editor_realm_manager || !context->event_manager) return;
+        if (!context || context->data_mode != EditorDataMode::Yaml || !context->preview_realm || !context->editor_realm_manager || !context->event_manager) return;
         Entity* dragged_live_entity = context->preview_realm->get_entity_by_id(e.entity_id);
         
         Entity* target_live_entity = context->preview_realm->get_entity_by_id(e.parent_id);
@@ -1002,8 +1002,8 @@ namespace Salix {
             if (member_archetype) {
                 ElementArchetype* transform_arch = member_archetype->get_element_by_id(member_archetype->get_primary_transform_id());
                 
-                if (transform_arch) {
-                    Transform* live_transform = live_member->get_transform();
+                Transform* live_transform = live_member->get_transform();
+                if (transform_arch && live_transform) {
                     
                     context->event_manager->dispatch(
                         std::make_unique<PropertyValueChangedEvent>(
