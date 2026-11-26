@@ -483,3 +483,46 @@ TEST_SUITE("EditorCRI022_ScryingMirrorPanel") {
         CHECK_FALSE(f.f.c.events.is_queue_empty());
     }
 }
+
+TEST_SUITE("EditorCRI023_ScryingMirrorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI023 ScryingMirrorPanel: removing selected texture resets resize selector to surviving sibling") {
+        ResizeQueueFixture x;
+        x.m.sprite()->name="First Texture";
+        auto second=element("Sprite2D",23,"{width: 150, height: 90}");
+        second.owner_id=id(11);second.name="Second Texture";
+        x.owner()->elements.push_back(second);
+        x.m.f.select_element(22,11);
+        MirrorInputFixture ui(x.m.f);ui.show();
+        auto* collider=x.owner()->get_element_by_id(id(22));
+        REQUIRE(collider);
+        int n=22;
+        const auto seed=ImHashData(&n,sizeof(n),ui.component_seed(collider));
+        ui.activate(ImHashStr("Select Texture",0,seed));ui.frame();
+        REQUIRE(ui.gui.current->OpenPopupStack.Size==1);
+        auto* popup=ui.gui.current->OpenPopupStack.back().Window;
+        REQUIRE(popup);
+        ui.activate(ImHashStr("Second Texture",0,popup->GetID(1)));
+        REQUIRE(ui.gui.current->OpenPopupStack.Size==0);
+        ui.resize(collider);
+        REQUIRE(x.m.f.c.ctx.deferred_commands.size()==1);
+        x.drain();
+        REQUIRE(x.m.listener.calls==1);
+        auto first_result=std::get<Vector3>(x.m.listener.value);
+        CHECK(first_result.x==doctest::Approx(1.5));
+        CHECK(first_result.y==doctest::Approx(.9));
+
+        x.m.f.c.ctx.editor_realm_manager->purge_element(id(11),id(23));
+        ui.frame();ui.frame();
+        collider=x.owner()->get_element_by_id(id(22));
+        REQUIRE(collider);
+        ui.resize(collider);
+        REQUIRE(x.m.f.c.ctx.deferred_commands.size()==1);
+        x.drain();
+        REQUIRE(x.m.listener.calls==2);
+        auto remaining=std::get<Vector3>(x.m.listener.value);
+        CHECK(remaining.x==doctest::Approx(.8));
+        CHECK(remaining.y==doctest::Approx(.4));
+        CHECK(remaining.z==2);
+    }
+}
