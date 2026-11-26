@@ -929,3 +929,56 @@ TEST_SUITE("EditorCRI018_RealmDesignerToolbar") {
         CHECK(f.v.f.panel.get_visibility());
     }
 }
+
+#include <ImGuizmo/ImGuizmo.h>
+namespace {
+struct DesignerToolbarFixture : DesignerInputFixture {
+    void activate(const char* label) {
+        auto* w=ImGui::FindWindowByName("Realm Designer");
+        REQUIRE(w);
+        ImGui::ActivateItemByID(w->GetID(label));
+        v.frame();
+    }
+    int operation() const { return v.f.panel.get_gizmo_operation_for_testing(); }
+    void shortcut(ImGuiKey key) {
+        ImGui::GetIO().AddKeyEvent(key,true);v.frame();
+        ImGui::GetIO().AddKeyEvent(key,false);v.frame();
+    }
+};
+}
+TEST_SUITE("EditorCRI022_RealmDesignerPanel") {
+    TEST_CASE("CRI022 RealmDesignerPanel: actual Rotate radio button selects rotation gizmo") {
+        DesignerToolbarFixture f;f.show();
+        REQUIRE(f.operation()==ImGuizmo::TRANSLATE);
+        f.activate("Rotate");
+        CHECK(f.operation()==ImGuizmo::ROTATE);
+        CHECK_FALSE(f.v.f.panel.is_locked());
+    }
+    TEST_CASE("CRI022 RealmDesignerPanel: actual Scale radio button selects scale gizmo") {
+        DesignerToolbarFixture f;f.show();
+        f.activate("Scale");
+        CHECK(f.operation()==ImGuizmo::SCALE);
+    }
+    TEST_CASE("CRI022 RealmDesignerPanel: actual Translate radio button restores translation gizmo") {
+        DesignerToolbarFixture f;f.show();
+        f.activate("Rotate");REQUIRE(f.operation()==ImGuizmo::ROTATE);
+        f.activate("Translate");
+        CHECK(f.operation()==ImGuizmo::TRANSLATE);
+    }
+    TEST_CASE("CRI022 RealmDesignerPanel: hovered viewport keyboard shortcuts select all three operations") {
+        DesignerToolbarFixture f;f.show();f.hover_image();
+        f.shortcut(ImGuiKey_E);CHECK(f.operation()==ImGuizmo::ROTATE);
+        f.shortcut(ImGuiKey_R);CHECK(f.operation()==ImGuizmo::SCALE);
+        f.shortcut(ImGuiKey_W);CHECK(f.operation()==ImGuizmo::TRANSLATE);
+    }
+    TEST_CASE("CRI022 RealmDesignerPanel: keyboard shortcuts cannot change gizmo while editing property") {
+        DesignerToolbarFixture f;f.show();f.hover_image();
+        f.v.f.c.ctx.is_editing_property=true;
+        f.shortcut(ImGuiKey_E);CHECK(f.operation()==ImGuizmo::TRANSLATE);
+    }
+    TEST_CASE("CRI022 RealmDesignerPanel: locked viewport rejects gizmo keyboard shortcut") {
+        DesignerToolbarFixture f;f.show();f.hover_image();
+        f.v.f.panel.lock();
+        f.shortcut(ImGuiKey_R);CHECK(f.operation()==ImGuizmo::TRANSLATE);
+    }
+}
