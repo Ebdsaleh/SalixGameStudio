@@ -524,3 +524,60 @@ TEST_SUITE("EditorCRI020_ThemeEditorPanel") {
         CHECK(themes.get_active_theme()==nullptr);
     }
 }
+
+TEST_SUITE("EditorCRI021_ThemeEditorPanel") {
+    using namespace EditorCri;
+
+    TEST_CASE("CRI021 ThemeEditorPanel: locked load activation cannot replace the active theme") {
+        ThemeFiles files;
+        files.write("name: LoadedUI\nFont: {font_family: FixtureFamily, font_size: 23}");
+        auto* original=files.f.themes.get_active_theme();
+        ThemeInputFixture ui(files.f);ui.show();
+        ui.replace("Name","LoadedUI");
+        ui.replace("File Path",files.temp.path());
+        files.f.panel.lock();
+        ui.frame();
+        REQUIRE(files.f.panel.is_locked());
+        ui.activate("Load Theme");
+        CHECK(files.f.themes.get_active_theme()==original);
+        CHECK(files.f.c.gui.theme_reloads==0);
+        CHECK(ui.gui.current->DisabledStackSize==0);
+    }
+
+    TEST_CASE("CRI021 ThemeEditorPanel: save succeeds after unlocking previously blocked widget") {
+        ThemeFiles files;
+        ThemeInputFixture ui(files.f);ui.show();
+        ui.replace("File Path",files.temp.path());
+        files.f.panel.lock();ui.frame();
+        REQUIRE(files.f.panel.is_locked());
+        ui.activate("Save Theme");
+        REQUIRE_FALSE(std::filesystem::exists(files.temp.path()));
+        files.f.panel.unlock();ui.frame();
+        REQUIRE_FALSE(files.f.panel.is_locked());
+        ui.activate("Save Theme");
+        REQUIRE(std::filesystem::exists(files.temp.path()));
+        CHECK(YAML::LoadFile(files.temp.path())["name"].as<std::string>()==files.f.data()->name);
+        CHECK(ui.gui.current->DisabledStackSize==0);
+    }
+
+    TEST_CASE("CRI021 ThemeEditorPanel: load succeeds after unlocking previously blocked widget") {
+        ThemeFiles files;
+        files.write("name: LoadedUI\nFont: {font_family: FixtureFamily, font_size: 23}");
+        auto* original=files.f.themes.get_active_theme();
+        ThemeInputFixture ui(files.f);ui.show();
+        ui.replace("Name","LoadedUI");
+        ui.replace("File Path",files.temp.path());
+        files.f.panel.lock();ui.frame();
+        ui.activate("Load Theme");
+        REQUIRE(files.f.themes.get_active_theme()==original);
+        REQUIRE(files.f.c.gui.theme_reloads==0);
+        files.f.panel.unlock();ui.frame();
+        ui.activate("Load Theme");ui.frame();
+        REQUIRE(files.f.data());
+        CHECK(files.f.themes.get_active_theme()->get_name()=="LoadedUI");
+        CHECK(files.f.data()->font_family=="FixtureFamily");
+        CHECK(files.f.data()->font_size==23);
+        CHECK(files.f.c.gui.theme_reloads==1);
+        CHECK(ui.gui.current->DisabledStackSize==0);
+    }
+}
