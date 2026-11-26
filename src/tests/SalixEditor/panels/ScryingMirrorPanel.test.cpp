@@ -433,3 +433,53 @@ TEST_SUITE("EditorCRI020_ScryingMirrorPanel") {
         CHECK(x.m.listener.calls==0);
     }
 }
+
+namespace {
+using namespace EditorCri;
+ImGuiID inspector_widget(MirrorInputFixture& ui,ElementArchetype* e,const char* label) {
+    REQUIRE(e);
+    return ImHashStr(label,0,ImHashStr(e->type_name.c_str(),0,ui.component_seed(e)));
+}
+}
+TEST_SUITE("EditorCRI022_ScryingMirrorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI022 ScryingMirrorPanel: actual reflected visibility checkbox emits component property event") {
+        MediaFixture f;
+        auto* e=f.sprite();REQUIRE(e);
+        e->data["visible"]=true;
+        MirrorInputFixture ui(f.f);ui.show();
+        ui.activate(inspector_widget(ui,e,"##visible"));
+        CHECK_FALSE(e->data["visible"].as<bool>());
+        f.f.c.events.process_queue();
+        REQUIRE(f.listener.calls==1);
+        CHECK(f.listener.owner==id(11));
+        CHECK(f.listener.component==id(21));
+        CHECK(f.listener.name=="visible");
+        CHECK_FALSE(std::get<bool>(f.listener.value));
+    }
+    TEST_CASE("CRI022 ScryingMirrorPanel: actual media browse widget opens image dialog for selected sprite") {
+        MediaFixture f;
+        MirrorInputFixture ui(f.f);ui.show();
+        ui.activate(inspector_widget(ui,f.sprite(),"...####texture_path"));
+        CHECK(f.f.c.gui.shown_dialog=="SelectImageFile");
+        auto* d=f.f.c.gui.get_dialog("SelectImageFile");
+        REQUIRE(d);
+        REQUIRE(d->get_callback());
+        CHECK(f.f.c.ctx.deferred_commands.empty());
+        CHECK(f.sprite()->data["texture_path"].as<std::string>()=="old.png");
+    }
+    TEST_CASE("CRI022 ScryingMirrorPanel: actual camera active checkbox selects corresponding preview camera") {
+        InspectorCameraFixture f;
+        auto* camera=f.camera(11);camera->deactivate();
+        auto* owner=f.f.c.ctx.editor_realm_manager->get_archetype(id(11));REQUIRE(owner);
+        auto e=element("Camera",21,"{active: false}");
+        e.owner_id=id(11);owner->elements.push_back(e);
+        f.f.select_element(21,11);
+        MirrorInputFixture ui(f.f);ui.show();
+        ui.activate(inspector_widget(ui,owner->get_element_by_id(id(21)),"##active"));
+        CHECK(owner->get_element_by_id(id(21))->data["active"].as<bool>());
+        CHECK(f.main()==id(11));
+        CHECK(camera->get_is_active());
+        CHECK_FALSE(f.f.c.events.is_queue_empty());
+    }
+}
