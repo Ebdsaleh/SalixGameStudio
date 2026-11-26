@@ -35,6 +35,7 @@ namespace Salix {
             ImVec2 get_viewport_size() const;
 #ifdef SALIX_TESTS_ENABLED
             void apply_gizmo_matrix_for_testing(const glm::mat4& matrix);
+            int get_gizmo_operation_for_testing() const;
             void pick_at_for_testing(const ImVec2& mouse, const ImVec2& min, const ImVec2& max, bool double_click=false);
 #endif
             
