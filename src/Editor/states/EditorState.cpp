@@ -95,7 +95,6 @@ namespace Salix {
         void end_dockspace();
         // for testing
         // void create_mock_scene();
-        void draw_test_cube(); 
         void process_input();
         void draw_debug_window();
        
@@ -796,32 +795,6 @@ namespace Salix {
     }
     */
 
-    void EditorState::Pimpl::draw_test_cube() {
-        // Safety check to ensure the renderer and camera exist
-        if (!editor_context || !editor_context->renderer || !camera) {
-            std::cerr << "EditorState::Pimpl::draw_test_cube - failed initial dependency checks." << std::endl;
-            return;
-        }
-
-        // 1. Define the cube's position in the world (hard-coded)
-        glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
-
-        
-        // 2. Define the cube's color
-        Color cube_color = {1.0f, 0.0f, 1.0f, 1.0f}; // Magenta
-        OpenGLRenderer* cube_renderer = dynamic_cast<OpenGLRenderer*>(editor_context->renderer);
-        // 3. Get the renderer from the context and call draw_cube
-        if (cube_renderer) {
-            cube_renderer->draw_cube(model_matrix, cube_color);
-        } else {
-            std::cerr << "EditorState::Pimpl::draw_test_cube - Failed to cast 'editor_context->renderer' to type OpenGLRenderer!"
-            << std::endl;
-        }
-
-    }
-
-
-    
     void EditorState::Pimpl::process_input() {
         
     }
