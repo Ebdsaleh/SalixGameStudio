@@ -581,3 +581,19 @@ TEST_SUITE("EditorCRI021_ThemeEditorPanel") {
         CHECK(ui.gui.current->DisabledStackSize==0);
     }
 }
+
+TEST_SUITE("EditorCRI022_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI022 ThemeEditorPanel: actual icon Browse button opens registered image dialog") {
+        IconDialogFixture f;
+        f.f.c.icons.registry["Entity"]=f.f.c.icons.unlocked;
+        ThemeInputFixture ui(f.f);ui.show();ui.section("Icon Theme");
+        const auto table=ui.window()->GetID("icon_table");
+        ui.activate(ImHashStr("Browse##Entity",0,table));
+        CHECK(f.f.c.gui.shown_dialog=="SelectIconImage");
+        auto* d=f.f.c.gui.get_dialog("SelectIconImage");REQUIRE(d);
+        REQUIRE(d->get_callback());
+        CHECK(f.f.data()->icon_paths.at("Entity")=="old.png");
+        CHECK(f.f.c.gui.theme_reloads==0);
+    }
+}
