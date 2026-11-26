@@ -611,6 +611,7 @@ namespace Salix {
 
 #ifdef SALIX_TESTS_ENABLED
     void RealmDesignerPanel::apply_gizmo_matrix_for_testing(const glm::mat4& matrix) { pimpl->apply_gizmo_matrix(matrix); }
+    int RealmDesignerPanel::get_gizmo_operation_for_testing() const { return static_cast<int>(pimpl->CurrentGizmoOperation); }
 #endif
 
     void RealmDesignerPanel::Pimpl::handle_mouse_picking(const ImVec2& viewport_min, const ImVec2& viewport_max) {
