@@ -79,8 +79,6 @@ namespace Salix {
         ImGuizmo::OPERATION CurrentGizmoOperation = ImGuizmo::TRANSLATE;
 
         
-        GLint render_pass_begin();
-        void render_pass_end(GLint last_fbo);
         // YAML update Methods
         void update_camera_and_buttons();
         EntityArchetype* get_selected_archetype();
@@ -90,7 +88,6 @@ namespace Salix {
         glm::mat4 get_world_matrix(const EntityArchetype* archetype);
         void draw_scene();
         void draw_test_cube();
-        void draw_test_cube_only();
         void draw_lock_button();
         void draw_gizmo_toolbar();
         void update_viewport(IRenderer* renderer);
@@ -778,31 +775,6 @@ namespace Salix {
         pimpl->context->renderer->end_render_pass();
     }
 
-    GLint RealmDesignerPanel::Pimpl::render_pass_begin() {
-        OpenGLRenderer* renderer = context->renderer->as_opengl_renderer();
-        if (!renderer) return 0;
-
-        // --- 1. Prepare the Render Pass (The Boilerplate) ---
-        GLint last_bound_fbo = renderer->get_current_framebuffer_binding();
-        renderer->bind_framebuffer(framebuffer_id);
-        renderer->set_viewport(0, 0, (int)viewport_size.x, (int)viewport_size.y);
-        renderer->set_active_camera(context->editor_camera);
-
-        // --- 2. Clear the canvas ONCE ---
-        renderer->clear();
-
-        return last_bound_fbo;
-    }
-
-    void RealmDesignerPanel::Pimpl::render_pass_end(GLint last_fbo) {
-        OpenGLRenderer* renderer = context->renderer->as_opengl_renderer();
-        if (!renderer) return;
-
-        // --- 4. Restore the Previous State (The Boilerplate) ---
-        renderer->restore_framebuffer_binding(last_fbo);
-    }
-
-
     void RealmDesignerPanel::Pimpl::draw_scene() {
         Realm* active_realm = nullptr;
         if (context->data_mode == EditorDataMode::Yaml) { 
@@ -1210,51 +1182,6 @@ namespace Salix {
         glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
         Color cube_color = {1.0f, 0.0f, 1.0f, 1.0f}; // Magenta
         cube_renderer->draw_cube(model_matrix, cube_color);
-    }
-
-    void RealmDesignerPanel::Pimpl::draw_test_cube_only() {
-        // Designed to be used inside an 'on_render' method with no explict framebuffering setup.
-        // This will not work, if framebuffering and render calls are inside the 'on_render' method.
-        if (!context) {
-            std::cerr << "[RealmDesignerPanel] context is nullptr!\n";
-        return;
-        }
-
-        if (!context->renderer) {
-            std::cerr << "[RealmDesignerPanel] context->renderer is nullptr!\n";
-            return;
-        }
-     
-        IRenderer* base_renderer = context->renderer;
-        if (!base_renderer) { /* error */ return; }
-        OpenGLRenderer* cube_renderer = base_renderer->as_opengl_renderer();
-        if (!cube_renderer) { /* error */ return; }
-
-        int fbo_width = static_cast<int>(viewport_size.x);
-        int fbo_height = static_cast<int>(viewport_size.y);
-        if (fbo_width <= 0 || fbo_height <= 0) {
-            fbo_width = 1280;
-            fbo_height = 720;
-            std::cerr << "[RealmDesignerPanel] on_render: Using fallback FBO dimensions for test.\n";
-        }
-        if (framebuffer_id == 0) { /* error */ return; }
-
-        // Save the currently bound framebuffer
-        GLint last_bound_fbo = cube_renderer->get_current_framebuffer_binding();
-
-        cube_renderer->bind_framebuffer(framebuffer_id);
-        cube_renderer->set_viewport(0, 0, fbo_width, fbo_height);
-        cube_renderer->set_clear_color({1.0f, 0.0f, 0.0f, 1.0f}); // Make FBO 1 RED!
-        cube_renderer->clear();
-
-        glm::mat4 model_matrix = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, -5.0f));
-        Color cube_color = {1.0f, 0.0f, 1.0f, 1.0f}; // Magenta
-        cube_renderer->draw_cube(model_matrix, cube_color);
-
-        // Restore the previous framebuffer binding (using the new method!)
-        cube_renderer->restore_framebuffer_binding(last_bound_fbo); 
-
-        cube_renderer->set_clear_color({0.1f, 0.1f, 0.2f, 1.0f}); 
     }
 
     bool RealmDesignerPanel::is_locked() {
