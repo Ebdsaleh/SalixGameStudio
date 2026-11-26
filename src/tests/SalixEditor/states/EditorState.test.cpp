@@ -557,3 +557,34 @@ TEST_SUITE("EditorCRI018_EditorState") {
         CHECK(f.startup.f.engine.is_running());
     }
 }
+
+TEST_SUITE("EditorCRI023_EditorState") {
+    using namespace EditorCri;
+    TEST_CASE("CRI023 EditorState: running engine initializes gizmo frame and preserves preview across frames") {
+        FrameFixture f;
+        f.startup.f.engine.running=true;
+        f.frame();
+        auto* live=f.context()->preview_realm->get_entity_by_id(id(11));
+        REQUIRE(live);
+        auto* gizmo=ImGui::FindWindowByName("gizmo");
+        REQUIRE(gizmo);
+        CHECK(gizmo->Active);
+        CHECK((gizmo->Flags & ImGuiWindowFlags_NoInputs)==ImGuiWindowFlags_NoInputs);
+        f.frame();
+        CHECK(f.context()->preview_realm->get_entity_by_id(id(11))==live);
+        CHECK(f.startup.f.gui.dialog_frames==2);
+        CHECK(f.gui.current->StyleVarStack.Size==0);
+        CHECK(f.startup.f.engine.is_running());
+    }
+    TEST_CASE("CRI023 EditorState: stopped engine does not begin gizmo frame after running frame") {
+        FrameFixture f;
+        f.startup.f.engine.running=true;f.frame();
+        auto* gizmo=ImGui::FindWindowByName("gizmo");
+        REQUIRE(gizmo);
+        REQUIRE(gizmo->Active);
+        f.startup.f.engine.running=false;f.frame();
+        CHECK_FALSE(gizmo->Active);
+        CHECK(f.context()->preview_realm->get_entity_by_id(id(11))!=nullptr);
+        CHECK(f.startup.f.gui.dialog_frames==2);
+    }
+}
