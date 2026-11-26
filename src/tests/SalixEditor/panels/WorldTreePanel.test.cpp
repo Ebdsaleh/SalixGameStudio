@@ -1,5 +1,6 @@
 // Tests for Editor/panels/WorldTreePanel.
 #include "../fixtures/HeadlessGuiFixtures.h"
+#include <cstring>
 #include <Editor/panels/WorldTreePanel.h>
 #include <Editor/events/EntitySelectedEvent.h>
 #include <Editor/events/ElementSelectedEvent.h>
@@ -1026,5 +1027,114 @@ TEST_SUITE("EditorCRI018_WorldTreeExtraInteractions") {
         CHECK(f.tree.c.ctx.selected_entity_id == id(11));
         CHECK_FALSE(f.manager().is_dirty());
         f.tree.c.ctx.editor_camera = nullptr;
+    }
+}
+
+
+namespace {
+using namespace EditorCri;
+struct TreeDragFixture : TreeInteractionFixture {
+    void roots(){
+        manager().load_realm_from_file(tree.file.write(
+            "Entities: [{name: First, id: 11}, {name: Second, id: 14}, {name: Third, id: 15}]"));
+        prepare();
+        REQUIRE(manager().get_hierarchy().size()==3);
+    }
+    ImVec2 row_position(int index,bool gap=false){
+        REQUIRE(child);
+        const auto& style=ImGui::GetStyle();
+        const float height=child->FontRefSize+2.0f*style.FramePadding.y;
+        const float stride=4.f+style.ItemSpacing.y+height+style.ItemSpacing.y;
+        auto pos=child->DC.CursorStartPos;
+        pos.x+=100.f;
+        pos.y+=index*stride+(gap?2.f:4.f+style.ItemSpacing.y+height*.5f);
+        return pos;
+    }
+    void move_to(ImVec2 p){
+        ImGui::GetIO().AddMousePosEvent(p.x,p.y);
+        frame();
+    }
+    void hover_root(int index,int n){
+        move_to(row_position(index));
+        const ImGuiID seed=n==12?ImHashData(&n,sizeof(n),root_node()):child->GetID(n);
+        REQUIRE(gui.current->HoveredId==node_id(n,seed));
+    }
+    void begin_drag(int index,int n){
+        hover_root(index,n);
+        mouse(0,true);
+        auto p=row_position(index);
+        p.x+=30.f;
+        move_to(p);
+        frame();
+        REQUIRE(gui.current->DragDropActive);
+        const auto* payload=ImGui::GetDragDropPayload();
+        REQUIRE(payload);
+        REQUIRE(payload->IsDataType("ENTITY_DND_GUID"));
+        REQUIRE(payload->DataSize==sizeof(SimpleGuid));
+        SimpleGuid carried=SimpleGuid::invalid();
+        std::memcpy(&carried,payload->Data,sizeof(carried));
+        CHECK(carried==id(n));
+    }
+    void drop_at(ImVec2 p){
+        move_to(p);
+        frame();
+        mouse(0,false);
+        frame();
+    }
+};
+}
+TEST_SUITE("EditorCRI022_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI022 WorldTreePanel: actual drag and drop onto another root defers reparenting"){
+        TreeDragFixture f;f.roots();
+        f.begin_drag(0,11);
+        f.drop_at(f.row_position(1));
+        REQUIRE(f.tree.c.ctx.deferred_commands.size()==1);
+        CHECK_FALSE(f.manager().get_archetype(id(11))->parent_id.is_valid());
+        f.run();
+        CHECK(f.manager().get_archetype(id(11))->parent_id==id(14));
+        REQUIRE(f.manager().get_archetype(id(14))->child_ids.size()==1);
+        CHECK(f.manager().get_archetype(id(14))->child_ids[0]==id(11));
+        CHECK(f.manager().get_hierarchy().size()==2);
+    }
+    TEST_CASE("CRI022 WorldTreePanel: actual drag and drop onto self cannot change hierarchy"){
+        TreeDragFixture f;f.roots();
+        f.begin_drag(0,11);
+        f.drop_at(f.row_position(0));
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+        CHECK_FALSE(f.manager().get_archetype(id(11))->parent_id.is_valid());
+        CHECK_FALSE(f.manager().is_dirty());
+    }
+    TEST_CASE("CRI022 WorldTreePanel: actual drag onto empty background does not reparent"){
+        TreeDragFixture f;f.roots();
+        f.begin_drag(0,11);
+        auto pos=f.row_position(2);pos.y+=180.f;
+        f.drop_at(pos);
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+        CHECK(f.manager().get_hierarchy().size()==3);
+        CHECK_FALSE(f.manager().is_dirty());
+    }
+    TEST_CASE("CRI022 WorldTreePanel: actual child drag to root gap releases its parent"){
+        TreeDragFixture f;
+        f.family();f.prepare(true);
+        // Root 11 is open; child 12 is collapsed. The next row is root 14.
+        f.begin_drag(1,12);
+        f.drop_at(f.row_position(2,true));
+        REQUIRE(f.tree.c.ctx.deferred_commands.size()==1);
+        CHECK(f.manager().get_archetype(id(12))->parent_id==id(11));
+        f.run();
+        CHECK_FALSE(f.manager().get_archetype(id(12))->parent_id.is_valid());
+        CHECK(f.manager().get_archetype(id(13))->parent_id==id(12));
+        CHECK(f.tree.root()->child_ids.empty());
+        CHECK(f.manager().get_hierarchy().size()==3);
+    }
+    TEST_CASE("CRI022 WorldTreePanel: actual right click in empty tree opens creation menu"){
+        TreeDragFixture f;f.roots();
+        auto p=f.row_position(2);p.y+=180.f;
+        f.move_to(p);f.mouse(1,true);f.mouse(1,false);f.frame();
+        REQUIRE(f.gui.current->OpenPopupStack.Size==1);
+        CHECK(f.gui.current->OpenPopupStack[0].PopupId==f.child->GetID("WorldTreeContextMenu"));
+        CHECK(f.manager().get_realm_size()==3);
+        CHECK_FALSE(f.manager().is_dirty());
     }
 }
