@@ -214,7 +214,8 @@ namespace Salix {
     }
 
     void ThemeEditorPanel::Pimpl::load_selected_theme(ImGuiThemeData* data) {
-        if (!context || !context->theme_manager) return;
+        // The panel lock also applies to programmatically activated widgets.
+        if (is_locked || !context || !context->theme_manager) return;
 
         std::string theme_name = std::string(theme_name_buffer);
         std::string file_path = std::string(theme_path_buffer);
@@ -236,7 +237,7 @@ namespace Salix {
     }
 
     void ThemeEditorPanel::Pimpl::save_current_theme(ImGuiThemeData* data) {
-        if (!context || !context->theme_manager || !data) return;
+        if (is_locked || !context || !context->theme_manager || !data) return;
         
         std::string file_path = std::string(theme_path_buffer);
         // Editable theme metadata is not the registry identity. Saving a renamed
