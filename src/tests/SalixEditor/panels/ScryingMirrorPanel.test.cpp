@@ -526,3 +526,100 @@ TEST_SUITE("EditorCRI023_ScryingMirrorPanel") {
         CHECK(remaining.z==2);
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct PreviewTextureFit {
+    AssetManager assets;
+    ResizeQueueFixture x;
+    Sprite2D* sprite=nullptr;
+    PreviewTextureFit(){
+        auto& ctx=x.m.f.c.ctx;
+        assets.initialize(&x.m.f.c.renderer);
+        ctx.preview_realm=std::make_unique<Realm>("Preview");
+        auto* owner=ctx.preview_realm->create_entity(id(11),"Root");
+        REQUIRE(owner);
+        sprite=owner->add_element<Sprite2D>();
+        REQUIRE(sprite);
+        sprite->set_id(id(21));
+        sprite->load_texture(&assets,"old.png");
+        REQUIRE(sprite->get_texture());
+        REQUIRE(owner->get_element_by_id(id(21))==sprite);
+    }
+    ~PreviewTextureFit(){x.m.f.c.ctx.preview_realm.reset();assets.shutdown();}
+    void check_fit(){
+        REQUIRE(x.m.listener.calls==1);
+        CHECK(x.m.listener.owner==id(11));
+        CHECK(x.m.listener.component==id(22));
+        CHECK(x.m.listener.name=="size");
+        auto size=std::get<Vector3>(x.m.listener.value);
+        CHECK(size.x==doctest::Approx(.8));
+        CHECK(size.y==doctest::Approx(.4));
+        CHECK(size.z==2);
+    }
+};
+}
+TEST_SUITE("EditorCRI025_ScryingMirrorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI025 ScryingMirrorPanel: collider fit uses loaded texture instead of stale authored dimensions") {
+        PreviewTextureFit f;
+        f.x.m.sprite()->data["width"]=500;
+        f.x.m.sprite()->data["height"]=300;
+        const auto before=YAML::Dump(f.x.m.sprite()->data);
+        f.x.queue();f.x.drain();f.check_fit();
+        CHECK(YAML::Dump(f.x.m.sprite()->data)==before);
+    }
+    TEST_CASE("CRI025 ScryingMirrorPanel: actual resize widget accepts loaded texture without serialized dimensions") {
+        PreviewTextureFit f;
+        f.x.m.sprite()->data.remove("width");
+        f.x.m.sprite()->data.remove("height");
+        const auto before=YAML::Dump(f.x.m.sprite()->data);
+        f.x.m.f.select_element(22,11);
+        MirrorInputFixture ui(f.x.m.f);ui.show();
+        ui.resize(f.x.owner()->get_element_by_id(id(22)));
+        REQUIRE(f.x.m.f.c.ctx.deferred_commands.size()==1);
+        f.x.drain();f.check_fit();
+        CHECK(YAML::Dump(f.x.m.sprite()->data)==before);
+    }
+    TEST_CASE("CRI025 ScryingMirrorPanel: changed authored path rejects stale loaded texture during deferred fit") {
+        PreviewTextureFit f;
+        f.x.queue();
+        f.x.m.sprite()->data["texture_path"]="new.png";
+        f.x.drain();
+        CHECK(f.x.m.listener.calls==0);
+        CHECK(f.sprite->get_texture_path()=="old.png");
+    }
+    TEST_CASE("CRI025 ScryingMirrorPanel: unloaded matching preview cannot fit using legacy dimensions") {
+        PreviewTextureFit f;
+        f.sprite->load_texture(nullptr,"old.png");
+        REQUIRE(f.sprite->get_texture()==nullptr);
+        f.x.queue();f.x.drain();
+        CHECK(f.x.m.listener.calls==0);
+    }
+    TEST_CASE("CRI025 ScryingMirrorPanel: malformed legacy dimensions fail safely without preview") {
+        ResizeQueueFixture x;
+        x.m.sprite()->data["width"]=YAML::Load("[invalid]");
+        x.queue();CHECK_NOTHROW(x.drain());
+        CHECK(x.m.listener.calls==0);
+    }
+    TEST_CASE("CRI025 ScryingMirrorPanel: preview without matching entity retains legacy sizing") {
+        ResizeQueueFixture x;
+        x.m.f.c.ctx.preview_realm=std::make_unique<Realm>("Preview");
+        x.queue();x.drain();
+        REQUIRE(x.m.listener.calls==1);
+        auto size=std::get<Vector3>(x.m.listener.value);
+        CHECK(size.x==doctest::Approx(.8));
+        CHECK(size.y==doctest::Approx(.4));
+        CHECK(size.z==2);
+    }
+    TEST_CASE("CRI025 ScryingMirrorPanel: preview without matching component retains legacy sizing") {
+        ResizeQueueFixture x;
+        x.m.f.c.ctx.preview_realm=std::make_unique<Realm>("Preview");
+        x.m.f.c.ctx.preview_realm->create_entity(id(11),"Root");
+        x.queue();x.drain();
+        REQUIRE(x.m.listener.calls==1);
+        auto size=std::get<Vector3>(x.m.listener.value);
+        CHECK(size.x==doctest::Approx(.8));
+        CHECK(size.y==doctest::Approx(.4));
+    }
+}
