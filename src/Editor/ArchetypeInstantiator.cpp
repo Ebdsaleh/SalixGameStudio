@@ -8,8 +8,51 @@
 #include <Salix/reflection/EnumRegistry.h>
 #include <Salix/core/InitContext.h>
 #include <vector>
+#include <optional>
 
 namespace Salix {
+
+    namespace {
+        void apply_authored_properties(Element* element, const ElementArchetype& archetype, const TypeInfo* type_info) {
+            for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
+                if (prop.is_read_only || !prop.set_data) continue;
+                const YAML::Node node = archetype.data[prop.name];
+                if (!node) continue;
+
+                // The generic YAML converter returns a default int for unsupported
+                // types. Never pass that placeholder to an unrelated typed setter.
+                std::optional<PropertyValue> value;
+                switch (prop.type) {
+                    case PropertyType::Enum:
+                        value = node.as<int>();
+                        break;
+                    case PropertyType::EnumClass: {
+                        if (!prop.contained_type_info || !prop.contained_type_info->type_index)
+                            break;
+                        const auto* names = EnumRegistry::get_enum_data_as_ptr(*prop.contained_type_info->type_index);
+                        if (!names) break;
+                        const auto name = node.as<std::string>();
+                        for (const auto& entry : names->value_to_string) {
+                            if (entry.second == name) {
+                                value = entry.first;
+                                break;
+                            }
+                        }
+                        // An unrecognized name leaves the component's default intact.
+                        break;
+                    }
+                    case PropertyType::Class:
+                    case PropertyType::Struct:
+                        break;
+                    default:
+                        value = YAML::node_to_property_value(node, prop);
+                        break;
+                }
+                if (value)
+                    std::visit([&](auto& typed_value) { prop.set_data(element, &typed_value); }, *value);
+            }
+        }
+    }
 
     void ArchetypeInstantiator::instantiate(const Salix::EntityArchetype& archetype, Salix::Realm* realm, const Salix::InitContext& context) {
         if (!realm) return;
@@ -67,83 +110,8 @@ namespace Salix {
             const Salix::TypeInfo* type_info = Salix::ByteMirror::get_type_info_by_name(element_archetype.type_name);
             if (!type_info) continue;
 
-            for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
-                if (prop.is_read_only || !prop.set_data) continue;
-                const YAML::Node& property_node = element_archetype.data[prop.name];
-                if (!property_node) continue;
+            apply_authored_properties(live_element, element_archetype, type_info);
 
-                // This switch uses reflection-driven setters to apply the data
-                switch (prop.type) {
-                    case Salix::PropertyType::Vector3: {
-                        auto value = property_node.as<Salix::Vector3>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::Vector2: {
-                        auto value = property_node.as<Salix::Vector2>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::Color: {
-                        auto value = property_node.as<Salix::Color>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::Float: {
-                        auto value = property_node.as<float>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::Int: {
-                        auto value = property_node.as<int>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::Bool: {
-                        auto value = property_node.as<bool>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::String: {
-                        auto value = property_node.as<std::string>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::Enum: {
-                        auto value = property_node.as<int>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::EnumClass: {
-                        if (prop.contained_type_info && prop.contained_type_info->type_index.has_value()) {
-                            const EnumRegistry::EnumData* enum_data = EnumRegistry::get_enum_data_as_ptr(*prop.contained_type_info->type_index);
-                            if (enum_data) {
-                                std::string string_value = property_node.as<std::string>();
-                                int int_value = enum_data->get_value(string_value);
-                                prop.set_data(live_element, &int_value);
-                            }
-                        }
-                        break;
-                    }
-                    case Salix::PropertyType::UInt64: {
-                        auto value = property_node.as<uint64_t>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::Point: {
-                        auto value = property_node.as<Salix::Point>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    case Salix::PropertyType::Rect: {
-                        auto value = property_node.as<Salix::Rect>();
-                        prop.set_data(live_element, &value);
-                        break;
-                    }
-                    // Add cases for all other reflected property types...
-                }
-            }
-            
             live_element->on_load(context);
         }
         
@@ -218,17 +186,7 @@ namespace Salix {
             const Salix::TypeInfo* type_info = Salix::ByteMirror::get_type_info_by_name(element_archetype.type_name);
             if (!type_info) continue;
 
-            for (const auto& prop : ByteMirror::get_all_properties_for_type(type_info)) {
-                if (prop.is_read_only || !prop.set_data) continue;
-                const YAML::Node& property_node = element_archetype.data[prop.name];
-                if (!property_node) continue;
-                
-                PropertyValue value = YAML::node_to_property_value(property_node, prop);
-                std::visit([&](auto&& arg) {
-                    auto value_copy = arg;
-                    prop.set_data(live_element, &value_copy);
-                }, value);
-            }
+            apply_authored_properties(live_element, element_archetype, type_info);
             live_element->on_load(context);
         }
         live_entity->on_load(context);
