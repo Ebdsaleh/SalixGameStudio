@@ -47,3 +47,51 @@ TEST_SUITE("EditorCRI003_GridSettings") {
         GridSettings s(42);CHECK(s.get_effective_size(RealmSettings(true,100))==42);CHECK(s.get_effective_size(RealmSettings(false,100))==std::numeric_limits<float>::max());
     }
 }
+
+TEST_SUITE("EditorCRI024_GridSettings") {
+    using namespace EditorCri;
+    TEST_CASE("CRI024 GridSettings: constructor normalizes zero major before deriving minor and snap") {
+        constexpr GridSettings s(20,0,.25f,true,.25f);
+        static_assert(s.major_division == .1f, "Grid construction must remain constexpr");
+        CHECK(s.major_division==doctest::Approx(.1));
+        CHECK(s.minor_division==doctest::Approx(.05));
+        CHECK(s.snap_size==doctest::Approx(.1));
+    }
+    TEST_CASE("CRI024 GridSettings: negative constructor major cannot produce negative intervals") {
+        GridSettings s(20,-3,.5f,true,.25f);
+        CHECK(s.major_division==doctest::Approx(.1));
+        CHECK(s.minor_division==doctest::Approx(.05));
+        CHECK(s.snap_size==doctest::Approx(.1));
+    }
+    TEST_CASE("CRI024 GridSettings: non-finite constructor geometry restores usable defaults") {
+        auto nan=std::numeric_limits<float>::quiet_NaN();
+        auto inf=std::numeric_limits<float>::infinity();
+        GridSettings s(nan,inf,nan,false,nan);
+        CHECK(s.size==20);
+        CHECK(s.major_division==1);
+        CHECK(s.minor_division==.25f);
+        CHECK(s.snap_size==.25f);
+        CHECK_FALSE(s.snap_enabled);
+    }
+    TEST_CASE("CRI024 GridSettings: runtime validation repairs non-finite major and oversized intervals") {
+        GridSettings s;
+        auto inf=std::numeric_limits<float>::infinity();
+        s.major_division=inf;s.minor_division=inf;s.snap_size=inf;
+        s.validate();
+        CHECK(s.major_division==1);
+        CHECK(s.minor_division==doctest::Approx(.9));
+        CHECK(s.snap_size==1);
+        s.validate();
+        CHECK(s.minor_division==doctest::Approx(.9));
+    }
+    TEST_CASE("CRI024 GridSettings: runtime validation repairs NaN geometry") {
+        GridSettings s;
+        auto nan=std::numeric_limits<float>::quiet_NaN();
+        s.size=nan;s.major_division=nan;s.minor_division=nan;s.snap_size=nan;
+        s.validate();
+        CHECK(s.size==20);
+        CHECK(s.major_division==1);
+        CHECK(s.minor_division==.25f);
+        CHECK(s.snap_size==.25f);
+    }
+}
