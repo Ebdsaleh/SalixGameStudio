@@ -982,3 +982,86 @@ TEST_SUITE("EditorCRI022_RealmDesignerPanel") {
         f.shortcut(ImGuiKey_R);CHECK(f.operation()==ImGuizmo::TRANSLATE);
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct ActualGizmoFixture : DesignerInputFixture {
+    GizmoFixture::Listener listener;
+    ActualGizmoFixture() {
+        ImGuizmo::Enable(false);
+        ImGuizmo::Enable(true);
+        add(11,0,0,0);
+        select(11);
+        v.f.c.events.process_queue();
+        v.f.c.events.subscribe(EventCategory::Editor,&listener);
+    }
+    ~ActualGizmoFixture() {
+        ImGuizmo::Enable(false);
+        ImGuizmo::Enable(true);
+    }
+    void frame() {
+        v.gui.frame([&]{
+            ImGuizmo::BeginFrame();
+            ImGui::SetNextWindowPos(ImVec2(20,20),ImGuiCond_Always);
+            ImGui::SetNextWindowSize(ImVec2(600,400),ImGuiCond_Always);
+            v.f.panel.on_gui_update();
+        });
+    }
+    void show_gizmo() {
+        frame();frame();
+        auto* window=ImGui::FindWindowByName("Realm Designer");
+        REQUIRE(window);
+        ImGui::FocusWindow(window);
+        frame();
+        REQUIRE(contains_designer_texture(77));
+    }
+    ImVec2 center() {
+        auto* window=ImGui::FindWindowByName("Realm Designer");
+        REQUIRE(window);
+        auto size=v.f.panel.get_viewport_size();
+        return ImVec2(window->DC.CursorMaxPos.x-size.x*.5f,
+                      window->DC.CursorMaxPos.y-size.y*.5f);
+    }
+    void move(ImVec2 p) {
+        ImGui::GetIO().AddMousePosEvent(p.x,p.y);
+        frame();
+    }
+    void button(bool down) {
+        ImGui::GetIO().AddMouseButtonEvent(0,down);
+        frame();
+    }
+};
+}
+TEST_SUITE("EditorCRI027_RealmDesignerPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI027 RealmDesignerPanel: actual translation gizmo drag changes preview and emits authored transform events") {
+        ActualGizmoFixture f;
+        f.show_gizmo();
+        auto start=f.center();
+        f.move(start);f.frame();
+        REQUIRE(ImGuizmo::IsOver());
+        CHECK(EntitySelectedEvent::block_selection);
+        f.button(true);
+        REQUIRE(ImGuizmo::IsUsing());
+        CHECK(EntitySelectedEvent::block_selection);
+        f.move(ImVec2(start.x+48.f,start.y));
+        auto* transform=f.v.f.live(11)->get_transform();
+        REQUIRE(transform);
+        const auto moved=transform->get_position();
+        CHECK(moved.x>0.f);
+        CHECK(moved.y==doctest::Approx(0.f));
+        CHECK(moved.z==doctest::Approx(0.f));
+        CHECK(f.selected()==id(11));
+        f.button(false);
+        CHECK_FALSE(ImGuizmo::IsUsing());
+        f.move(ImVec2(start.x-100.f,start.y-100.f));
+        CHECK_FALSE(EntitySelectedEvent::block_selection);
+        f.v.f.c.events.process_queue();
+        REQUIRE(f.listener.values.count("position")==1);
+        CHECK(f.listener.owner==id(11));
+        CHECK(f.listener.component==id(1011));
+        CHECK(std::get<Vector3>(f.listener.values.at("position")).x==doctest::Approx(transform->get_position().x));
+        CHECK(f.listener.values.count("rotation")==1);
+        CHECK(f.listener.values.count("scale")==1);
+    }
+}
