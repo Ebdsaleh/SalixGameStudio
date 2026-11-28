@@ -68,3 +68,67 @@ TEST_SUITE("EditorCRI001_PanelManager") {
         PanelManager m; auto* a=add(m,"A"); std::string missing="Missing"; m.lock_panel(missing); CHECK_FALSE(a->is_locked()); a->lock(); m.unlock_panel(missing); CHECK(a->is_locked());
     }
 }
+
+#include <Editor/events/EntitySelectedEvent.h>
+namespace {
+using namespace EditorCri;
+// A panel that deliberately opts out of locking and inherits the interface
+// defaults. PanelManager must support it alongside lockable panels.
+struct NonLockablePanel : IPanel {
+    std::string name;
+    bool visible=true;
+    int updates=0, renders=0;
+    void initialize(EditorContext*) override {}
+    void on_gui_update() override {++updates;}
+    void on_gui_render() override {++renders;}
+    void on_render() override {}
+    void on_event(IEvent& event) override {EditorBehaviour::on_event(event);}
+    void set_visibility(bool value) override {visible=value;}
+    bool get_visibility() const override {return visible;}
+    void set_name(const std::string& value) override {name=value;}
+    const std::string& get_name() override {return name;}
+};
+}
+TEST_SUITE("EditorCRI027_PanelManager") {
+    using namespace EditorCri;
+    TEST_CASE("CRI027 PanelManager: optional lock interface leaves non-lockable panel operational") {
+        PanelManager manager;
+        auto plain=std::make_unique<NonLockablePanel>();
+        auto* observed=plain.get();
+        std::string key="NonLockable";
+        manager.register_panel(std::move(plain),key);
+        auto* lockable=add(manager,"Lockable");
+        std::string lock_key="Lockable";
+        manager.lock_panel(key);
+        CHECK_FALSE(observed->is_locked());
+        manager.lock_panel(lock_key);
+        CHECK(lockable->is_locked());
+        manager.update_all_panels();
+        manager.render_all_panels();
+        CHECK(observed->updates==1);
+        CHECK(observed->renders==1);
+        manager.unlock_panel(key);
+        CHECK_FALSE(observed->is_locked());
+        CHECK(lockable->is_locked());
+        CHECK(observed->get_visibility());
+        CHECK(observed->get_name()==key);
+    }
+    TEST_CASE("CRI027 PanelManager: optional editor behaviour lifecycle leaves unhandled event intact") {
+        PanelManager manager;
+        auto plain=std::make_unique<NonLockablePanel>();
+        auto* observed=plain.get();
+        manager.register_panel(std::move(plain),"Lifecycle");
+        EditorBehaviour& behaviour=*observed;
+        EntitySelectedEvent event(id(11));
+        behaviour.on_start();
+        behaviour.on_update(.016f);
+        behaviour.on_event(event);
+        CHECK_FALSE(event.handled);
+        CHECK(event.selected_id==id(11));
+        CHECK(observed->updates==0);
+        CHECK(observed->renders==0);
+        manager.update_all_panels();
+        CHECK(observed->updates==1);
+        CHECK(observed->get_name()=="Lifecycle");
+    }
+}
