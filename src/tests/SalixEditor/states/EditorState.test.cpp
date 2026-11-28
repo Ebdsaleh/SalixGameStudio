@@ -588,3 +588,54 @@ TEST_SUITE("EditorCRI023_EditorState") {
         CHECK(f.startup.f.gui.dialog_frames==2);
     }
 }
+
+namespace {
+// Keep the existing headless render-pass probe, but expose the actual
+// OpenGL backend so its diagnostic cube dependency guards are exercised.
+// The real OpenGLRenderer is never initialized with GPU resources.
+struct DiagnosticRouteRenderer : StartupRenderer {
+    bool bind_backend_camera=true;
+    int boxes=0;
+    OpenGLRenderer* as_opengl_renderer() override {return this;}
+    void set_active_camera(ICamera* c) override {
+        StartupRenderer::set_active_camera(c);
+        OpenGLRenderer::set_active_camera(bind_backend_camera?c:nullptr);
+    }
+    void draw_wire_box(const glm::mat4&,const Color&) override {++boxes;}
+};
+struct DiagnosticErrorCapture {
+    std::ostringstream output;
+    std::streambuf* previous;
+    DiagnosticErrorCapture():previous(std::cerr.rdbuf(output.rdbuf())){}
+    ~DiagnosticErrorCapture(){std::cerr.rdbuf(previous);}
+};
+}
+TEST_SUITE("EditorCRI026_EditorState") {
+    using namespace EditorCri;
+    TEST_CASE("CRI026 EditorState: diagnostic cube missing dependencies does not interrupt headless render passes") {
+        GuiFrame gui;
+        DiagnosticRouteRenderer renderer;
+        StartupFixture s;
+        s.f.init.renderer=&renderer;
+        ImGui::GetIO().ConfigFlags|=ImGuiConfigFlags_DockingEnable;
+        SUBCASE("backend camera missing") {renderer.bind_backend_camera=false;}
+        SUBCASE("backend camera present but shader missing") {renderer.bind_backend_camera=true;}
+        s.enter();
+        REQUIRE(s.f.state.get_context_for_testing());
+        s.f.state.get_context_for_testing()->grid_settings.snap_enabled=false;
+        gui.frame([&]{s.f.state.update(.016f);});
+        DiagnosticErrorCapture errors;
+        s.f.state.render(&renderer);
+        const auto log=errors.output.str();
+        if(renderer.bind_backend_camera)
+            CHECK(log.find("simple_3d_shader is null in draw_cube()")!=std::string::npos);
+        else
+            CHECK(log.find("Attempted to draw_cube with no active camera set")!=std::string::npos);
+        CHECK(renderer.begins==2);
+        CHECK(renderer.ends==2);
+        CHECK(renderer.clears==3);
+        CHECK(renderer.depth_clears==1);
+        CHECK(s.f.gui.renders==1);
+        CHECK(s.f.gui.platforms==1);
+    }
+}
