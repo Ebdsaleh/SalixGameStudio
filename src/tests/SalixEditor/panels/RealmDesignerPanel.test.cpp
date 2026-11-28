@@ -990,9 +990,17 @@ struct ActualGizmoFixture : DesignerInputFixture {
     ActualGizmoFixture() {
         ImGuizmo::Enable(false);
         ImGuizmo::Enable(true);
-        add(11,0,0,0);
-        select(11);
+        // Let the real root-added event instantiate the preview exactly once.
+        auto a=entity(11,"Gizmo");
+        auto t=element("Transform",1011,"{position: {x: 0,y: 0,z: 0}, rotation: {x: 0,y: 0,z: 0}, scale: {x: 1,y: 1,z: 1}}");
+        t.owner_id=a.id;
+        a.elements.push_back(t);
+        v.f.c.ctx.editor_realm_manager->add_entity(a);
         v.f.c.events.process_queue();
+        REQUIRE(v.f.live(11));
+        REQUIRE(v.f.live(11)->get_transform());
+        REQUIRE(v.f.c.ctx.preview_realm->get_entities().size()==1);
+        select(11);
         v.f.c.events.subscribe(EventCategory::Editor,&listener);
     }
     ~ActualGizmoFixture() {
