@@ -15,16 +15,20 @@
 #endif
 
 namespace Salix {
-    class OnEntityFamilyAddedEvent : public IEvent {
+    // A queued family addition owns its authored data independently of the
+    // realm and of other event copies, including nested YAML values.
+    class EDITOR_API OnEntityFamilyAddedEvent : public IEvent {
     public:
-        // Pass the vector of new archetypes by value for a safe copy
-        OnEntityFamilyAddedEvent(std::vector<EntityArchetype> new_archetypes)
-            : archetypes(std::move(new_archetypes)) {}
+        OnEntityFamilyAddedEvent(std::vector<EntityArchetype> new_archetypes);
+        OnEntityFamilyAddedEvent(const OnEntityFamilyAddedEvent& other);
+        OnEntityFamilyAddedEvent& operator=(const OnEntityFamilyAddedEvent& other);
 
         std::vector<EntityArchetype> archetypes;
 
-        EVENT_CLASS_TYPE(EditorOnEntityFamilyAdded) 
-        EVENT_CLASS_CATEGORY(EventCategory::Editor)
-        CLONE_EVENT_METHOD(OnEntityFamilyAddedEvent)
+        static EventType get_static_type();
+        EventType get_event_type() const override;
+        const char* get_name() const override;
+        int get_category_flags() const override;
+        std::unique_ptr<IEvent> clone() const override;
     };
 }
