@@ -204,3 +204,29 @@ TEST_SUITE("EditorCRI011_LockablePanel") {
         LockInteraction x;x.p.set_lock_icon("Unknown");x.frame();x.frame();CHECK_FALSE(x.p.is_locked());CHECK(x.p.get_current_lock_icon_path().empty());
     }
 }
+
+TEST_SUITE("EditorCRI027_LockablePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI027 LockablePanel: standalone base panel balances frames without derived content") {
+        GuiFrame gui;
+        PanelContext context;
+        LockablePanel panel;
+        panel.initialize(&context.ctx);
+        panel.set_title("CRI027 standalone base");
+        auto frame=[&]{
+            gui.frame([&]{
+                ImGui::SetNextWindowSize(ImVec2(400,300),ImGuiCond_Always);
+                panel.on_gui_update();
+                REQUIRE(ImGui::FindWindowByName(panel.get_title().c_str()));
+                CHECK(gui.current->DisabledStackSize==0);
+            });
+        };
+        frame();frame();
+        panel.lock();frame();
+        CHECK(panel.is_locked());
+        panel.unlock();frame();
+        CHECK_FALSE(panel.is_locked());
+        CHECK(panel.get_visibility());
+        CHECK(panel.get_current_lock_icon_path()=="unlocked.png");
+    }
+}
