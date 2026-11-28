@@ -222,3 +222,45 @@ TEST_SUITE("EditorCRI001_Archetypes") {
 }
 } // namespace coverage_batch_001
 } // namespace
+
+TEST_SUITE("EditorCRI024_Archetypes") {
+    using namespace EditorCri;
+    TEST_CASE("CRI024 Archetypes: nested YAML maps compare equal independently of key ordering") {
+        auto a=element("Transform",21,"{position: {x: 1, y: 2, z: 3}}");
+        auto b=element("Transform",21,"{position: {z: 3, x: 1, y: 2}}");
+        CHECK_FALSE(a.data_is_different(b));
+        CHECK_FALSE(b.data_is_different(a));
+    }
+    TEST_CASE("CRI024 Archetypes: nested YAML scalar change is detected in both directions") {
+        auto a=element("Transform",21,"{position: {x: 1, y: 2, z: 3}}");
+        auto b=element("Transform",21,"{position: {x: 9, y: 2, z: 3}}");
+        CHECK(a.data_is_different(b));
+        CHECK(b.data_is_different(a));
+    }
+    TEST_CASE("CRI024 Archetypes: sequences preserve order and nested values") {
+        auto a=element("Transform",21,"{points: [{x: 1}, {x: 2}]}");
+        auto b=element("Transform",21,"{points: [{x: 1}, {x: 2}]}");
+        CHECK_FALSE(a.data_is_different(b));
+        b.data=YAML::Load("{points: [{x: 2}, {x: 1}]}");
+        CHECK(a.data_is_different(b));
+        CHECK(b.data_is_different(a));
+    }
+    TEST_CASE("CRI024 Archetypes: explicit null compares equal but differs from scalar or missing key") {
+        auto a=element("Transform",21,"{target: null}");
+        auto b=element("Transform",21,"{target: null}");
+        CHECK_FALSE(a.data_is_different(b));
+        b.data=YAML::Load("{target: 'null'}");
+        CHECK(a.data_is_different(b));
+        b.data=YAML::Load("{different: null}");
+        CHECK(a.data_is_different(b));
+        CHECK(b.data_is_different(a));
+    }
+    TEST_CASE("CRI024 Archetypes: nested comparison never mutates either authored document") {
+        auto a=element("Transform",21,"{position: {x: 1}, tags: [a,b]}");
+        auto b=element("Transform",21,"{position: {y: 1}, tags: [a,b]}");
+        const auto before_a=YAML::Dump(a.data), before_b=YAML::Dump(b.data);
+        CHECK(a.data_is_different(b));
+        CHECK(YAML::Dump(a.data)==before_a);
+        CHECK(YAML::Dump(b.data)==before_b);
+    }
+}
