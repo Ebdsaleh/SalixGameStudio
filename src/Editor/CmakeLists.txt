@@ -22,6 +22,7 @@ add_library(SalixEditor SHARED
     panels/ProjectSettingsPanel.cpp
     camera/EditorCamera.cpp
     events/EntitySelectedEvent.cpp
+    events/OnEntityFamilyAddedEvent.cpp
     reflection/PropertyHandleFactory.cpp
     reflection/ui/TypeDrawer.cpp
     management/EditorRealmManager.cpp
