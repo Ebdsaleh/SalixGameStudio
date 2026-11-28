@@ -33,6 +33,7 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <utility>
 
 
 namespace Salix {
@@ -46,6 +47,7 @@ namespace Salix {
         SimpleGuid selected_element_id = SimpleGuid::invalid();
         void handle_media_file_selection(PropertyHandle& handle, ElementArchetype* element_archetype, const TypeInfo* type_info);
         void handle_box_collider_resize_button(ElementArchetype* box_collider_archetype, const ElementArchetype* source_renderable);
+        std::pair<int, int> texture_dimensions(const ElementArchetype& source) const;
         void handle_camera_activation(const ElementArchetype& archetype, const PropertyHandle& handle);
         void queue_visibility(SimpleGuid owner, bool visible);
         void queue_collider_resize(SimpleGuid owner, SimpleGuid collider, SimpleGuid source);
@@ -135,14 +137,30 @@ namespace Salix {
     
  
     
+    std::pair<int, int> ScryingMirrorPanel::Pimpl::texture_dimensions(const ElementArchetype& source) const {
+        // The loaded preview texture owns its derived dimensions. A matching
+        // live sprite supersedes legacy serialized dimensions, but a stale
+        // or unloaded preview must not supply dimensions for a different image.
+        if (source.type_name == "Sprite2D" && context && context->preview_realm) {
+            if (auto* owner = context->preview_realm->get_entity_by_id(source.owner_id)) {
+                if (auto* sprite = dynamic_cast<Sprite2D*>(owner->get_element_by_id(source.id))) {
+                    const auto authored_path = source.data["texture_path"].as<std::string>("");
+                    if (authored_path != sprite->get_texture_path() || !sprite->get_texture())
+                        return {0, 0};
+                    return {sprite->get_texture_width(), sprite->get_texture_height()};
+                }
+            }
+        }
+        // Legacy data remains usable when a preview has not been instantiated.
+        return {source.data["width"].as<int>(0), source.data["height"].as<int>(0)};
+    }
+
     void ScryingMirrorPanel::Pimpl::handle_box_collider_resize_button(ElementArchetype* box_collider_archetype, const ElementArchetype* source_renderable) {
         if (!box_collider_archetype || !source_renderable || !context || !context->renderer || !context->event_manager) {
             return;
         }
 
-        // 1. Get texture dimensions directly from the source renderable.
-        int tex_width = source_renderable->data["width"] ? source_renderable->data["width"].as<int>() : 0;
-        int tex_height = source_renderable->data["height"] ? source_renderable->data["height"].as<int>() : 0;
+        const auto [tex_width, tex_height] = texture_dimensions(*source_renderable);
 
         if (tex_width > 0 && tex_height > 0) {
             float ppu = context->renderer->get_pixels_per_unit();
@@ -367,8 +385,10 @@ namespace Salix {
                                             sibling_type_info = sibling_type_info->ancestor;
                                         }
 
-                                        if (is_renderable2d && sibling_element.data["width"] && sibling_element.data["height"]) {
-                                            suitable_siblings.push_back(&sibling_element);
+                                        if (is_renderable2d) {
+                                            const auto [width, height] = pimpl->texture_dimensions(sibling_element);
+                                            if (width > 0 && height > 0)
+                                                suitable_siblings.push_back(&sibling_element);
                                         }
                                     }
                                 }
