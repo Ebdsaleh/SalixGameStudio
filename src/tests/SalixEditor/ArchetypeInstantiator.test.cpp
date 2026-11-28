@@ -221,3 +221,82 @@ TEST_SUITE("EditorCRI009_ArchetypeInstantiator") {
         TexturedInstantiation f;auto* s=f.run("{texture_path: '', width: 80, height: 40}",true);CHECK(s->get_texture()==nullptr);CHECK(s->get_texture_width()==0);CHECK(s->get_texture_height()==0);CHECK(f.renderer.texture_loads==0);
     }
 }
+
+namespace {
+using namespace EditorCri;
+struct CameraInstantiationParity {
+    InitContext init{};
+    Realm single, multiple;
+    EntityArchetype authored=entity(11,"Camera owner");
+    CameraInstantiationParity(const char* yaml) {
+        register_types();
+        EnumRegistry::register_all_enums();
+        auto camera=element("Camera",21,yaml);
+        camera.owner_id=authored.id;
+        authored.elements.push_back(camera);
+    }
+    void instantiate_both() {
+        ArchetypeInstantiator::instantiate(authored,&single,init);
+        ArchetypeInstantiator::instantiate_realm({authored},&multiple,init);
+    }
+    Camera* get(Realm& realm) {
+        auto* owner=realm.get_entity_by_id(id(11));
+        REQUIRE(owner);
+        auto* camera=dynamic_cast<Camera*>(owner->get_element_by_id(id(21)));
+        REQUIRE(camera);
+        return camera;
+    }
+};
+}
+TEST_SUITE("EditorCRI029_ArchetypeInstantiator") {
+    using namespace EditorCri;
+    TEST_CASE("CRI029 ArchetypeInstantiator: both creation pathways accept registered orthographic projection") {
+        CameraInstantiationParity f("{projection_mode: Orthographic, orthographic_size: 12, active: true}");
+        f.instantiate_both();
+        for(auto* realm:{&f.single,&f.multiple}) {
+            auto* camera=f.get(*realm);
+            CHECK(camera->get_projection_mode()==ProjectionMode::Orthographic);
+            CHECK(camera->get_orthographic_size()==12);
+            CHECK(camera->get_is_active());
+        }
+    }
+    TEST_CASE("CRI029 ArchetypeInstantiator: both creation pathways accept registered perspective projection") {
+        CameraInstantiationParity f("{projection_mode: Perspective, field_of_view: 75}");
+        f.instantiate_both();
+        for(auto* realm:{&f.single,&f.multiple}) {
+            auto* camera=f.get(*realm);
+            CHECK(camera->get_projection_mode()==ProjectionMode::Perspective);
+            CHECK(camera->get_field_of_view()==75);
+        }
+    }
+    TEST_CASE("CRI029 ArchetypeInstantiator: unknown enum name preserves default while valid sibling fields apply") {
+        CameraInstantiationParity f("{projection_mode: NotAProjection, orthographic_size: 14, field_of_view: 65}");
+        const auto before=YAML::Dump(f.authored.elements[0].data);
+        f.instantiate_both();
+        for(auto* realm:{&f.single,&f.multiple}) {
+            auto* camera=f.get(*realm);
+            CHECK(camera->get_projection_mode()==ProjectionMode::Perspective);
+            CHECK(camera->get_orthographic_size()==14);
+            CHECK(camera->get_field_of_view()==65);
+        }
+        CHECK(YAML::Dump(f.authored.elements[0].data)==before);
+    }
+    TEST_CASE("CRI029 ArchetypeInstantiator: numeric text cannot inject unregistered scoped enum values") {
+        CameraInstantiationParity f("{projection_mode: 99, field_of_view: 55}");
+        f.instantiate_both();
+        for(auto* realm:{&f.single,&f.multiple}) {
+            auto* camera=f.get(*realm);
+            CHECK(camera->get_projection_mode()==ProjectionMode::Perspective);
+            CHECK(camera->get_field_of_view()==55);
+        }
+    }
+    TEST_CASE("CRI029 ArchetypeInstantiator: malformed read-only matrices are ignored by both creation pathways") {
+        CameraInstantiationParity f("{projection_mode: Orthographic, view_matrix: [bad], projection_matrix: invalid}");
+        CHECK_NOTHROW(f.instantiate_both());
+        for(auto* realm:{&f.single,&f.multiple}) {
+            auto* camera=f.get(*realm);
+            CHECK(camera->get_projection_mode()==ProjectionMode::Orthographic);
+            CHECK(camera->get_view_matrix()[3][3]==doctest::Approx(1.f));
+        }
+    }
+}
