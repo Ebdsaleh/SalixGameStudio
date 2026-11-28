@@ -51,24 +51,11 @@ namespace Salix {
     }
 
     bool ElementArchetype::data_is_different(const ElementArchetype& other) const {
-        // This is a more robust way to compare YAML nodes than YAML::Dump
-        if (this->data.size() != other.data.size()) {
-            return true;
-        }
-        for (const auto& kvp : this->data) {
-            std::string key = kvp.first.as<std::string>();
-            const YAML::Node& other_node = other.data[key];
-            if (!other_node) {
-                return true; // Key exists here but not in the other
-            }
-            // This is still a string comparison, but it's much less likely to fail than a full dump
-            if (kvp.second.as<std::string>() != other_node.as<std::string>()) {
-                return true;
-            }
-        }
-        return false;
+        // Property values include maps, sequences and nulls, not just scalars.
+        // Use the same structural comparison as is_different_from().
+        return !YAML::debug_compare_yaml(data, other.data);
     }
-    
+
     bool ElementArchetype::is_different_from(const ElementArchetype& other) const {
         std::cout << "--- Comparing Element ID " << this->id.get_value() << " (" << this->name << ") ---" << std::endl;
 
