@@ -626,3 +626,47 @@ TEST_SUITE("EditorCRI024_ThemeEditorPanel") {
         CHECK(f.c.gui.theme_reloads==0);
     }
 }
+
+namespace {
+using namespace EditorCri;
+// Exercise synchronous invalidation at the external GUI reload boundary.
+struct PurgingThemeGui : GuiProbe {
+    ImGuiThemeManager* themes=nullptr;
+    bool purged=false;
+    void request_theme_reload() override {
+        GuiProbe::request_theme_reload();
+        auto* active=themes->get_active_theme();
+        if(active) {
+            const auto name=active->get_name();
+            purged=themes->purge_theme(name);
+        }
+    }
+};
+}
+TEST_SUITE("EditorCRI029_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI029 ThemeEditorPanel: active theme invalidated during load callback leaves balanced frame and recovers") {
+        PurgingThemeGui gui;
+        ThemeFiles files;
+        gui.themes=&files.f.themes;
+        gui.icons=&files.f.c.icons;
+        files.f.c.ctx.gui=&gui;
+        files.write("name: Reloaded\nFont: {font_family: FixtureFamily, font_size: 23}");
+        ThemeInputFixture ui(files.f);ui.show();
+        ui.replace("Name","Reloaded");
+        ui.replace("File Path",files.temp.path());
+        ui.activate("Load Theme");
+        REQUIRE(gui.theme_reloads==1);
+        CHECK(gui.purged);
+        CHECK(files.f.themes.get_active_theme()==nullptr);
+        CHECK(files.f.themes.get_theme("Reloaded")==nullptr);
+        CHECK(ui.gui.current->DisabledStackSize==0);
+        CHECK(ui.gui.current->StyleVarStack.Size==0);
+        REQUIRE(files.f.themes.set_active_theme("CRI006"));
+        ui.frame();ui.frame();
+        REQUIRE(files.f.data());
+        CHECK(files.f.themes.get_active_theme()->get_name()=="CRI006");
+        CHECK(files.f.panel.get_visibility());
+        CHECK(ui.gui.current->DisabledStackSize==0);
+    }
+}
