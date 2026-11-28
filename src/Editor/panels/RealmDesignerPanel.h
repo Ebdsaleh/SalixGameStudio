@@ -36,6 +36,11 @@ namespace Salix {
 #ifdef SALIX_TESTS_ENABLED
             void apply_gizmo_matrix_for_testing(const glm::mat4& matrix);
             int get_gizmo_operation_for_testing() const;
+            // Exercise and observe the same ImGuizmo instance used by this DLL.
+            void begin_gizmo_frame_for_testing();
+            void reset_gizmo_for_testing();
+            bool is_gizmo_over_for_testing() const;
+            bool is_gizmo_using_for_testing() const;
             void pick_at_for_testing(const ImVec2& mouse, const ImVec2& min, const ImVec2& max, bool double_click=false);
 #endif
             
