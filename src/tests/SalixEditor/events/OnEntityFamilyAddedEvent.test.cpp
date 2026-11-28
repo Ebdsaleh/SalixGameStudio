@@ -48,3 +48,93 @@ TEST_SUITE("EditorCRI006_OnEntityFamilyAddedEvent") {
         struct Listener:IEventListener{int calls=0;void on_event(IEvent&)override{++calls;}} listener; EventManager manager; manager.subscribe(EventCategory::Input,&listener); OnEntityFamilyAddedEvent e({entity(11)}); manager.dispatch(e); manager.process_queue(); CHECK(listener.calls==0); CHECK(manager.is_queue_empty());
     }
 }
+
+namespace {
+using namespace EditorCri;
+EntityArchetype authored_family_member() {
+    auto a=entity(11,"Family");
+    auto t=element("Transform",21,"{position: {x: 3, y: 4, z: 5}, extra: [one, two]}");
+    t.owner_id=a.id;
+    a.elements.push_back(t);
+    return a;
+}
+struct FamilyPayloadListener : IEventListener {
+    int calls=0;
+    int x=0;
+    void on_event(IEvent& event) override {
+        REQUIRE(event.get_event_type()==EventType::EditorOnEntityFamilyAdded);
+        REQUIRE(std::string(event.get_name())=="EditorOnEntityFamilyAdded");
+        auto& family=static_cast<OnEntityFamilyAddedEvent&>(event);
+        REQUIRE(family.archetypes.size()==1);
+        REQUIRE(family.archetypes[0].elements.size()==1);
+        x=family.archetypes[0].elements[0].data["position"]["x"].as<int>();
+        ++calls;
+    }
+};
+}
+TEST_SUITE("EditorCRI031_OnEntityFamilyAddedEvent") {
+    using namespace EditorCri;
+    TEST_CASE("CRI031 OnEntityFamilyAddedEvent: construction detaches nested YAML from authored family") {
+        auto a=authored_family_member();
+        OnEntityFamilyAddedEvent event({a});
+        a.elements[0].data["position"]["x"]=99;
+        a.elements[0].data["extra"].push_back("three");
+        CHECK(event.archetypes[0].elements[0].data["position"]["x"].as<int>()==3);
+        CHECK(event.archetypes[0].elements[0].data["extra"].size()==2);
+        event.archetypes[0].elements[0].data["position"]["y"]=77;
+        CHECK(a.elements[0].data["position"]["y"].as<int>()==4);
+    }
+    TEST_CASE("CRI031 OnEntityFamilyAddedEvent: clone owns independent nested YAML and handled state") {
+        OnEntityFamilyAddedEvent event({authored_family_member()});
+        event.handled=true;
+        auto clone=event.clone();
+        auto* copied=dynamic_cast<OnEntityFamilyAddedEvent*>(clone.get());
+        REQUIRE(copied);
+        CHECK(copied->handled);
+        copied->archetypes[0].elements[0].data["position"]["x"]=88;
+        CHECK(event.archetypes[0].elements[0].data["position"]["x"].as<int>()==3);
+        event.archetypes[0].elements[0].data["extra"].push_back("three");
+        CHECK(copied->archetypes[0].elements[0].data["extra"].size()==2);
+    }
+    TEST_CASE("CRI031 OnEntityFamilyAddedEvent: copy assignment detaches payload and preserves handled state") {
+        OnEntityFamilyAddedEvent original({authored_family_member()});
+        original.handled=true;
+        OnEntityFamilyAddedEvent assigned(std::vector<EntityArchetype>{});
+        assigned=original;
+        REQUIRE(assigned.archetypes.size()==1);
+        CHECK(assigned.handled);
+        assigned.archetypes[0].elements[0].data["position"]["x"]=42;
+        CHECK(original.archetypes[0].elements[0].data["position"]["x"].as<int>()==3);
+        const auto before=YAML::Dump(assigned.archetypes[0].elements[0].data);
+        auto& same=assigned;
+        assigned=same;
+        CHECK(YAML::Dump(assigned.archetypes[0].elements[0].data)==before);
+        CHECK(assigned.handled);
+    }
+    TEST_CASE("CRI031 OnEntityFamilyAddedEvent: queued clone retains authored values despite later source edits") {
+        FamilyPayloadListener listener;
+        EventManager manager;
+        manager.subscribe(EventCategory::Editor,&listener);
+        auto a=authored_family_member();
+        OnEntityFamilyAddedEvent event({a});
+        manager.dispatch(event);
+        a.elements[0].data["position"]["x"]=80;
+        event.archetypes[0].elements[0].data["position"]["x"]=90;
+        manager.process_queue();
+        CHECK(listener.calls==1);
+        CHECK(listener.x==3);
+        CHECK(manager.is_queue_empty());
+    }
+    TEST_CASE("CRI031 OnEntityFamilyAddedEvent: queued owned event survives mutation of originating realm data") {
+        FamilyPayloadListener listener;
+        EventManager manager;
+        manager.subscribe(EventCategory::Editor,&listener);
+        auto a=authored_family_member();
+        manager.dispatch(std::make_unique<OnEntityFamilyAddedEvent>(std::vector<EntityArchetype>{a}));
+        a.elements[0].data["position"]["x"]=100;
+        manager.process_queue();
+        CHECK(listener.calls==1);
+        CHECK(listener.x==3);
+        CHECK(manager.is_queue_empty());
+    }
+}
