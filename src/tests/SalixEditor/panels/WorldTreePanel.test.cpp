@@ -1138,3 +1138,48 @@ TEST_SUITE("EditorCRI022_WorldTreePanel") {
         CHECK_FALSE(f.manager().is_dirty());
     }
 }
+
+TEST_SUITE("EditorCRI026_WorldTreePanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI026 WorldTreePanel: hovering disabled refresh displays explanatory tooltip without mutating realm") {
+        TreeMenuActionFixture f;
+        f.prepare();
+        f.open(f.child->GetID("WorldTreeContextMenu"));
+        auto* popup=f.gui.current->OpenPopupStack.back().Window;
+        REQUIRE(popup);
+        // Refresh is the final row of the popup. CursorMaxPos excludes
+        // trailing item spacing, so half a font height locates its center.
+        const ImVec2 point(popup->DC.CursorStartPos.x+20.0f,
+                           popup->DC.CursorMaxPos.y-popup->FontRefSize*.5f);
+        ImGui::GetIO().AddMousePosEvent(point.x,point.y);
+        f.frame();f.frame();
+        bool shown=false;
+        for(auto* w:f.gui.current->Windows) {
+            if(w->Active && (w->Flags & ImGuiWindowFlags_Tooltip)) {
+                shown=true;
+                CHECK(w->DC.CursorMaxPos.x>w->DC.CursorStartPos.x);
+            }
+        }
+        CHECK(shown);
+        CHECK(f.tree.c.ctx.deferred_commands.empty());
+        CHECK_FALSE(f.manager().is_dirty());
+        CHECK(f.manager().get_realm_size()==1);
+    }
+    TEST_CASE("CRI026 WorldTreePanel: restoring entity name retains pending component modified indicator") {
+        TreeFixture f;
+        f.panel.rename_entity_for_testing(id(11),"Edited");
+        REQUIRE(f.root()->state==ArchetypeState::Modified);
+        // A component notification can leave a pending indicator after the
+        // underlying data returns to the snapshot. Preserve that indicator
+        // until the component itself is reconciled.
+        f.root()->elements[0].state=ArchetypeState::Modified;
+        f.panel.rename_entity_for_testing(id(11),"Root");
+        CHECK(f.root()->name=="Root");
+        CHECK_FALSE(f.c.ctx.editor_realm_manager->get_snapshot()->is_entity_modified(*f.root()));
+        CHECK(f.root()->state==ArchetypeState::Modified);
+        CHECK(f.root()->elements[0].state==ArchetypeState::Modified);
+        f.change(11,12,"name",std::string("Original"));
+        CHECK(f.root()->elements[0].state==ArchetypeState::UnModified);
+        CHECK(f.root()->state==ArchetypeState::UnModified);
+    }
+}
