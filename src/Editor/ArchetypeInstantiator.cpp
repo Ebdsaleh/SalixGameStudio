@@ -4,7 +4,6 @@
 #include <Salix/ecs/Realm.h>
 #include <Salix/ecs/Entity.h>
 #include <Salix/ecs/Element.h>
-#include <Salix/ecs/Sprite2D.h>
 #include <Salix/reflection/ByteMirror.h>
 #include <Salix/reflection/EnumRegistry.h>
 #include <Salix/core/InitContext.h>
@@ -146,13 +145,6 @@ namespace Salix {
             }
             
             live_element->on_load(context);
-            // --- NEW: Write derived data back to the archetype ---
-                if (auto* live_sprite = dynamic_cast<Sprite2D*>(live_element)) {
-                // If the element is a Sprite2D, update its archetype's data node
-                // with the actual dimensions from the loaded texture.
-                element_archetype.data["width"].as<int>(live_sprite->get_texture_width());
-                element_archetype.data["height"].as<int>(live_sprite->get_texture_height());
-            }
         }
         
         live_entity->on_load(context);
@@ -238,21 +230,6 @@ namespace Salix {
                 }, value);
             }
             live_element->on_load(context);
-            // +++ START FIX +++
-            // NEW: Write derived data back to the archetype
-            // This is a mutable reference, so we can modify the original archetype in the vector.
-            if (auto* live_sprite = dynamic_cast<Sprite2D*>(live_element)) {
-                // Find the corresponding element archetype to modify it.
-                // This assumes the `archetype` parameter is the one being instantiated.
-                for (auto& element_arch : archetype.elements) {
-                    if (element_arch.id == live_element->get_id()) {
-                        element_arch.data["width"].as<int>( live_sprite->get_texture_width());
-                        element_arch.data["height"].as<int>( live_sprite->get_texture_height());
-                        break;
-                    }
-                }
-            }
-            // +++ END FIX +++
         }
         live_entity->on_load(context);
     }
