@@ -409,7 +409,9 @@ struct ThemeInputFixture {
     void activate(ImGuiID id){ImGui::ActivateItemByID(id);frame();}
     void activate(const char* label){activate(window()->GetID(label));}
     void replace(const char* label,const std::string& value){
-        const auto id=window()->GetID(label);
+        replace_id(window()->GetID(label),value);
+    }
+    void replace_id(ImGuiID id,const std::string& value){
         ImGui::ActivateItemByID(id);
         // Match Enter-key navigation: text fields need input activation,
         // not the default button-style activation.
@@ -595,5 +597,32 @@ TEST_SUITE("EditorCRI022_ThemeEditorPanel") {
         REQUIRE(d->get_callback());
         CHECK(f.f.data()->icon_paths.at("Entity")=="old.png");
         CHECK(f.f.c.gui.theme_reloads==0);
+    }
+}
+
+TEST_SUITE("EditorCRI024_ThemeEditorPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI024 ThemeEditorPanel: actual hex color input updates authored color and ImGui style") {
+        ActiveThemeFixture f;
+        f.data()->text_color=Color(1.f,1.f,1.f,1.f);
+        ThemeInputFixture ui(f);
+        ImGui::SetColorEditOptions(ImGuiColorEditFlags_DisplayHex |
+                                   ImGuiColorEditFlags_Uint8 |
+                                   ImGuiColorEditFlags_InputRGB);
+        ui.show();ui.section("Colors");
+        const auto colors=ui.window()->GetID("Colors");
+        const auto text_color=ImHashStr("Text",0,colors);
+        ui.replace_id(ImHashStr("##Text",0,text_color),"#336699CC");
+        const auto& authored=f.data()->text_color;
+        const auto& applied=ImGui::GetStyle().Colors[ImGuiCol_Text];
+        CHECK(authored.r==doctest::Approx(.2));
+        CHECK(authored.g==doctest::Approx(.4));
+        CHECK(authored.b==doctest::Approx(.6));
+        CHECK(authored.a==doctest::Approx(.8));
+        CHECK(applied.x==doctest::Approx(authored.r));
+        CHECK(applied.y==doctest::Approx(authored.g));
+        CHECK(applied.z==doctest::Approx(authored.b));
+        CHECK(applied.w==doctest::Approx(authored.a));
+        CHECK(f.c.gui.theme_reloads==0);
     }
 }
