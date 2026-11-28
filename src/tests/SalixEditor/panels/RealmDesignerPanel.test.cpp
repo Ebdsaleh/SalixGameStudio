@@ -1,5 +1,7 @@
 // Tests for Editor/panels/RealmDesignerPanel.
 #include "../fixtures/HeadlessGuiFixtures.h"
+#include <cfloat>
+#include <cmath>
 #include <Editor/panels/RealmDesignerPanel.h>
 #include <Editor/events/OnRootEntityAddedEvent.h>
 #include <Editor/events/OnEntityAddedEvent.h>
@@ -988,8 +990,7 @@ using namespace EditorCri;
 struct ActualGizmoFixture : DesignerInputFixture {
     GizmoFixture::Listener listener;
     ActualGizmoFixture() {
-        ImGuizmo::Enable(false);
-        ImGuizmo::Enable(true);
+        v.f.panel.reset_gizmo_for_testing();
         // Let the real root-added event instantiate the preview exactly once.
         auto a=entity(11,"Gizmo");
         auto t=element("Transform",1011,"{position: {x: 0,y: 0,z: 0}, rotation: {x: 0,y: 0,z: 0}, scale: {x: 1,y: 1,z: 1}}");
@@ -1004,12 +1005,11 @@ struct ActualGizmoFixture : DesignerInputFixture {
         v.f.c.events.subscribe(EventCategory::Editor,&listener);
     }
     ~ActualGizmoFixture() {
-        ImGuizmo::Enable(false);
-        ImGuizmo::Enable(true);
+        v.f.panel.reset_gizmo_for_testing();
     }
     void frame() {
         v.gui.frame([&]{
-            ImGuizmo::BeginFrame();
+            v.f.panel.begin_gizmo_frame_for_testing();
             ImGui::SetNextWindowPos(ImVec2(20,20),ImGuiCond_Always);
             ImGui::SetNextWindowSize(ImVec2(600,400),ImGuiCond_Always);
             v.f.panel.on_gui_update();
@@ -1024,11 +1024,36 @@ struct ActualGizmoFixture : DesignerInputFixture {
         REQUIRE(contains_designer_texture(77));
     }
     ImVec2 center() {
-        auto* window=ImGui::FindWindowByName("Realm Designer");
-        REQUIRE(window);
-        auto size=v.f.panel.get_viewport_size();
-        return ImVec2(window->DC.CursorMaxPos.x-size.x*.5f,
-                      window->DC.CursorMaxPos.y-size.y*.5f);
+        // Recover the actual submitted framebuffer quad rather than infer its
+        // bounds from the window's cursor extents (which include other items).
+        auto* data=ImGui::GetDrawData();
+        REQUIRE(data);
+        ImVec2 lo(FLT_MAX,FLT_MAX), hi(-FLT_MAX,-FLT_MAX);
+        bool found=false;
+        for(int i=0;i<data->CmdListsCount;++i) {
+            const auto* list=data->CmdLists[i];
+            for(const auto& cmd:list->CmdBuffer) {
+                if(cmd.GetTexID()!=ImTextureID(77)) continue;
+                for(unsigned int j=0;j<cmd.ElemCount;++j) {
+                    const auto index=cmd.VtxOffset+list->IdxBuffer[cmd.IdxOffset+j];
+                    const auto pos=list->VtxBuffer[index].pos;
+                    lo.x=ImMin(lo.x,pos.x);lo.y=ImMin(lo.y,pos.y);
+                    hi.x=ImMax(hi.x,pos.x);hi.y=ImMax(hi.y,pos.y);
+                    found=true;
+                }
+            }
+        }
+        REQUIRE(found);
+        REQUIRE(hi.x>lo.x);
+        REQUIRE(hi.y>lo.y);
+        const auto clip=v.camera.get_projection_matrix()*v.camera.get_view_matrix()
+            *v.f.live(11)->get_transform()->get_model_matrix()*glm::vec4(0,0,0,1);
+        REQUIRE(std::abs(clip.w)>0.0001f);
+        const auto ndc=glm::vec3(clip)/clip.w;
+        REQUIRE(ndc.x>-1.f);REQUIRE(ndc.x<1.f);
+        REQUIRE(ndc.y>-1.f);REQUIRE(ndc.y<1.f);
+        return ImVec2(lo.x+(ndc.x*.5f+.5f)*(hi.x-lo.x),
+                      lo.y+(.5f-ndc.y*.5f)*(hi.y-lo.y));
     }
     void move(ImVec2 p) {
         ImGui::GetIO().AddMousePosEvent(p.x,p.y);
@@ -1046,11 +1071,13 @@ TEST_SUITE("EditorCRI027_RealmDesignerPanel") {
         ActualGizmoFixture f;
         f.show_gizmo();
         auto start=f.center();
+        INFO("Projected gizmo center: ", start.x, ", ", start.y);
         f.move(start);f.frame();
-        REQUIRE(ImGuizmo::IsOver());
+        REQUIRE(f.v.gui.current->HoveredWindow==ImGui::FindWindowByName("Realm Designer"));
+        REQUIRE(f.v.f.panel.is_gizmo_over_for_testing());
         CHECK(EntitySelectedEvent::block_selection);
         f.button(true);
-        REQUIRE(ImGuizmo::IsUsing());
+        REQUIRE(f.v.f.panel.is_gizmo_using_for_testing());
         CHECK(EntitySelectedEvent::block_selection);
         f.move(ImVec2(start.x+48.f,start.y));
         auto* transform=f.v.f.live(11)->get_transform();
@@ -1061,7 +1088,7 @@ TEST_SUITE("EditorCRI027_RealmDesignerPanel") {
         CHECK(moved.z==doctest::Approx(0.f));
         CHECK(f.selected()==id(11));
         f.button(false);
-        CHECK_FALSE(ImGuizmo::IsUsing());
+        CHECK_FALSE(f.v.f.panel.is_gizmo_using_for_testing());
         f.move(ImVec2(start.x-100.f,start.y-100.f));
         CHECK_FALSE(EntitySelectedEvent::block_selection);
         f.v.f.c.events.process_queue();
