@@ -51,6 +51,7 @@
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <unordered_set>
 #include <thread>
 #include <cassert>
 #include <SDL.h>
@@ -82,10 +83,10 @@ namespace Salix {
         // YAML update Methods
         void update_camera_and_buttons();
         EntityArchetype* get_selected_archetype();
-        ElementArchetype* get_transform_archetype(EntityArchetype* entity_archetype);
         void handle_gizmos_for_archetype(EditorCamera* camera);
         void apply_gizmo_matrix(const glm::mat4& matrix);
-        glm::mat4 get_world_matrix(const EntityArchetype* archetype);
+        std::optional<glm::mat4> get_world_matrix(const EntityArchetype& archetype);
+        std::optional<glm::mat4> get_picking_box(const EntityArchetype& archetype, const ElementArchetype& collider, glm::vec3& half_extents);
         void draw_scene();
         void draw_test_cube();
         void draw_lock_button();
@@ -163,34 +164,51 @@ namespace Salix {
     // YAML PATHWAY Update helpers
 
 
-    glm::mat4 RealmDesignerPanel::Pimpl::get_world_matrix(const EntityArchetype* archetype) {
-        if (!archetype) {
-            return glm::mat4(1.0f);
+    namespace {
+        Vector3 authored_vector(const ElementArchetype& element, const char* name, const Vector3& fallback) {
+            const YAML::Node node = element.data[name];
+            // Missing properties retain the same defaults as live instantiation.
+            return node ? node.as<Vector3>() : fallback;
         }
+    }
 
-        ElementArchetype* transform_archetype = get_transform_archetype(const_cast<EntityArchetype*>(archetype));
-        if (!transform_archetype) {
-            return glm::mat4(1.0f);
-        }
+    std::optional<glm::mat4> RealmDesignerPanel::Pimpl::get_world_matrix(const EntityArchetype& archetype) {
+        glm::mat4 world(1.0f);
+        std::unordered_set<SimpleGuid> visited;
+        const EntityArchetype* current = &archetype;
+        while (current) {
+            // A partially edited hierarchy must not recurse indefinitely.
+            if (!visited.insert(current->id).second) return std::nullopt;
 
-        Vector3 p = transform_archetype->data["position"].as<Vector3>();
-        Vector3 r = transform_archetype->data["rotation"].as<Vector3>();
-        Vector3 s = transform_archetype->data["scale"].as<Vector3>();
-
-        glm::mat4 local_matrix;
-        ImGuizmo::RecomposeMatrixFromComponents(glm::value_ptr(p.to_glm()), glm::value_ptr(r.to_glm()), glm::value_ptr(s.to_glm()), glm::value_ptr(local_matrix));
-
-        // If the archetype has a parent, recursively get the parent's world matrix and multiply it.
-        if (archetype->parent_id.is_valid()) {
-            // Use the manager's public getter to safely find the parent archetype.
-            EntityArchetype* parent_archetype = context->editor_realm_manager->get_archetype(archetype->parent_id);
-            if (parent_archetype) {
-                // Recursively call this function with the parent and multiply the results.
-                return get_world_matrix(parent_archetype) * local_matrix;
+            for (const auto& element : current->elements) {
+                if (element.type_name != "Transform") continue;
+                const auto p = authored_vector(element, "position", Vector3(0,0,0));
+                const auto r = authored_vector(element, "rotation", Vector3(0,0,0));
+                const auto scale = authored_vector(element, "scale", Vector3(1,1,1));
+                glm::mat4 local;
+                ImGuizmo::RecomposeMatrixFromComponents(glm::value_ptr(p.to_glm()), glm::value_ptr(r.to_glm()), glm::value_ptr(scale.to_glm()), glm::value_ptr(local));
+                world = local * world;
+                break;
             }
+            // A transform-less intermediate parent contributes identity locally,
+            // but does not discard the remaining ancestors.
+            if (!current->parent_id.is_valid()) break;
+            current = context->editor_realm_manager->get_archetype(current->parent_id);
         }
+        return world;
+    }
 
-        return local_matrix;
+    std::optional<glm::mat4> RealmDesignerPanel::Pimpl::get_picking_box(const EntityArchetype& archetype, const ElementArchetype& collider, glm::vec3& half_extents) {
+        try {
+            const auto model = get_world_matrix(archetype);
+            if (!model) return std::nullopt;
+            half_extents = authored_vector(collider, "size", Vector3(1,1,1)).to_glm() * 0.5f;
+            return model;
+        } catch (const YAML::Exception&) {
+            // Invalid authored geometry is not a selectable box. Continue
+            // testing other entities without mutating their YAML or preview.
+            return std::nullopt;
+        }
     }
 
     // --- Implementation of Archetype Helper Functions ---
@@ -201,18 +219,6 @@ namespace Salix {
         return context->editor_realm_manager->get_archetype(context->selected_entity_id);
     }
 
-
-    ElementArchetype* RealmDesignerPanel::Pimpl::get_transform_archetype(EntityArchetype* entity_archetype) {
-        if (!entity_archetype) {
-            return nullptr;
-        }
-        for (auto& element : entity_archetype->elements) {
-            if (element.type_name == "Transform") {
-                return &element;
-            }
-        }
-        return nullptr;
-    }
 
     // --- Implementation of Archetype Helper Functions End ---
 
@@ -647,9 +653,10 @@ namespace Salix {
                 }
 
                 if (collider_archetype) {
-                    glm::mat4 model_matrix = get_world_matrix(&archetype);
-                    Vector3 size = collider_archetype->data["size"].as<Vector3>();
-                    glm::vec3 half_extents = size.to_glm() * 0.5f;
+                    glm::vec3 half_extents;
+                    const auto box = get_picking_box(archetype, *collider_archetype, half_extents);
+                    if (!box) continue;
+                    const glm::mat4& model_matrix = *box;
 
                     // Define the 8 corners of the bounding box
                     glm::vec3 corners[8] = {
@@ -704,9 +711,10 @@ namespace Salix {
                     if (element.type_name == "BoxCollider") collider_archetype = &element;
                 }
                 if (transform_archetype && collider_archetype) {
-                    Vector3 size = collider_archetype->data["size"].as<Vector3>();
-                    glm::mat4 model_matrix = get_world_matrix(&archetype);
-                    glm::vec3 half_extents = size.to_glm() * 0.5f;
+                    glm::vec3 half_extents;
+                    const auto box = get_picking_box(archetype, *collider_archetype, half_extents);
+                    if (!box) continue;
+                    const glm::mat4& model_matrix = *box;
                     float distance = 0.0f;
                     if (Raycast::IntersectsOBB(world_ray, model_matrix, half_extents, distance)) {
                         if (distance < closest_hit_distance) {
