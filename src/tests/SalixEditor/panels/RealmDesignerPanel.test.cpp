@@ -1100,3 +1100,76 @@ TEST_SUITE("EditorCRI027_RealmDesignerPanel") {
         CHECK(f.listener.values.count("scale")==1);
     }
 }
+
+TEST_SUITE("EditorCRI030_RealmDesignerPanel") {
+    using namespace EditorCri;
+    TEST_CASE("CRI030 RealmDesignerPanel: omitted geometry fields use live component defaults for picking") {
+        PickingFixture f;
+        f.add(11,0,0,0);
+        auto* a=f.v.f.c.ctx.editor_realm_manager->get_archetype(id(11));
+        REQUIRE(a);
+        a->elements[0].data=YAML::Load("{}");
+        a->elements[1].data=YAML::Load("{}");
+        const auto before_transform=YAML::Dump(a->elements[0].data);
+        const auto before_collider=YAML::Dump(a->elements[1].data);
+        for(auto mode:{ProjectionMode::Orthographic,ProjectionMode::Perspective}) {
+            CHECK_NOTHROW(f.pick(mode));
+            CHECK(f.selected()==id(11));
+            CHECK(f.v.f.c.ctx.selected_entity==f.v.f.live(11));
+            CHECK_NOTHROW(f.pick(mode,380,380));
+            CHECK_FALSE(f.selected().is_valid());
+        }
+        CHECK(YAML::Dump(a->elements[0].data)==before_transform);
+        CHECK(YAML::Dump(a->elements[1].data)==before_collider);
+    }
+    TEST_CASE("CRI030 RealmDesignerPanel: malformed authored transform cannot prevent picking another valid entity") {
+        PickingFixture f;
+        f.add(11,0,0,1); f.add(12,0,0,0);
+        auto* a=f.v.f.c.ctx.editor_realm_manager->get_archetype(id(11));
+        REQUIRE(a);
+        a->elements[0].data["scale"]=YAML::Load("[broken]");
+        const auto before=YAML::Dump(a->elements[0].data);
+        for(auto mode:{ProjectionMode::Orthographic,ProjectionMode::Perspective}) {
+            CHECK_NOTHROW(f.pick(mode));
+            CHECK(f.selected()==id(12));
+        }
+        CHECK(YAML::Dump(a->elements[0].data)==before);
+    }
+    TEST_CASE("CRI030 RealmDesignerPanel: malformed collider cannot prevent picking another valid entity") {
+        PickingFixture f;
+        f.add(11,0,0,1); f.add(12,0,0,0);
+        auto* a=f.v.f.c.ctx.editor_realm_manager->get_archetype(id(11));
+        REQUIRE(a);
+        a->elements[1].data["size"]=YAML::Load("{x: invalid, y: 1, z: 1}");
+        for(auto mode:{ProjectionMode::Orthographic,ProjectionMode::Perspective}) {
+            CHECK_NOTHROW(f.pick(mode));
+            CHECK(f.selected()==id(12));
+        }
+    }
+    TEST_CASE("CRI030 RealmDesignerPanel: transformless intermediate ancestor preserves grandparent contribution") {
+        PickingFixture f;
+        f.add(11,3,0,0,false);
+        f.add(12,0,0,0,false,11);
+        f.add(13,-3,0,0,true,12);
+        auto* middle=f.v.f.c.ctx.editor_realm_manager->get_archetype(id(12));
+        REQUIRE(middle);
+        middle->elements.clear();
+        for(auto mode:{ProjectionMode::Orthographic,ProjectionMode::Perspective}) {
+            CHECK_NOTHROW(f.pick(mode));
+            CHECK(f.selected()==id(13));
+        }
+    }
+    TEST_CASE("CRI030 RealmDesignerPanel: cyclic edited hierarchy is rejected without losing other selectable entities") {
+        PickingFixture f;
+        f.add(11,0,0,1); f.add(12,0,0,0,false,11); f.add(13,0,0,0);
+        auto* root=f.v.f.c.ctx.editor_realm_manager->get_archetype(id(11));
+        REQUIRE(root);
+        // Simulate corrupted unsynchronized authored data, not a manager operation.
+        root->parent_id=id(12);
+        for(auto mode:{ProjectionMode::Orthographic,ProjectionMode::Perspective}) {
+            CHECK_NOTHROW(f.pick(mode));
+            CHECK(f.selected()==id(13));
+        }
+        CHECK(root->parent_id==id(12));
+    }
+}
